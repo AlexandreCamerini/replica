@@ -17,6 +17,8 @@ export function Hemicycle({ seats, title }: { seats: Seat[]; title: string }) {
   }, [seats]);
 
   const pts = useMemo(() => layout(seats.length), [seats.length]);
+  // Câmara (513) precisa de cadeira menor que o Senado (81) para não sobrepor
+  const R = seats.length > 200 ? 1.75 : 2.6;
   const active = party ? seats.filter((s) => s.party === party).length : 0;
 
   return (
@@ -37,7 +39,7 @@ export function Hemicycle({ seats, title }: { seats: Seat[]; title: string }) {
               key={s.id}
               cx={x}
               cy={y}
-              r={on ? 3.1 : 2.6}
+              r={on ? R * 1.2 : R}
               fill={on ? "var(--seat-active)" : "var(--seat)"}
               stroke={on ? "var(--surface)" : "none"}
               strokeWidth={on ? 0.9 : 0}

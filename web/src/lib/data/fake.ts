@@ -34,6 +34,8 @@ import type {
   RepresentativeGroup,
   VoteValue,
   VotingEvent,
+  VotingEventDetail,
+  VotingEventSummary,
 } from "./types";
 
 // Camada de dados de DEMONSTRAÇÃO. Pessoas, partidos e números são fictícios e determinísticos (mesma seed, mesmo resultado).
@@ -739,6 +741,57 @@ export const fakeSource: DataSource = {
   },
   async listTopics() {
     return TOPICS;
+  },
+  async getChamber(body) {
+    const office: OfficeSlug = body === "senado" ? "senador" : "deputado_federal";
+    return current()
+      .filter((m) => m.office === office)
+      .map(holder)
+      .sort((a, b) => a.party.acronym.localeCompare(b.party.acronym) || byName(a, b))
+      .map((h) => ({ slug: h.person.slug, name: h.person.displayName, party: h.party.acronym, uf: store().placeByIbge.get(h.mandate.placeIbge)?.uf ?? null }));
+  },
+  async listVotingEvents(f) {
+    const { events } = votesOfBody(f.body);
+    const q = f.q ? fold(f.q) : "";
+    const all = events
+      .filter((e) => e.occurredAt.slice(0, 10) <= TODAY && (e.yes || e.no))
+      .filter((e) => (!f.year || yearOf(e.occurredAt) === f.year) && (!f.result || e.result === f.result) && (!q || fold(e.description).includes(q)))
+      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+    const years = [...new Set(events.map((e) => yearOf(e.occurredAt)))].filter((y) => y <= CURRENT_YEAR).sort((a, b) => b - a);
+    const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null });
+    return { ...page(all.map(toSummary), f.cursor, Math.min(f.limit ?? 30, 100)), years };
+  },
+  async getVotingEvent(id) {
+    const body = id.startsWith("senado") ? "senado" : id.startsWith("camara") ? "camara" : null;
+    if (!body) return null;
+    const { events, byPerson } = votesOfBody(body);
+    const ev = events.find((e) => e.id === id);
+    if (!ev) return null;
+    const counts = { sim: 0, nao: 0, abstencao: 0, obstrucao: 0, art17: 0, nao_votou: 0 } as Record<VoteValue, number>;
+    const votes: VotingEventDetail["votes"] = [];
+    const parties = new Map<string, VotingEventDetail["byParty"][number]>();
+    for (const [pid, list] of byPerson) {
+      const v = list.find((x) => x.event.id === id);
+      if (!v) continue;
+      const person = store().personById.get(pid)!;
+      const party = partyById[v.partyId].acronym;
+      counts[v.value]++;
+      votes.push({ slug: person.slug, name: person.displayName, party, uf: store().placeByIbge.get(mainMandate(pid)!.placeIbge)?.uf ?? null, value: v.value });
+      const p = parties.get(party) ?? { party, counts: {}, total: 0 };
+      p.counts[v.value] = (p.counts[v.value] ?? 0) + 1;
+      p.total++;
+      parties.set(party, p);
+    }
+    votes.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    return {
+      ...ev,
+      isNominal: true,
+      proposal: null,
+      counts,
+      orientations: PARTIES.map((p) => ({ label: p.acronym, kind: "partido" as const, value: (rng(`ori:${id}:${p.id}`)() < 0.6 ? "sim" : "nao") as "sim" | "nao" })),
+      byParty: [...parties.values()].sort((a, b) => a.party.localeCompare(b.party, "pt-BR")),
+      votes,
+    };
   },
   async getStamp(dataset) {
     const src = dataset.startsWith("camara") ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;

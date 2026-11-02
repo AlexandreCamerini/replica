@@ -1,13 +1,139 @@
 import type { Metadata } from "next";
-import { Container } from "@/components/page/page-header";
-import { StubPage } from "@/components/page/stub";
+import Link from "next/link";
+import { Container, PageHeader } from "@/components/page/page-header";
+import { LinkChip, MoreLink, SelectField, fieldCls, hrefWith, type Params } from "@/components/profile/ui";
+import { MissingDataNote, SourceFooter, TopicTag, VoteBadge } from "@/components/ui/data";
+import { Hemicycle } from "@/components/ui/hemicycle";
+import { data, type Body } from "@/lib/data";
+import { count, date, monthYear } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Congresso" };
+export const metadata: Metadata = { title: "Congresso", description: "Quem ocupa cada cadeira e como cada votação nominal terminou, na Câmara e no Senado." };
 
-export default function Page() {
+const STEP = 30;
+const HOUSES: { id: Body; label: string; plenary: string }[] = [
+  { id: "camara", label: "Câmara", plenary: "Câmara dos Deputados" },
+  { id: "senado", label: "Senado", plenary: "Senado Federal" },
+];
+
+export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
+  const sp = await searchParams;
+  const body: Body = sp.casa === "senado" ? "senado" : "camara";
+  const house = HOUSES.find((h) => h.id === body)!;
+  const shown = Math.min(Math.max(Number(sp.n) || STEP, STEP), 300);
+  const result = sp.resultado === "aprovado" || sp.resultado === "rejeitado" ? sp.resultado : undefined;
+  const q = sp.busca?.trim().slice(0, 80) || undefined;
+  const first = await data.listVotingEvents({ body, limit: 1 });
+  const year = sp.ano && first.years.includes(Number(sp.ano)) ? Number(sp.ano) : undefined;
+  const [seats, events, topics, stamp] = await Promise.all([
+    data.getChamber(body),
+    data.listVotingEvents({ body, year, q, result, limit: shown }),
+    data.listTopics(),
+    data.getStamp(`${body}.votacoes`),
+  ]);
+  const topicName = Object.fromEntries(topics.map((t) => [t.slug, t.name]));
+  const base = "/congresso";
+  const keep: Params = { casa: body === "senado" ? "senado" : undefined, ano: year ? String(year) : undefined, busca: q, resultado: result };
+  const groups: { month: string; items: typeof events.items }[] = [];
+  for (const e of events.items) {
+    const m = e.occurredAt.slice(0, 7);
+    const last = groups[groups.length - 1];
+    if (last?.month === m) last.items.push(e);
+    else groups.push({ month: m, items: [e] });
+  }
+
   return (
     <Container>
-      <StubPage id="S09" title="Congresso" purpose="O que está sendo votado em Brasília e como cada pessoa votou." release="R2" />
+      <PageHeader title="Congresso" lead="Quem ocupa cada cadeira hoje e como terminou cada votação nominal. Toque numa votação para ver o voto de cada pessoa." />
+
+      <nav aria-label="Casa" className="mb-6">
+        <ul className="flex gap-2">
+          {HOUSES.map((h) => (
+            <li key={h.id}>
+              <LinkChip href={hrefWith(base, {}, { casa: h.id === "senado" ? "senado" : undefined })} active={h.id === body}>
+                {h.label}
+              </LinkChip>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
+        <section aria-labelledby="cadeiras-h" className="rounded-md border border-border bg-surface p-4 md:p-6">
+          <h2 id="cadeiras-h" className="mb-3 text-xl text-fg">
+            Cadeiras · {house.plenary}
+          </h2>
+          {seats.length ? (
+            <Hemicycle seats={seats.map((s) => ({ id: s.slug, name: s.name, party: s.party, uf: s.uf ?? "" }))} title={`${count(seats.length)} em exercício`} />
+          ) : (
+            <p className="text-sm text-muted">Nenhuma pessoa em exercício carregada para esta casa.</p>
+          )}
+          <p className="mt-3 text-xs text-muted">Cor não indica partido: escolha um partido acima para destacar as cadeiras dele. A ordem é alfabética por sigla.</p>
+        </section>
+
+        <section aria-labelledby="votacoes-h" className="rounded-md border border-border bg-surface p-4 md:p-6">
+          <h2 id="votacoes-h" className="flex flex-wrap items-baseline gap-x-2 text-xl text-fg">
+            Votações nominais
+            <span className="text-base font-normal tabular text-muted">{count(events.total)}</span>
+          </h2>
+          <p className="mt-1 mb-4 text-sm text-muted">Votação simbólica não registra voto de cada pessoa e não aparece aqui.</p>
+          <form action={base} className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_2fr_auto]">
+            {body === "senado" && <input type="hidden" name="casa" value="senado" />}
+            <SelectField label="Ano" name="ano" value={year ? String(year) : ""} options={[{ value: "", label: "Todos" }, ...events.years.map((y) => ({ value: String(y), label: String(y) }))]} />
+            <SelectField label="Resultado" name="resultado" value={result} options={[{ value: "", label: "Todos" }, { value: "aprovado", label: "Aprovado" }, { value: "rejeitado", label: "Rejeitado" }]} />
+            <label className="col-span-2 flex flex-col gap-1 text-xs font-semibold text-fg md:col-span-1">
+              Buscar
+              <input type="search" name="busca" defaultValue={q} maxLength={80} placeholder="Ex.: PL 1234, saúde" className={fieldCls} />
+            </label>
+            <button type="submit" className="col-span-2 h-10 self-end rounded-pill bg-surface-inverse px-4 text-sm font-semibold text-on-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:col-span-1">
+              Filtrar
+            </button>
+          </form>
+          {events.items.length === 0 ? (
+            <p className="rounded-sm bg-surface-sunken px-4 py-6 text-center text-sm text-muted">Nenhuma votação com esses filtros.</p>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {groups.map((g) => (
+                <div key={g.month}>
+                  <h3 className="mb-2 text-sm font-semibold capitalize text-muted">{monthYear(`${g.month}-01`)}</h3>
+                  <ol className="flex flex-col divide-y divide-border">
+                    {g.items.map((e) => (
+                      <li key={e.id} className="relative flex flex-col gap-1.5 py-3">
+                        <Link
+                          href={`/votacoes/${e.id}`}
+                          className="text-sm font-semibold text-fg outline-none after:absolute after:inset-0 hover:underline focus-visible:after:outline-2 focus-visible:after:outline-focus"
+                        >
+                          {e.proposal ? `${e.proposal.label}: ${e.proposal.summary.slice(0, 160)}${e.proposal.summary.length > 160 ? "…" : ""}` : e.description.slice(0, 180)}
+                        </Link>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                          {e.result && <VoteBadge value={e.result} />}
+                          {e.yes + e.no > 0 && (
+                            <span className="tabular">
+                              {count(e.yes)} sim · {count(e.no)} não
+                            </span>
+                          )}
+                          <time dateTime={e.occurredAt}>{date(e.occurredAt)}</time>
+                          {e.topic && topicName[e.topic] && <TopicTag>{topicName[e.topic]}</TopicTag>}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          )}
+          <MoreLink href={hrefWith(base, keep, { n: String(shown + STEP) }, "votacoes-h")} remaining={events.total - events.items.length} />
+          <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+        </section>
+      </div>
+
+      <div className="mt-8">
+        <MissingDataNote
+          items={[
+            { what: "Agenda e pauta do plenário", why: "a carga da agenda da Câmara e do Senado entra na próxima fase" },
+            { what: "Sessão ao vivo", why: "depende da agenda; até lá, as votações aparecem quando a casa publica o resultado" },
+          ]}
+        />
+      </div>
     </Container>
   );
 }

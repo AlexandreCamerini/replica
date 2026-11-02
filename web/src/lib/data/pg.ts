@@ -20,6 +20,8 @@ import type {
   RepresentativeGroup,
   Stamp,
   VoteValue,
+  VotingEventDetail,
+  VotingEventSummary,
 } from "./types";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
@@ -141,6 +143,21 @@ function page<T>(items: T[], total: number, offset: number, limit: number): Page
   return { items, nextCursor: offset + limit < total ? String(offset + limit) : null, total };
 }
 const off = (cursor?: string) => Math.max(0, Number(cursor) || 0);
+
+function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
+  return {
+    id: String(r.id),
+    body,
+    occurredAt: isoTs(r.occurred_at),
+    description: String(r.description),
+    topic: (r.topic as string | null) ?? null,
+    result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
+    yes: Number(r.yes_count ?? 0),
+    no: Number(r.no_count ?? 0),
+    isNominal: Boolean(r.is_nominal),
+    proposal: r.type ? { label: `${r.type} ${r.number}/${r.year}`, summary: String(r.summary_official ?? ""), url: (r.url as string | null) ?? null } : null,
+  };
+}
 
 export const pgSource: DataSource = {
   isDemo: false,
@@ -445,6 +462,79 @@ export const pgSource: DataSource = {
   },
   async listTopics() {
     return (await sql`select slug, name from topics order by name collate pt_br`).map((r) => ({ slug: String(r.slug), name: String(r.name) }));
+  },
+  async getChamber(body) {
+    const kind = body === "senado" ? "senado" : "camara_deputados";
+    const rows = await sql`
+      select p.slug, p.display_name, coalesce(pa.acronym, '—') as party, pl.uf
+      from mandates m
+      join legislative_bodies b on b.id = m.body_id and b.kind = ${kind}
+      join people p on p.id = m.person_id
+      join places pl on pl.id = m.place_id
+      left join person_current_party cp on cp.person_id = p.id
+      left join parties pa on pa.id = coalesce(cp.party_id, m.party_id)
+      where m.status = 'em_exercicio'
+      order by pa.acronym, p.display_name collate pt_br`;
+    return rows.map((r) => ({ slug: String(r.slug), name: String(r.display_name), party: String(r.party), uf: (r.uf as string | null) ?? null }));
+  },
+  async listVotingEvents(f) {
+    const kind = f.body === "senado" ? "senado" : "camara_deputados";
+    const limit = Math.min(f.limit ?? 30, 100);
+    const offset = off(f.cursor);
+    const q = f.q?.trim();
+    const where = sql`b.kind = ${kind} and e.is_nominal
+      ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
+      ${f.result ? sql`and e.result = ${f.result}` : sql``}
+      ${q ? sql`and (f_unaccent(lower(e.description)) like '%' || f_unaccent(lower(${q})) || '%' or f_unaccent(lower(coalesce(pr.summary_official, ''))) like '%' || f_unaccent(lower(${q})) || '%' or lower(coalesce(pr.type || ' ' || pr.number, '')) like '%' || lower(${q}) || '%')` : sql``}`;
+    const from = sql`from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id`;
+    const [{ n }] = await sql`select count(*)::int as n ${from} where ${where}`;
+    const rows = await sql`
+      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal,
+             pr.type, pr.number, pr.year, pr.summary_official, pr.url,
+             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
+      ${from} where ${where} order by e.occurred_at desc, e.id limit ${limit} offset ${offset}`;
+    const years = await sql`select distinct extract(year from e.occurred_at at time zone 'America/Sao_Paulo')::int as y
+      from voting_events e join legislative_bodies b on b.id = e.body_id where b.kind = ${kind} and e.is_nominal order by 1 desc`;
+    return { ...page(rows.map((r) => summary(r, f.body)), Number(n), offset, limit), years: years.map((y) => Number(y.y)) };
+  },
+  async getVotingEvent(id) {
+    if (!/^[0-9a-f-]{36}$/.test(id)) return null;
+    const [r] = await sql`
+      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, b.kind as body,
+             pr.type, pr.number, pr.year, pr.summary_official, pr.url,
+             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
+      from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id
+      where e.id = ${id}::uuid`;
+    if (!r) return null;
+    const votes = await sql`
+      select p.slug, p.display_name, coalesce(pa.acronym, '—') as party, pl.uf, v.value
+      from votes v join people p on p.id = v.person_id
+      left join parties pa on pa.id = v.party_id
+      left join lateral (select pl.uf from mandates m join places pl on pl.id = m.place_id where m.person_id = p.id order by m.started_on desc limit 1) pl on true
+      where v.voting_event_id = ${id}::uuid
+      order by p.display_name collate pt_br`;
+    const orientations = await sql`
+      select oa.label, oa.kind, po.orientation from party_orientations po join orientation_actors oa on oa.id = po.actor_id
+      where po.voting_event_id = ${id}::uuid
+      order by case oa.kind when 'governo' then 0 when 'maioria' then 1 when 'minoria' then 2 when 'oposicao' then 3 when 'partido' then 4 else 5 end, oa.label`;
+    const counts = { sim: 0, nao: 0, abstencao: 0, obstrucao: 0, art17: 0, nao_votou: 0 } as Record<VoteValue, number>;
+    const parties = new Map<string, { party: string; counts: Partial<Record<VoteValue, number>>; total: number }>();
+    for (const v of votes) {
+      const val = v.value as VoteValue;
+      counts[val]++;
+      const p = parties.get(String(v.party)) ?? { party: String(v.party), counts: {}, total: 0 };
+      p.counts[val] = (p.counts[val] ?? 0) + 1;
+      p.total++;
+      parties.set(String(v.party), p);
+    }
+    return {
+      ...summary(r, r.body === "senado" ? "senado" : "camara"),
+      counts,
+      orientations: orientations.map((o) => ({ label: String(o.label), kind: o.kind as VotingEventDetail["orientations"][number]["kind"], value: o.orientation as VotingEventDetail["orientations"][number]["value"] })),
+      // partidos em ordem alfabética: nunca por tamanho nem por "fidelidade"
+      byParty: [...parties.values()].sort((a, b) => a.party.localeCompare(b.party, "pt-BR")),
+      votes: votes.map((v) => ({ slug: String(v.slug), name: String(v.display_name), party: String(v.party), uf: (v.uf as string | null) ?? null, value: v.value as VoteValue })),
+    } satisfies VotingEventDetail;
   },
   async getStamp(dataset) {
     // casa com prefixo (camara.votacoes -> camara.*) e cai para o último run da fonte

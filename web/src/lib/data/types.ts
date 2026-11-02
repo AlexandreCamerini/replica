@@ -121,6 +121,17 @@ export type VotingEvent = {
 };
 export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string };
 
+export type Body = "camara" | "senado";
+export type VotingEventSummary = VotingEvent & { proposal: { label: string; summary: string; url: string | null } | null; isNominal: boolean };
+export type OrientationValue = "sim" | "nao" | "abstencao" | "obstrucao" | "liberado";
+export type VotingEventDetail = VotingEventSummary & {
+  counts: Record<VoteValue, number>;
+  orientations: { label: string; kind: "partido" | "bloco" | "governo" | "maioria" | "minoria" | "oposicao"; value: OrientationValue }[];
+  byParty: { party: string; counts: Partial<Record<VoteValue, number>>; total: number }[];
+  votes: { slug: string; name: string; party: string; uf: string | null; value: VoteValue }[];
+};
+export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; cursor?: string; limit?: number };
+
 export type Expense = {
   id: string;
   occurredOn: string;
@@ -192,6 +203,10 @@ export interface DataSource {
   listExpenses(personId: string, f: ExpenseFilter): Promise<Page<Expense> & { byCategory: { label: string; cents: number }[] }>;
   getAgreement(personIds: string[], period: "career" | number): Promise<Agreement[]>;
   listTopics(): Promise<Topic[]>;
+  /** Pessoas em exercício numa casa, para o hemiciclo (ordem: partido A–Z, depois nome). */
+  getChamber(body: Body): Promise<{ slug: string; name: string; party: string; uf: string | null }[]>;
+  listVotingEvents(f: VotingEventFilter): Promise<Page<VotingEventSummary> & { years: number[] }>;
+  getVotingEvent(id: string): Promise<VotingEventDetail | null>;
   getStamp(dataset: string): Promise<Stamp>;
   latestRefresh(): Promise<string>;
 }
