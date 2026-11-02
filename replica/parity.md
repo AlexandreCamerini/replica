@@ -1,5 +1,7 @@
 # Parity: clone cívico × Politicômetro
 
+> **Atualização (build 2, 2026-11-02):** geral **58,7** (features **65,3**, layout 32,4). Must-haves **17 de 17**. Entraram: votos e dinheiro de campanha do TSE (2022/2024/2026), mapa com malhas do IBGE e drill-down até município, S09 Congresso (hemiciclo + votações nominais), S10 detalhe de votação, crachá com o nome como título e resumo do ano. Suíte e2e: 41 de 41 (1 S4 aberto: BUG-009). **Veredito agora: ainda não entregável pelo critério da skill** (feature score < 80), mas sem must-have faltando e sem S1/S2 aberto. O layout caiu um pouco: as capturas do original são JPEG de 400 px e o clone mudou de hierarquia no crachá; a nota de layout é ruído, não regressão de função. O texto abaixo é a rodada anterior, mantido como histórico.
+
 Build: a42f7d0 (+ esta rodada)  Date: 2026-11-02  Env: clone com dados reais em `localhost:3101`; capturas do original em `replica/screens/` (referência, fora do git).
 
 Paridade aqui é **fazer o mesmo trabalho**, não parecer igual. A cor e a marca mudam de propósito antes do lançamento.

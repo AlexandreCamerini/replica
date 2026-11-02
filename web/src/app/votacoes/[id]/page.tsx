@@ -125,7 +125,7 @@ export default async function Page({ params, searchParams }: Props) {
           <h2 id="partidos-h" className="mb-3 text-xl text-fg">
             Votos por partido
           </h2>
-          <div tabIndex={0} role="region" aria-label="Votos por partido" className="overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
+          <div tabIndex={0} role="region" aria-label="Tabela de votos por partido, rolável" className="overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">

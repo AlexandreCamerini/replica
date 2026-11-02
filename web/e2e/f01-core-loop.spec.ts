@@ -109,11 +109,13 @@ test.describe("F01 eleitor descobre quem o representa", () => {
     await page.goto("/representantes");
     await page.getByRole("combobox", { name: /cidade ou estado/i }).fill("campi");
     const opt = page.getByRole("option", { name: /Campinas.*SP/ });
-    await expect(opt).toBeAttached();
-    // rola dentro da lista, não a página: rolar a página fecha o popover (comportamento do React Aria)
-    await opt.evaluate((el) => el.scrollIntoView({ block: "nearest" }));
+    // Campinas vem primeiro (ordem por relevância); não rolar: rolar a página fecha o popover (React Aria)
     await expect(opt).toBeVisible();
-    await opt.click();
+    // em toque, a lista só recebe o toque ~0,5 s depois de aparecer (BUG-009, S4): espera o ponto ficar "tocável"
+    await expect
+      .poll(() => opt.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest("[role=option]") === el; }))
+      .toBe(true);
+    await opt.tap(); // celular: toque, não clique
     await expect(page).toHaveURL(/cidade=3509502/);
     const overflow = async () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(await overflow()).toBeLessThanOrEqual(0);

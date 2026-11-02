@@ -13,15 +13,15 @@
     "height": 300
   },
   "height_delta_pct": 0.0,
-  "score": 40.9,
+  "score": 39.5,
   "verdict": "different",
   "regions": [
     {
       "x": 0,
       "y": 66,
       "w": 396,
-      "h": 231,
-      "cells": 44,
+      "h": 234,
+      "cells": 52,
       "where": "middle centre"
     },
     {
@@ -31,14 +31,6 @@
       "h": 99,
       "cells": 17,
       "where": "top centre"
-    },
-    {
-      "x": 0,
-      "y": 231,
-      "w": 66,
-      "h": 69,
-      "cells": 5,
-      "where": "bottom left"
     },
     {
       "x": 0,

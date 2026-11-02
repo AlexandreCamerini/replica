@@ -117,7 +117,7 @@ export function PlaceCombobox({
       </span>
       <Popover
         offset={6}
-        className="w-(--trigger-width) overflow-auto rounded-md border border-border bg-surface p-1 shadow-pop"
+        className="z-50 w-(--trigger-width) overflow-auto rounded-md border border-border bg-surface p-1 shadow-pop"
       >
         <ListBox
           className="max-h-80 outline-none"

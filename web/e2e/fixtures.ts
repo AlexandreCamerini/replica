@@ -24,6 +24,9 @@ export const test = base.extend<Fixtures>({
   },
   axe: async ({ page }, use) => {
     await use(async (p = page) => {
+      // Next 15 transmite o <title> depois do corpo em páginas dinâmicas: espera o documento completo
+      await p.waitForLoadState("load");
+      await expect(p).toHaveTitle(/\S/);
       const r = await new AxeBuilder({ page: p }).analyze();
       expect(r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`)).toEqual([]);
     });

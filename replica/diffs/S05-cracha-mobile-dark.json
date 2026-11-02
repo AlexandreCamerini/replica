@@ -13,32 +13,24 @@
     "height": 844
   },
   "height_delta_pct": 0.0,
-  "score": 30.7,
+  "score": 28.5,
   "verdict": "different",
   "regions": [
     {
       "x": 0,
       "y": 73,
       "w": 443,
-      "h": 590,
-      "cells": 103,
+      "h": 664,
+      "cells": 117,
       "where": "middle centre"
     },
     {
       "x": 0,
-      "y": 701,
+      "y": 775,
       "w": 443,
-      "h": 273,
-      "cells": 55,
+      "h": 199,
+      "cells": 49,
       "where": "bottom centre"
-    },
-    {
-      "x": 295,
-      "y": 369,
-      "w": 110,
-      "h": 147,
-      "cells": 8,
-      "where": "middle right"
     },
     {
       "x": 184,
@@ -57,12 +49,12 @@
       "where": "top right"
     },
     {
-      "x": 221,
-      "y": 664,
-      "w": 147,
+      "x": 295,
+      "y": 516,
+      "w": 110,
       "h": 36,
-      "cells": 4,
-      "where": "bottom right"
+      "cells": 3,
+      "where": "middle right"
     },
     {
       "x": 36,

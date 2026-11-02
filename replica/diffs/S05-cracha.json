@@ -13,80 +13,32 @@
     "height": 300
   },
   "height_delta_pct": -1.3,
-  "score": 39.6,
+  "score": 32.7,
   "verdict": "different",
   "regions": [
     {
       "x": 0,
-      "y": 165,
+      "y": 0,
       "w": 396,
-      "h": 139,
-      "cells": 34,
-      "where": "bottom centre"
+      "h": 297,
+      "cells": 63,
+      "where": "middle centre"
     },
     {
-      "x": 66,
+      "x": 132,
       "y": 0,
-      "w": 165,
-      "h": 165,
-      "cells": 12,
+      "w": 99,
+      "h": 66,
+      "cells": 4,
       "where": "top centre"
     },
     {
-      "x": 264,
-      "y": 0,
-      "w": 132,
-      "h": 132,
-      "cells": 11,
-      "where": "top right"
-    },
-    {
-      "x": 0,
-      "y": 99,
+      "x": 99,
+      "y": 33,
       "w": 33,
       "h": 33,
       "cells": 1,
       "where": "top left"
-    },
-    {
-      "x": 198,
-      "y": 99,
-      "w": 33,
-      "h": 33,
-      "cells": 1,
-      "where": "top centre"
-    },
-    {
-      "x": 165,
-      "y": 132,
-      "w": 33,
-      "h": 33,
-      "cells": 1,
-      "where": "middle centre"
-    },
-    {
-      "x": 231,
-      "y": 132,
-      "w": 33,
-      "h": 33,
-      "cells": 1,
-      "where": "middle centre"
-    },
-    {
-      "x": 330,
-      "y": 132,
-      "w": 33,
-      "h": 33,
-      "cells": 1,
-      "where": "middle right"
-    },
-    {
-      "x": 165,
-      "y": 297,
-      "w": 33,
-      "h": 7,
-      "cells": 1,
-      "where": "bottom centre"
     }
   ],
   "files": {

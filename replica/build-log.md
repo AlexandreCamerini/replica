@@ -41,3 +41,13 @@ Verificação: cadeiras batem (513 deputados, 81 senadores); RLS testada (anon n
 | e2e | 2026-11-02 | done | F05/F07/F08 reais (R2); card OG; mapa com contorno | servidor de teste precisa de build próprio (`NEXT_DIST_DIR=.next-e2e`) e da flag `ALLOW_DEMO_DATA=1`; o estado vazio do ListBox tem `role=option`; rolar a página fecha o popover do React Aria (achou BUG-007); Playwright na sandbox não baixa o headless shell |
 
 Resultado: 38 casos automatizados (Playwright + axe em cada tela, falha em erro de console e 5xx), 34 de primeira, 3 na repetição, 1 corrigido no teste; 10 invariantes do banco verdes; 8 bugs registrados, 7 corrigidos (2 S2 no ETL: carreira multiplicada e eleição suplementar), 1 aberto (S3, intermitente). Nenhum S1.
+
+## 2026-11-02 · build 2 (itens 1–4 do parity.md)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| dados TSE | 2026-11-02 | done | origem do dinheiro por fonte e lista de despesas da campanha | arquivos de 0,5 a 1,3 GB: leitura por HTTP Range só do CSV necessário (votos 2022 = 9,5 mi de linhas em 4 min); despesas pagas não trazem SQ_CANDIDATO, o vínculo vem do prestador nas receitas |
+| S01 mapa | 2026-11-02 | done | camadas do mapa (could) | malhas IBGE convertidas em SVG estático (1,9 MB, 27 UFs); 600+ municípios por UF como links exigiu "Pular o mapa" e devolução de foco no Esc; home não pode listar 5.570 cidades → índice por letra (/cidades/[letra]) |
+| S09 | 2026-11-02 | partial | agenda, pauta e sessão ao vivo (ETL de agenda) | hemiciclo de 513 cadeiras precisou de raio menor; orientações da Câmara misturam blocos com nomes em CamelCase |
+| S10 | 2026-11-02 | done | — | — |
+| S05 | 2026-11-02 | done | seções R2 restantes (leis, emendas, comissões, falas, viagens, equipe, contato) | — |

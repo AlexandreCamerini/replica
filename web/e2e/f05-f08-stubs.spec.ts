@@ -46,8 +46,8 @@ test.describe("F05–F08 fluxos com telas provisórias (R2)", () => {
     await expect(page.getByRole("button", { name: "Compartilhar" })).toBeVisible({ timeout: 5000 });
   });
 
-  test("F07 Congresso e demais stubs dizem o release", async ({ page, axe }) => {
-    for (const [path, sid] of [["/congresso", "S09"], ["/dados-abertos", "S23"], ["/sobre", "S22"], ["/votacoes/abc", "S10"]]) {
+  test("stubs R2 dizem o release", async ({ page, axe }) => {
+    for (const [path, sid] of [["/dados-abertos", "S23"], ["/sobre", "S22"], ["/sugestoes", "S25"]]) {
       await page.goto(path);
       await expect(page.getByText(new RegExp(`${sid} · entra no R\\d`))).toBeVisible();
       await expect(page.getByRole("link", { name: /quem representa a sua cidade/ })).toBeVisible();

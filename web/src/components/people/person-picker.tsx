@@ -65,7 +65,7 @@ export function PersonPicker({ current, max }: { current: string[]; max: number 
       <Text slot="description" className="text-xs text-muted">
         {full ? "Tire alguém para adicionar outra pessoa." : `De 2 a ${max} pessoas. Cargos diferentes também valem: o que não se aplica aparece como “—”.`}
       </Text>
-      <Popover offset={6} className="w-(--trigger-width) overflow-auto rounded-md border border-border bg-surface p-1 shadow-pop">
+      <Popover offset={6} className="z-50 w-(--trigger-width) overflow-auto rounded-md border border-border bg-surface p-1 shadow-pop">
         <ListBox
           className="max-h-80 outline-none"
           renderEmptyState={() => (

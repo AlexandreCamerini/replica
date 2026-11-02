@@ -134,6 +134,23 @@ Evidence: `.local/e2e-run7.log` (F03-H1, F03-E4 flaky).
 Suspected cause: diferença entre servidor e cliente em algo dependente de tempo ou de ambiente no crachá (formatação de data/moeda entre Node e Chromium, ou interação do teste antes da hidratação). Não isolado.
 Status: open. Próximo passo: rodar o build de teste sem minificação (`next build` com `productionBrowserSourceMaps`) para ler o diff da hidratação; ou gravar `trace: on` e comparar o HTML do servidor com o da primeira renderização.
 
+### BUG-009: em toque, a lista de lugares ignora toques nos primeiros ~0,5 s
+
+- Severity: S4 (uma pessoa lê a lista antes de tocar; o toque seguinte funciona)
+- Flow / case: F01 / F01-E6 (celular)
+- Screen: S06
+- Build: b284133 · Chromium com emulação de toque (Pixel 7); não reproduz sem toque
+
+Steps
+1. Abrir /representantes no celular, digitar "campi".
+2. Tocar em "Campinas · SP" no instante em que a lista aparece.
+
+Expected: o toque abre Campinas.
+Actual: o toque cai no conteúdo atrás da lista até ~400–650 ms depois de ela aparecer; `elementFromPoint` no centro da opção devolve o contêiner da página nesse intervalo (sonda: hit=false até 325 ms, true a partir de 652 ms). Sem emulação de toque, hit=true desde 0 ms.
+Evidence: `.local/e2e-run9.log` (F01-E6 mobile); sonda de 25 amostras a cada 80 ms.
+Suspected cause: comportamento do Popover do React Aria em dispositivos de toque (posicionamento/visibilidade ajustados ao viewport visual depois de abrir). Não isolado no código da biblioteca.
+Status: open (S4). O teste espera a opção ficar tocável antes de tocar e documenta o atraso. Reavaliar ao atualizar `react-aria-components`.
+
 ## A conferir (não reproduzido como bug)
 
 - Flaky sob carga (passam na repetição, 3/3 ok isoladamente em <1 s): F02-H1, F02-E1 (clique em link da home não navega em 15 s com 2 workers contra um único `next start`) e F01-E6 mobile. Config: `workers: 2`, `retries: 1`.
