@@ -59,6 +59,15 @@ civico-etl camara.diario --year 2025 --year 2026                    # --limit 40
 civico-etl senado.diario --year 2025 --year 2026
 ```
 
+## Auth e escrita (R2, construído em 2026-11-02)
+
+- `web/src/lib/auth/`: contrato `AuthProvider`. `supabase.ts` (produção: `signInWithOtp` com `captchaToken`, `verifyOtp`, `getUser` validado no servidor, `signOut` global, apagar via admin API) e `dev.ts` (local: código de 6 números com hash e sal, 10 min, 5 tentativas, 3 envios/h por e-mail, sessão em cookie http-only assinado com HMAC; o "e-mail" vai para `.local/mail/`). `AUTH_PROVIDER=dev` recusa produção.
+- O e-mail entre as duas etapas fica num cookie http-only de 15 min restrito a `/entrar`, nunca na URL. `volta` validado com `^/(?![/\\])`.
+- Escrita: role `web_writer` (migração 0003), conexão separada (`DATABASE_WRITE_URL`). Operações de usuário rodam em transação com `role authenticated` + `request.jwt.claim.sub`, então as policies `own_*` valem também no servidor. Testado: B não vê nem escreve os follows de A; o writer não lê `votes`.
+- Funções de leitura do usuário ficam fora do arquivo `"use server"` (todo export de lá vira endpoint chamável).
+- Sugestões: zod, Turnstile (falha fechado em produção sem chave), honeypot, 5 por hora por IP com hash e sal diário.
+- Falta: envio do resumo por e-mail (job `app.digest` + Resend), descadastro por link (RFC 8058), anonimização das sugestões após 12 meses. Supabase e Resend dependem de contas suas.
+
 ## Auth, e-mail, pagamentos
 
 - Pagamentos: não há (produto não comercial). Nenhuma peça de Stripe.
@@ -70,7 +79,7 @@ civico-etl senado.diario --year 2025 --year 2026
 - [x] segredos só em env: `.env*` no `.gitignore`; `.env.example` sem valores; nada chega ao bundle (`server-only` em `pg.ts`; `DATABASE_URL` só no servidor)
 - [x] input validado no servidor em toda rota (`/api/places`, `/api/people/*`, `/api/compare/agreement`, `/api/revalidate`: tamanho, regex, enum; inválido = 400)
 - [x] autorização em toda leitura: o app conecta como `web_reader` (só `select` nas tabelas públicas via RLS). Testado: `anon` nega tudo; `web_reader` lê `people` (71 mil) e NÃO lê `person_external_ids` nem escreve em `sources`
-- [ ] rate limit em auth e envio de e-mail: R2 (Turnstile + WAF)
+- [x] rate limit em auth e envio: Supabase Auth (3/h por e-mail) + Turnstile; dev: 3 códigos/h e 5 tentativas; sugestões 5/h por IP. WAF do Vercel no deploy
 - [x] webhook/callback verifica segredo: `/api/revalidate` compara Bearer em tempo constante
 - [x] uploads: não há upload de usuário; fotos só por URL oficial (Câmara/Senado), espelhamento no R2
 - [x] nenhum dado de usuário em URL ou log (o termo de busca não vai para analytics; logs do ETL têm só ids públicos)

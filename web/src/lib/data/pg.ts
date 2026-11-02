@@ -22,6 +22,7 @@ import type {
   VoteValue,
   VotingEventDetail,
   VotingEventSummary,
+  ActivityItem,
 } from "./types";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
@@ -537,6 +538,38 @@ export const pgSource: DataSource = {
       byParty: [...parties.values()].sort((a, b) => a.party.localeCompare(b.party, "pt-BR")),
       votes: votes.map((v) => ({ slug: String(v.slug), name: String(v.display_name), party: String(v.party), uf: (v.uf as string | null) ?? null, value: v.value as VoteValue })),
     } satisfies VotingEventDetail;
+  },
+  async getActivity(personIds, limit = 60) {
+    if (!personIds.length) return [];
+    const ids = personIds.filter((id) => /^[0-9a-f-]{36}$/.test(id)).slice(0, 200);
+    const VOTE: Record<string, string> = { sim: "Sim", nao: "Não", abstencao: "Abstenção", obstrucao: "Obstrução", art17: "Art. 17", nao_votou: "Não votou" };
+    const rows = await sql`
+      (select p.slug, p.display_name, 'voto' as kind, e.occurred_at as at, coalesce(pr.type || ' ' || pr.number || '/' || pr.year, 'Votação nominal') as title,
+              v.value as detail, '/votacoes/' || e.id as href
+         from votes v join voting_events e on e.id = v.voting_event_id join people p on p.id = v.person_id left join proposals pr on pr.id = e.proposal_id
+        where v.person_id = any(${ids}::uuid[]) and e.occurred_at > now() - interval '120 days'
+        order by e.occurred_at desc limit ${limit})
+      union all
+      (select p.slug, p.display_name, 'proposta', coalesce(pr.presented_on::timestamptz, make_date(pr.year, 1, 1)::timestamptz), pr.type || ' ' || pr.number || '/' || pr.year,
+              left(pr.summary_official, 200), coalesce(pr.url, '/p/' || p.slug)
+         from proposal_authors pa join proposals pr on pr.id = pa.proposal_id join people p on p.id = pa.person_id
+        where pa.person_id = any(${ids}::uuid[]) and pr.presented_on > current_date - 120
+        order by pr.presented_on desc limit ${limit})
+      union all
+      (select p.slug, p.display_name, 'gasto', x.occurred_on::timestamptz, x.category, (x.amount_cents)::text, '/p/' || p.slug || '#gastos'
+         from expenses x join people p on p.id = x.person_id
+        where x.person_id = any(${ids}::uuid[]) and x.occurred_on > current_date - 60
+        order by x.occurred_on desc limit ${limit})
+      order by at desc limit ${limit}`;
+    return rows.map<ActivityItem>((r) => ({
+      personSlug: String(r.slug),
+      personName: String(r.display_name),
+      kind: r.kind as ActivityItem["kind"],
+      occurredAt: isoTs(r.at),
+      title: String(r.title),
+      detail: r.kind === "voto" ? (VOTE[String(r.detail)] ?? String(r.detail)) : r.kind === "gasto" ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(r.detail) / 100) : (r.detail as string | null),
+      href: String(r.href),
+    }));
   },
   async getStamp(dataset) {
     // casa com prefixo (camara.votacoes -> camara.*) e cai para o último run da fonte

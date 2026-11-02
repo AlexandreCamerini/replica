@@ -133,6 +133,16 @@ export type VotingEventDetail = VotingEventSummary & {
   byParty: { party: string; counts: Partial<Record<VoteValue, number>>; total: number }[];
   votes: { slug: string; name: string; party: string; uf: string | null; value: VoteValue }[];
 };
+export type ActivityItem = {
+  personSlug: string;
+  personName: string;
+  kind: "voto" | "proposta" | "gasto";
+  occurredAt: string;
+  title: string;
+  detail: string | null;
+  href: string;
+};
+
 export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; cursor?: string; limit?: number };
 
 export type Expense = {
@@ -210,6 +220,8 @@ export interface DataSource {
   getChamber(body: Body): Promise<{ slug: string; name: string; party: string; uf: string | null }[]>;
   listVotingEvents(f: VotingEventFilter): Promise<Page<VotingEventSummary> & { years: number[] }>;
   getVotingEvent(id: string): Promise<VotingEventDetail | null>;
+  /** Novidades de várias pessoas (feed de quem a pessoa acompanha), mais recentes primeiro. */
+  getActivity(personIds: string[], limit?: number): Promise<ActivityItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
   latestRefresh(): Promise<string>;
 }

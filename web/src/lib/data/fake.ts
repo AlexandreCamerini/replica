@@ -36,6 +36,7 @@ import type {
   VotingEvent,
   VotingEventDetail,
   VotingEventSummary,
+  ActivityItem,
 } from "./types";
 
 // Camada de dados de DEMONSTRAÇÃO. Pessoas, partidos e números são fictícios e determinísticos (mesma seed, mesmo resultado).
@@ -795,6 +796,18 @@ export const fakeSource: DataSource = {
       byParty: [...parties.values()].sort((a, b) => a.party.localeCompare(b.party, "pt-BR")),
       votes,
     };
+  },
+  async getActivity(personIds, limit = 60) {
+    const out: ActivityItem[] = [];
+    for (const id of personIds) {
+      const p = store().personById.get(id);
+      if (!p) continue;
+      for (const v of votesOf(id).slice(0, 15))
+        out.push({ personSlug: p.slug, personName: p.displayName, kind: "voto", occurredAt: v.event.occurredAt, title: v.event.description, detail: v.value, href: `/votacoes/${v.event.id}` });
+      for (const pr of proposalsOf(id).slice(0, 5))
+        out.push({ personSlug: p.slug, personName: p.displayName, kind: "proposta", occurredAt: pr.presentedOn, title: `${pr.type} ${pr.number}/${pr.year}`, detail: pr.summary, href: `/p/${p.slug}#propostas` });
+    }
+    return out.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, limit);
   },
   async getStamp(dataset) {
     const src = dataset.startsWith("camara") ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;

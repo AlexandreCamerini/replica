@@ -1,0 +1,29 @@
+import "server-only";
+import type { AuthProvider } from "./types";
+
+// AUTH_PROVIDER=supabase em produção (obrigatório). "dev" só fora de produção: código vai para .local/mail.
+export async function auth(): Promise<AuthProvider> {
+  const p = process.env.AUTH_PROVIDER ?? (process.env.NODE_ENV === "production" ? "supabase" : "dev");
+  if (p === "supabase") return (await import("./supabase")).supabaseAuth;
+  if (p === "dev") {
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEV_AUTH !== "1") throw new Error("AUTH_PROVIDER=dev não roda em produção");
+    return (await import("./dev")).devAuth;
+  }
+  throw new Error(`AUTH_PROVIDER desconhecido: ${p}`);
+}
+
+export async function currentUser() {
+  try {
+    return await (await auth()).getUser();
+  } catch (e) {
+    console.error("[auth] getUser", e);
+    return null; // falha do provedor = visitante anônimo; nenhuma página pública quebra por isso
+  }
+}
+
+/** `volta` só aceita caminho interno: começa com "/" e não com "//" ou "/\" (bloqueia redirect aberto). */
+export function safeReturn(v: unknown): string {
+  return typeof v === "string" && /^\/(?![/\\])[^\s]*$/.test(v) && v.length <= 300 ? v : "/";
+}
+
+export type { SessionUser } from "./types";

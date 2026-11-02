@@ -50,15 +50,16 @@ Resultado da rodada final (build de produção, 2 workers): 38 casos automatizad
 | F04-E4 | | edge: pessoas sem votação em comum | mesmo caso | "Nenhuma votação em comum" | e2e | passou |
 | F04-E5 | | edge: seleção persiste | marca 2, F5, abre outra página | bandeja continua (localStorage) | e2e | passou |
 | F04-E6 | | edge: só 1 pessoa | ?p=a | mensagem para adicionar mais uma + sugestões | e2e | passou |
-| F05-H1 | monitorar | happy | S05 → "Acompanhar" → e-mail → código → volta | **não construído** (R2: Supabase Auth) | manual | pendente |
+| F05-H1 | monitorar | happy | S05 → "Acompanhar" → e-mail → código → volta → feed → preferências → deixar de acompanhar → apagar conta | volta ao crachá já acompanhando; feed com novidades; conta apagada some | e2e (E2E_PG) | passou |
+| F05-E2 | | edge: segunda pessoa e volta maliciosa | dois usuários; `volta=//evil` | B não vê nada de A; redireciona para / | e2e (E2E_PG) + SQL | passou |
 | F05-E1 | | edge: redirect `volta` malicioso | /entrar?volta=javascript:alert(1) e //evil | nunca vira link/redirect; hoje a tela é stub | e2e | passou |
-| F05-N1 | | negative: código errado/expirado, limite de envio | — | R2 | manual | pendente |
+| F05-N1 | | negative: código errado, e-mail inválido, 4º envio na hora | mensagens claras, sem revelar cadastro | e2e (E2E_PG) | passou |
 | F06-H1 | compartilhar | happy | S05 → "Compartilhar" | sem Web Share: copia o link e avisa "Link copiado" (também para leitor de tela) | e2e | passou |
 | F06-H2 | | happy | link "WhatsApp" | `https://wa.me/?text=` com nome e URL do crachá; nova aba com `rel=noopener` | e2e | passou |
 | F06-E1 | | edge: card OG | /api/og/p/slug | **não construído** (R2) | manual | pendente |
 | F07-H1 | acompanhar o Congresso | happy | /congresso | **não construído** (R2): stub com S09 e release | e2e (stub) | passou (stub) |
 | F08-H1 | reportar erro / sugestão | happy | S05 → "Reportar erro" | leva a /sugestoes com tipo e pessoa na URL (stub R2) | e2e (stub) | passou (stub) |
-| F08-N1 | | negative: spam, e-mail inválido | — | R2 (Turnstile + validação) | manual | pendente |
+| F08-N1 | | negative: mensagem curta, honeypot, 5/h por IP | erro de campo; robô recebe "ok" sem gravar | e2e (E2E_PG) | passou (curta); honeypot e limite cobertos no código |
 | S04-H1 | diretório | happy | /quem → cargo + UF + letra + nome | lista filtra; contagem certa; paginação | e2e | passou |
 | S04-E1 | | edge: filtro inválido | ?partido=xxx&letra=9 | ignorado sem erro | e2e | passou |
 | S04-E2 | | edge: nenhum resultado | ?nome=zzzz | mensagem clara + "limpar filtros" | e2e | passou |

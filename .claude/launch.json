@@ -4,7 +4,15 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "web", "run", "dev", "--", "-p", "3100"],
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3100"
+      ],
       "port": 3100
     },
     {
@@ -13,8 +21,18 @@
       "runtimeArgs": [
         "DATA_SOURCE=pg",
         "DATABASE_URL=postgres://web_reader:web_reader@localhost:54329/civico",
+        "DATABASE_WRITE_URL=postgres://web_writer:web_writer@localhost:54329/civico",
+        "AUTH_PROVIDER=dev",
+        "SESSION_SECRET=dev-only-session-secret-0123456789",
         "REVALIDATE_SECRET=dev-only-secret",
-        "npm", "--prefix", "web", "run", "dev", "--", "-p", "3101"
+        "npm",
+        "--prefix",
+        "web",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3101"
       ],
       "port": 3101
     }

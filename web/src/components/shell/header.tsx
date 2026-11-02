@@ -1,9 +1,10 @@
 "use client";
 
 import { clsx } from "clsx";
-import { ChevronDown, LogIn, MessageSquarePlus, Search } from "lucide-react";
+import { Bell, ChevronDown, LogIn, MessageSquarePlus, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { ThemeToggle } from "@/components/ui/misc";
 import { MORE, PRIMARY } from "./nav-items";
@@ -12,6 +13,13 @@ const isActive = (path: string, href: string) => (href === "/" ? path === "/" : 
 
 export function AppHeader() {
   const path = usePathname() ?? "/";
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    fetch("/api/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { signedIn: false }))
+      .then((d) => setSignedIn(Boolean(d.signedIn)))
+      .catch(() => {});
+  }, [path]);
   const iconLink =
     "inline-flex h-10 items-center gap-2 rounded-pill px-3 text-sm font-semibold text-fg outline-none hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-focus";
   return (
@@ -28,11 +36,19 @@ export function AppHeader() {
           <MessageSquarePlus aria-hidden className="size-4" />
           Sugerir
         </Link>
-        <Link href={`/entrar?volta=${encodeURIComponent(path)}`} className={iconLink}>
-          <LogIn aria-hidden className="size-4" />
-          <span className="hidden sm:inline">Entrar</span>
-          <span className="sr-only sm:hidden">Entrar</span>
-        </Link>
+        {signedIn ? (
+          <Link href="/acompanhando" className={iconLink}>
+            <Bell aria-hidden className="size-4" />
+            <span className="hidden sm:inline">Acompanhando</span>
+            <span className="sr-only sm:hidden">Acompanhando</span>
+          </Link>
+        ) : (
+          <Link href={`/entrar?volta=${encodeURIComponent(path)}`} className={iconLink}>
+            <LogIn aria-hidden className="size-4" />
+            <span className="hidden sm:inline">Entrar</span>
+            <span className="sr-only sm:hidden">Entrar</span>
+          </Link>
+        )}
         <div className="hidden md:block">
           <ThemeToggle />
         </div>

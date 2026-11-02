@@ -26,8 +26,8 @@ Crachá: presença em sessões deliberativas com regra publicada,cracha,should,y
 Crachá: comissões falas viagens equipe do gabinete,cracha,should,yes,no,S05
 Crachá: custo do mandato e contato,cracha,should,yes,no,S05
 Busca global no header (político cidade estado cargo),busca,should,yes,no,S03
-Monitorar político com login por código no e-mail,conta,should,yes,no,S20 S21 F05
-Reportar erro e mandar sugestão,feedback,should,yes,no,S25 F08
+Monitorar político com login por código no e-mail,conta,should,yes,partial,"S20 S21 F05; build3: S20/S21: código por e-mail (Supabase OTP em produção; login local em dev), acompanhar/deixar, feed de votos/propostas/gastos, preferência de resumo, apagar conta; falta enviar o resumo por e-mail (Resend) e o descadastro por link"
+Reportar erro e mandar sugestão,feedback,should,yes,yes,"S25 F08; build3: S25 com tipo, mensagem, nome, e-mail, cidade; pessoa preenchida pelo crachá; anti-robô, honeypot, 5/h por IP"
 Congresso: hemiciclo agenda pauta e votações do plenário,congresso,should,yes,partial,S09 F07; build2: hemiciclo neutro + votações nominais com filtros; falta agenda/pauta/ao vivo (ETL de agenda)
 Detalhe de votação com placar e voto por partido,congresso,should,yes,yes,"S10 (rota não vista); build2: S10: placar, orientações, votos por partido A–Z, voto de cada pessoa"
 Metodologia e fontes públicas,confianca,should,yes,no,S22; texto próprio

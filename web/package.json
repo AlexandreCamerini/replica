@@ -13,6 +13,8 @@
     "test:e2e:pg": "E2E_BASE_URL=http://localhost:3101 playwright test"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.66.0",
     "next": "15.5.28",
@@ -20,7 +22,8 @@
     "react": "19.1.0",
     "react-aria-components": "^1.22.1",
     "react-dom": "19.1.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

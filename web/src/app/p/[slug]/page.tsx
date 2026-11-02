@@ -2,7 +2,10 @@ import { ArrowLeft, Bell, Flag } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import { FollowButton } from "@/components/account/forms";
 import { Container } from "@/components/page/page-header";
+import { currentUser } from "@/lib/auth";
+import { isFollowing } from "@/lib/follows";
 import { Avatar } from "@/components/people/holder-card";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
 import { Assets, Elections, Expenses, Proposals, Votes } from "@/components/profile/sections";
@@ -60,6 +63,8 @@ export default async function Page({ params, searchParams }: Props) {
   const periodLabel = yearParam ? `em ${yearParam}` : "na carreira";
   const wins = [...new Set(candidacies.filter((c) => c.result.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
   const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
+  const user = await currentUser();
+  const following = user ? await isFollowing(user.id, person.id).catch(() => false) : false;
 
   return (
     <Container>
@@ -104,12 +109,16 @@ export default async function Page({ params, searchParams }: Props) {
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <CompareToggle slug={person.slug} name={person.displayName} />
-          <Link
-            href={`/entrar?volta=${encodeURIComponent(base)}`}
-            className="inline-flex h-8 items-center gap-1.5 rounded-pill bg-accent px-3 text-sm font-semibold text-on-accent outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-          >
-            <Bell aria-hidden className="size-4" /> Acompanhar
-          </Link>
+          {user ? (
+            <FollowButton slug={person.slug} name={person.displayName} following={following} />
+          ) : (
+            <Link
+              href={`/entrar?volta=${encodeURIComponent(base)}&seguir=${person.slug}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-pill bg-accent px-3 text-sm font-semibold text-on-accent outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            >
+              <Bell aria-hidden className="size-4" /> Acompanhar
+            </Link>
+          )}
           <ShareButton title={person.displayName} path={base} />
           <WhatsAppLink text={`${person.displayName}: votos, gastos e patrimônio com fonte oficial.`} path={base} />
           <ListenButton />
