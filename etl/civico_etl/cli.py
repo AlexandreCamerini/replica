@@ -26,7 +26,7 @@ log = logging.getLogger("etl")
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "tse.candidatos", "camara.diario", "senado.diario", "identity.dedupe", "derive.stats", "check", "all"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "identity.dedupe", "derive.stats", "check", "all"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -48,11 +48,23 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.ibge_places import run_places
 
             run_places(conn, force=a.force)
+        if a.job in ("ibge.malhas", "all"):
+            from .jobs.ibge_malhas import run_malhas
+
+            run_malhas(conn, force=a.force)
         if a.job in ("tse.candidatos", "all"):
             from .jobs.tse_candidatos import run_tse
 
             years = a.year or [y for y in (2018, 2020, 2022, 2024, 2026) if y <= today.year]
             run_tse(conn, years=years, ufs=a.uf, only_elected=not a.all, with_votes=a.votes, force=a.force)
+        if a.job in ("tse.votos", "all"):
+            from .jobs.tse_votos_contas import run_votes
+
+            run_votes(conn, a.year or [y for y in (2022, 2024, 2026) if y <= today.year], force=a.force)
+        if a.job in ("tse.contas", "all"):
+            from .jobs.tse_votos_contas import run_finance
+
+            run_finance(conn, a.year or [y for y in (2022, 2024, 2026) if y <= today.year], force=a.force)
         if a.job in ("camara.diario", "all"):
             from .jobs.camara_diario import run_camara
 
@@ -65,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.identity_dedupe import run_dedupe
 
             run_dedupe(conn)
-        if a.job in ("derive.stats", "all") or a.job in ("tse.candidatos", "camara.diario", "senado.diario", "identity.dedupe"):
+        if a.job in ("derive.stats", "all") or a.job in ("tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "identity.dedupe"):
             from .jobs.derive_stats import run_derive
 
             run_derive(conn)
