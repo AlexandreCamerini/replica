@@ -19,12 +19,12 @@ Neutralidade: sem ranking nota enquete ou recomendação de voto,confianca,must,
 Compartilhar card do crachá (imagem OG + WhatsApp),compartilhar,should,yes,partial,S28 F06; build: Web Share/copiar + WhatsApp; falta imagem OG
 Comparar: votaram igual e onde divergiram,comparar,should,yes,partial,S08; build: % de concordância por par; falta a lista de divergências
 Crachá: resumo do ano com temas mais tratados e fidelidade ao partido,cracha,should,yes,yes,"S05; backend: person_period_stats já calcula temas e fidelidade; falta a seção na tela; build2: temas (top 3) e votos iguais à orientação do partido, por período"
-Crachá: leis que vieram de projetos da pessoa,cracha,should,yes,no,S05
+Crachá: leis que vieram de projetos da pessoa,cracha,should,yes,yes,S05; build4: 31 leis 2023–2026 com número e data do DOU; link do Planalto para lei ordinária
 Crachá: emendas parlamentares por destino área e tipo,cracha,should,yes,no,S05; Portal da Transparência
 Crachá: dinheiro das campanhas origem e gastos,cracha,should,yes,partial,S05; TSE prestação de contas; build2: totais arrecadado/gasto por eleição; falta origem por fonte e lista de despesas
 Crachá: presença em sessões deliberativas com regra publicada,cracha,should,yes,yes,"S05; senado não publica presença; backend: regra derivada de votação nominal, publicada em backend.md; vale para Câmara e Senado"
-Crachá: comissões falas viagens equipe do gabinete,cracha,should,yes,no,S05
-Crachá: custo do mandato e contato,cracha,should,yes,no,S05
+Crachá: comissões falas viagens equipe do gabinete,cracha,should,yes,partial,S05; build4: comissões (com histórico) e discursos (resumo + link) de Câmara e Senado; faltam viagens e equipe
+Crachá: custo do mandato e contato,cracha,should,yes,yes,"S05; build4: contato oficial da casa; custo = salário (aproximado, explicado) + cota"
 Busca global no header (político cidade estado cargo),busca,should,yes,no,S03
 Monitorar político com login por código no e-mail,conta,should,yes,partial,"S20 S21 F05; build3: S20/S21: código por e-mail (Supabase OTP em produção; login local em dev), acompanhar/deixar, feed de votos/propostas/gastos, preferência de resumo, apagar conta; falta enviar o resumo por e-mail (Resend) e o descadastro por link"
 Reportar erro e mandar sugestão,feedback,should,yes,yes,"S25 F08; build3: S25 com tipo, mensagem, nome, e-mail, cidade; pessoa preenchida pelo crachá; anti-robô, honeypot, 5/h por IP"

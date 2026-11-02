@@ -51,3 +51,9 @@ Resultado: 38 casos automatizados (Playwright + axe em cada tela, falha em erro 
 | S09 | 2026-11-02 | partial | agenda, pauta e sessão ao vivo (ETL de agenda) | hemiciclo de 513 cadeiras precisou de raio menor; orientações da Câmara misturam blocos com nomes em CamelCase |
 | S10 | 2026-11-02 | done | — | — |
 | S05 | 2026-11-02 | done | seções R2 restantes (leis, emendas, comissões, falas, viagens, equipe, contato) | — |
+
+## 2026-11-02 · build 4 (seções do crachá)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| S05 R2 | 2026-11-02 | partial | emendas (precisa de chave do Portal da Transparência), viagens, equipe do gabinete, leis vindas do Senado | o último despacho da Câmara nem sempre traz o número da lei ("recebido ofício… sancionado"): o primeiro parser pegou o número do projeto e foi descartado; só o despacho "Transformado na Lei…" vale (31 de 39 casos) |
