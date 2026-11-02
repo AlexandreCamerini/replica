@@ -1,0 +1,49 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/tailwind-theme.css";
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--ds-font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    min-height: 100dvh;
+    font-size: var(--ds-text-base);
+    line-height: var(--ds-leading-base);
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition: none !important;
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility skeleton {
+  background: var(--surface-sunken);
+  border-radius: var(--ds-radius-sm);
+  animation: ds-pulse 1.2s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes ds-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}

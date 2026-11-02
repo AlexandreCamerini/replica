@@ -1,0 +1,158 @@
+/* GERADO por replica/design/build-tokens.mjs a partir de tokens.json. Não edite à mão. */
+
+:root {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-sunken: #e9ecf0;
+  --surface-inverse: #15191e;
+  --on-inverse: #f4f5f7;
+  --border: #d5dae0;
+  --border-input: #767f8b;
+  --text: #15191e;
+  --text-muted: #535d69;
+  --accent: #0f6e66;
+  --accent-text: #0c6159;
+  --accent-soft: #dcefec;
+  --on-accent: #ffffff;
+  --focus: #0f6e66;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --success: #1d7044;
+  --success-soft: #e3f3ea;
+  --warning: #7a5000;
+  --warning-soft: #fff4d6;
+  --seat: #848e9a;
+  --seat-active: #08433e;
+  --region-norte: #d6e6d3;
+  --region-nordeste: #f2e2c4;
+  --region-centro-oeste: #e8d9ea;
+  --region-sudeste: #d3e1ef;
+  --region-sul: #e9e3d6;
+  --ds-font-sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --ds-font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --ds-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ds-text-xs: 0.75rem;
+  --ds-leading-xs: 1rem;
+  --ds-weight-xs: 500;
+  --ds-text-sm: 0.875rem;
+  --ds-leading-sm: 1.25rem;
+  --ds-weight-sm: 400;
+  --ds-text-base: 1rem;
+  --ds-leading-base: 1.5rem;
+  --ds-weight-base: 400;
+  --ds-text-lg: 1.25rem;
+  --ds-leading-lg: 1.75rem;
+  --ds-weight-lg: 600;
+  --ds-text-xl: 1.75rem;
+  --ds-leading-xl: 2rem;
+  --ds-weight-xl: 700;
+  --ds-text-display: clamp(2rem, 1.6rem + 1.6vw, 2.5rem);
+  --ds-leading-display: 1;
+  --ds-weight-display: 800;
+  --ds-text-hero: clamp(2.5rem, 1.6rem + 4vw, 4rem);
+  --ds-leading-hero: 0.95;
+  --ds-weight-hero: 800;
+  --ds-space-0: 0px;
+  --ds-space-1: 2px;
+  --ds-space-2: 4px;
+  --ds-space-3: 6px;
+  --ds-space-4: 8px;
+  --ds-space-5: 12px;
+  --ds-space-6: 16px;
+  --ds-space-7: 20px;
+  --ds-space-8: 24px;
+  --ds-space-9: 32px;
+  --ds-space-10: 48px;
+  --ds-space-11: 64px;
+  --ds-radius-xs: 2px;
+  --ds-radius-sm: 8px;
+  --ds-radius-md: 12px;
+  --ds-radius-lg: 16px;
+  --ds-radius-pill: 999px;
+  --ds-border-hairline: 1px;
+  --ds-border-control: 1.5px;
+  --ds-border-rail: 4px;
+  --ds-shadow-card: 0 1px 0 rgba(13,17,23,.04), 0 0 0 1px rgba(13,17,23,.06);
+  --ds-shadow-pop: 0 18px 36px -24px rgba(13,17,23,.55);
+  --ds-motion-fast: 120ms;
+  --ds-motion-base: 200ms;
+  --ds-motion-enter: 420ms;
+  --ds-motion-ease: cubic-bezier(.2,.8,.2,1);
+  --ds-layout-content-max: 1200px;
+  --ds-layout-reading-max: 720px;
+  --ds-layout-gutter-mobile: 16px;
+  --ds-layout-gutter-desktop: 24px;
+  --ds-layout-header-desktop: 112px;
+  --ds-layout-header-mobile: 56px;
+  --ds-layout-bottom-nav: 64px;
+  --ds-layout-tap-min: 44px;
+}
+
+/* escuro: segue o sistema, a menos que o usuário escolha; data-theme vence */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-sunken: #1f2630;
+    --surface-inverse: #e6eaef;
+    --on-inverse: #0d1117;
+    --border: #2c3540;
+    --border-input: #6e7987;
+    --text: #e6eaef;
+    --text-muted: #9ea9b5;
+    --accent: #2fb8a8;
+    --accent-text: #5fd3c4;
+    --accent-soft: #123430;
+    --on-accent: #0d1117;
+    --focus: #5fd3c4;
+    --danger: #f28b82;
+    --danger-soft: #3a1d1b;
+    --success: #6fd39b;
+    --success-soft: #16301f;
+    --warning: #f2c35b;
+    --warning-soft: #2e2512;
+    --seat: #5f6b79;
+    --seat-active: #8ce3d8;
+    --region-norte: #2b3d2c;
+    --region-nordeste: #43381f;
+    --region-centro-oeste: #3a2d3d;
+    --region-sudeste: #24384a;
+    --region-sul: #3b362b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-sunken: #1f2630;
+  --surface-inverse: #e6eaef;
+  --on-inverse: #0d1117;
+  --border: #2c3540;
+  --border-input: #6e7987;
+  --text: #e6eaef;
+  --text-muted: #9ea9b5;
+  --accent: #2fb8a8;
+  --accent-text: #5fd3c4;
+  --accent-soft: #123430;
+  --on-accent: #0d1117;
+  --focus: #5fd3c4;
+  --danger: #f28b82;
+  --danger-soft: #3a1d1b;
+  --success: #6fd39b;
+  --success-soft: #16301f;
+  --warning: #f2c35b;
+  --warning-soft: #2e2512;
+  --seat: #5f6b79;
+  --seat-active: #8ce3d8;
+  --region-norte: #2b3d2c;
+  --region-nordeste: #43381f;
+  --region-centro-oeste: #3a2d3d;
+  --region-sudeste: #24384a;
+  --region-sul: #3b362b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --ds-motion-fast: 0ms; --ds-motion-base: 0ms; --ds-motion-enter: 0ms; }
+}

@@ -1,0 +1,66 @@
+  AAA   16.18:1  text                     on bg                   
+  AAA   17.65:1  text                     on surface              
+  AAA   14.90:1  text                     on surface-sunken       
+  AA     6.14:1  text-muted               on bg                   
+  AA     6.69:1  text-muted               on surface              
+  AA     5.65:1  text-muted               on surface-sunken       
+  AAA   16.18:1  on-inverse               on surface-inverse      
+  AA     6.10:1  on-accent                on accent               
+  AA     6.71:1  accent-text              on bg                   
+  AAA    7.32:1  accent-text              on surface              
+  AA     6.13:1  accent-text              on accent-soft          
+  AAA   14.79:1  text                     on accent-soft          
+  AA     6.57:1  danger                   on surface              
+  AA     5.75:1  danger                   on danger-soft          
+  AA     6.08:1  success                  on surface              
+  AA     5.29:1  success                  on success-soft         
+  AAA    7.06:1  warning                  on surface              
+  AA     6.44:1  warning                  on warning-soft         
+  AAA   13.55:1  text                     on region-norte         
+  AAA   13.83:1  text                     on region-nordeste      
+  AAA   13.07:1  text                     on region-centro-oeste  
+  AAA   13.27:1  text                     on region-sudeste       
+  AAA   13.80:1  text                     on region-sul           
+  PASS   4.05:1  border-input             on surface              ui
+  PASS   3.72:1  border-input             on bg                   ui
+  PASS   6.10:1  focus                    on surface              ui
+  PASS   5.59:1  focus                    on bg                   ui
+  PASS   6.10:1  accent                   on surface              ui
+  PASS  11.15:1  seat-active              on surface              ui
+  PASS   3.36:1  seat-active              on seat                 ui
+  AAA   15.66:1  dark-text                on dark-bg              
+  AAA   14.32:1  dark-text                on dark-surface         
+  AAA   12.61:1  dark-text                on dark-surface-sunken  
+  AAA    7.93:1  dark-text-muted          on dark-bg              
+  AAA    7.25:1  dark-text-muted          on dark-surface         
+  AA     6.38:1  dark-text-muted          on dark-surface-sunken  
+  AAA   15.66:1  dark-on-inverse          on dark-surface-inverse 
+  AAA    7.70:1  dark-on-accent           on dark-accent          
+  AAA   10.45:1  dark-accent-text         on dark-bg              
+  AAA    9.56:1  dark-accent-text         on dark-surface         
+  AAA    7.44:1  dark-accent-text         on dark-accent-soft     
+  AAA   11.14:1  dark-text                on dark-accent-soft     
+  AAA    7.24:1  dark-danger              on dark-surface         
+  AA     6.41:1  dark-danger              on dark-danger-soft     
+  AAA    9.45:1  dark-success             on dark-surface         
+  AAA    7.77:1  dark-success             on dark-success-soft    
+  AAA   10.49:1  dark-warning             on dark-surface         
+  AAA    9.16:1  dark-warning             on dark-warning-soft    
+  AAA    9.62:1  dark-text                on dark-region-norte    
+  AAA    9.53:1  dark-text                on dark-region-nordeste 
+  AAA   10.71:1  dark-text                on dark-region-centro-oeste 
+  AAA    9.99:1  dark-text                on dark-region-sudeste  
+  AAA    9.94:1  dark-text                on dark-region-sul      
+  PASS   3.91:1  dark-border-input        on dark-surface         ui
+  PASS   4.28:1  dark-border-input        on dark-bg              ui
+  PASS   9.56:1  dark-focus               on dark-surface         ui
+  PASS  10.45:1  dark-focus               on dark-bg              ui
+  PASS   7.04:1  dark-accent              on dark-surface         ui
+  PASS  11.61:1  dark-seat-active         on dark-surface         ui
+  PASS   3.65:1  dark-seat-active         on dark-seat            ui
+  PASS   3.32:1  seat                     on surface              ui
+  PASS   3.05:1  seat                     on bg                   ui
+  PASS   3.18:1  dark-seat                on dark-surface         ui
+  PASS   3.48:1  dark-seat                on dark-bg              ui
+
+  64 pairs, 0 failing AA
