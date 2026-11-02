@@ -8,7 +8,7 @@ import { currentUser } from "@/lib/auth";
 import { isFollowing } from "@/lib/follows";
 import { Avatar } from "@/components/people/holder-card";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
-import { Assets, Elections, Expenses, Proposals, Votes } from "@/components/profile/sections";
+import { Assets, Committees, Contact, Elections, Expenses, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Votes } from "@/components/profile/sections";
 import { LinkChip, hrefWith, type Params } from "@/components/profile/ui";
 import { CompareToggle } from "@/components/shell/compare";
 import { MissingDataNote, StatTile } from "@/components/ui/data";
@@ -61,6 +61,16 @@ export default async function Page({ params, searchParams }: Props) {
   const yrs = age(person.birthDate);
   const [birthplace] = person.birthplaceIbge ? await Promise.all([data.getPlace(person.birthplaceIbge)]) : [null];
   const periodLabel = yearParam ? `em ${yearParam}` : "na carreira";
+  // meses de mandato no período (para o custo): ano escolhido ou soma dos mandatos já exercidos
+  const months = mandates
+    .filter((m) => m.status !== "eleito_aguardando_posse")
+    .reduce((acc, m) => {
+      const start = new Date(`${m.startedOn}T12:00:00Z`);
+      const end = new Date(Math.min(new Date(`${m.endsOn}T12:00:00Z`).getTime(), Date.now()));
+      const a = yearParam ? new Date(Math.max(start.getTime(), Date.UTC(yearParam, 0, 1))) : start;
+      const b = yearParam ? new Date(Math.min(end.getTime(), Date.UTC(yearParam, 11, 31))) : end;
+      return acc + Math.max(0, (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth() + 1);
+    }, 0);
   const wins = [...new Set(candidacies.filter((c) => c.result.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
   const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
   const user = await currentUser();
@@ -250,10 +260,31 @@ export default async function Page({ params, searchParams }: Props) {
             <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} />
             <Votes personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} />
             <Expenses personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} />
+            <Laws personId={person.id} f={f} />
+            <Committees personId={person.id} />
+            <Speeches personId={person.id} base={base} sp={sp} year={yearParam} />
           </>
         )}
         <Assets candidacies={candidacies} />
         <Elections candidacies={candidacies} f={f} />
+        {main && main.status === "em_exercicio" && <Contact personId={person.id} />}
+        {full && (
+          <MandateCost
+            salaryMonthlyCents={stats.salaryIsCeiling ? null : stats.salaryMonthlyCents}
+            months={months}
+            expensesCents={stats.expensesCents}
+            periodLabel={periodLabel}
+          />
+        )}
+        {full && (
+          <NotLoadedYet
+            items={[
+              { what: "Emendas parlamentares", why: "vêm do Portal da Transparência, que exige chave de acesso cadastrada; entra quando a chave for configurada" },
+              { what: "Viagens oficiais", why: "a casa publica por missão, em formato que ainda não carregamos" },
+              { what: "Equipe do gabinete", why: "nomes e salários dos assessores entram na próxima fase" },
+            ]}
+          />
+        )}
       </div>
     </Container>
   );

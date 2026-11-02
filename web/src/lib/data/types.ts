@@ -143,6 +143,11 @@ export type ActivityItem = {
   href: string;
 };
 
+export type LawItem = { number: string; sanctionedOn: string; summary: string; url: string | null; proposal: string; role: "autor" | "coautor" };
+export type CommitteeItem = { acronym: string | null; name: string; role: string; from: string; to: string | null; body: Body };
+export type SpeechItem = { id: string; occurredAt: string; summary: string | null; url: string | null };
+export type ContactItem = { kind: "email" | "telefone" | "gabinete" | "site" | "instagram" | "facebook" | "x" | "youtube" | "tiktok" | "outra_rede"; value: string };
+
 export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; cursor?: string; limit?: number };
 
 export type Expense = {
@@ -222,6 +227,10 @@ export interface DataSource {
   getVotingEvent(id: string): Promise<VotingEventDetail | null>;
   /** Novidades de várias pessoas (feed de quem a pessoa acompanha), mais recentes primeiro. */
   getActivity(personIds: string[], limit?: number): Promise<ActivityItem[]>;
+  getLaws(personId: string): Promise<LawItem[]>;
+  getCommittees(personId: string): Promise<CommitteeItem[]>;
+  listSpeeches(personId: string, f: { year?: number; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
+  getContacts(personId: string): Promise<ContactItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
   latestRefresh(): Promise<string>;
 }

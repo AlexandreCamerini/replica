@@ -809,6 +809,19 @@ export const fakeSource: DataSource = {
     }
     return out.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, limit);
   },
+  // a demonstração não inventa leis, comissões, discursos nem contatos: seções aparecem vazias, com o motivo
+  async getLaws() {
+    return [];
+  },
+  async getCommittees() {
+    return [];
+  },
+  async listSpeeches() {
+    return { items: [], nextCursor: null, total: 0 };
+  },
+  async getContacts() {
+    return [];
+  },
   async getStamp(dataset) {
     const src = dataset.startsWith("camara") ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;
     const refreshedAt = dataset.startsWith("camara") || dataset.startsWith("senado") ? "2026-11-01T06:10:00-03:00" : dataset.startsWith("ibge") ? "2026-01-15T03:00:00-03:00" : "2026-10-31T05:40:00-03:00";

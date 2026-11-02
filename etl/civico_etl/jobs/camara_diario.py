@@ -355,6 +355,31 @@ def _derive_attendance(conn: psycopg.Connection, body_id: str, office_id: str, s
     )
 
 
+# só o despacho de transformação traz o número da norma; "projeto de lei 123/2023 sancionado" NÃO é o número da lei
+LAW_RE = re.compile(r"Transformad[oa]\s+n[oa]\s+(Lei Complementar|Lei Ordinária|Emenda Constitucional|Decreto Legislativo|Resolução)\s*(?:n[ºo°.]*\s*)?([\d.]+)\s*/\s*(\d{4})", re.I)
+DOU_RE = re.compile(r"DOU\s*(?:de\s*)?(\d{2})[/ ](\d{2})[/ ](\d{4})", re.I)
+LAW_URL = {"lei ordinária": "lei", "lei": "lei", "lei complementar": "lcp", "emenda constitucional": "emc"}
+
+
+def _parse_law(despacho: str, status_ts: str | None):
+    """'Transformado na Lei Ordinária 15172/2025. DOU 23/07/2025' -> ('Lei 15.172/2025', date, url)."""
+    m = LAW_RE.search(despacho)
+    if not m:
+        return None
+    kind, num, year = m.group(1), m.group(2).replace(".", ""), m.group(3)
+    label = {"lei ordinária": "Lei", "lei": "Lei"}.get(kind.lower(), kind.title().replace("Ordinária", "").strip())
+    pretty = f"{int(num):,}".replace(",", ".") if num.isdigit() else num
+    d = DOU_RE.search(despacho)
+    day = parse_date(f"{d.group(1)}/{d.group(2)}/{d.group(3)}") if d else parse_date(status_ts)
+    if not day:
+        return None
+    slug = LAW_URL.get(kind.lower())
+    y = int(year)
+    start = y - (y - 2003) % 4  # Planalto agrupa por mandato: _ato2019-2022, _ato2023-2026
+    url = f"https://www.planalto.gov.br/ccivil_03/_ato{start}-{start + 3}/{year}/lei/L{num}.htm" if slug == "lei" else None
+    return (f"{label} {pretty}/{year}", day, url)
+
+
 def _proposals(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
     try:
         f_au = fetch(f"{FILES}/proposicoesAutores/csv/proposicoesAutores-{year}.csv")
@@ -372,7 +397,7 @@ def _proposals(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> N
                 if dep:
                     authors[x["idProposicao"]].append((dep, x["nomeAutor"], int(x["ordemAssinatura"] or 0) or None, x["proponente"] == "1"))
             # fluxo linha a linha: o arquivo tem dezenas de MB
-            prop_rows, keep_ids = {}, {}
+            prop_rows, keep_ids, laws = {}, {}, {}
             with open(f_pr.path, encoding="utf-8-sig", newline="") as fh:
                 for x in csv.DictReader(fh, delimiter=";"):
                     if x["id"] not in authors or x["siglaTipo"] not in KEEP_TYPES or not x["numero"].isdigit():
@@ -382,6 +407,10 @@ def _proposals(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> N
                                       (x.get("ultimoStatus_descricaoSituacao") or "").strip()[:200] or None, parse_date(x["dataApresentacao"]),
                                       x.get("urlInteiroTeor") or f"https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao={x['id']}")
                     keep_ids[x["id"]] = key[1:]
+                    if "Norma Jur" in (x.get("ultimoStatus_descricaoSituacao") or ""):
+                        law = _parse_law(x.get("ultimoStatus_despacho") or "", x.get("ultimoStatus_dataHora"))
+                        if law:
+                            laws[key[1:]] = (*law, (x["ementa"] or "").strip()[:4000] or "(sem ementa)")
             log.info("câmara %d: %d proposições de deputados", year, len(prop_rows))
             prop_id: dict[tuple, str] = {}
             for row in upsert(conn, "proposals", ["body_id", "type", "number", "year", "summary_official", "can_become_law", "status", "presented_on", "url"],
@@ -389,6 +418,18 @@ def _proposals(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> N
                               returning=["id", "type", "number", "year"]):
                 prop_id[(row["type"], row["number"], row["year"])] = str(row["id"])
             r.add(len(prop_id))
+            if laws:
+                br = str(conn.execute("select id from places where ibge_code = 'BR'").fetchone()["id"])
+                law_id = {}
+                for row in upsert(conn, "laws", ["sphere", "place_id", "number", "sanctioned_on", "summary", "url"],
+                                  [("federal", br, num, day, summ, url) for num, day, url, summ in laws.values()],
+                                  ["sphere", "place_id", "number"], update=["sanctioned_on", "summary", "url"], returning=["id", "number"]):
+                    law_id[row["number"]] = str(row["id"])
+                conn.cursor().executemany(
+                    "update proposals set became_law_id = %s where id = %s and became_law_id is distinct from %s",
+                    [(law_id[num], prop_id[k], law_id[num]) for k, (num, _d, _u, _s) in laws.items() if k in prop_id and num in law_id],
+                )
+                r.notes.append(f"{len(law_id)} leis vindas de proposições")
             au_rows, unknown = [], set()
             for raw_id, key in keep_ids.items():
                 pid = prop_id.get(key)

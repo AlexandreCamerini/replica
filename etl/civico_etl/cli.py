@@ -26,7 +26,7 @@ log = logging.getLogger("etl")
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "identity.dedupe", "derive.stats", "check", "all"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -73,11 +73,15 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.senado_diario import run_senado
 
             run_senado(conn, years=a.year or [today.year - 1, today.year], limit=a.limit, force=a.force)
+        if a.job in ("parlamento.extras", "all"):
+            from .jobs.parlamento_extras import run_extras
+
+            run_extras(conn, since=date(min(a.year) if a.year else today.year - 1, 1, 1), force=a.force)
         if a.job in ("identity.dedupe", "all", "camara.diario", "senado.diario"):
             from .jobs.identity_dedupe import run_dedupe
 
             run_dedupe(conn)
-        if a.job in ("derive.stats", "all") or a.job in ("tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "identity.dedupe"):
+        if a.job in ("derive.stats", "all") or a.job in ("tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "parlamento.extras", "identity.dedupe"):
             from .jobs.derive_stats import run_derive
 
             run_derive(conn)

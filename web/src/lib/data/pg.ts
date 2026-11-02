@@ -23,6 +23,10 @@ import type {
   VotingEventDetail,
   VotingEventSummary,
   ActivityItem,
+  CommitteeItem,
+  ContactItem,
+  LawItem,
+  SpeechItem,
 } from "./types";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
@@ -570,6 +574,37 @@ export const pgSource: DataSource = {
       detail: r.kind === "voto" ? (VOTE[String(r.detail)] ?? String(r.detail)) : r.kind === "gasto" ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(r.detail) / 100) : (r.detail as string | null),
       href: String(r.href),
     }));
+  },
+  async getLaws(personId) {
+    const rows = await sql`
+      select l.number, l.sanctioned_on, l.summary, l.url, pr.type || ' ' || pr.number || '/' || pr.year as proposal, pa.role
+      from proposal_authors pa join proposals pr on pr.id = pa.proposal_id join laws l on l.id = pr.became_law_id
+      where pa.person_id = ${personId}::uuid and pa.role in ('principal','coautoria')
+      order by l.sanctioned_on desc`;
+    return rows.map<LawItem>((r) => ({ number: String(r.number), sanctionedOn: iso(r.sanctioned_on), summary: String(r.summary), url: (r.url as string | null) ?? null, proposal: String(r.proposal), role: r.role === "principal" ? "autor" : "coautor" }));
+  },
+  async getCommittees(personId) {
+    const rows = await sql`
+      select c.acronym, c.name, cm.role, cm.from_on, cm.to_on, b.kind
+      from committee_memberships cm join committees c on c.id = cm.committee_id join legislative_bodies b on b.id = c.body_id
+      where cm.person_id = ${personId}::uuid
+      order by (cm.to_on is null or cm.to_on >= current_date) desc, cm.from_on desc, c.name collate pt_br`;
+    return rows.map<CommitteeItem>((r) => ({ acronym: (r.acronym as string | null) ?? null, name: String(r.name), role: String(r.role), from: iso(r.from_on), to: r.to_on ? iso(r.to_on) : null, body: r.kind === "senado" ? "senado" : "camara" }));
+  },
+  async listSpeeches(personId, f) {
+    const limit = Math.min(f.limit ?? 10, 200);
+    const offset = off(f.cursor);
+    const where = sql`person_id = ${personId}::uuid ${f.year ? sql`and extract(year from occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}`;
+    const [{ n }] = await sql`select count(*)::int as n from speeches where ${where}`;
+    const rows = await sql`select id, occurred_at, summary, url from speeches where ${where} order by occurred_at desc, id desc limit ${limit} offset ${offset}`;
+    return page(rows.map<SpeechItem>((r) => ({ id: String(r.id), occurredAt: isoTs(r.occurred_at), summary: (r.summary as string | null) ?? null, url: (r.url as string | null) ?? null })), Number(n), offset, limit);
+  },
+  async getContacts(personId) {
+    const rows = await sql`
+      select mc.kind, mc.value from mandate_contacts mc join mandates m on m.id = mc.mandate_id
+      where m.person_id = ${personId}::uuid and m.status = 'em_exercicio'
+      order by array_position(array['email','telefone','gabinete','site','instagram','facebook','x','youtube','tiktok','outra_rede'], mc.kind), mc.value`;
+    return rows.map<ContactItem>((r) => ({ kind: r.kind as ContactItem["kind"], value: String(r.value) }));
   },
   async getStamp(dataset) {
     // casa com prefixo (camara.votacoes -> camara.*) e cai para o último run da fonte

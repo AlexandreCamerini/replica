@@ -96,6 +96,13 @@ vt2 as (
   select person_id, year::text as period, registered, aligned, alignment_total from vt
   union all select person_id, 'career', sum(registered), sum(aligned), sum(alignment_total) from vt group by 1
 ),
+speech2 as (
+  select person_id, extract(year from occurred_at)::int::text as period, count(*) n from speeches group by 1, 2
+  union all select person_id, 'career', count(*) from speeches group by 1
+),
+comm2 as (
+  select person_id, count(distinct committee_id) n from committee_memberships where to_on is null or to_on >= current_date group by 1
+),
 exp2 as (
   select person_id, year::text as period, cents from exp
   union all select person_id, 'career', sum(cents) from exp group by 1
@@ -106,13 +113,15 @@ agg as (
          pr.present, pr.total,
          pp.principal, pp.cosigned, pp.law_eligible, pp.laws,
          v.registered, v.aligned, v.alignment_total,
-         ex.cents
+         ex.cents, sp.n as speeches_n, cm.n as committees_n
   from periods pe
   left join has_src hs on hs.person_id = pe.person_id and hs.period = pe.period
   left join pres2 pr on pr.person_id = pe.person_id and pr.period = pe.period
   left join props2 pp on pp.person_id = pe.person_id and pp.period = pe.period
   left join vt2 v on v.person_id = pe.person_id and v.period = pe.period
   left join exp2 ex on ex.person_id = pe.person_id and ex.period = pe.period
+  left join speech2 sp on sp.person_id = pe.person_id and sp.period = pe.period
+  left join comm2 cm on cm.person_id = pe.person_id
 ),
 tops as (
   select pe.person_id, pe.period,
@@ -121,7 +130,7 @@ tops as (
   from periods pe
 )
 insert into person_period_stats (person_id, period, presence_present, presence_total, proposals_principal, proposals_cosigned,
-  proposals_law_eligible, laws_from_proposals, votes_registered, party_aligned, party_alignment_total, expenses_cents, top_topics, missing_datasets, computed_at)
+  proposals_law_eligible, laws_from_proposals, votes_registered, party_aligned, party_alignment_total, expenses_cents, speeches, committees, top_topics, missing_datasets, computed_at)
 select a.person_id, a.period,
   case when a.votes_src and a.total > 0 then a.present end,
   case when a.votes_src and a.total > 0 then a.total end,
@@ -133,6 +142,8 @@ select a.person_id, a.period,
   case when a.votes_src then coalesce(a.aligned, 0) end,
   case when a.votes_src then coalesce(a.alignment_total, 0) end,
   case when a.exp_src then coalesce(a.cents, 0) end,
+  case when a.votes_src then coalesce(a.speeches_n, 0) end,
+  case when a.votes_src then coalesce(a.committees_n, 0) end,
   t.top,
   array_remove(array[
     case when not a.votes_src then 'presenca' end, case when not a.votes_src then 'votos' end,
@@ -144,7 +155,7 @@ on conflict (person_id, period) do update set
   proposals_principal = excluded.proposals_principal, proposals_cosigned = excluded.proposals_cosigned,
   proposals_law_eligible = excluded.proposals_law_eligible, laws_from_proposals = excluded.laws_from_proposals,
   votes_registered = excluded.votes_registered, party_aligned = excluded.party_aligned, party_alignment_total = excluded.party_alignment_total,
-  expenses_cents = excluded.expenses_cents, top_topics = excluded.top_topics, missing_datasets = excluded.missing_datasets,
+  expenses_cents = excluded.expenses_cents, speeches = excluded.speeches, committees = excluded.committees, top_topics = excluded.top_topics, missing_datasets = excluded.missing_datasets,
   computed_at = excluded.computed_at, updated_at = now()
 """
 

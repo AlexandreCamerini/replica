@@ -296,3 +296,202 @@ export async function Elections({ candidacies, f }: { candidacies: C[]; f: boole
     </Section>
   );
 }
+
+// ---------- seções R2: leis, comissões, discursos, contato, custo, dados ainda não carregados ----------
+
+export async function Laws({ personId, f }: { personId: string; f: boolean }) {
+  const [laws, stamp] = await Promise.all([data.getLaws(personId), data.getStamp("camara.proposicoes")]);
+  return (
+    <Section id="leis" title="Leis que vieram de propostas" count={String(laws.length)} intro={`Propostas com ${f ? "ela" : "ele"} entre os autores que viraram norma publicada no Diário Oficial.`}>
+      {laws.length === 0 ? (
+        <Empty>Nenhuma proposta de autoria virou lei no período carregado.</Empty>
+      ) : (
+        <ol className="flex flex-col divide-y divide-border">
+          {laws.map((l) => (
+            <li key={l.number} className="flex flex-col gap-1 py-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                <span className="font-semibold text-fg">{l.number}</span>
+                <time dateTime={l.sanctionedOn}>publicada em {date(l.sanctionedOn)}</time>
+                <span>
+                  veio do {l.proposal} · {l.role === "autor" ? (f ? "autora principal" : "autor principal") : f ? "coautora" : "coautor"}
+                </span>
+              </div>
+              <p className="text-sm text-fg">{l.summary}</p>
+              {l.url && (
+                <a href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-accent-text underline underline-offset-2">
+                  texto da lei <ExternalLink aria-hidden className="size-3" />
+                  <span className="sr-only">(abre em nova aba)</span>
+                </a>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+    </Section>
+  );
+}
+
+export async function Committees({ personId }: { personId: string }) {
+  const [rows, stamp] = await Promise.all([data.getCommittees(personId), data.getStamp("parlamento.extras")]);
+  const today = new Date().toISOString().slice(0, 10);
+  const now = rows.filter((r) => !r.to || r.to >= today);
+  const before = rows.filter((r) => r.to && r.to < today);
+  const item = (r: (typeof rows)[number], i: number) => (
+    <li key={`${r.name}-${r.role}-${r.from}-${i}`} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-border py-2 text-sm last:border-0">
+      <span className="text-fg">
+        {r.acronym && <span className="font-mono text-xs font-semibold">{r.acronym} · </span>}
+        {r.name}
+      </span>
+      <span className="text-xs text-muted">
+        {r.role} · desde {date(r.from)}
+        {r.to && r.to < today ? ` até ${date(r.to)}` : ""}
+      </span>
+    </li>
+  );
+  return (
+    <Section id="comissoes" title="Comissões" count={String(now.length)} intro="Onde as propostas são discutidas antes do plenário. Titular vota; suplente substitui.">
+      {rows.length === 0 ? (
+        <Empty>Nenhuma participação em comissão registrada pela casa no período carregado.</Empty>
+      ) : (
+        <>
+          {now.length > 0 && <ul>{now.map(item)}</ul>}
+          {before.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-semibold text-fg">Participações encerradas ({before.length})</summary>
+              <ul className="mt-2">{before.map(item)}</ul>
+            </details>
+          )}
+        </>
+      )}
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+    </Section>
+  );
+}
+
+export async function Speeches({ personId, base, sp, year }: Common) {
+  const limit = Math.min(Math.max(Number(sp.nd) || 10, 10), 200);
+  const [page, stamp] = await Promise.all([data.listSpeeches(personId, { year: year ?? undefined, limit }), data.getStamp("parlamento.extras")]);
+  return (
+    <Section id="discursos" title="Discursos" count={`${count(page.total)}${year ? ` em ${year}` : ""}`} intro="Resumo oficial publicado pela casa. O texto integral fica no site oficial.">
+      {page.items.length === 0 ? (
+        <Empty>Nenhum discurso registrado{year ? ` em ${year}` : " no período carregado"}.</Empty>
+      ) : (
+        <ol className="flex flex-col divide-y divide-border">
+          {page.items.map((s) => (
+            <li key={s.id} className="flex flex-col gap-1 py-3">
+              <time dateTime={s.occurredAt} className="text-xs text-muted">
+                {date(s.occurredAt)}
+              </time>
+              <p className="text-sm text-fg">{s.summary ?? "Sem resumo publicado."}</p>
+              {s.url && (
+                <a href={s.url} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-accent-text underline underline-offset-2">
+                  íntegra no site oficial <ExternalLink aria-hidden className="size-3" />
+                  <span className="sr-only">(abre em nova aba)</span>
+                </a>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      <MoreLink href={hrefWith(base, sp, { nd: String(limit + 10) }, "discursos")} remaining={page.total - page.items.length} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+    </Section>
+  );
+}
+
+const CONTACT_LABEL: Record<string, string> = {
+  email: "E-mail",
+  telefone: "Telefone",
+  gabinete: "Gabinete",
+  site: "Página oficial",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  x: "X",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  outra_rede: "Outra rede",
+};
+
+export async function Contact({ personId }: { personId: string }) {
+  const [rows, stamp] = await Promise.all([data.getContacts(personId), data.getStamp("parlamento.extras")]);
+  const href = (k: string, v: string) => (k === "email" ? `mailto:${v}` : k === "telefone" ? `tel:${v.replace(/[^\d+]/g, "")}` : /^https?:\/\//.test(v) ? v : null);
+  return (
+    <Section id="contato" title="Contato oficial" intro="Canais que a própria casa publica. Redes sociais pessoais só quando a casa as lista.">
+      {rows.length === 0 ? (
+        <Empty>A casa não publica contato para este mandato, ou ele ainda não foi carregado.</Empty>
+      ) : (
+        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+          {rows.map((c, i) => {
+            const h = href(c.kind, c.value);
+            return (
+              <div key={`${c.kind}-${i}`} className="contents">
+                <dt className="text-muted">{CONTACT_LABEL[c.kind]}</dt>
+                <dd className="min-w-0 break-words text-fg">
+                  {h ? (
+                    <a href={h} {...(h.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="underline underline-offset-2">
+                      {c.value}
+                    </a>
+                  ) : (
+                    c.value
+                  )}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      )}
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+    </Section>
+  );
+}
+
+/** Custo do mandato: só o que é publicado e somável. Nada estimado vira número. */
+export function MandateCost({ salaryMonthlyCents, months, expensesCents, periodLabel }: { salaryMonthlyCents: number | null; months: number; expensesCents: number | null; periodLabel: string }) {
+  const salary = salaryMonthlyCents !== null ? salaryMonthlyCents * months : null;
+  const total = salary !== null && expensesCents !== null ? salary + expensesCents : null;
+  const rows: [string, number | null, string][] = [
+    ["Salário bruto (aproximado)", salary, `${months} ${months === 1 ? "mês" : "meses"} × o valor mensal de hoje; reajustes anteriores eram menores`],
+    ["Cota para exercício do mandato", expensesCents, "gastos reembolsados, como a casa publica"],
+  ];
+  return (
+    <Section id="custo" title={`Quanto custou ${periodLabel}`} intro="Soma do que a fonte publica. Não inclui verba de pessoal do gabinete, imóvel funcional nem benefícios: esses dados ainda não estão carregados.">
+      <table className="w-full max-w-xl text-sm">
+        <tbody>
+          {rows.map(([label, v, note]) => (
+            <tr key={label} className="border-b border-border">
+              <th scope="row" className="py-2 pr-3 text-left font-normal text-fg">
+                {label}
+                <span className="block text-xs text-muted">{note}</span>
+              </th>
+              <td className="py-2 text-right tabular font-semibold text-fg">{v === null ? <NotPublished /> : money(v)}</td>
+            </tr>
+          ))}
+          <tr>
+            <th scope="row" className="py-2 pr-3 text-left font-semibold text-fg">
+              Total aproximado
+            </th>
+            <td className="py-2 text-right font-display text-xl tabular text-fg">{total === null ? <NotPublished /> : money(total)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </Section>
+  );
+}
+
+export function NotLoadedYet({ items }: { items: { what: string; why: string }[] }) {
+  return (
+    <section aria-labelledby="pendentes-h" className="rounded-md border border-dashed border-border-input bg-surface p-4 md:p-6">
+      <h2 id="pendentes-h" className="text-lg text-fg">
+        Ainda não está aqui
+      </h2>
+      <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+        {items.map((i) => (
+          <li key={i.what}>
+            <span className="font-semibold text-fg">{i.what}:</span> <span className="text-muted">{i.why}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

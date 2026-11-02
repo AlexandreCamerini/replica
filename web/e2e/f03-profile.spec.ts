@@ -44,8 +44,12 @@ test.describe("F03 ler o crachá a fundo", () => {
     const badges = page.locator("#votos ol li").locator("text=/^(Sim|Não|Abstenção|Obstrução|Art\\. 17|Não votou)$/");
     const n = await badges.count();
     for (let i = 0; i < Math.min(n, 10); i++) await expect(badges.nth(i)).toHaveText("Não");
+    // seções R2: presentes, com estado vazio explicado quando a fonte não tem registro
+    for (const h of [/Leis que vieram de propostas/, /^Comissões/, /^Discursos/, /Contato oficial/, /Quanto custou/, /Ainda não está aqui/])
+      await expect(page.getByRole("heading", { level: 2, name: h })).toBeVisible();
+    await expect(page.locator("#custo")).toContainText(/aproximado/);
     // fontes em todo bloco
-    for (const id of ["propostas", "votos", "gastos", "patrimonio", "eleicoes"]) await expect(page.locator(`#${id}`).getByText(/^Fonte:/)).toBeVisible();
+    for (const id of ["propostas", "votos", "gastos", "patrimonio", "eleicoes", "leis", "comissoes", "discursos", "contato"]) await expect(page.locator(`#${id}`).getByText(/^Fonte:/)).toBeVisible();
     await axe();
   });
 
@@ -70,8 +74,12 @@ test.describe("F03 ler o crachá a fundo", () => {
     for (const t of texts) {
       if (/propostas|votos em plenário|gastos do gabinete|presença/.test(t)) expect(t, t).not.toMatch(/^0\n/);
     }
-    await expect(page.getByText("teto do salário")).toBeVisible();
-    await expect(page.getByText("até")).toBeVisible();
+    // demo traz o teto constitucional; no dado real o salário municipal ainda não foi carregado e aparece "—"
+    const salaryTile = page.locator("section[aria-labelledby='numeros-h'] > div > div").first();
+    await expect(salaryTile).toContainText(/teto do salário|salário por mês/);
+    const tileText = await salaryTile.innerText();
+    if (tileText.includes("teto do salário")) await expect(salaryTile).toContainText("até");
+    else expect(tileText).toMatch(/^—/);
     await expect(page.getByRole("heading", { name: /Propostas/ })).toHaveCount(0);
     await axe();
   });
