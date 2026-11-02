@@ -78,6 +78,9 @@ export type PeriodStats = {
   salaryMonthlyCents: number | null;
   salaryIsCeiling: boolean;
   topTopics: { topic: string; count: number }[];
+  /** votos sim/não iguais à orientação do partido / votações em que o partido orientou sim ou não; null = sem dado */
+  partyAligned: number | null;
+  partyAlignmentTotal: number | null;
   missing: MissingDataset[];
 };
 

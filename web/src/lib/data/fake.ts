@@ -677,6 +677,9 @@ export const fakeSource: DataSource = {
       salaryMonthlyCents: isMissing("salario") && !sal.ceiling ? null : sal.cents,
       salaryIsCeiling: sal.ceiling,
       topTopics: [...topicCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([topic, count]) => ({ topic, count })),
+      // a demo não guarda a orientação de cada bancada: sem dado, nunca um número inventado
+      partyAligned: null,
+      partyAlignmentTotal: null,
       missing,
     };
   },

@@ -1,4 +1,4 @@
-import { Bell, Flag } from "lucide-react";
+import { ArrowLeft, Bell, Flag } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -58,46 +58,67 @@ export default async function Page({ params, searchParams }: Props) {
   const yrs = age(person.birthDate);
   const [birthplace] = person.birthplaceIbge ? await Promise.all([data.getPlace(person.birthplaceIbge)]) : [null];
   const periodLabel = yearParam ? `em ${yearParam}` : "na carreira";
+  const wins = [...new Set(candidacies.filter((c) => c.result.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
+  const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
 
   return (
     <Container>
-      {/* cabeçalho */}
-      <header className="flex flex-col gap-4 md:flex-row md:items-start">
-        <Avatar name={person.displayName} size="lg" />
-        <div className="min-w-0 flex-1">
-          <h1 className="font-display text-display break-words text-fg">{person.displayName}</h1>
-          {main && (
-            <p className="mt-1 text-base text-fg">
-              {main.officeName} · {main.placeLabel} ·{" "}
-              <abbr title={main.party.name} className="no-underline">
-                {main.party.acronym}
-              </abbr>
-            </p>
-          )}
-          <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            {yrs !== null && <Fact term="Idade" value={`${yrs} anos`} />}
-            {birthplace && <Fact term="Natural de" value={birthplace.kind === "municipio" ? `${birthplace.name} (${birthplace.uf})` : birthplace.name} />}
-            {person.education && <Fact term="Escolaridade" value={person.education} />}
-            {person.civilName !== person.displayName && <Fact term="Nome civil" value={person.civilName} />}
-          </dl>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <CompareToggle slug={person.slug} name={person.displayName} />
+      {/* cabeçalho: o nome é o título da página; cargo e lugar vêm antes, como contexto */}
+      <header className="rounded-lg border border-border bg-surface p-5 md:p-8">
+        {main && (
+          <nav aria-label="Você está em" className="mb-3">
             <Link
-              href={`/entrar?volta=${encodeURIComponent(base)}`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-pill bg-accent px-3 text-sm font-semibold text-on-accent outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              href={main.placeIbge === "BR" ? "/representantes" : /^\d{7}$/.test(main.placeIbge) ? `/representantes?cidade=${main.placeIbge}` : `/representantes?uf=${placeUf ?? ""}`}
+              className="inline-flex h-8 items-center gap-1 rounded-pill bg-surface-sunken px-3 text-xs font-semibold text-fg outline-none hover:underline focus-visible:outline-2 focus-visible:outline-focus"
             >
-              <Bell aria-hidden className="size-4" /> Acompanhar
+              <ArrowLeft aria-hidden className="size-3.5" /> {main.placeLabel}
             </Link>
-            <ShareButton title={person.displayName} path={base} />
-            <WhatsAppLink text={`${person.displayName}: votos, gastos e patrimônio com fonte oficial.`} path={base} />
-            <ListenButton />
-            <Link
-              href={`/sugestoes?tipo=erro&p=${person.slug}`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-pill px-3 text-sm font-semibold text-muted outline-none hover:bg-surface-sunken hover:text-fg focus-visible:outline-2 focus-visible:outline-focus"
-            >
-              <Flag aria-hidden className="size-4" /> Reportar erro
-            </Link>
+          </nav>
+        )}
+        <div className="flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            {main && (
+              <p className="text-sm font-semibold text-muted">
+                {main.officeName} · {main.placeLabel} ·{" "}
+                <abbr title={main.party.name} className="no-underline">
+                  {main.party.acronym}
+                </abbr>
+              </p>
+            )}
+            <h1 className="mt-1 font-display text-hero leading-none break-words text-fg">{person.displayName}</h1>
+            {wins.length > 0 && (
+              <p className="mt-3 flex flex-wrap gap-2">
+                <span className="inline-flex h-7 items-center rounded-pill bg-surface-sunken px-3 text-xs font-semibold text-fg">
+                  {f ? "Eleita" : "Eleito"} {wins.length === 1 ? "em" : `${wins.length} vezes:`} {wins.join(", ")}
+                </span>
+              </p>
+            )}
+            <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              {yrs !== null && <Fact term="Idade" value={`${yrs} anos`} />}
+              {birthplace && <Fact term="Natural de" value={birthplace.kind === "municipio" ? `${birthplace.name} (${birthplace.uf})` : birthplace.name} />}
+              {person.education && <Fact term="Escolaridade" value={person.education} />}
+              {person.civilName !== person.displayName && <Fact term="Nome civil" value={person.civilName} />}
+            </dl>
           </div>
+          <Avatar name={person.displayName} size="lg" />
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <CompareToggle slug={person.slug} name={person.displayName} />
+          <Link
+            href={`/entrar?volta=${encodeURIComponent(base)}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-pill bg-accent px-3 text-sm font-semibold text-on-accent outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          >
+            <Bell aria-hidden className="size-4" /> Acompanhar
+          </Link>
+          <ShareButton title={person.displayName} path={base} />
+          <WhatsAppLink text={`${person.displayName}: votos, gastos e patrimônio com fonte oficial.`} path={base} />
+          <ListenButton />
+          <Link
+            href={`/sugestoes?tipo=erro&p=${person.slug}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-pill px-3 text-sm font-semibold text-muted outline-none hover:bg-surface-sunken hover:text-fg focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <Flag aria-hidden className="size-4" /> Reportar erro
+          </Link>
         </div>
       </header>
 
@@ -212,6 +233,8 @@ export default async function Page({ params, searchParams }: Props) {
         </div>
       )}
 
+      {full && <YearSummary stats={stats} periodLabel={periodLabel} f={f} />}
+
       <div className="mt-8 flex flex-col gap-6">
         {full && (
           <>
@@ -224,6 +247,56 @@ export default async function Page({ params, searchParams }: Props) {
         <Elections candidacies={candidacies} f={f} />
       </div>
     </Container>
+  );
+}
+
+async function YearSummary({ stats, periodLabel, f }: { stats: PeriodStats; periodLabel: string; f: boolean }) {
+  const topics = await data.listTopics();
+  const name = Object.fromEntries(topics.map((t) => [t.slug, t.name]));
+  const share = stats.partyAlignmentTotal ? Math.round(((stats.partyAligned ?? 0) / stats.partyAlignmentTotal) * 100) : null;
+  return (
+    <section aria-labelledby="resumo-h" className="mt-6 grid gap-4 rounded-md border border-border bg-surface p-4 md:grid-cols-2 md:p-6">
+      <h2 id="resumo-h" className="text-xl text-fg md:col-span-2">
+        Resumo {periodLabel}
+      </h2>
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-muted">Temas mais presentes nas propostas</h3>
+        {stats.topTopics.length ? (
+          <ol className="flex flex-col gap-1.5">
+            {stats.topTopics.map((t) => (
+              <li key={t.topic} className="flex items-center justify-between gap-3 text-sm text-fg">
+                <span>{name[t.topic] ?? t.topic}</span>
+                <span className="tabular text-muted">
+                  {count(t.count)} {t.count === 1 ? "proposta" : "propostas"}
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="text-sm text-muted">Nenhuma proposta com tema classificado {periodLabel}.</p>
+        )}
+        <p className="mt-2 text-xs text-muted">Tema segundo a classificação oficial da casa, agrupada em 17 temas.</p>
+      </div>
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-muted">Votos iguais à orientação do partido</h3>
+        {share === null ? (
+          <p className="text-sm text-muted">
+            <span aria-label="não publicado pela fonte" title="A fonte oficial não publica este dado">
+              —
+            </span>{" "}
+            sem votação com orientação do partido {periodLabel}.
+          </p>
+        ) : (
+          <p className="text-sm text-fg">
+            <span className="font-display text-xl tabular">{share}%</span>{" "}
+            <span className="text-muted">
+              ({count(stats.partyAligned ?? 0)} de {count(stats.partyAlignmentTotal ?? 0)} votações em que o partido {f ? "dela" : "dele"} orientou sim ou não)
+            </span>
+          </p>
+        )}
+        <p className="mt-2 text-xs text-muted">Descreve o voto, não avalia: seguir ou não a orientação é decisão de cada mandato.</p>
+      </div>
+    </section>
   );
 }
 

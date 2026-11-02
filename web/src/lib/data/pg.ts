@@ -343,6 +343,8 @@ export const pgSource: DataSource = {
       salaryMonthlyCents: num(m?.amount_cents),
       salaryIsCeiling: Boolean(m?.is_ceiling),
       topTopics: topics.map((t) => ({ topic: t.topic_slug, count: Number(t.proposals) })),
+      partyAligned: num(s?.party_aligned),
+      partyAlignmentTotal: num(s?.party_alignment_total),
       missing,
     } satisfies PeriodStats;
   },
