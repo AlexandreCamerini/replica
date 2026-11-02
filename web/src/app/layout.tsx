@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Barlow_Condensed, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { DataFreshnessBar, DemoBanner } from "@/components/shell/bars";
+import { CompareProvider } from "@/components/shell/compare";
+import { AppFooter } from "@/components/shell/footer";
+import { AppHeader } from "@/components/shell/header";
 
 // next/font sobrescreve as variáveis do tokens.css com a família hospedada + fallback métrico
 const sans = Inter({ variable: "--ds-font-sans", subsets: ["latin"], display: "swap" });
@@ -13,7 +17,7 @@ const display = Barlow_Condensed({
 const mono = JetBrains_Mono({ variable: "--ds-font-mono", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Quem representa você",
+  title: { default: "Quem representa você", template: "%s · quem·representa" },
   description: "Quem está no cargo por você, do vereador ao presidente, com dados oficiais.",
 };
 
@@ -26,7 +30,23 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <a
+          href="#conteudo"
+          className="sr-only z-50 rounded-sm bg-surface-inverse px-4 py-2 text-on-inverse focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        >
+          Pular para o conteúdo
+        </a>
+        <CompareProvider>
+          <DemoBanner />
+          <AppHeader />
+          <DataFreshnessBar />
+          <main id="conteudo" tabIndex={-1} className="pb-16 outline-none">
+            {children}
+          </main>
+          <AppFooter />
+        </CompareProvider>
+      </body>
     </html>
   );
 }

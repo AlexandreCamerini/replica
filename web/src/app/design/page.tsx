@@ -54,7 +54,7 @@ export default function DesignPage() {
   );
 
   return (
-    <main className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-8 md:px-6">
+    <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-8 md:px-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="font-mono text-xs text-muted">design system · v0 · valores provisórios</p>
@@ -192,6 +192,6 @@ export default function DesignPage() {
           <div className="skeleton h-4 w-2/3" />
         </div>
       </Section>
-    </main>
+    </div>
   );
 }
