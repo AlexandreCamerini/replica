@@ -11,11 +11,11 @@ export function hrefWith(base: string, current: Params, patch: Params, hash?: st
   return `${base}${s ? `?${s}` : ""}${hash ? `#${hash}` : ""}`;
 }
 
-export function LinkChip({ href, active, children }: { href: string; active?: boolean; children: React.ReactNode }) {
+export function LinkChip({ href, active, scroll = false, children }: { href: string; active?: boolean; scroll?: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      scroll={false}
+      scroll={scroll}
       aria-current={active ? "true" : undefined}
       className={clsx(
         "inline-flex h-8 shrink-0 items-center rounded-pill border-[1.5px] px-3 text-sm font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",

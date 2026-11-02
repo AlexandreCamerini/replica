@@ -172,7 +172,7 @@ export async function Expenses({ personId, base, sp, year, body }: Common & { bo
               Filtrar
             </button>
           </form>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Lançamentos de gastos" className="overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
             <table className="w-full min-w-[560px] text-sm">
               <caption className="sr-only">Lançamentos, do mais recente ao mais antigo</caption>
               <thead>
@@ -260,7 +260,7 @@ export async function Elections({ candidacies, f }: { candidacies: C[]; f: boole
       {candidacies.length === 0 ? (
         <Empty>Nenhuma candidatura encontrada no TSE.</Empty>
       ) : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Eleições disputadas" className="overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted">

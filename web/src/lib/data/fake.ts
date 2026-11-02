@@ -27,7 +27,6 @@ import type {
   Officeholder,
   Page,
   Party,
-  PeriodStats,
   Person,
   PersonVote,
   Place,
@@ -127,7 +126,9 @@ function build(): Store {
 
   const addPerson = (key: string, uf: string | null, forcedName?: string): Person => {
     const r = rng(`person:${key}`);
-    const gender: "f" | "m" = r() < 0.36 ? "f" : "m";
+    const roll = r();
+    // nome forçado (caso de borda) é feminino; o resto sorteia
+    const gender: "f" | "m" = forcedName || roll < 0.36 ? "f" : "m";
     const first = pick(r, gender === "f" ? FIRST_F : FIRST_M);
     const l1 = pick(r, LAST);
     let l2 = pick(r, LAST);

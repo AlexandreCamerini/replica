@@ -1,23 +1,23 @@
 feature,area,priority,original,clone,notes
-Contadores de pessoas no cargo por nível com fonte e data,home,must,yes,no,S01
-Mapa do Brasil com drill-down região > UF > cidade,home,must,yes,no,S01 F02; SVG CC BY 4.0 reutilizável
-Busca de cidade/estado com autocomplete e UF desambiguada,representantes,must,yes,no,S06 F01; chave IBGE
-Lista de todos os representantes de uma cidade por nível,representantes,must,yes,no,S07 F01
-Diretório A-Z com filtros de cargo estado partido e nome,diretorio,must,yes,no,S04
-Crachá: cabeçalho com cargo partido idade naturalidade e histórico de eleições,cracha,must,yes,no,S05
-Crachá: mandatos em exercício e eleito aguardando posse,cracha,must,yes,no,S05
-Crachá: tiles de salário patrimônio votos campanha presença propostas,cracha,must,yes,no,S05; "—" quando a fonte não publica
-Crachá: propostas com filtros de ano tema tipo e autoria,cracha,must,yes,no,S05 F03
-Crachá: linha do tempo de votos com resultado e tema,cracha,must,yes,no,S05 F03
-Crachá: gastos da cota por categoria e fornecedor com nota,cracha,must,yes,no,S05
-Crachá: patrimônio declarado ao TSE ao longo do tempo,cracha,must,yes,no,S05
-Crachá degradado com lista de dados faltantes e motivo,cracha,must,yes,no,S05 S07; vira o padrão para municipais
-Rodapé de fonte e data de atualização em todo bloco de dados,confianca,must,yes,no,todas
-Comparar 2 a 5 pessoas lado a lado via URL,comparar,must,yes,no,S08 F04
+Contadores de pessoas no cargo por nível com fonte e data,home,must,yes,partial,S01; build: S01 pronto; números da camada demo até o ETL
+Mapa do Brasil com drill-down região > UF > cidade,home,must,yes,partial,S01 F02; SVG CC BY 4.0 reutilizável; build: grade de UFs + lista por região; sem contorno IBGE nem nível cidade no mapa
+Busca de cidade/estado com autocomplete e UF desambiguada,representantes,must,yes,yes,S06 F01; chave IBGE; build: /api/places + combobox; fallback sem JS em ?q=
+Lista de todos os representantes de uma cidade por nível,representantes,must,yes,yes,S07 F01; build: S07; DF com distritais
+Diretório A-Z com filtros de cargo estado partido e nome,diretorio,must,yes,yes,"S04; build: S04, GET form, paginação 60"
+Crachá: cabeçalho com cargo partido idade naturalidade e histórico de eleições,cracha,must,yes,yes,S05
+Crachá: mandatos em exercício e eleito aguardando posse,cracha,must,yes,yes,S05; build: posse 2027 dos reeleitos em 2026
+Crachá: tiles de salário patrimônio votos campanha presença propostas,cracha,must,yes,yes,"S05; ""—"" quando a fonte não publica; build: teto vs valor pago; — quando não publica"
+Crachá: propostas com filtros de ano tema tipo e autoria,cracha,must,yes,yes,"S05 F03; build: filtros na URL, funciona sem JS"
+Crachá: linha do tempo de votos com resultado e tema,cracha,must,yes,yes,S05 F03; build: agrupada por mês; só nominais
+Crachá: gastos da cota por categoria e fornecedor com nota,cracha,must,yes,partial,S05; build: sem link da nota fiscal até o ETL da Câmara/Senado
+Crachá: patrimônio declarado ao TSE ao longo do tempo,cracha,must,yes,yes,S05
+Crachá degradado com lista de dados faltantes e motivo,cracha,must,yes,yes,S05 S07; vira o padrão para municipais; build: S05 e S07
+Rodapé de fonte e data de atualização em todo bloco de dados,confianca,must,yes,yes,todas; build: SourceFooter + barra global
+Comparar 2 a 5 pessoas lado a lado via URL,comparar,must,yes,yes,S08 F04; build: S08; inválidos removidos com aviso
 ETL das fontes oficiais TSE Câmara Senado,dados,must,yes,no,base de tudo; não raspar o original
-Neutralidade: sem ranking nota enquete ou recomendação de voto,confianca,must,yes,no,Res. TSE 23.610/2019; regra de produto
-Compartilhar card do crachá (imagem OG + WhatsApp),compartilhar,should,yes,no,S28 F06
-Comparar: votaram igual e onde divergiram,comparar,should,yes,no,S08
+Neutralidade: sem ranking nota enquete ou recomendação de voto,confianca,must,yes,partial,Res. TSE 23.610/2019; regra de produto; build: aplicada nas telas; teste automatizado pendente (replica-test)
+Compartilhar card do crachá (imagem OG + WhatsApp),compartilhar,should,yes,partial,S28 F06; build: Web Share/copiar + WhatsApp; falta imagem OG
+Comparar: votaram igual e onde divergiram,comparar,should,yes,partial,S08; build: % de concordância por par; falta a lista de divergências
 Crachá: resumo do ano com temas mais tratados e fidelidade ao partido,cracha,should,yes,no,S05
 Crachá: leis que vieram de projetos da pessoa,cracha,should,yes,no,S05
 Crachá: emendas parlamentares por destino área e tipo,cracha,should,yes,no,S05; Portal da Transparência
@@ -32,7 +32,7 @@ Congresso: hemiciclo agenda pauta e votações do plenário,congresso,should,yes
 Detalhe de votação com placar e voto por partido,congresso,should,yes,no,S10 (rota não vista)
 Metodologia e fontes públicas,confianca,should,yes,no,S22; texto próprio
 Matriz de quem publica dados por estado e cidade,confianca,should,yes,no,S23
-Tema claro/escuro e mobile-first,shell,should,yes,no,todas
+Tema claro/escuro e mobile-first,shell,should,yes,yes,todas
 Partidos: espectro esquerda-direita e alinhamento com governo,partidos,could,yes,no,S11; critério de espectro precisa ser público e citável
 Camadas do mapa: contas escolas obras dinheiro votações,home,could,yes,no,S01; cada camada é uma fonte nova
 Governos: mandatos presidenciais e indicadores ano a ano,governos,could,yes,no,S12
@@ -43,9 +43,9 @@ STF: pauta ministros e processos,stf,could,yes,no,S15
 Impostômetro com arrecadação federal por UF e mês,impostos,could,yes,no,S16
 Entenda os cargos,educativo,could,yes,no,S18
 Dicionário político,educativo,could,yes,no,S19; reescrever os termos
-Ouvir esta página (TTS),acessibilidade,could,yes,no,todas; Web Speech API
+Ouvir esta página (TTS),acessibilidade,could,yes,yes,todas; Web Speech API; build: Web Speech API; some sem suporte
 Mais vistos e presença em tempo real,analytics,could,yes,no,S17; só com audiência
-Servidor MCP com consulta de políticos,api,could,yes,no,S27; original ainda "em breve" — pode ser diferencial
+Servidor MCP com consulta de políticos,api,could,yes,no,"S27; original ainda ""em breve"" — pode ser diferencial"
 Dados e textos do Politicômetro,dados,skip,yes,skip,não raspar; ETL próprio das fontes oficiais
 Marca nome e perfis sociais,marca,skip,yes,skip,propriedade do original
 Audiência e tráfego existentes,rede,skip,yes,skip,não se clona

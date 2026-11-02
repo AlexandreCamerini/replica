@@ -195,10 +195,10 @@ export function SourceFooter({
 export function MissingDataNote({ items }: { items: { what: string; why: string }[] }) {
   return (
     <section aria-labelledby="missing-title" className="rounded-md bg-warning-soft p-4 text-sm text-fg">
-      <h3 id="missing-title" className="mb-2 flex items-center gap-2 font-semibold">
+      <h2 id="missing-title" className="mb-2 flex items-center gap-2 text-base font-semibold">
         <Info aria-hidden className="size-4 text-warning" />
         {items.length} {items.length === 1 ? "dado ainda não está" : "dados ainda não estão"} aqui
-      </h3>
+      </h2>
       <ul className="flex flex-col gap-1.5">
         {items.map((i) => (
           <li key={i.what}>

@@ -1,103 +1,111 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Container } from "@/components/page/page-header";
+import { UfTileMap } from "@/components/map/uf-tile-map";
+import { PlaceSearch } from "@/components/people/place-search";
+import { BigNumber, SourceFooter } from "@/components/ui/data";
+import { data } from "@/lib/data";
+import { REGIONS, UF_ROWS } from "@/lib/data/reference";
+import { count } from "@/lib/format";
 
-export default function Home() {
+export default async function Home() {
+  const [counters, munis, stamp] = await Promise.all([data.getCounters(), data.listMunicipalities(), data.getStamp("tse.candidatos")]);
+  const byLetter = new Map<string, typeof munis>();
+  for (const m of munis) {
+    const l = m.name.normalize("NFD")[0].toUpperCase();
+    byLetter.set(l, [...(byLetter.get(l) ?? []), m]);
+  }
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <Container>
+      <section aria-labelledby="hero-h" className="grid gap-8 py-4 md:grid-cols-[1.1fr_1fr] md:items-end">
+        <div className="flex flex-col gap-6">
+          <h1 id="hero-h" className="sr-only">
+            Quem representa você
+          </h1>
+          <BigNumber value={counters.total} caption="pessoas no cargo hoje, da câmara da sua cidade a Brasília" />
+          <div className="max-w-xl">
+            <PlaceSearch label="Onde você mora?" />
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        <ul className="grid grid-cols-3 gap-2">
+          {(["municipal", "estadual", "federal"] as const).map((lvl) => (
+            <li key={lvl} className="flex flex-col rounded-md border border-border bg-surface p-3">
+              <span className="font-display text-xl tabular text-fg">{count(counters.byLevel[lvl])}</span>
+              <span className="text-xs text-muted">{lvl === "municipal" ? "nas cidades" : lvl === "estadual" ? "nos estados" : "em Brasília"}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="cargos-h" className="mt-6">
+        <h2 id="cargos-h" className="sr-only">
+          Pessoas por cargo
+        </h2>
+        <ul className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+          {counters.byOffice.map((o) => (
+            <li key={o.office} className="shrink-0">
+              <Link
+                href={`/quem?cargo=${o.office}`}
+                className="inline-flex h-9 items-center gap-2 rounded-pill bg-surface-sunken px-3 text-sm text-fg outline-none hover:underline focus-visible:outline-2 focus-visible:outline-focus"
+              >
+                {o.label} <span className="font-semibold tabular">{count(o.count)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      </section>
+
+      <section id="mapa" aria-labelledby="mapa-h" className="mt-10 grid scroll-mt-28 gap-8 md:grid-cols-2">
+        <div>
+          <h2 id="mapa-h" className="mb-1 text-xl text-fg">
+            Pelo mapa
+          </h2>
+          <p className="mb-4 text-sm text-muted">Toque no estado para ver quem o representa e as cidades disponíveis.</p>
+          <UfTileMap />
+        </div>
+        <div>
+          <h2 className="mb-3 text-xl text-fg">Por região</h2>
+          <div className="flex flex-col gap-4">
+            {REGIONS.map((r) => (
+              <div key={r.ibge}>
+                <h3 className="mb-1.5 text-sm font-semibold text-fg">{r.name}</h3>
+                <ul className="flex flex-wrap gap-1.5">
+                  {UF_ROWS.filter((u) => u[3] === r.ibge)
+                    .sort((a, b) => a[2].localeCompare(b[2], "pt-BR"))
+                    .map(([, uf, name]) => (
+                      <li key={uf}>
+                        <Link href={`/representantes?uf=${uf}`} className="text-sm text-accent-text underline underline-offset-2">
+                          {name}
+                        </Link>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="az-h" className="mt-10">
+        <h2 id="az-h" className="mb-1 text-xl text-fg">
+          Cidades de A a Z
+        </h2>
+        <p className="mb-4 text-sm text-muted">Nesta versão de demonstração, {munis.length} cidades. A carga do IBGE traz as 5.570.</p>
+        <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[...byLetter.entries()].map(([l, ms]) => (
+            <div key={l} className="flex gap-3">
+              <dt className="w-5 font-display text-lg text-muted">{l}</dt>
+              <dd className="flex flex-wrap gap-x-3 gap-y-1">
+                {ms.map((m) => (
+                  <Link key={m.ibge} href={`/representantes?cidade=${m.ibge}`} className="text-sm text-fg underline-offset-2 hover:underline">
+                    {m.name} <span className="text-muted">{m.uf}</span>
+                  </Link>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </Container>
   );
 }
