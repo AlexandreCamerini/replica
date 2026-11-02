@@ -12,7 +12,11 @@ case "${1:-status}" in
     if [[ ! -f "$DATA/PG_VERSION" ]]; then
       mkdir -p "$DATA"; "$PGBIN/initdb" -D "$DATA" -U postgres --auth=trust --encoding=UTF8 --locale-provider=icu --icu-locale=pt-BR >/dev/null
     fi
-    "$PGBIN/pg_ctl" -D "$DATA" -l "$ROOT/.local/pg.log" -o "-p $PORT -k $SOCK -c listen_addresses=localhost" -w start >/dev/null
+    if "$PGBIN/pg_ctl" -D "$DATA" status >/dev/null 2>&1; then
+      echo "já em execução" >&2
+    else
+      "$PGBIN/pg_ctl" -D "$DATA" -l "$ROOT/.local/pg.log" -o "-p $PORT -k $SOCK -c listen_addresses=localhost" -w start >/dev/null
+    fi
     "$PGBIN/psql" -h "$SOCK" -p $PORT -U postgres -XAtc "select 1 from pg_database where datname='civico'" | grep -q 1 \
       || "$PGBIN/createdb" -h "$SOCK" -p $PORT -U postgres civico
     echo "postgres://postgres@localhost:$PORT/civico" ;;
