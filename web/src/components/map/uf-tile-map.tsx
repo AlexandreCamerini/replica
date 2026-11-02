@@ -21,7 +21,7 @@ export function UfTileMap() {
           <li key={uf} style={{ gridRow: row + 1, gridColumn: col + 1 }}>
             <Link
               href={`/representantes?uf=${uf}`}
-              aria-label={name}
+              aria-label={`${uf}: ${name}`}
               title={name}
               className={`grid aspect-square place-items-center rounded-sm text-xs font-bold text-fg outline-none transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:text-sm ${FILL[region]}`}
             >

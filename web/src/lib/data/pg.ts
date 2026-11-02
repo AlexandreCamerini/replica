@@ -148,11 +148,19 @@ export const pgSource: DataSource = {
   async searchPlaces(q, limit = 10) {
     const f = q.trim();
     if (f.length < 2) return [];
+    // ordem: nome exato, depois prefixo, estado antes de cidade, cidade maior (cadeiras na câmara) antes da menor, A–Z.
+    // Sem isso "campi" põe Campinas (SP) em 9º, atrás de cidades pequenas, fora da área visível da lista no celular.
     const rows = await sql`
       select p.ibge_code, p.kind, p.name, p.slug, p.uf, r.ibge_code as region
-      from places p left join places r on r.id = (case when p.kind = 'municipio' then (select parent_id from places u where u.id = p.parent_id) else p.parent_id end)
+      from places p
+      left join places r on r.id = (case when p.kind = 'municipio' then (select parent_id from places u where u.id = p.parent_id) else p.parent_id end)
+      left join lateral (
+        select count(*)::int as n from mandates m join offices o on o.id = m.office_id
+        where m.place_id = p.id and o.slug = 'vereador' and m.status = 'em_exercicio') sz on true
       where p.kind in ('municipio','uf') and (f_unaccent(lower(p.name)) like f_unaccent(lower(${f})) || '%' or f_unaccent(lower(p.name)) like '% ' || f_unaccent(lower(${f})) || '%' or lower(p.uf) = lower(${f}))
-      order by (f_unaccent(lower(p.name)) like f_unaccent(lower(${f})) || '%') desc, p.kind desc, p.name collate pt_br, p.uf
+      order by (f_unaccent(lower(p.name)) = f_unaccent(lower(${f}))) desc,
+               (f_unaccent(lower(p.name)) like f_unaccent(lower(${f})) || '%') desc,
+               p.kind desc, coalesce(sz.n, 0) desc, p.name collate pt_br, p.uf
       limit ${Math.min(limit, 20)}`;
     return rows.map(place);
   },
@@ -289,6 +297,17 @@ export const pgSource: DataSource = {
       where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
       order by case m.status when 'em_exercicio' then 0 else 1 end, m.started_on desc limit 1`;
     const missing: MissingDataset[] = [];
+    if (m && m.level === "federal") {
+      // o que o ETL federal ainda não carrega para esta casa (ex.: proposições e CEAPS do Senado): vem do derive.stats
+      const FEDERAL_REASON: Record<string, string> = {
+        propostas: "a carga das matérias de autoria no Senado entra na próxima fase",
+        gastos_gabinete: "a carga da CEAPS (cota do Senado) entra na próxima fase",
+        presenca: "ainda não carregado para esta casa",
+        votos: "ainda não carregado para esta casa",
+      };
+      for (const d of (s?.missing_datasets as string[] | undefined) ?? [])
+        missing.push({ dataset: toDataset(d), label: DATASET_LABEL[d] ?? d, status: "carregando", reason: FEDERAL_REASON[d] ?? "carga pendente" });
+    }
     if (m && m.level !== "federal") {
       // cobertura do lugar: UF para deputados estaduais, município para vereadores/prefeitos
       const cov = await sql`select dataset, status, reason from data_coverage where place_id = ${m.place_id as string}::uuid and status <> 'no_site' order by dataset`;

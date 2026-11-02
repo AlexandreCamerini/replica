@@ -35,10 +35,15 @@ Resultado: 71.017 pessoas no cargo, 1.682 aguardando posse. 513 deputados em exe
 - **Temas**: os 32 temas oficiais da Câmara (`proposicoesTemas`) caem em 17 temas do produto por regra fixa (`etl/civico_etl/jobs/seed.py`, `rule_version 1`). Senado não classifica matérias no mesmo formato: votos do Senado ficam sem tema.
 - **Salário**: Decreto Legislativo 7/2022 (deputados, senadores, presidente, vice), escalonado 2023/2024/2025. Cargos estaduais e municipais: teto constitucional só quando a casa publicar; até lá "—".
 - **Partido mostrado**: filiação atual segundo a casa (`party_memberships` com `from_on` = início da legislatura, aproximação) ou, na falta, o partido na posse (TSE). Partidos: renomeações viram alias (PMDB→MDB, PR→PL…); fusões não são fundidas.
+- **Eleição suplementar**: o mandato começa na data da eleição (aproximação da posse) e encerra, nessa data, os mandatos regulares da mesma disputa, inclusive o da mesma pessoa reeleita; exceto senador (vaga única entre três). 82 disputas em 2024/2026.
 - **Status do mandato**: TSE cria (em exercício / aguardando posse); a casa é dona do status depois. Câmara: "Não Eleito" + "Vacância" = perdeu o mandato (ex.: cassação) → `encerrado`; eleito que a Câmara não lista na legislatura → `encerrado` (não tomou posse). Senado: lista por legislatura traz a causa do afastamento (REN → `renunciou`, AFO → `licenciado`).
 - **Identidade**: id da fonte → título de eleitor → nome civil + nascimento → cadeira (cargo + lugar) + nome parlamentar igual ou mesmo nascimento → fila manual. Nunca por nome sozinho. Duplicata já publicada é fundida por `merge_person()` com redirect 308 do slug antigo (13 fusões na primeira carga: TSE e Câmara divergem em nome civil e até em data de nascimento).
 - **Votos do Senado**: a API por senador marca como secretas 77 de 93 votações de 2025 e devolve "Votou"; só votações abertas entram. Conferir com `/plenario/lista/votacao` no R2.
 - **`null` nunca vira 0**: casa sem adapter de dados abertos → estatística `null` e lista de "faltam N dados" por `data_coverage`.
+
+## Invariantes (`civico-etl check`, exit 1 se quebrar)
+
+carreira = soma dos anos; nenhum zero em ano sem carga da fonte; ≤ 513 deputados e ≤ 81 senadores em exercício; um titular de Executivo por lugar; nenhuma sobreposição de mandato; nenhuma duplicata TSE × casa na mesma cadeira; voto só em evento nominal; presença ≤ total; stamp da Câmara/Senado com menos de 48 h e do TSE com menos de 60 dias. Roda ao fim de `all` e no `replica-test`.
 
 ## Contrato de job (todos)
 

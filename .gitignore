@@ -17,3 +17,8 @@ replica/screens/
 .local/
 etl/.cache/
 .venv/
+
+# testes e2e
+web/.next-e2e/
+web/playwright-report/
+web/test-results/

@@ -33,3 +33,11 @@ Uma linha por tela. Camada de dados = demo (`web/src/lib/data/fake.ts`, contrato
 | dados | 2026-11-02 | done | votos por candidato e prestação de contas do TSE (arquivos grandes, flags prontas); Supabase/auth/e-mail (R2) | identidade entre fontes: TSE e Câmara divergem em nome civil e até em data de nascimento para a mesma pessoa; precisou de regra por cadeira + `merge_person()`; Câmara marca cassado como "Não Eleito + Vacância" e suplente em exercício como "Não Eleito + Exercício"; a lista "atual" do Senado omite titulares afastados (lista por legislatura resolve); 16 municípios com grafia diferente entre TSE e IBGE |
 
 Verificação: cadeiras batem (513 deputados, 81 senadores); RLS testada (anon nega, web_reader só lê público); rotas 404/400 nos inválidos; axe 0 violações no crachá com dado real; `npm audit` com 2 avisos no Next (registrados).
+
+## 2026-11-02 · testes (replica-test)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| e2e | 2026-11-02 | done | F05/F07/F08 reais (R2); card OG; mapa com contorno | servidor de teste precisa de build próprio (`NEXT_DIST_DIR=.next-e2e`) e da flag `ALLOW_DEMO_DATA=1`; o estado vazio do ListBox tem `role=option`; rolar a página fecha o popover do React Aria (achou BUG-007); Playwright na sandbox não baixa o headless shell |
+
+Resultado: 38 casos automatizados (Playwright + axe em cada tela, falha em erro de console e 5xx), 34 de primeira, 3 na repetição, 1 corrigido no teste; 10 invariantes do banco verdes; 8 bugs registrados, 7 corrigidos (2 S2 no ETL: carreira multiplicada e eleição suplementar), 1 aberto (S3, intermitente). Nenhum S1.

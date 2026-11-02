@@ -2,10 +2,11 @@
 
 import { clsx } from "clsx";
 import { Loader2, MapPin, Search, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   Button as AriaButton,
   ComboBox,
+  ComboBoxStateContext,
   Input,
   Label,
   ListBox,
@@ -17,6 +18,21 @@ import {
 export type PlaceOption = { id: string; name: string; uf: string; kind: "municipio" | "uf" };
 
 type Status = "idle" | "loading" | "ready" | "error";
+
+/**
+ * Abre a lista quando a busca assíncrona responde. O ComboBox abre no input, mas quando os itens chegam depois
+ * (fetch), o estado interno pode já ter fechado; sem isto a lista só aparece de forma intermitente.
+ */
+export function OpenWhenReady({ ready }: { ready: boolean }) {
+  const state = useContext(ComboBoxStateContext);
+  const focused = state?.isFocused;
+  const size = state?.collection.size;
+  useEffect(() => {
+    // trigger "input", não "manual": em toque, "manual" tira o foco do campo e o ComboBox apaga o texto digitado
+    if (state && ready && focused && !state.isOpen) state.open(null, "input");
+  }, [state, ready, focused, size]);
+  return null;
+}
 
 /**
  * Autocomplete de lugar. `search` é injetado (na app real chama /api/places); aqui na vitrine é um mock.
@@ -69,6 +85,7 @@ export function PlaceCombobox({
       className="group flex w-full flex-col gap-1.5"
     >
       <Label className="text-sm font-semibold text-fg">{label}</Label>
+      <OpenWhenReady ready={status === "ready" || status === "error"} />
       <div className="relative">
         <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" />
         <Input

@@ -4,6 +4,7 @@ import { Loader2, Search, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ComboBox, Input, Label, ListBox, ListBoxItem, Popover, Text } from "react-aria-components";
+import { OpenWhenReady } from "@/components/ui/search-combobox";
 
 type Row = { slug: string; name: string; office: string; place: string; party: string };
 
@@ -45,13 +46,14 @@ export function PersonPicker({ current, max }: { current: string[]; max: number 
       menuTrigger="input"
       allowsEmptyCollection
       onSelectionChange={(k) => {
-        if (typeof k !== "string") return;
+        if (typeof k !== "string" || current.includes(k)) return;
         setQ("");
         router.push(`/comparar?p=${[...current, k].join(",")}`);
       }}
       className="flex w-full max-w-xl flex-col gap-1.5"
     >
       <Label className="text-sm font-semibold text-fg">Adicionar pessoa</Label>
+      <OpenWhenReady ready={status === "ready" || status === "error"} />
       <div className="relative">
         <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" />
         <Input

@@ -225,6 +225,7 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
     cand_rows: list[tuple] = []
     seen_person_election: set[tuple[str, str]] = set()
     mandate_rows: list[tuple] = []
+    supplementary: list[tuple[str, str, date]] = []  # (office_slug, place_id, data da eleição suplementar)
     sq_round1: dict[str, tuple[str, str]] = {}  # SQ -> (contest_id, person_id) do 1º turno, para bens
     for x in parsed:
         sq = nz(x["SQ_CANDIDATO"])
@@ -265,6 +266,10 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             sq_round1[sq] = (contest_id, pid)
         if result in ELECTED:
             start, end = term_dates(x["office"], year)
+            if x["kind"] == "suplementar":
+                # eleição suplementar: entra no lugar de quem perdeu o mandato; posse logo após a eleição (aproximação: data da eleição)
+                start = x["held"]
+                supplementary.append((x["office"], x["place"], x["held"]))
             status = "encerrado" if end <= today else "em_exercicio" if start <= today else "eleito_aguardando_posse"
             body = bodies.get((BODY_KIND[x["office"]], x["place"])) if x["office"] in BODY_KIND else None
             mandate_rows.append((pid, offices[x["office"]], x["place"], body, party_id, "titular", status, start, end, f"TSE {year}", "tse", sq, contest_id))
@@ -280,7 +285,31 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
 
     # 4) mandatos dos eleitos: TSE só insere e só promove 'aguardando posse' -> 'em exercício'; a casa é dona do status depois
     if mandate_rows:
-        rows_m = [(a, b, c, d, e, cand_id.get((sq, contest_id)), g, h, i, j, k, l) for (a, b, c, d, e, g, h, i, j, k, l, sq, contest_id) in mandate_rows]
+        # suplementar anula a eleição anterior daquela disputa: vale para todo cargo, menos senador (vaga única entre três)
+        supp_by_seat = {(offices[o], pl): held for o, pl, held in supplementary if o != "senador"}
+        rows_m = []
+        for (a, b, c, d, e, g, h, i, j, k, l, sq, contest_id) in mandate_rows:
+            held = supp_by_seat.get((b, c))
+            if held and i < held < j:
+                # mandato regular anulado: termina na data da suplementar (também quando a mesma pessoa venceu de novo)
+                j, h = held, "encerrado"
+            rows_m.append((a, b, c, d, e, cand_id.get((sq, contest_id)), g, h, i, j, k, l))
+        if supp_by_seat:
+            cur = conn.cursor()
+            # linha errada de run anterior (posse regular para eleito em suplementar) sai antes do upsert
+            cur.executemany(
+                """delete from mandates m using candidacies c, elections e
+                   where m.candidacy_id = c.id and c.election_id = e.id and e.kind = 'suplementar'
+                     and m.office_id = %s and m.place_id = %s and m.started_on <> %s""",
+                [(o, pl, held) for (o, pl), held in supp_by_seat.items()],
+            )
+            # quem estava no cargo perdeu o mandato: encerra na data da suplementar
+            cur.executemany(
+                """update mandates set status = 'encerrado', ends_on = %s, updated_at = now()
+                   where office_id = %s and place_id = %s and started_on < %s and ends_on > %s and status = 'em_exercicio'""",
+                [(held, o, pl, held, held) for (o, pl), held in supp_by_seat.items()],
+            )
+            r.notes.append(f"{len(supp_by_seat)} cadeira(s) com eleição suplementar")
         n = len(upsert(
             conn, "mandates",
             ["person_id", "office_id", "place_id", "body_id", "party_id", "candidacy_id", "role", "status", "started_on", "ends_on", "elected_by", "status_source"],

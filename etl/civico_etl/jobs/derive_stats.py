@@ -18,7 +18,7 @@ import psycopg
 
 log = logging.getLogger("etl.derive")
 
-STATS_SQL = """
+STATS_SQL = r"""
 with periods as (
   select m.person_id, 'career' as period, null::int as year
   from mandates m group by m.person_id
@@ -28,10 +28,24 @@ with periods as (
        generate_series(extract(year from m.started_on)::int, least(extract(year from m.ends_on - 1)::int, extract(year from current_date)::int)) y
   where m.status <> 'eleito_aguardando_posse'
 ),
-has_src as (
-  select distinct m.person_id
+-- o que já foi carregado, por fonte, tipo e ano (runs bem-sucedidos). Ano sem carga -> null, nunca 0.
+loaded as (
+  select distinct split_part(dataset, '.', 1) as src, split_part(dataset, '.', 2) as kind, split_part(dataset, '.', 3)::int as year
+  from ingest_runs
+  where status = 'succeeded' and dataset ~ '^(camara|senado)\.(votacoes|proposicoes|despesas)\.[0-9]{4}$'
+),
+person_src as (
+  select distinct m.person_id, case b.adapter when 'camara_api' then 'camara' when 'senado_api' then 'senado' end as src
   from mandates m join legislative_bodies b on b.id = m.body_id
-  where b.adapter <> 'none'
+  where b.adapter in ('camara_api', 'senado_api')
+),
+has_src as (
+  select pe.person_id, pe.period,
+         bool_or(exists (select 1 from loaded l where l.src = ps.src and l.kind = 'votacoes' and (pe.year is null or l.year = pe.year))) as votes_src,
+         bool_or(exists (select 1 from loaded l where l.src = ps.src and l.kind = 'proposicoes' and (pe.year is null or l.year = pe.year))) as props_src,
+         bool_or(exists (select 1 from loaded l where l.src = ps.src and l.kind = 'despesas' and (pe.year is null or l.year = pe.year))) as exp_src
+  from periods pe join person_src ps on ps.person_id = pe.person_id
+  group by 1, 2
 ),
 pres as (
   select a.person_id, extract(year from s.starts_at)::int as year,
@@ -69,20 +83,36 @@ topics as (
   join proposal_topics pt on pt.proposal_id = p.id join topics t on t.id = pt.topic_id
   group by 1, 2, 3
 ),
+-- cada métrica vira (pessoa, período) antes do join: sem isso 'career' multiplica as linhas dos anos (produto cartesiano)
+pres2 as (
+  select person_id, year::text as period, present, total from pres
+  union all select person_id, 'career', sum(present), sum(total) from pres group by 1
+),
+props2 as (
+  select person_id, year::text as period, principal, cosigned, law_eligible, laws from props
+  union all select person_id, 'career', sum(principal), sum(cosigned), sum(law_eligible), sum(laws) from props group by 1
+),
+vt2 as (
+  select person_id, year::text as period, registered, aligned, alignment_total from vt
+  union all select person_id, 'career', sum(registered), sum(aligned), sum(alignment_total) from vt group by 1
+),
+exp2 as (
+  select person_id, year::text as period, cents from exp
+  union all select person_id, 'career', sum(cents) from exp group by 1
+),
 agg as (
   select pe.person_id, pe.period,
-         (hs.person_id is not null) as has_src,
-         sum(pr.present) present, sum(pr.total) total,
-         sum(pp.principal) principal, sum(pp.cosigned) cosigned, sum(pp.law_eligible) law_eligible, sum(pp.laws) laws,
-         sum(v.registered) registered, sum(v.aligned) aligned, sum(v.alignment_total) alignment_total,
-         sum(ex.cents) cents
+         coalesce(hs.votes_src, false) as votes_src, coalesce(hs.props_src, false) as props_src, coalesce(hs.exp_src, false) as exp_src,
+         pr.present, pr.total,
+         pp.principal, pp.cosigned, pp.law_eligible, pp.laws,
+         v.registered, v.aligned, v.alignment_total,
+         ex.cents
   from periods pe
-  left join has_src hs on hs.person_id = pe.person_id
-  left join pres pr on pr.person_id = pe.person_id and (pe.year is null or pr.year = pe.year)
-  left join props pp on pp.person_id = pe.person_id and (pe.year is null or pp.year = pe.year)
-  left join vt v on v.person_id = pe.person_id and (pe.year is null or v.year = pe.year)
-  left join exp ex on ex.person_id = pe.person_id and (pe.year is null or ex.year = pe.year)
-  group by 1, 2, 3
+  left join has_src hs on hs.person_id = pe.person_id and hs.period = pe.period
+  left join pres2 pr on pr.person_id = pe.person_id and pr.period = pe.period
+  left join props2 pp on pp.person_id = pe.person_id and pp.period = pe.period
+  left join vt2 v on v.person_id = pe.person_id and v.period = pe.period
+  left join exp2 ex on ex.person_id = pe.person_id and ex.period = pe.period
 ),
 tops as (
   select pe.person_id, pe.period,
@@ -93,18 +123,20 @@ tops as (
 insert into person_period_stats (person_id, period, presence_present, presence_total, proposals_principal, proposals_cosigned,
   proposals_law_eligible, laws_from_proposals, votes_registered, party_aligned, party_alignment_total, expenses_cents, top_topics, missing_datasets, computed_at)
 select a.person_id, a.period,
-  case when a.has_src and a.total > 0 then a.present end,
-  case when a.has_src and a.total > 0 then a.total end,
-  case when a.has_src then coalesce(a.principal, 0) end,
-  case when a.has_src then coalesce(a.cosigned, 0) end,
-  case when a.has_src then coalesce(a.law_eligible, 0) end,
-  case when a.has_src then coalesce(a.laws, 0) end,
-  case when a.has_src then coalesce(a.registered, 0) end,
-  case when a.has_src then coalesce(a.aligned, 0) end,
-  case when a.has_src then coalesce(a.alignment_total, 0) end,
-  case when a.has_src then coalesce(a.cents, 0) end,
+  case when a.votes_src and a.total > 0 then a.present end,
+  case when a.votes_src and a.total > 0 then a.total end,
+  case when a.props_src then coalesce(a.principal, 0) end,
+  case when a.props_src then coalesce(a.cosigned, 0) end,
+  case when a.props_src then coalesce(a.law_eligible, 0) end,
+  case when a.props_src then coalesce(a.laws, 0) end,
+  case when a.votes_src then coalesce(a.registered, 0) end,
+  case when a.votes_src then coalesce(a.aligned, 0) end,
+  case when a.votes_src then coalesce(a.alignment_total, 0) end,
+  case when a.exp_src then coalesce(a.cents, 0) end,
   t.top,
-  case when a.has_src then '{}'::text[] else array['presenca','votos','propostas','gastos_gabinete'] end,
+  array_remove(array[
+    case when not a.votes_src then 'presenca' end, case when not a.votes_src then 'votos' end,
+    case when not a.props_src then 'propostas' end, case when not a.exp_src then 'gastos_gabinete' end], null),
   now()
 from agg a join tops t on t.person_id = a.person_id and t.period = a.period
 on conflict (person_id, period) do update set

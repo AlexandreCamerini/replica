@@ -15,7 +15,7 @@ Crachá degradado com lista de dados faltantes e motivo,cracha,must,yes,yes,S05 
 Rodapé de fonte e data de atualização em todo bloco de dados,confianca,must,yes,yes,todas; build: SourceFooter + barra global
 Comparar 2 a 5 pessoas lado a lado via URL,comparar,must,yes,yes,S08 F04; build: S08; inválidos removidos com aviso
 ETL das fontes oficiais TSE Câmara Senado,dados,must,yes,yes,"base de tudo; não raspar o original; backend: IBGE + TSE 2022/2024/2026 (eleitos) + Câmara 2025–26 + Senado 2025–26; idempotente, com proveniência; faltam votos por candidato (--votes) e prestação de contas"
-Neutralidade: sem ranking nota enquete ou recomendação de voto,confianca,must,yes,partial,Res. TSE 23.610/2019; regra de produto; build: aplicada nas telas; teste automatizado pendente (replica-test)
+Neutralidade: sem ranking nota enquete ou recomendação de voto,confianca,must,yes,yes,"Res. TSE 23.610/2019; regra de produto; build: aplicada nas telas; teste automatizado pendente (replica-test); test: NEU-1..4 automatizados (ordem A–Z, cores iguais para Sim/Não e cadeiras, sem vocabulário de avaliação)"
 Compartilhar card do crachá (imagem OG + WhatsApp),compartilhar,should,yes,partial,S28 F06; build: Web Share/copiar + WhatsApp; falta imagem OG
 Comparar: votaram igual e onde divergiram,comparar,should,yes,partial,S08; build: % de concordância por par; falta a lista de divergências
 Crachá: resumo do ano com temas mais tratados e fidelidade ao partido,cracha,should,yes,partial,S05; backend: person_period_stats já calcula temas e fidelidade; falta a seção na tela

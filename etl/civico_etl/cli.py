@@ -7,6 +7,7 @@ Exemplos:
   civico-etl camara.diario --year 2025 --limit 40                        # --limit: N deputados (desenvolvimento)
   civico-etl senado.diario --year 2025
   civico-etl derive.stats
+  civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ log = logging.getLogger("etl")
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "tse.candidatos", "camara.diario", "senado.diario", "identity.dedupe", "derive.stats", "all"])
+    p.add_argument("job", choices=["seed", "ibge.places", "tse.candidatos", "camara.diario", "senado.diario", "identity.dedupe", "derive.stats", "check", "all"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -68,6 +69,11 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.derive_stats import run_derive
 
             run_derive(conn)
+        if a.job in ("check", "all"):
+            from .jobs.checks import run_checks
+
+            if run_checks(conn):
+                return 1
     except db.SkipUnchanged:
         pass
     finally:
