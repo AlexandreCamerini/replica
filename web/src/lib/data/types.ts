@@ -42,14 +42,14 @@ export type Mandate = {
   statusSource: string;
 };
 
-export type ElectionResult = "eleito" | "eleito_qp" | "eleito_media" | "suplente" | "nao_eleito";
+export type ElectionResult = "eleito" | "eleito_qp" | "eleito_media" | "suplente" | "nao_eleito" | "segundo_turno" | "indeferido" | "renuncia";
 export type Candidacy = {
   year: number;
   office: OfficeSlug;
   placeIbge: string;
   partyId: string;
   result: ElectionResult;
-  votes: number;
+  votes: number | null; // null = votação por candidato ainda não carregada (nunca 0)
   raisedCents: number | null;
   spentCents: number | null;
   assetsCents: number | null;
@@ -114,8 +114,8 @@ export type VotingEvent = {
   body: "camara" | "senado";
   occurredAt: string;
   description: string;
-  topic: string;
-  result: "aprovado" | "rejeitado";
+  topic: string | null;
+  result: "aprovado" | "rejeitado" | null;
   yes: number;
   no: number;
 };

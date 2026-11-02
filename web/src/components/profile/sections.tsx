@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { BarBreakdown, SourceFooter, TopicTag, VoteBadge } from "@/components/ui/data";
+import { BarBreakdown, NotPublished, SourceFooter, TopicTag, VoteBadge } from "@/components/ui/data";
 import { data, type Candidacy, type ElectionResult, type Party, type VoteValue } from "@/lib/data";
 import { count, date, money, monthYear } from "@/lib/format";
 import { Empty, MoreLink, SelectField, Section, fieldCls, hrefWith, type Params } from "./ui";
@@ -133,10 +133,12 @@ export async function Votes({ personId, base, sp, year, body }: Common & { body:
                       <span className="sr-only">Voto:</span>
                       <VoteBadge value={v.value} />
                       <span>
-                        Resultado: <span className="font-semibold text-fg">{v.event.result === "aprovado" ? "aprovado" : "rejeitado"}</span> ({count(v.event.yes)} sim · {count(v.event.no)} não)
+                        Resultado:{" "}
+                        <span className="font-semibold text-fg">{v.event.result === "aprovado" ? "aprovado" : v.event.result === "rejeitado" ? "rejeitado" : "não informado"}</span>
+                        {v.event.yes + v.event.no > 0 && ` (${count(v.event.yes)} sim · ${count(v.event.no)} não)`}
                       </span>
                       <time dateTime={v.event.occurredAt}>{date(v.event.occurredAt)}</time>
-                      <TopicTag>{topicName[v.event.topic]}</TopicTag>
+                      {v.event.topic && topicName[v.event.topic] && <TopicTag>{topicName[v.event.topic]}</TopicTag>}
                     </div>
                   </li>
                 ))}
@@ -251,6 +253,9 @@ const RESULT: Record<ElectionResult, [string, string]> = {
   eleito_media: ["Eleito por média", "Eleita por média"],
   suplente: ["Suplente", "Suplente"],
   nao_eleito: ["Não eleito", "Não eleita"],
+  segundo_turno: ["Foi ao 2º turno", "Foi ao 2º turno"],
+  indeferido: ["Candidatura indeferida", "Candidatura indeferida"],
+  renuncia: ["Renunciou à candidatura", "Renunciou à candidatura"],
 };
 
 export async function Elections({ candidacies, f }: { candidacies: C[]; f: boolean }) {
@@ -279,8 +284,8 @@ export async function Elections({ candidacies, f }: { candidacies: C[]; f: boole
                     {c.officeName} · {c.placeLabel}
                   </td>
                   <td className="py-2 pr-3 text-fg">{c.party.acronym}</td>
-                  <td className="py-2 pr-3 text-fg">{RESULT[c.result][f ? 1 : 0]}</td>
-                  <td className="py-2 text-right tabular text-fg">{count(c.votes)}</td>
+                  <td className="py-2 pr-3 text-fg">{(RESULT[c.result] ?? ["Sem resultado publicado", "Sem resultado publicado"])[f ? 1 : 0]}</td>
+                  <td className="py-2 text-right tabular text-fg">{c.votes === null ? <NotPublished /> : count(c.votes)}</td>
                 </tr>
               ))}
             </tbody>

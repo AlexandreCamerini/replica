@@ -1,28 +1,28 @@
 feature,area,priority,original,clone,notes
-Contadores de pessoas no cargo por nível com fonte e data,home,must,yes,partial,S01; build: S01 pronto; números da camada demo até o ETL
+Contadores de pessoas no cargo por nível com fonte e data,home,must,yes,yes,"S01; build: S01 pronto; números da camada demo até o ETL; backend: 71.017 no cargo, 1.682 aguardando posse, do Postgres"
 Mapa do Brasil com drill-down região > UF > cidade,home,must,yes,partial,S01 F02; SVG CC BY 4.0 reutilizável; build: grade de UFs + lista por região; sem contorno IBGE nem nível cidade no mapa
 Busca de cidade/estado com autocomplete e UF desambiguada,representantes,must,yes,yes,S06 F01; chave IBGE; build: /api/places + combobox; fallback sem JS em ?q=
 Lista de todos os representantes de uma cidade por nível,representantes,must,yes,yes,S07 F01; build: S07; DF com distritais
 Diretório A-Z com filtros de cargo estado partido e nome,diretorio,must,yes,yes,"S04; build: S04, GET form, paginação 60"
 Crachá: cabeçalho com cargo partido idade naturalidade e histórico de eleições,cracha,must,yes,yes,S05
 Crachá: mandatos em exercício e eleito aguardando posse,cracha,must,yes,yes,S05; build: posse 2027 dos reeleitos em 2026
-Crachá: tiles de salário patrimônio votos campanha presença propostas,cracha,must,yes,yes,"S05; ""—"" quando a fonte não publica; build: teto vs valor pago; — quando não publica"
+Crachá: tiles de salário patrimônio votos campanha presença propostas,cracha,must,yes,partial,"S05; ""—"" quando a fonte não publica; build: teto vs valor pago; — quando não publica; backend: votos recebidos e campanha '—' até carregar os arquivos de votação e prestação de contas do TSE"
 Crachá: propostas com filtros de ano tema tipo e autoria,cracha,must,yes,yes,"S05 F03; build: filtros na URL, funciona sem JS"
 Crachá: linha do tempo de votos com resultado e tema,cracha,must,yes,yes,S05 F03; build: agrupada por mês; só nominais
-Crachá: gastos da cota por categoria e fornecedor com nota,cracha,must,yes,partial,S05; build: sem link da nota fiscal até o ETL da Câmara/Senado
+Crachá: gastos da cota por categoria e fornecedor com nota,cracha,must,yes,yes,S05; build: sem link da nota fiscal até o ETL da Câmara/Senado; backend: cota 2025–26 da Câmara com link do documento
 Crachá: patrimônio declarado ao TSE ao longo do tempo,cracha,must,yes,yes,S05
 Crachá degradado com lista de dados faltantes e motivo,cracha,must,yes,yes,S05 S07; vira o padrão para municipais; build: S05 e S07
 Rodapé de fonte e data de atualização em todo bloco de dados,confianca,must,yes,yes,todas; build: SourceFooter + barra global
 Comparar 2 a 5 pessoas lado a lado via URL,comparar,must,yes,yes,S08 F04; build: S08; inválidos removidos com aviso
-ETL das fontes oficiais TSE Câmara Senado,dados,must,yes,no,base de tudo; não raspar o original
+ETL das fontes oficiais TSE Câmara Senado,dados,must,yes,yes,"base de tudo; não raspar o original; backend: IBGE + TSE 2022/2024/2026 (eleitos) + Câmara 2025–26 + Senado 2025–26; idempotente, com proveniência; faltam votos por candidato (--votes) e prestação de contas"
 Neutralidade: sem ranking nota enquete ou recomendação de voto,confianca,must,yes,partial,Res. TSE 23.610/2019; regra de produto; build: aplicada nas telas; teste automatizado pendente (replica-test)
 Compartilhar card do crachá (imagem OG + WhatsApp),compartilhar,should,yes,partial,S28 F06; build: Web Share/copiar + WhatsApp; falta imagem OG
 Comparar: votaram igual e onde divergiram,comparar,should,yes,partial,S08; build: % de concordância por par; falta a lista de divergências
-Crachá: resumo do ano com temas mais tratados e fidelidade ao partido,cracha,should,yes,no,S05
+Crachá: resumo do ano com temas mais tratados e fidelidade ao partido,cracha,should,yes,partial,S05; backend: person_period_stats já calcula temas e fidelidade; falta a seção na tela
 Crachá: leis que vieram de projetos da pessoa,cracha,should,yes,no,S05
 Crachá: emendas parlamentares por destino área e tipo,cracha,should,yes,no,S05; Portal da Transparência
 Crachá: dinheiro das campanhas origem e gastos,cracha,should,yes,no,S05; TSE prestação de contas
-Crachá: presença em sessões deliberativas com regra publicada,cracha,should,yes,no,S05; senado não publica presença
+Crachá: presença em sessões deliberativas com regra publicada,cracha,should,yes,yes,"S05; senado não publica presença; backend: regra derivada de votação nominal, publicada em backend.md; vale para Câmara e Senado"
 Crachá: comissões falas viagens equipe do gabinete,cracha,should,yes,no,S05
 Crachá: custo do mandato e contato,cracha,should,yes,no,S05
 Busca global no header (político cidade estado cargo),busca,should,yes,no,S03

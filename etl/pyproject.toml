@@ -1,0 +1,20 @@
+[project]
+name = "civico-etl"
+version = "0.1.0"
+description = "ETL das fontes oficiais (IBGE, TSE, Câmara, Senado) para o clone cívico"
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.28",
+  "psycopg[binary]>=3.2.10",
+  "duckdb>=1.3",
+]
+
+[project.scripts]
+civico-etl = "civico_etl.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["civico_etl"]

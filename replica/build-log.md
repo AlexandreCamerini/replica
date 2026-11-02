@@ -25,3 +25,11 @@ Uma linha por tela. Camada de dados = demo (`web/src/lib/data/fake.ts`, contrato
 - "—" mistura "não publicado" com "não se aplica ao cargo" no S08. Separar em R2 com legenda.
 - A camada demo gera votos com orientação por partido sorteada; a concordância entre pessoas é plausível, não real.
 - Tabela de `features.csv`: o ETL (must) segue `no`, é o `/replica-backend`.
+
+## 2026-11-02 · backend (replica-backend)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| dados | 2026-11-02 | done | votos por candidato e prestação de contas do TSE (arquivos grandes, flags prontas); Supabase/auth/e-mail (R2) | identidade entre fontes: TSE e Câmara divergem em nome civil e até em data de nascimento para a mesma pessoa; precisou de regra por cadeira + `merge_person()`; Câmara marca cassado como "Não Eleito + Vacância" e suplente em exercício como "Não Eleito + Exercício"; a lista "atual" do Senado omite titulares afastados (lista por legislatura resolve); 16 municípios com grafia diferente entre TSE e IBGE |
+
+Verificação: cadeiras batem (513 deputados, 81 senadores); RLS testada (anon nega, web_reader só lê público); rotas 404/400 nos inválidos; axe 0 violações no crachá com dado real; `npm audit` com 2 avisos no Next (registrados).

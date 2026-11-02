@@ -118,7 +118,7 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
       title: "Eleição",
       rows: [
         ["Última vitória", (r) => r.lastElected?.year ?? dash],
-        ["Votos", (r) => (r.lastElected ? count(r.lastElected.votes) : dash)],
+        ["Votos", (r) => (r.lastElected?.votes != null ? count(r.lastElected.votes) : dash)],
         ["Arrecadou", (r) => (r.lastElected?.raisedCents != null ? money(r.lastElected.raisedCents) : dash)],
         ["Gastou", (r) => (r.lastElected?.spentCents != null ? money(r.lastElected.spentCents) : dash)],
       ],

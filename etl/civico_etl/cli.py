@@ -1,0 +1,79 @@
+"""civico-etl <job> [opções]. Jobs seguem o contrato de run (db.run). `all` roda a sequência do R0/R1.
+
+Exemplos:
+  civico-etl seed
+  civico-etl ibge.places
+  civico-etl tse.candidatos --year 2022 --year 2024 --uf SP            # só eleitos; --all para todos
+  civico-etl camara.diario --year 2025 --limit 40                        # --limit: N deputados (desenvolvimento)
+  civico-etl senado.diario --year 2025
+  civico-etl derive.stats
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import sys
+from datetime import date
+
+from . import db
+
+logging.basicConfig(level=os.environ.get("ETL_LOG", "INFO"), format="%(asctime)s %(name)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
+log = logging.getLogger("etl")
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("job", choices=["seed", "ibge.places", "tse.candidatos", "camara.diario", "senado.diario", "identity.dedupe", "derive.stats", "all"])
+    p.add_argument("--year", type=int, action="append", help="ano (repetível)")
+    p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
+    p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
+    p.add_argument("--votes", action="store_true", help="TSE: baixar votação por candidato (~550 MB por eleição)")
+    p.add_argument("--limit", type=int, help="Câmara/Senado: no máximo N parlamentares (desenvolvimento)")
+    p.add_argument("--no-expenses", action="store_true", help="Câmara: pular a cota parlamentar")
+    p.add_argument("--force", action="store_true", help="ignorar checksum e reprocessar")
+    a = p.parse_args(argv)
+
+    conn = db.connect()
+    today = date.today()
+    try:
+        if a.job in ("seed", "all"):
+            from .jobs.seed import run_seed
+
+            run_seed(conn)
+            log.info("seed ok")
+        if a.job in ("ibge.places", "all"):
+            from .jobs.ibge_places import run_places
+
+            run_places(conn, force=a.force)
+        if a.job in ("tse.candidatos", "all"):
+            from .jobs.tse_candidatos import run_tse
+
+            years = a.year or [y for y in (2018, 2020, 2022, 2024, 2026) if y <= today.year]
+            run_tse(conn, years=years, ufs=a.uf, only_elected=not a.all, with_votes=a.votes, force=a.force)
+        if a.job in ("camara.diario", "all"):
+            from .jobs.camara_diario import run_camara
+
+            run_camara(conn, years=a.year or [today.year - 1, today.year], limit=a.limit, expenses=not a.no_expenses, force=a.force)
+        if a.job in ("senado.diario", "all"):
+            from .jobs.senado_diario import run_senado
+
+            run_senado(conn, years=a.year or [today.year - 1, today.year], limit=a.limit, force=a.force)
+        if a.job in ("identity.dedupe", "all", "camara.diario", "senado.diario"):
+            from .jobs.identity_dedupe import run_dedupe
+
+            run_dedupe(conn)
+        if a.job in ("derive.stats", "all") or a.job in ("tse.candidatos", "camara.diario", "senado.diario", "identity.dedupe"):
+            from .jobs.derive_stats import run_derive
+
+            run_derive(conn)
+    except db.SkipUnchanged:
+        pass
+    finally:
+        conn.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

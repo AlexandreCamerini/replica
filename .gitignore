@@ -12,3 +12,8 @@ __pycache__/
 
 # capturas do original: referência local, nunca publicadas
 replica/screens/
+
+# Postgres local e caches do ETL
+.local/
+etl/.cache/
+.venv/
