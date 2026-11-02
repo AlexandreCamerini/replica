@@ -1,6 +1,6 @@
 import { CAMPINAS, expect, test } from "./fixtures";
 
-test.describe("F05–F08 fluxos com telas provisórias (R2)", () => {
+test.describe("F05–F08 a partir do crachá e telas provisórias", () => {
   test("F05 Acompanhar leva a /entrar com volta; F05-E1 volta malicioso não vira link", async ({ page, axe }) => {
     await page.goto(CAMPINAS);
     const first = page.locator('a[href^="/p/"]').first();
@@ -9,7 +9,7 @@ test.describe("F05–F08 fluxos com telas provisórias (R2)", () => {
     await page.getByRole("link", { name: "Acompanhar" }).click();
     await expect(page).toHaveURL(new RegExp(`/entrar\\?volta=${encodeURIComponent(href!).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Entrar");
-    await expect(page.getByText(/S20/)).toBeVisible();
+    await expect(page.getByLabel("E-mail", { exact: true })).toBeVisible();
     await axe();
     for (const bad of ["javascript:alert(1)", "//evil.example", "https://evil.example"]) {
       await page.goto(`/entrar?volta=${encodeURIComponent(bad)}`);
@@ -30,7 +30,8 @@ test.describe("F05–F08 fluxos com telas provisórias (R2)", () => {
     expect(decodeURIComponent((await wa.getAttribute("href"))!)).toContain(href!);
     await page.getByRole("link", { name: "Reportar erro" }).click();
     await expect(page).toHaveURL(new RegExp(`/sugestoes\\?tipo=erro&p=${href!.split("/").pop()}`));
-    await expect(page.getByText(/S25/)).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sugerir ou corrigir");
+    await expect(page.getByLabel("Algo está errado")).toBeChecked();
   });
 
   test("F06-H1 Compartilhar copia o link e avisa", async ({ page, context }) => {
@@ -47,7 +48,7 @@ test.describe("F05–F08 fluxos com telas provisórias (R2)", () => {
   });
 
   test("stubs R2 dizem o release", async ({ page, axe }) => {
-    for (const [path, sid] of [["/dados-abertos", "S23"], ["/sobre", "S22"], ["/sugestoes", "S25"]]) {
+    for (const [path, sid] of [["/dados-abertos", "S23"], ["/sobre", "S22"], ["/atualizacoes", "S24"]]) {
       await page.goto(path);
       await expect(page.getByText(new RegExp(`${sid} · entra no R\\d`))).toBeVisible();
       await expect(page.getByRole("link", { name: /quem representa a sua cidade/ })).toBeVisible();

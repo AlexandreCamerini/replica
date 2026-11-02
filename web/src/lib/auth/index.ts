@@ -13,6 +13,9 @@ export async function auth(): Promise<AuthProvider> {
 }
 
 export async function currentUser() {
+  // Supabase ainda não configurado (demo, build): visitante anônimo, sem ruído no log
+  const provider = process.env.AUTH_PROVIDER ?? (process.env.NODE_ENV === "production" ? "supabase" : "dev");
+  if (provider === "supabase" && !process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
   try {
     return await (await auth()).getUser();
   } catch (e) {
