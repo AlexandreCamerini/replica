@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Container } from "@/components/page/page-header";
-import { UfTileMap } from "@/components/map/uf-tile-map";
+import { BrazilMap } from "@/components/map/brazil-map";
 import { PlaceSearch } from "@/components/people/place-search";
 import { BigNumber, SourceFooter } from "@/components/ui/data";
 import { data } from "@/lib/data";
@@ -11,7 +11,7 @@ export default async function Home() {
   const [counters, munis, stamp] = await Promise.all([data.getCounters(), data.listMunicipalities(), data.getStamp("tse.candidatos")]);
   const byLetter = new Map<string, typeof munis>();
   for (const m of munis) {
-    const l = m.name.normalize("NFD")[0].toUpperCase();
+    const l = m.name.normalize("NFD").replace(/[^A-Za-z]/g, "")[0]?.toUpperCase() ?? "#";
     byLetter.set(l, [...(byLetter.get(l) ?? []), m]);
   }
   return (
@@ -60,8 +60,8 @@ export default async function Home() {
           <h2 id="mapa-h" className="mb-1 text-xl text-fg">
             Pelo mapa
           </h2>
-          <p className="mb-4 text-sm text-muted">Toque no estado para ver quem o representa e as cidades disponíveis.</p>
-          <UfTileMap />
+          <p className="mb-4 text-sm text-muted">Toque num estado para ver os municípios, e num município para ver quem representa quem mora lá.</p>
+          <BrazilMap />
         </div>
         <div>
           <h2 className="mb-3 text-xl text-fg">Por região</h2>
@@ -90,21 +90,43 @@ export default async function Home() {
         <h2 id="az-h" className="mb-1 text-xl text-fg">
           Cidades de A a Z
         </h2>
-        <p className="mb-4 text-sm text-muted">Nesta versão de demonstração, {munis.length} cidades. A carga do IBGE traz as 5.570.</p>
-        <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[...byLetter.entries()].map(([l, ms]) => (
-            <div key={l} className="flex gap-3">
-              <dt className="w-5 font-display text-lg text-muted">{l}</dt>
-              <dd className="flex flex-wrap gap-x-3 gap-y-1">
-                {ms.map((m) => (
-                  <Link key={m.ibge} href={`/representantes?cidade=${m.ibge}`} className="text-sm text-fg underline-offset-2 hover:underline">
-                    {m.name} <span className="text-muted">{m.uf}</span>
+        <p className="mb-4 text-sm text-muted">
+          {count(munis.length)} {munis.length === 1 ? "cidade" : "cidades"}
+          {data.isDemo ? " nesta versão de demonstração." : ". Escolha a letra."}
+        </p>
+        {/* poucas cidades (demo): lista inteira; com as 5.570, só o índice e uma página por letra */}
+        {munis.length <= 80 ? (
+          <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[...byLetter.entries()].map(([l, ms]) => (
+              <div key={l} className="flex gap-3">
+                <dt className="w-5 font-display text-lg text-muted">{l}</dt>
+                <dd className="flex flex-wrap gap-x-3 gap-y-1">
+                  {ms.map((m) => (
+                    <Link key={m.ibge} href={`/representantes?cidade=${m.ibge}`} className="text-sm text-fg underline-offset-2 hover:underline">
+                      {m.name} <span className="text-muted">{m.uf}</span>
+                    </Link>
+                  ))}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <nav aria-label="Cidades por letra">
+            <ul className="flex flex-wrap gap-2">
+              {[...byLetter.entries()].map(([l, ms]) => (
+                <li key={l}>
+                  <Link
+                    href={`/cidades/${l.toLowerCase()}`}
+                    className="inline-flex h-11 min-w-11 flex-col items-center justify-center rounded-sm border border-border bg-surface px-2 outline-none hover:border-border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                  >
+                    <span className="font-display text-lg leading-none text-fg">{l}</span>
+                    <span className="text-[length:var(--ds-text-xs)] leading-none tabular text-muted">{count(ms.length)}</span>
                   </Link>
-                ))}
-              </dd>
-            </div>
-          ))}
-        </dl>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
       </section>
     </Container>
   );
