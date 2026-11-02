@@ -1,0 +1,40 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 400,
+    "height": 300
+  },
+  "clone": {
+    "width": 800,
+    "height": 600
+  },
+  "compared_at": {
+    "width": 400,
+    "height": 300
+  },
+  "height_delta_pct": 0.0,
+  "score": 31.8,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 0,
+      "w": 396,
+      "h": 300,
+      "cells": 66,
+      "where": "middle centre"
+    },
+    {
+      "x": 0,
+      "y": 264,
+      "w": 198,
+      "h": 36,
+      "cells": 9,
+      "where": "bottom left"
+    }
+  ],
+  "files": {
+    "original": "replica/diffs/src/orig-S06-representantes-autocomplete.png",
+    "clone": "replica/clone-screens/png/S06-representantes-autocomplete.png"
+  }
+}

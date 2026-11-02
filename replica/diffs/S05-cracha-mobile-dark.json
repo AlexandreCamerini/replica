@@ -1,0 +1,88 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 450,
+    "height": 974
+  },
+  "clone": {
+    "width": 390,
+    "height": 844
+  },
+  "compared_at": {
+    "width": 390,
+    "height": 844
+  },
+  "height_delta_pct": 0.0,
+  "score": 30.7,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 73,
+      "w": 443,
+      "h": 590,
+      "cells": 103,
+      "where": "middle centre"
+    },
+    {
+      "x": 0,
+      "y": 701,
+      "w": 443,
+      "h": 273,
+      "cells": 55,
+      "where": "bottom centre"
+    },
+    {
+      "x": 295,
+      "y": 369,
+      "w": 110,
+      "h": 147,
+      "cells": 8,
+      "where": "middle right"
+    },
+    {
+      "x": 184,
+      "y": 0,
+      "w": 147,
+      "h": 73,
+      "cells": 6,
+      "where": "top centre"
+    },
+    {
+      "x": 332,
+      "y": 0,
+      "w": 110,
+      "h": 110,
+      "cells": 6,
+      "where": "top right"
+    },
+    {
+      "x": 221,
+      "y": 664,
+      "w": 147,
+      "h": 36,
+      "cells": 4,
+      "where": "bottom right"
+    },
+    {
+      "x": 36,
+      "y": 664,
+      "w": 36,
+      "h": 36,
+      "cells": 1,
+      "where": "bottom left"
+    },
+    {
+      "x": 369,
+      "y": 701,
+      "w": 36,
+      "h": 36,
+      "cells": 1,
+      "where": "bottom right"
+    }
+  ],
+  "files": {
+    "original": "replica/diffs/src/orig-S05-cracha-mobile-dark.png",
+    "clone": "replica/clone-screens/png/S05-cracha-mobile-dark.png"
+  }
+}

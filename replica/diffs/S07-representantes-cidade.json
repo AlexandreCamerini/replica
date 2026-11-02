@@ -1,0 +1,56 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 400,
+    "height": 300
+  },
+  "clone": {
+    "width": 800,
+    "height": 600
+  },
+  "compared_at": {
+    "width": 400,
+    "height": 300
+  },
+  "height_delta_pct": 0.0,
+  "score": 27.9,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 66,
+      "w": 396,
+      "h": 234,
+      "cells": 61,
+      "where": "middle centre"
+    },
+    {
+      "x": 198,
+      "y": 0,
+      "w": 198,
+      "h": 66,
+      "cells": 9,
+      "where": "top right"
+    },
+    {
+      "x": 66,
+      "y": 0,
+      "w": 99,
+      "h": 33,
+      "cells": 3,
+      "where": "top left"
+    },
+    {
+      "x": 66,
+      "y": 165,
+      "w": 33,
+      "h": 33,
+      "cells": 1,
+      "where": "middle left"
+    }
+  ],
+  "files": {
+    "original": "replica/diffs/src/orig-S07-representantes-cidade.png",
+    "clone": "replica/clone-screens/png/S07-representantes-cidade.png"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 400,
+    "height": 300
+  },
+  "clone": {
+    "width": 800,
+    "height": 600
+  },
+  "compared_at": {
+    "width": 400,
+    "height": 300
+  },
+  "height_delta_pct": 0.0,
+  "score": 34.0,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 0,
+      "w": 330,
+      "h": 300,
+      "cells": 76,
+      "where": "middle centre"
+    },
+    {
+      "x": 363,
+      "y": 0,
+      "w": 33,
+      "h": 33,
+      "cells": 1,
+      "where": "top right"
+    },
+    {
+      "x": 0,
+      "y": 33,
+      "w": 33,
+      "h": 33,
+      "cells": 1,
+      "where": "top left"
+    }
+  ],
+  "files": {
+    "original": "replica/diffs/src/orig-S08-comparar.png",
+    "clone": "replica/clone-screens/png/S08-comparar.png"
+  }
+}
