@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { BarBreakdown, NotPublished, SourceFooter, TopicTag, VoteBadge } from "@/components/ui/data";
-import { data, type Candidacy, type ElectionResult, type Party, type SalaryAccrued, type VoteValue } from "@/lib/data";
+import { data, type Candidacy, type ElectionResult, type OfficeSlug, type Party, type SalaryAccrued, type VoteValue } from "@/lib/data";
 import { count, date, money, monthYear } from "@/lib/format";
 import { Empty, MoreLink, SelectField, Section, fieldCls, hrefWith, type Params } from "./ui";
 
@@ -551,5 +552,70 @@ export function NotLoadedYet({ items }: { items: { what: string; why: string }[]
         ))}
       </ul>
     </section>
+  );
+}
+
+// Ouvidorias conferidas em 03/11/2026 (HTTP 200). Só canal oficial da casa ou do governo; nada de rede pessoal.
+const OUVIDORIA: Partial<Record<OfficeSlug, { name: string; url: string; what: string }>> = {
+  deputado_federal: { name: "Ouvidoria Parlamentar da Câmara dos Deputados", url: "https://www.camara.leg.br/ouvidoria", what: "recebe reclamação, denúncia, sugestão e pedido de informação sobre deputados e a Câmara" },
+  senador: { name: "Ouvidoria do Senado Federal", url: "https://www12.senado.leg.br/institucional/ouvidoria", what: "recebe reclamação, denúncia, sugestão e pedido de informação sobre senadores e o Senado" },
+  presidente: { name: "Fala.BR (Controladoria-Geral da União)", url: "https://falabr.cgu.gov.br/", what: "canal único de ouvidoria e de acesso à informação do Poder Executivo federal" },
+  vice_presidente: { name: "Fala.BR (Controladoria-Geral da União)", url: "https://falabr.cgu.gov.br/", what: "canal único de ouvidoria e de acesso à informação do Poder Executivo federal" },
+};
+const LOCAL_HOUSE: Partial<Record<OfficeSlug, string>> = {
+  deputado_estadual: "da Assembleia Legislativa",
+  deputado_distrital: "da Câmara Legislativa do DF",
+  vereador: "da Câmara Municipal",
+  governador: "do governo do estado",
+  vice_governador: "do governo do estado",
+  prefeito: "da prefeitura",
+  vice_prefeito: "da prefeitura",
+};
+
+/** W1 item 11b: como cobrar = escrever ao gabinete (contato oficial) + ouvidoria da casa. "—" com motivo quando não conferimos. */
+export function HowToReach({ office, hasContact, f }: { office: OfficeSlug; hasContact: boolean; f: boolean }) {
+  const ouv = OUVIDORIA[office];
+  return (
+    <Section id="como-cobrar" title="Como cobrar" intro="Canais oficiais para pedir explicação, reclamar ou sugerir. A resposta é obrigação do órgão, não favor.">
+      <ol className="flex flex-col gap-3 text-sm">
+        <li className="flex flex-col gap-0.5">
+          <span className="font-semibold text-fg">1. Escreva ao gabinete</span>
+          {hasContact ? (
+            <span className="text-muted">
+              Use o e-mail ou o telefone em{" "}
+              <a href="#contato" className="font-semibold text-fg underline underline-offset-2">
+                Contato oficial
+              </a>
+              . Diga quem você é, de onde escreve e o que pede {f ? "a ela" : "a ele"}; guarde a data do envio.
+            </span>
+          ) : (
+            <span className="text-muted">
+              <span aria-label="não carregado">—</span> a casa não publica contato deste mandato, ou ele ainda não foi carregado.
+            </span>
+          )}
+        </li>
+        <li className="flex flex-col gap-0.5" data-testid="ouvidoria">
+          <span className="font-semibold text-fg">2. Sem resposta? Procure a ouvidoria</span>
+          {ouv ? (
+            <span className="text-muted">
+              <a href={ouv.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-accent-text underline underline-offset-2">
+                {ouv.name} <ExternalLink aria-hidden className="size-3" />
+                <span className="sr-only">(abre em nova aba)</span>
+              </a>
+              : {ouv.what}.
+            </span>
+          ) : (
+            <span className="text-muted">
+              <span aria-label="não conferido">—</span> ainda não conferimos o canal de ouvidoria {LOCAL_HOUSE[office] ?? "deste órgão"}; procure no site oficial dele. Se souber o
+              endereço,{" "}
+              <Link href="/sugestoes?tipo=dado" className="font-semibold text-fg underline underline-offset-2">
+                conte para a gente
+              </Link>
+              .
+            </span>
+          )}
+        </li>
+      </ol>
+    </Section>
   );
 }

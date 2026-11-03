@@ -88,4 +88,16 @@ test.describe("B6-W1", () => {
     await page.goto("/p/rubinho-nunes");
     await expect(page.locator("section[aria-labelledby='numeros-h']")).not.toContainText("salário recebido");
   });
+
+  test("B6-W11b como cobrar: contato oficial + ouvidoria da casa; \"—\" com motivo fora do federal", async ({ page, axe }) => {
+    await page.goto("/p/adriana-ventura");
+    const sec = page.locator("#como-cobrar");
+    await expect(sec.getByRole("link", { name: "Contato oficial" })).toHaveAttribute("href", "#contato");
+    await expect(sec.getByTestId("ouvidoria").getByRole("link")).toHaveAttribute("href", "https://www.camara.leg.br/ouvidoria");
+    await page.goto("/p/randolfe-rodrigues");
+    await expect(page.locator("#como-cobrar").getByTestId("ouvidoria").getByRole("link")).toHaveAttribute("href", /senado\.leg\.br/);
+    await page.goto("/p/rubinho-nunes");
+    await expect(page.locator("#como-cobrar").getByTestId("ouvidoria")).toContainText("ainda não conferimos o canal de ouvidoria da Câmara Municipal");
+    await axe();
+  });
 });
