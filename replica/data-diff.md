@@ -264,3 +264,22 @@ Legenda: **fixed** = dado corrigido e conferido por SQL; **partial** = melhorou,
 | D24 | ok | — | — |
 | D25 | front | — | rótulo de fonte por casa |
 | D26, D27 | ok | — | — |
+
+### 10.1 Status dos achados de front (build 6, 2026-11-03)
+
+| ID | Status | O que a tela faz agora | Resto |
+| --- | --- | --- | --- |
+| D01 | fixed (tela) | "X de Y sessões deliberativas" (lista oficial); Senado "—" com "o Senado não publica a lista de presença por senador", também no comparar | — |
+| D02 | fixed | cada número diz "desde AAAA" (primeiro ano com dado); comparar e "Votaram igual?" dizem a janela | a janela é a do banco (2019), não a do 1º mandato (Randolfe desde 2011) |
+| D03 | fixed | dado em `missing_datasets` vira "—"/"Ainda não carregado: motivo"; "nenhuma candidatura/prestação" só com os anos carregados ditos | — |
+| D04 | fixed | Executivo: aviso próprio, sem lista do Legislativo; prefeito só a pendência do próprio salário; governador "lei estadual, não conferida" | contas do governo/prefeitura (D16) seguem fora |
+| D06 | fixed (tela) | renúncia, cassação e sucessão do vice no crachá (selo + data + regra); contadores leem `em_exercicio` do ETL | — |
+| D11 | partial | equipe da Câmara A–Z com nível; salário "—" com motivo; Senado "—" | folha mensal (ETL) |
+| D14 | fixed (tela) | teto com o artigo da Constituição; nunca junto com "não conferido"; salário recebido mês a mês | subsídio federal anterior a 02/2023 não está em `salaries` (Adriana: 46 de 94 meses somados) |
+| D15 | fixed | "Mais votados em <cidade> · eleição de 2026", top 5 federal e estadual, "entre quem tem crachá" | derrotados sem crachá (D35) |
+| D18 | partial | moradores IBGE no cabeçalho da cidade | eleitorado TSE; "aguardando posse" na home |
+| D20 | ok (rótulo) | "Despesa = valor pago" no cartão e no bloco de campanha | — |
+| D22 | fixed | "desde 2019 (o que está carregado)"; Adriana × Baleia 57%, 1.015 de 1.775; 760 divergências listadas | o original conta 400 "pautas" (por proposta) |
+| D23 | partial | votação do Senado sem voto individual rotulada "secreta" (lista, página da votação, crachá) | simbólicas da Câmara; total de 2026 |
+| D25 | fixed | propostas do senador citam "Senado Federal"; ouvidoria por casa | — |
+| D17 | partial | aba "o que virou lei" em `/congresso?aba=leis` | rota `/congresso/leis`, `/uf`, sitemap, robots |

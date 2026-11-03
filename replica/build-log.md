@@ -117,3 +117,28 @@ Revalidação: `REVALIDATE_URL` não está no ambiente do ETL; o app pega o dado
 Entregas: 7 commits `build5 W1a`, 1 migração (`0005`), 8 specs novos `web/e2e/w1a-*.spec.ts`. Capturas em `replica/clone-screens/` (S22, S23, S24, S03, S02, S05-direito-resposta; 1440 e 390 px, claro e escuro). Nota de feature: 62,4 → 71,4 (`tools/parity.py`).
 
 Pendências desta rodada (front): (1) job de anonimização das sugestões após 12 meses (`/sobre#s-priv` já diz que não é automático); (2) lista de provedores de dado pessoal em `/sobre` quando houver endereço público; (3) "Como cobrar" (metade do item 11); (4) matriz S23 só tem informação quando o ETL municipal conferir cidades; (5) header fixo de 390 px ocupa ~150 px (busca + abas): avaliar recolher as abas ao rolar.
+
+## 2026-11-03 · build 6 (correções de front do ETL, W1 5/6/8/10/11b, W2 12–15)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| A1 presença | 2026-11-03 | done | — | — |
+| A2 renúncia/cassação/sucessão | 2026-11-03 | done | licença e morte em estadual/municipal (sem fonte, D33) | `StatusBadge` não conhecia os status novos (rótulo vazio) |
+| A3 campanha por ano | 2026-11-03 | done | — | — |
+| A4 tabelas novas | 2026-11-03 | done | — | lidas em W1-6 (votos por município, população), W2-13 (campanha), W2-14 (equipe) |
+| A5 teto × não conferido | 2026-11-03 | done | — | — |
+| A6 Senado | 2026-11-03 | done | o banco não marca "secreta": deduzido de "sem voto individual" (D55) | — |
+| A7 D02/D03/D04 | 2026-11-03 | done | janela anterior a 2019 | per-número: presença, propostas, votos e cota começam em anos diferentes |
+| W1-5 ano a ano | 2026-11-03 | done | — | tabela `sr-only` e select da cota estouravam 390 px (BUG-015, BUG-016) |
+| W1-6 mais votados | 2026-11-03 | done | derrotados sem crachá (D35) | — |
+| W1-8 divergências | 2026-11-03 | done | agrupar por pauta como o original (hoje por votação, D59) | texto vazio colidiu com F04-E4 |
+| W1-10 salário recebido | 2026-11-03 | partial | subsídio anterior a 02/2023 em `salaries` (ETL) | — |
+| W1-11b como cobrar | 2026-11-03 | done | ouvidorias estaduais/municipais | — |
+| W2-12 card OG | 2026-11-03 | done | `SITE_URL` na publicação; fonte própria no card | — |
+| W2-13 campanha origem/gastos | 2026-11-03 | done | — | — |
+| W2-14 equipe/viagens | 2026-11-03 | partial | salário (folha mensal), Senado, viagens | — |
+| W2-15 virou lei | 2026-11-03 | done (aba) | rota `/congresso/leis`; leis fora das propostas carregadas | — |
+
+Verificação: `tsc` e `eslint` limpos; `next build` ok (`NEXT_DIST_DIR=.next-e2e`, dados demo); suíte inteira contra 3101 (`E2E_PG=1`): 112 passed, 2 failed, 1 flaky, 1 skipped na 1ª passada; corrigido F04-E4 (colisão de texto) e repetidos os 4 arquivos afetados: 21 passed, 2 flaky (dev server recompilando); specs novos `b6-*` 17/17 sem retry. ONB-H2 é o flaky conhecido do foco do onboarding. Specs novos: `web/e2e/b6-etl-front.spec.ts` (A1–A7), `b6-w1.spec.ts` (W5, W6, W8, W10, W11b), `b6-w2.spec.ts` (W12–W15). Capturas PNG em `replica/clone-screens/png/b6-*` (1440 e 390, claro; crachá e S07 também no escuro; card OG). Toda página capturada mede `scrollWidth` = 390 no celular. Nota de feature: 71,4 → 78,2 (`tools/parity.py`, sem as linhas de /cargos e /dicionario do outro agente). Decisões D50–D65.
+
+Pendências (front/ETL): (1) semear o subsídio federal anterior a 02/2023 em `salaries` (fecha o "salário recebido"); (2) folha mensal da Câmara para salário da equipe; (3) marcar votação secreta no ETL do Senado em vez de deduzir; (4) `SITE_URL` na publicação para o og:image; (5) ouvidorias de Assembleias e Câmaras Municipais; (6) rotas `/congresso/leis`, `/uf/{uf}`, sitemap e robots (D17).

@@ -267,7 +267,32 @@ Evidence: `votacao_candidato_munzona_2024_BRASIL.csv`: os 16 têm `DS_SITUACAO_C
 Suspected cause: filtro em `tse_votos_contas.run_votes` (`"CASSAD" in s and "NÃO" not in s and "SEM" not in s`) aceitava "com recurso"; `_mark_cassados` só marcava, nunca desfazia.
 Status: fixed (D90–D92): só `CASSADO` puro cassa; a regra desfaz o que marcou; check novo "1 prefeito titular por município" com 16 exceções listadas. Recarga 2024 restaurou 16 mandatos; `check` verde.
 
+### BUG-015: crachá de deputado federal rola na horizontal em 390 px (select da cota e cartões de número)
+
+- Severity: S3 (layout; conteúdo acessível, página rola de lado)
+- Flow / case: F03 / mobile
+- Screen: S05
+- Build: build 6 (pré-existente; revelado com a cota 2019–2026 carregada)
+
+Steps
+1. Abrir /p/adriana-ventura em 390 × 844.
+2. Medir `document.documentElement.scrollWidth`.
+
+Expected: 390. Actual: 470 (depois 413).
+Evidence: sonda `getBoundingClientRect`: `select[name=gcat]` com 437 px (opção "Manutenção de escritório de apoio à atividade parlamentar…"); botão de ajuda dos cartões de patrimônio e campanha a 399 px (valor de 9 dígitos em `text-xl` + botão na meia coluna).
+Suspected cause: `select` sem `max-width` cresce até a opção mais longa; valor do cartão sem `min-width: 0`.
+Status: fixed (`SelectField` com `min-w-0 max-w-full`; valor do `StatTile` em `text-lg` no celular). Spec B6-W5 @mobile compara com 390 fixo.
+
+### BUG-016: tabela `sr-only` atrás do gráfico de presença alarga a página no celular
+
+- Severity: S3 · Screen: S05 · Build: build 6 (introduzido e corrigido no mesmo lote)
+Expected: 390. Actual: 413.
+Suspected cause: `sr-only` aplicado à `<table>`; tabela ignora `width: 1px` (mesma família do BUG-011).
+Status: fixed (`sr-only` num `div` em volta da tabela).
+
 ## A conferir (não reproduzido como bug)
+
+- build 6: na suíte inteira contra o dev server 3101, ONB-H2 (foco no campo de cidade) falhou uma vez e passou na repetição; S04-H1 flaky (passou no retry); B6-W5/W6 flaky uma vez por "Hydration failed" logo depois de uma edição de arquivo (recompilação do dev server), 17/17 sem retry na rodada seguinte.
 
 - Flaky sob carga (passam na repetição, 3/3 ok isoladamente em <1 s): F02-H1, F02-E1 (clique em link da home não navega em 15 s com 2 workers contra um único `next start`) e F01-E6 mobile. Config: `workers: 2`, `retries: 1`.
 
