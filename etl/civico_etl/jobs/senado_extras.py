@@ -47,8 +47,10 @@ def filiacoes(conn: psycopg.Connection, senators: list[tuple[str, str, str | Non
         for f in _list((((d.get("FiliacaoParlamentar") or {}).get("Parlamentar") or {}).get("Filiacoes") or {}).get("Filiacao")):
             sigla = ((f.get("Partido") or {}).get("SiglaPartido") or "").strip()
             day = parse_date(f.get("DataFiliacao"))
-            if not day or not sigla or sigla.upper().startswith("S/"):
-                continue  # "S/Partido": sem filiação; a linha do tempo mantém o anterior até a próxima filiação (limitação registrada)
+            if not day or not sigla:
+                continue
+            # BUG-022 / D182: "S/Partido" é observação (o Senado lista o senador sem partido); antes era pulada e a linha do
+            # tempo mantinha o partido anterior (Romário aparecia PL depois de se desfiliar em 09/2026)
             party = parties.get(sigla, (f.get("Partido") or {}).get("NomePartido"))
             if party:
                 obs.append((pid, party, day, "senado", f"senado:{cod}:{day.isoformat()}"))

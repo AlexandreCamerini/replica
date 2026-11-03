@@ -375,7 +375,7 @@ Steps
 3. /p/eliziane-gama mostra "PT"; o mandato no banco e o Senado dizem PSD. /p/romario mostra "PL"; o Senado diz "S/Partido".
 Expected: a mesma regra de partido em todo o site, com a fonte e a data de onde veio a filiação.
 Cause: `person_current_party` (filiação vinda do TSE/candidatura) vence o partido do mandato publicado pela casa; para Eliziane pode ser filiação para 2026 que o Senado ainda não refletiu, mas o site afirma "PT" sem dizer de onde.
-Status: open.
+Status: fixed (fix ETL, D182). A filiação vigente vem da casa: a candidatura do TSE posterior à última observação da casa não vence enquanto o mandato está em exercício, e o "S/Partido" do Senado virou observação. Antes, o banco tinha PT 10, PSD 13, PL 16. Agora tem AVANTE 1, MDB 9, PDT 1, PL 15, PODE 3, PP 8, PSB 7, PSD 14, PSDB 4, PT 9, REPUBLICANOS 6, S/Partido 1 e UNIÃO 3, o mesmo que `senador/lista/atual` traz em 03/11/2026: 81 de 81, sem nenhuma divergência por senador. A Câmara confere 513 de 513 por deputado contra `/deputados`. Nota para a tela: o cabeçalho do crachá ainda não diz de onde veio o partido ("segundo o Senado/Câmara"), e /partidos vai mostrar a linha "S/Partido" com 1 cadeira no Senado, como o próprio Senado faz.
 
 ### BUG-023: "Desemprego, média do ano" em /governos não é a taxa média anual do IBGE (2024: 6,85 contra 6,6)
 

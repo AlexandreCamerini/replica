@@ -178,12 +178,24 @@ on conflict (person_id, period) do update set
 
 # D05: partido = linha do tempo. Observação mais recente vence; no mesmo dia, a casa (prio 1) vence o TSE (prio 0).
 # Candidatura do TSE observa o partido na data do 1º turno (filiação exigida 6 meses antes: aproximação conservadora).
+# BUG-022 / D182: quem está em exercício na Câmara ou no Senado tem o partido que a casa publica hoje. Candidatura do TSE
+# posterior à última observação da casa não vence enquanto o mandato está em exercício (Eliziane Gama: PT na candidatura de
+# 2026, PSD no Senado). Ao sair da casa, a candidatura volta a contar. "S/Partido" do Senado é observação (Romário, 2026).
 PARTY_SQL = r"""
-with obs as (
+with house as (
+  select po.person_id, max(po.observed_on) as last_house
+  from party_observations po
+  join mandates m on m.person_id = po.person_id and m.status = 'em_exercicio' and m.started_on <= current_date and m.ends_on > current_date
+  join legislative_bodies b on b.id = m.body_id and b.kind = case po.source when 'camara' then 'camara_deputados' when 'senado' then 'senado' end
+  where po.observed_on <= current_date
+  group by 1
+),
+obs as (
   select person_id, party_id, observed_on, 1 as prio from party_observations
   union all
   select c.person_id, c.party_id, e.held_on, 0 from candidacies c join elections e on e.id = c.election_id
   where c.party_id is not null and e.held_on <= current_date
+    and not exists (select 1 from house h where h.person_id = c.person_id and e.held_on > h.last_house)
 ),
 d as (select distinct on (person_id, observed_on) person_id, party_id, observed_on from obs where observed_on <= current_date order by person_id, observed_on, prio desc),
 r as (select *, lag(party_id) over (partition by person_id order by observed_on) as prev from d),
