@@ -18,19 +18,20 @@ test.describe("fixui · correções da verificação final", () => {
     await expect(page.getByTestId("criterio")).toContainText("não ordena nem pinta");
   });
 
-  test("FX-024 home mostra “26 de 27” em Governo do estado, com o motivo", async ({ page }) => {
+  // D184/D197: o AM voltou a ter governador (eleição indireta, fora do TSE); o vice segue vago e é ele que exercita a lacuna
+  test("FX-024 home conta 27 governos do estado depois do mandato fora do TSE", async ({ page }) => {
     test.skip(!PG, "números reais");
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /Governo do estado 26 de 27/ })).toBeVisible();
-    await expect(page.getByTestId("lacunas-cargos")).toContainText("AM sem governador em exercício na fonte");
+    await expect(page.getByRole("link", { name: /Governo do estado 27\b/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Governo do estado 26 de 27/ })).toHaveCount(0);
   });
 
-  test("FX-024 Manaus mostra Governo do estado como “—” com o motivo", async ({ page, axe }) => {
+  test("FX-024 Manaus mostra o governador e o vice vago como “—” com o motivo", async ({ page, axe }) => {
     test.skip(!PG, "números reais");
     await page.goto("/representantes?cidade=1302603");
-    const gap = page.getByTestId("lacuna").filter({ hasText: "Governo do estado" });
-    await expect(gap).toContainText("renunciou");
-    await expect(gap).toContainText("a fonte (TSE) não publica quem exerce o cargo agora");
+    await expect(page.getByText("Roberto Cidade").first()).toBeVisible();
+    const gap = page.getByTestId("lacuna").filter({ hasText: /Vice-gov/ });
+    await expect(gap).toContainText("—");
     await axe();
   });
 
