@@ -26,6 +26,11 @@ log = logging.getLogger("etl")
 
 
 def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if args and args[0].startswith("ale."):  # Assembleias Legislativas (W3-A): ale.sp, ale.mg, ale.todas, ale.cobertura
+        from .jobs.ale_cli import main as ale_main
+
+        return ale_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")

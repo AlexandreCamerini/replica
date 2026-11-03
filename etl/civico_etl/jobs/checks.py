@@ -130,6 +130,40 @@ CHECKS: list[tuple[str, str]] = [
            where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')
               or (s.slug = 'tse' and ds.refreshed_at < now() - interval '60 days')""",
     ),
+    # W3-A (Assembleias): o casamento com o TSE nunca põe dado de uma casa estadual no crachá de quem não tem mandato nela
+    (
+        "assembleia: todo vínculo de deputado estadual aponta para pessoa com mandato de deputado estadual/distrital na mesma UF",
+        """select count(*) from person_external_ids e join sources s on s.id = e.source_id
+           join legislative_bodies b on b.adapter = 'ale_custom' and b.open_data_url = s.url
+           where not exists (select 1 from mandates m join offices o on o.id = m.office_id
+                             where m.person_id = e.person_id and m.place_id = b.place_id and o.slug in ('deputado_estadual','deputado_distrital'))""",
+    ),
+    (
+        "assembleia: um id da casa por pessoa e por tipo de id (ninguém casado com dois deputados da mesma Assembleia)",
+        """select count(*) from (
+             select e.person_id, e.source_id, split_part(e.external_id, ':', 1) from person_external_ids e
+             join sources s on s.id = e.source_id join legislative_bodies b on b.adapter = 'ale_custom' and b.open_data_url = s.url
+             group by 1, 2, 3 having count(*) > 1) d""",
+    ),
+    (
+        "assembleia: autoria e gasto de Assembleia só em pessoa com mandato estadual/distrital naquela UF",
+        """select (select count(*) from proposal_authors pa join proposals p on p.id = pa.proposal_id
+                   join legislative_bodies b on b.id = p.body_id and b.kind in ('assembleia','camara_legislativa_df')
+                   where not exists (select 1 from mandates m join offices o on o.id = m.office_id
+                                     where m.person_id = pa.person_id and m.place_id = b.place_id and o.slug in ('deputado_estadual','deputado_distrital')))
+                + (select count(*) from expenses x join legislative_bodies b on b.id = x.body_id and b.kind in ('assembleia','camara_legislativa_df')
+                   where not exists (select 1 from mandates m join offices o on o.id = m.office_id
+                                     where m.person_id = x.person_id and m.place_id = b.place_id and o.slug in ('deputado_estadual','deputado_distrital')))""",
+    ),
+    (
+        "assembleia: deputado estadual de UF sem adaptador não tem número de propostas nem de gastos (\"—\", nunca 0)",
+        """select count(*) from person_period_stats s
+           where (s.proposals_principal is not null or s.expenses_cents is not null)
+             and exists (select 1 from mandates m join offices o on o.id = m.office_id join legislative_bodies b on b.id = m.body_id
+                         where m.person_id = s.person_id and o.slug in ('deputado_estadual','deputado_distrital') and b.adapter <> 'ale_custom')
+             and not exists (select 1 from mandates m join legislative_bodies b on b.id = m.body_id
+                             where m.person_id = s.person_id and b.adapter in ('camara_api','senado_api','ale_custom'))""",
+    ),
 ]
 
 

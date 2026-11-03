@@ -36,15 +36,16 @@ with periods as (
 loaded as (
   select distinct split_part(dataset, '.', 1) as src, split_part(dataset, '.', 2) as kind, split_part(dataset, '.', 3)::int as year
   from ingest_runs
-  where status = 'succeeded' and dataset ~ '^(camara|senado)\.(votacoes|proposicoes|despesas|presenca)\.[0-9]{4}$'
+  where status = 'succeeded' and dataset ~ '^(camara|senado|ale[a-z]{2})\.(votacoes|proposicoes|despesas|presenca)\.[0-9]{4}$'
   union
   select 'senado', 'proposicoes', y from generate_series(1980, extract(year from current_date)::int) y
   where exists (select 1 from ingest_runs where status = 'succeeded' and dataset = 'senado.autorias')
 ),
+-- Assembleia com adaptador (W3-A): carimbos ale<uf>.* (alesp, alemg...). Só o mandato daquela casa conta.
 person_src as (
-  select distinct m.person_id, case b.adapter when 'camara_api' then 'camara' when 'senado_api' then 'senado' end as src
-  from mandates m join legislative_bodies b on b.id = m.body_id
-  where b.adapter in ('camara_api', 'senado_api')
+  select distinct m.person_id, case b.adapter when 'camara_api' then 'camara' when 'senado_api' then 'senado' when 'ale_custom' then 'ale' || lower(bp.uf) end as src
+  from mandates m join legislative_bodies b on b.id = m.body_id join places bp on bp.id = b.place_id
+  where b.adapter in ('camara_api', 'senado_api', 'ale_custom')
 ),
 has_src as (
   select pe.person_id, pe.period,
@@ -264,10 +265,11 @@ select p.id, d.dataset, d.status, d.reason, current_date
 from places p
 cross join lateral (
   select * from (values
-    ('presenca', 'carregando', 'a Assembleia publica; a carga do nível estadual entra na próxima fase'),
-    ('votos', 'carregando', 'a Assembleia publica; a carga do nível estadual entra na próxima fase'),
-    ('propostas', 'carregando', 'a Assembleia publica; a carga do nível estadual entra na próxima fase'),
-    ('gastos_gabinete', 'desconhecido', 'ainda não conferimos se a Assembleia publica em dado aberto'),
+    -- W3-A: não afirma que a casa publica sem conferir; o job ale.* troca pelo motivo conferido de cada UF lida
+    ('presenca', 'carregando', 'a Assembleia Legislativa ainda não é lida pelo site'),
+    ('votos', 'carregando', 'a Assembleia Legislativa ainda não é lida pelo site'),
+    ('propostas', 'carregando', 'a Assembleia Legislativa ainda não é lida pelo site'),
+    ('gastos_gabinete', 'desconhecido', 'a Assembleia Legislativa ainda não é lida pelo site'),
     ('salario_deputados_estaduais', 'desconhecido', 'ainda não conferimos onde a Assembleia publica')
   ) v(dataset, status, reason) where p.kind = 'uf'
   union all
