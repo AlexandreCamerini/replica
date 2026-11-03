@@ -18,6 +18,8 @@ SOURCES = [
     ("senado", "Senado Federal · Dados Abertos", "https://www12.senado.leg.br/dados-abertos", "Lei 12.527"),
     ("ibge", "IBGE · API de Localidades", "https://servicodados.ibge.gov.br/api/docs/localidades", "CC BY 4.0"),
     ("norma", "Norma publicada (DOU)", "https://www.in.gov.br/", None),
+    ("constituicao", "Constituição Federal: art. 27 §2º (deputado estadual), art. 32 §3º (distrital), art. 29 VI (vereador)",
+     "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", None),
 ]
 
 OFFICES = [
@@ -66,6 +68,27 @@ SALARIES = [
 ]
 
 
+# D14: tetos constitucionais (is_ceiling = true; a casa pode pagar menos). Derivados do subsídio federal acima, na mesma data.
+#   deputado estadual e distrital: até 75% do deputado federal (CF art. 27 §2º; art. 32 §3º)
+#   vereador: % do deputado estadual pela população do município (CF art. 29 VI, EC 25/2000):
+#     até 10 mil 20%; até 50 mil 30%; até 100 mil 40%; até 300 mil 50%; até 500 mil 60%; acima 75%
+#   governador e prefeito: lei estadual/municipal, sem teto constitucional fixo -> não semeado ("—" até a carga das leis)
+STATE_SHARE = 0.75
+
+CEILINGS_SQL = """
+insert into salaries (office_id, place_id, valid_from, amount_cents, is_ceiling, source_id)
+select o.id, p.id, s.valid_from,
+       round(s.amount_cents * 0.75 * case when p.population <= 10000 then 0.20 when p.population <= 50000 then 0.30
+                                          when p.population <= 100000 then 0.40 when p.population <= 300000 then 0.50
+                                          when p.population <= 500000 then 0.60 else 0.75 end)::bigint,
+       true, (select id from sources where slug = 'constituicao')
+from salaries s join offices f on f.id = s.office_id and f.slug = 'deputado_federal'
+cross join places p join offices o on o.slug = 'vereador'
+where s.place_id is null and not s.is_ceiling and p.kind = 'municipio' and p.population is not null
+on conflict (office_id, place_id, valid_from, is_ceiling) do update set amount_cents = excluded.amount_cents, source_id = excluded.source_id, updated_at = now()
+"""
+
+
 def run_seed(conn: psycopg.Connection) -> None:
     upsert(conn, "sources", ["slug", "name", "url", "license"], SOURCES, ["slug"])
     upsert(conn, "offices", ["slug", "name_m", "name_f", "level"], OFFICES, ["slug"])
@@ -79,4 +102,15 @@ def run_seed(conn: psycopg.Connection) -> None:
         [(offices[o], None, d, c, False, norma) for o, d, c in SALARIES],
         ["office_id", "place_id", "valid_from", "is_ceiling"],
     )
+    cf = conn.execute("select id from sources where slug = 'constituicao'").fetchone()["id"]
+    upsert(
+        conn,
+        "salaries",
+        ["office_id", "place_id", "valid_from", "amount_cents", "is_ceiling", "source_id"],
+        [(offices[o], None, d, round(c * STATE_SHARE), True, cf) for o in ("deputado_estadual", "deputado_distrital") for fo, d, c in SALARIES if fo == "deputado_federal"],
+        ["office_id", "place_id", "valid_from", "is_ceiling"],
+    )
+    # vereador: só onde há população do IBGE (job ibge.populacao); sem população -> sem teto ("—")
+    if conn.execute("select 1 from information_schema.columns where table_name = 'places' and column_name = 'population'").fetchone():
+        conn.execute(CEILINGS_SQL)
     conn.commit()

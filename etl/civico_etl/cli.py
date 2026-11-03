@@ -27,7 +27,7 @@ log = logging.getLogger("etl")
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "camara.presenca", "senado.diario", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -49,6 +49,12 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.ibge_places import run_places
 
             run_places(conn, force=a.force)
+        if a.job in ("ibge.populacao", "all"):
+            from .jobs.ibge_populacao import run_populacao
+            from .jobs.seed import run_seed as _seed
+
+            run_populacao(conn, force=a.force)
+            _seed(conn)  # tetos de vereador dependem da população
         if a.job in ("ibge.malhas", "all"):
             from .jobs.ibge_malhas import run_malhas
 
@@ -74,6 +80,10 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.camara_presenca import run_presenca
 
             run_presenca(conn, years=a.year or [today.year - 1, today.year], force=a.force)
+        if a.job in ("camara.equipe", "all"):
+            from .jobs.camara_equipe import run_equipe
+
+            run_equipe(conn, force=a.force)
         if a.job in ("senado.diario", "all"):
             from .jobs.senado_diario import run_senado
 
