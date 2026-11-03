@@ -41,11 +41,11 @@ Eleições: resultados por lugar e histórico,eleicoes,could,yes,no,S14
 Apuração ao vivo,eleicoes,could,yes,no,S14; realtime só em dia de eleição
 STF: pauta ministros e processos,stf,could,yes,no,S15
 Impostômetro com arrecadação federal por UF e mês,impostos,could,yes,no,S16
-Entenda os cargos,educativo,could,yes,no,S18
-Dicionário político,educativo,could,yes,no,S19; reescrever os termos
+Entenda os cargos,educativo,could,yes,yes,"S18; build6: /cargos com 8 cargos, artigo da CF, diagrama e lista de relações; texto próprio"
+Dicionário político,educativo,could,yes,partial,"S19; build6: /dicionario com 122 de 213 termos do original, fonte oficial por termo, índice A–Z"
 Ouvir esta página (TTS),acessibilidade,could,yes,yes,todas; Web Speech API; build: Web Speech API; some sem suporte
 Mais vistos e presença em tempo real,analytics,could,yes,no,S17; só com audiência
-Servidor MCP com consulta de políticos,api,could,yes,no,"S27; original ainda ""em breve"" — pode ser diferencial"
+Servidor MCP com consulta de políticos,api,could,yes,yes,"S27; build6: pacote mcp/ somente leitura, 6 ferramentas, stdio + HTTP local; página /mcp. Hospedagem pública pendente (conta do dono)"
 Dados e textos do Politicômetro,dados,skip,yes,skip,não raspar; ETL próprio das fontes oficiais
 Marca nome e perfis sociais,marca,skip,yes,skip,propriedade do original
 Audiência e tráfego existentes,rede,skip,yes,skip,não se clona
@@ -63,4 +63,4 @@ Representantes: deputados mais votados na cidade,representantes,should,yes,yes,"
 Onboarding de 3 passos na primeira visita,shell,could,yes,yes,S02; OnboardingDialog existe em components/ui/misc.tsx mas só é usado em /design; build5: FirstVisit abre OnboardingDialog controlado em / e /representantes na 1ª visita; Pular/Esc/fora gravam cookie onb de 1 ano; sem JS nunca bloqueia
 Copiar link e mandar pelo WhatsApp em toda página (topo),compartilhar,could,yes,yes,diff 2026-11-02: header do original tem 'Copiar o link desta página' e WhatsApp; clone só no crachá; build5: barra no topo (PageShare) com URL canônica sem utm/fbclid etc.; não aparece no crachá (tem o próprio) nem em /entrar e /acompanhando
 Sanções do TCU e da CGU,dados,could,yes,no,diff 2026-11-02: carga diária citada em /atualizacoes; não apareceu no crachá testado (só quando existe)
-Como ajudar: canais para mandar dados da cidade e apoiar o site,feedback,could,yes,no,S26 /ajudar; clone: stub. Pix do original é dele (skip); o clone define o próprio meio de apoio
+Como ajudar: canais para mandar dados da cidade e apoiar o site,feedback,could,yes,yes,"S26; build6: /ajudar com quatro jeitos; apoio financeiro ""—"" com motivo (meio de apoio é decisão do dono)"
