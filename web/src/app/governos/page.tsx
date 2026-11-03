@@ -20,7 +20,7 @@ const COLS: { key: IndicatorKey; head: string; sub: string }[] = [
   { key: "pib_variacao", head: "PIB", sub: "variação real, % no ano" },
   { key: "ipca_acumulado", head: "Inflação (IPCA)", sub: "% acumulado em dezembro, 12 meses" },
   { key: "selic_meta_fim_ano", head: "Selic", sub: "meta, % ao ano, em 31/12" },
-  { key: "desemprego_media", head: "Desemprego", sub: "% da força de trabalho, média do ano" },
+  { key: "desemprego_media", head: "Desemprego", sub: "% da força de trabalho, taxa média anual (IBGE)" },
 ];
 
 /** Motivo do “—” de cada coluna e ano. A regra é a mesma publicada na seção “Como cada número é feito”. */
@@ -115,7 +115,7 @@ export default async function Page() {
           <p id="regra-h"><strong>PIB:</strong> variação anual do volume, IBGE (Contas Nacionais, SIDRA tabela 6784, de 1996). Onde a tabela anual ainda não chegou, o 4º trimestre acumulado em quatro trimestres (tabela 5932), que pode ser revisado.</p>
           <p><strong>Inflação:</strong> IPCA acumulado em 12 meses até dezembro, IBGE (SIDRA 1737), desde 1980.</p>
           <p><strong>Selic:</strong> meta definida pelo Copom que vigorava em 31 de dezembro, Banco Central (SGS 432), desde março de 1999.</p>
-          <p><strong>Desemprego:</strong> taxa de desocupação da PNAD Contínua, IBGE (SIDRA 4099), média simples dos quatro trimestres, desde 2012.</p>
+          <p><strong>Desemprego:</strong> taxa de desocupação da PNAD Contínua, IBGE (SIDRA 10379), taxa média anual publicada pelo IBGE, desde 2012. Não é a média simples dos quatro trimestres: a média simples de 2024 daria 6,85, e o IBGE publica 6,6.</p>
           <p>Ano em andamento fica em “—” até a fonte fechar. Valores nominais, sem ajuste; nenhum é média por mandato.</p>
         </Notice>
         <Notice title="O que esta tabela não faz">

@@ -385,7 +385,7 @@ Steps
 2. IBGE, Agência de Notícias 42530/42531: taxa média anual de desocupação 2023 = 7,8%, 2024 = 6,6%.
 Cause: o ETL faz média simples dos quatro trimestres da SIDRA 4099; o IBGE publica a média anual por outro cálculo. A nota de método diz "média simples dos quatro trimestres", mas o cabeçalho diz "média do ano".
 Fix sugerido: usar a série anual publicada pelo IBGE (ou renomear para "média dos 4 trimestres" e mostrar o valor oficial ao lado).
-Status: open.
+Status: fixed (fixui, D190). Job usa a taxa média anual do IBGE (SIDRA 10379 v4099, total): 2022 9,6; 2023 7,7; 2024 6,6; 2025 5,6. Rótulo e nota de método de /governos ajustados. Nota: a tabela dá 7,7 para 2023, a notícia do IBGE citada acima dizia 7,8; vale a tabela, que é a fonte primária.
 
 ### BUG-024: Amazonas sem governador: home diz "Governo do estado 26" e Manaus omite o nível sem "—"
 
@@ -432,4 +432,4 @@ Status: open (a conferir a definição; não afirmo qual está certo).
 - Severity: S4 (ferramenta) · Build: W3-A
 Steps: `cd web && npx eslint` -> 10.937 problemas, todos em `.next-e2e-w3a/`; `npx eslint src e2e` -> 0.
 Fix sugerido (uma linha): em `eslint.config.mjs`, trocar `".next-e2e/**"` por `".next*/**"`. Não aplicado: fora do escopo de commit desta verificação.
-Status: open.
+Status: fixed (fixui). `eslint.config.mjs` ignora `.next*/**`; `npx eslint` sem argumento agora dá 0 problemas.

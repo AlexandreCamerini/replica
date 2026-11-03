@@ -6,9 +6,10 @@ Um valor por indicador e ano em w4_yearly_indicators (migração 0040). Regra de
                       (tabela 5932 var. 6562, PIB a preços de mercado), que é a mesma conta e pode ser revisada.
   ipca_acumulado      IPCA acumulado em 12 meses em dezembro (%). IBGE/SIDRA tabela 1737 var. 2265, período AAAA12.
   selic_meta_fim_ano  meta da taxa Selic (% a.a.) vigente em 31/12, última observação do mês de dezembro. BCB/SGS série 432 (desde mar/1999).
-  desemprego_media    taxa de desocupação (%), média simples dos quatro trimestres. IBGE/PNAD Contínua, tabela 4099 var. 4099 (2012–).
+  desemprego_media    taxa de desocupação (%), taxa média anual publicada pelo IBGE. PNAD Contínua anual, tabela 10379 var. 4099, total (2012–).
+                      Não é a média simples dos quatro trimestres da tabela 4099 (2024: 6,85 contra os 6,6 oficiais).
 Ano em andamento não entra (fica "—" na página com o motivo). Valor ausente na fonte não é gravado: nunca vira zero.
-Validação embutida: confere valores conhecidos (PIB 2022 = 3,0; IPCA 2023 = 4,62; Selic 31/12/2022 = 13,75; desocupação 4T2022 = 7,9).
+Validação embutida: confere valores conhecidos (PIB 2022 = 3,0; IPCA 2023 = 4,62; Selic 31/12/2022 = 13,75; desocupação média anual 2024 = 6,6).
 """
 
 from __future__ import annotations
@@ -59,15 +60,9 @@ def collect(today: date) -> tuple[dict[tuple[str, int], tuple[float, str, str, s
     for p, v in _sidra(1737, 2265, _periods(1980, last_full, "12")).items():
         out[("ipca_acumulado", int(p[:4]))] = (v, "%", "ibge-sidra", "SIDRA 1737 v2265 (acumulado em 12 meses, dezembro)")
 
-    # desocupação: média simples dos 4 trimestres, só com os 4
-    q: dict[int, list[float]] = {}
-    for p, v in _sidra(4099, 4099, "%7C".join(f"{y}0{t}" for y in range(2012, last_full + 1) for t in (1, 2, 3, 4))).items():
-        q.setdefault(int(p[:4]), []).append(v)
-    for y, vs in q.items():
-        if len(vs) == 4:
-            out[("desemprego_media", y)] = (round(sum(vs) / 4, 2), "%", "ibge-sidra", "SIDRA 4099 v4099 (média simples dos 4 trimestres)")
-        else:
-            notes.append(f"desocupação {y}: {len(vs)} de 4 trimestres, ano não gravado")
+    # desocupação: taxa média anual publicada pelo IBGE (PNAD Contínua anual, tabela 10379, total). Não é a média simples dos trimestres (BUG-023)
+    for p, v in _sidra(10379, 4099, _periods(2012, last_full, ""), "&classificacao=2%5B6794%5D").items():
+        out[("desemprego_media", int(p))] = (v, "%", "ibge-sidra", "SIDRA 10379 v4099 (taxa média anual, total)")
 
     # Selic meta no fim do ano: última observação de dezembro (SGS 432). Janela de 1 mês por ano: não esbarra no limite de 10 anos da SGS
     for y in range(1999, last_full + 1):
@@ -80,7 +75,7 @@ def collect(today: date) -> tuple[dict[tuple[str, int], tuple[float, str, str, s
     return out, notes
 
 
-KNOWN = {("pib_variacao", 2022): 3.0, ("ipca_acumulado", 2023): 4.62, ("selic_meta_fim_ano", 2022): 13.75}
+KNOWN = {("desemprego_media", 2024): 6.6, ("pib_variacao", 2022): 3.0, ("ipca_acumulado", 2023): 4.62, ("selic_meta_fim_ano", 2022): 13.75}
 
 
 def run_governos(conn: psycopg.Connection, *, force: bool = False) -> None:
