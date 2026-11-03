@@ -161,6 +161,23 @@ CHECKS: list[tuple[str, str]] = [
            where x.source_key !~ '^cota(api)?[0-9]{4}:'""",
     ),
     (
+        # BUG-025 / D186: deputados estaduais. Os titulares eleitos da legislatura têm de fechar com as cadeiras da CF art. 27
+        # (3x a bancada federal até 36; acima, +1 por deputado federal além de 12), e em exercício nunca passa das cadeiras.
+        # Em exercício abaixo das cadeiras é esperado: suplente que assumiu não está em fonte aberta lida (ver D186).
+        "assembleia: titulares eleitos da legislatura = cadeiras da CF art. 27, e em exercício <= cadeiras (por UF)",
+        """with fed as (select pl.uf, count(*) n from mandates m join offices o on o.id = m.office_id and o.slug = 'deputado_federal'
+                        join places pl on pl.id = m.place_id where m.status = 'em_exercicio' group by 1),
+           cad as (select uf, case when n * 3 <= 36 then n * 3 else 36 + (n - 12) end as seats from fed where uf <> 'DF'),
+           ini as (select max(m.started_on) d from mandates m join offices o on o.id = m.office_id and o.slug = 'deputado_estadual'
+                   where m.role = 'titular' and m.started_on <= current_date and to_char(m.started_on, 'MM-DD') = '02-01'),
+           leg as (select pl.uf,
+                          count(distinct m.person_id) filter (where m.role = 'titular' and m.started_on = (select d from ini)) as tit,
+                          count(*) filter (where m.status = 'em_exercicio' and m.started_on <= current_date and m.ends_on > current_date) as ex
+                   from mandates m join offices o on o.id = m.office_id and o.slug = 'deputado_estadual' join places pl on pl.id = m.place_id
+                   group by 1)
+           select count(*) from cad c left join leg l using (uf) where l.tit is distinct from c.seats or coalesce(l.ex, 0) > c.seats""",
+    ),
+    (
         "UF: exatamente 1 governador titular em exercício (salvo exceção listada com motivo)",
         f"select count(*) from ({_GOVERNADORES_POR_UF}) x where x.n <> 1 and x.uf not in ({_GOV_EXC})",
     ),
