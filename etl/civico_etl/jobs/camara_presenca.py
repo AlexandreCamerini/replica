@@ -27,7 +27,7 @@ import psycopg
 from ..db import SkipUnchanged, run, upsert
 from ..http import fetch, fetch_json, paginate_camara
 from ..parties import PartyResolver
-from ..util import parse_ts
+from ..util import midnight_br, parse_ts_br
 
 log = logging.getLogger("etl.camara.presenca")
 API = "https://dadosabertos.camara.leg.br/api/v2"
@@ -61,7 +61,7 @@ def exercise_intervals(dep_id: str, legs: set[int], parties: PartyResolver | Non
     hist = sorted(hist, key=lambda h: h.get("dataHora") or "")
     if obs is not None and parties is not None:
         for h in hist:
-            ts = parse_ts(h.get("dataHora"))
+            ts = parse_ts_br(h.get("dataHora"))
             if ts and h.get("siglaPartido") and h.get("situacao"):  # registros sem situação = "nome/partido no início da legislatura" (data fictícia)
                 obs.append((dep_id, parties.get(h["siglaPartido"]), ts.date(), f"camara:{dep_id}:{h['dataHora']}"))
     out: list[tuple[datetime, datetime | None]] = []
@@ -70,7 +70,7 @@ def exercise_intervals(dep_id: str, legs: set[int], parties: PartyResolver | Non
         for h in hist:
             if h.get("idLegislatura") != leg or not h.get("situacao"):
                 continue
-            ts = parse_ts(h.get("dataHora"))
+            ts = parse_ts_br(h.get("dataHora"))
             if not ts:
                 continue
             if h["situacao"] in ("Exercício", "Convocado"):
@@ -115,7 +115,7 @@ def run_presenca(conn: psycopg.Connection, *, years: list[int], force: bool) -> 
                 sess = {}
                 for x in _rows(f_ev.path):
                     if x["descricaoTipo"] == "Sessão Deliberativa" and x["id"] in plen and (x["situacao"] or "").startswith("Encerrada"):
-                        ts = parse_ts(x["dataHoraInicio"])
+                        ts = parse_ts_br(x["dataHoraInicio"])
                         if ts:
                             sess[x["id"]] = ts
                 present: dict[str, set[str]] = defaultdict(set)
@@ -149,7 +149,7 @@ def run_presenca(conn: psycopg.Connection, *, years: list[int], force: bool) -> 
                             continue
                         rows.append((sess_id[k], ext[d], "presente" if here else "ausente"))
                 # substitui a presença do ano (a derivada de voto e a de runs anteriores) numa transação só
-                y0, y1 = datetime(year, 1, 1), datetime(year + 1, 1, 1)
+                y0, y1 = midnight_br(date(year, 1, 1)), midnight_br(date(year + 1, 1, 1))
                 conn.execute(
                     "delete from attendance a using sessions s where s.id = a.session_id and s.body_id = %s and s.starts_at >= %s and s.starts_at < %s",
                     (body, y0, y1),

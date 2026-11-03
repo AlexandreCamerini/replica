@@ -28,7 +28,7 @@ from ..db import Run, SkipUnchanged, run, upsert
 from ..http import fetch, fetch_json, paginate_camara
 from ..identity import PersonResolver
 from ..parties import PartyResolver
-from ..util import cents, fold, nz, parse_date, parse_ts, titlecase_pt
+from ..util import cents, fold, midnight_br, nz, parse_date, parse_ts_br, titlecase_pt
 
 log = logging.getLogger("etl.camara")
 API = "https://dadosabertos.camara.leg.br/api/v2"
@@ -309,7 +309,7 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
             # sessões = eventos do Plenário com votação
             sess_rows = {}
             for ev in events:
-                ts = parse_ts(ev["dataHoraRegistro"]) or datetime.combine(parse_date(ev["data"]) or date(year, 1, 1), datetime.min.time())
+                ts = parse_ts_br(ev["dataHoraRegistro"]) or midnight_br(parse_date(ev["data"]) or date(year, 1, 1))
                 k = ev["idEvento"] or f"dia:{ev['data']}"
                 cur = sess_rows.get(k)
                 if cur is None or ts < cur[4]:
@@ -329,7 +329,7 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
                 result = {"1": "aprovado", "0": "rejeitado"}.get(ev["aprovacao"] or "")
                 p = prop_of.get(ev["id"])
                 pid = prop_id.get((p["proposicao_siglaTipo"], int(p["proposicao_numero"]), int(p["proposicao_ano"] or year))) if p and p.get("proposicao_numero", "").isdigit() else None
-                ts = parse_ts(ev["dataHoraRegistro"]) or datetime.combine(parse_date(ev["data"]) or date(year, 1, 1), datetime.min.time())
+                ts = parse_ts_br(ev["dataHoraRegistro"]) or midnight_br(parse_date(ev["data"]) or date(year, 1, 1))
                 ys = int(ev["votosSim"] or 0) or None
                 ns = int(ev["votosNao"] or 0) or None
                 ev_rows.append((ctx.body, sess_id.get(ev["idEvento"] or f"dia:{ev['data']}"), pid, ts, kind, nominal, desc[:4000], result, ys, ns, None, ev["id"]))

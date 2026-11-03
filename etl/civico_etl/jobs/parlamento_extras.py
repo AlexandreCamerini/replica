@@ -17,7 +17,7 @@ import psycopg
 
 from ..db import run, upsert
 from ..http import fetch_json, paginate_camara
-from ..util import nz, parse_date, parse_ts
+from ..util import midnight_br, nz, parse_date, parse_ts_br
 
 log = logging.getLogger("etl.extras")
 CAMARA = "https://dadosabertos.camara.leg.br/api/v2"
@@ -80,7 +80,7 @@ def run_extras(conn: psycopg.Connection, *, since: date, force: bool = False) ->
                         memberships.append(((body, key), pid, o.get("titulo") or "Membro", start, parse_date(o.get("dataFim"))))
                     url = f"{CAMARA}/deputados/{ext}/discursos?dataInicio={since.isoformat()}&dataFim={date.today().isoformat()}&itens=100&ordenarPor=dataHoraInicio&ordem=DESC"
                     for s in paginate_camara(url, max_age=DAY):
-                        ts = parse_ts(s.get("dataHoraInicio"))
+                        ts = parse_ts_br(s.get("dataHoraInicio"))
                         if not ts:
                             continue
                         summary = _clean(s.get("sumario")) or _clean(s.get("transcricao", "")[:400] if s.get("transcricao") else None)
@@ -112,7 +112,7 @@ def run_extras(conn: psycopg.Connection, *, since: date, force: bool = False) ->
                             continue
                         kind = ((s.get("TipoUsoPalavra") or {}).get("Descricao")) or "Pronunciamento"
                         summary = _clean(s.get("TextoResumo"))
-                        speeches.append((pid, body, datetime.combine(day, datetime.min.time()), f"{kind}: {summary}" if summary else kind,
+                        speeches.append((pid, body, midnight_br(day), f"{kind}: {summary}" if summary else kind,
                                          s.get("UrlTexto") or f"https://www25.senado.leg.br/web/atividade/pronunciamentos/-/p/pronunciamento/{s.get('CodigoPronunciamento')}", f"sf:{s.get('CodigoPronunciamento')}"))
             except FileNotFoundError:
                 r.reject(1, f"{x['kind']} {ext}: fonte sem registro")

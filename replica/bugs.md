@@ -290,6 +290,17 @@ Expected: 390. Actual: 413.
 Suspected cause: `sr-only` aplicado à `<table>`; tabela ignora `width: 1px` (mesma família do BUG-011).
 Status: fixed (`sr-only` num `div` em volta da tabela).
 
+### BUG-017: hora de sessão e votação da Câmara gravada 3 h adiantada (14:34 aparece 11:34); só-data do Senado aparece no dia anterior
+
+- Severity: S2 (dado; o front só mostra dia e mês, então o efeito visível é data errada em fato de madrugada e balde de mês/ano) · Flow / case: F03 · Screen: S05 · Build: desde a primeira carga
+Steps
+1. `select starts_at from sessions where source_key = '83108'` (Câmara, 28/10/2026) -> `2026-10-28 11:34:00-03`; a API dá hora de Brasília sem fuso (`dataHoraRegistro` 14:34).
+2. Senado: `select count(*) from voting_events` com `occurred_at at time zone 'America/Sao_Paulo'` às 21:00 -> 1.146 de 1.146.
+Expected: 14:34 -03 (17:34 UTC); Senado 00:00 -03 do dia da sessão.
+Actual: 14:34 UTC (11:34 -03); Senado 00:00 UTC (21:00 -03 do dia anterior).
+Cause: `parse_ts` devolve datetime naive e a conexão do ETL roda em `timezone = 'UTC'` (db.py): o relógio local entrava como UTC. Mesma causa em `camara.presenca` (sessions), `camara.diario` (sessions, voting_events), `parlamento_extras` (speeches) e, para a data só, em `senado.diario`/`speeches` do Senado.
+Status: fixed (D160-D163: `parse_ts_br`/`midnight_br`, migração 0050, `etl/tests/test_camara_fuso.py`). `camara_equipe.py` não grava hora; `agenda_events` já gravava com fuso.
+
 ## A conferir (não reproduzido como bug)
 
 - build 6: na suíte inteira contra o dev server 3101, ONB-H2 (foco no campo de cidade) falhou uma vez e passou na repetição; S04-H1 flaky (passou no retry); B6-W5/W6 flaky uma vez por "Hydration failed" logo depois de uma edição de arquivo (recompilação do dev server), 17/17 sem retry na rodada seguinte.

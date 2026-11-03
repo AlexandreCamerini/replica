@@ -21,7 +21,7 @@ from ..db import SkipUnchanged, run, upsert
 from ..http import fetch_json
 from ..identity import PersonResolver
 from ..parties import PartyResolver
-from ..util import fold, nz, parse_date, titlecase_pt
+from ..util import fold, midnight_br, nz, parse_date, titlecase_pt
 
 log = logging.getLogger("etl.senado")
 API = "https://legis.senado.leg.br/dadosabertos"
@@ -232,7 +232,7 @@ def _votes_year(conn: psycopg.Connection, r, year: int, senators: list[tuple[str
         day = parse_date(v.get("dataSessao"))
         if not key or not day or (v.get("casaSessao") or "SF") != "SF":
             continue
-        ts = datetime.combine(day, datetime.min.time())
+        ts = midnight_br(day)
         skey = str(v.get("codigoSessao") or f"dia:{day}")
         sess_rows.setdefault(skey, (body, (v.get("siglaTipoSessao") or "plenario").lower(), False, "encerrada", ts, None, skey))
         pkey = None
