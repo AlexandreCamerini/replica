@@ -23,6 +23,8 @@ test.describe("F05–F08 a partir do crachá e telas provisórias", () => {
     const first = page.locator('a[href^="/p/"]').first();
     const href = await first.getAttribute("href");
     await first.click();
+    await expect(page).toHaveURL(/\/p\//); // a barra global (com outro WhatsApp) some no crachá: espera a navegação
+    await expect(page.getByTestId("page-share")).toHaveCount(0);
     const wa = page.getByRole("link", { name: "WhatsApp" });
     await expect(wa).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
     await expect(wa).toHaveAttribute("rel", /noopener/);
