@@ -142,3 +142,17 @@ Pendências desta rodada (front): (1) job de anonimização das sugestões após
 Verificação: `tsc` e `eslint` limpos; `next build` ok (`NEXT_DIST_DIR=.next-e2e`, dados demo); suíte inteira contra 3101 (`E2E_PG=1`): 112 passed, 2 failed, 1 flaky, 1 skipped na 1ª passada; corrigido F04-E4 (colisão de texto) e repetidos os 4 arquivos afetados: 21 passed, 2 flaky (dev server recompilando); specs novos `b6-*` 17/17 sem retry. ONB-H2 é o flaky conhecido do foco do onboarding. Specs novos: `web/e2e/b6-etl-front.spec.ts` (A1–A7), `b6-w1.spec.ts` (W5, W6, W8, W10, W11b), `b6-w2.spec.ts` (W12–W15). Capturas PNG em `replica/clone-screens/png/b6-*` (1440 e 390, claro; crachá e S07 também no escuro; card OG). Toda página capturada mede `scrollWidth` = 390 no celular. Nota de feature: 71,4 → 78,2 (`tools/parity.py`, sem as linhas de /cargos e /dicionario do outro agente). Decisões D50–D65.
 
 Pendências (front/ETL): (1) semear o subsídio federal anterior a 02/2023 em `salaries` (fecha o "salário recebido"); (2) folha mensal da Câmara para salário da equipe; (3) marcar votação secreta no ETL do Senado em vez de deduzir; (4) `SITE_URL` na publicação para o og:image; (5) ouvidorias de Assembleias e Câmaras Municipais; (6) rotas `/congresso/leis`, `/uf/{uf}`, sitemap e robots (D17).
+
+## 2026-11-03 · W3-B · backend (ETL/banco; sem tela)
+
+| item | status | números | o que falta |
+| --- | --- | --- | --- |
+| 1 subsídio federal antes de 02/2023 | done | DL 276/2014 e 277/2014 desde 2015; DL 172/2022 com as datas certas (01/2023, 04/2023, 02/2024, 02/2025); Adriana Ventura 94/94 meses, R$ 3.669.409 na tela (conferido em :3101) | — |
+| 2 votação secreta do Senado | done | `voting_events.is_secret` (migração 0030); 557 secretas 2019–2026 = fonte; 1 aberta sem voto (2019) que a D55 chamaria de secreta | front ler o campo (D124) |
+| 3 agenda/pauta do Congresso | done (dado) | `agenda_events`/`agenda_items` (0031); 2025–2026: 493 eventos Câmara, 466 Senado, 57 CN; 4.921 itens, 2.829 ligados a `proposals` | tela; agendar `agenda.congresso` diário |
+| 4 SAPL municipal | partial | registro do Interlegis: 8 de 26 capitais com SAPL; 6 carregadas (`sapl_*`, 0032): 8.653 projetos, 9.159 autorias, 1.583 sessões, 21.494 presenças, 63.170 votos; 166 vereadores casados, 52 no log (suplentes/nome diferente) | Manaus e Palmas sem legislatura vigente no SAPL; ~20 min por câmara (escala exige carga incremental); tela |
+| 5 sanções | partial | TCU inabilitados: 847 em `sanctions` (0033), sem CPF, 0 casados (regra nome civil + UF, única) | CGU bloqueado (verificação humana no Portal, D130); inidôneos e lista eleitoral do TCU |
+
+Verificação: `pytest` do ETL 27 passed; `civico-etl check` verde nos invariantes novos (salário desde 2015, secreta do Senado, agenda na mesma casa, sanção com método, vereador SAPL no município). Na última rodada o check de carreira acusou 2 deputados de MG (Cleitinho, Rosângela Reis) por carga da ALMG da W3-A em andamento sem `derive.stats`; não é desta onda. Backup `pg_dump` de `salaries`/`sources` antes do DELETE de datas erradas. Migrações aplicadas uma a uma (sem `migrate.sh`, para não aplicar as da faixa 0020–0029 de outro agente).
+
+Achado para outro dono: `sessions.starts_at` da Câmara (camara.presenca) gravado com hora local como UTC (D125).
