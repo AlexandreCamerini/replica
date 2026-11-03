@@ -13,7 +13,7 @@ export type ElectionCandidate = {
   number: number | null;
   party: string;
   result: ElectionResult | null;
-  /** null = não carregado, ou não confiável (presidente: BUG-019) */
+  /** null = não carregado para esta eleição */
   votes: number | null;
 };
 

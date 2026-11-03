@@ -45,7 +45,6 @@ export const fakeW4: DataSourceW4 = {
   async listElectionContests(f) {
     if (f.office === "presidente") {
       const c = { ...contest("BR", "Brasil"), office: "presidente" as const, label: "Presidente", placeIbge: "BR", uf: null };
-      c.candidates = c.candidates.map((x) => ({ ...x, votes: null }));
       return { items: [c], total: 1 };
     }
     if (f.office !== "governador") return { items: [], total: 0 };

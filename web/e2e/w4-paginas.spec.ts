@@ -19,17 +19,31 @@ test.describe("S14 · /eleicoes", () => {
     await axe();
   });
 
-  test("EL-E1 votos ausentes são “—” com motivo, nunca 0; presidente nunca mostra voto", async ({ page }) => {
+  test("EL-E1 voto de presidente aparece; ausente é “—” com motivo, nunca 0", async ({ page }) => {
     await page.goto("/eleicoes?ano=2022&cargo=presidente");
     const rows = page.getByTestId("disputa").first().locator("tbody tr");
     expect(await rows.count()).toBeGreaterThan(0);
+    let withVotes = 0;
     for (const r of await rows.all()) {
       const cell = r.locator("td").last();
-      await expect(cell).toContainText("—");
-      await expect(cell.locator(".sr-only")).toContainText(/presidente|não carregado/);
-      await expect(cell).not.toHaveText(/^\s*0\s*$/);
+      const txt = (await cell.innerText()).trim();
+      if (txt.startsWith("—")) await expect(cell.locator(".sr-only")).toContainText(/não carregado/);
+      else {
+        withVotes++;
+        expect(txt).toMatch(/^\d{1,3}(\.\d{3})*$/);
+      }
+      expect(txt).not.toMatch(/^0$/);
     }
-    await expect(page.locator("#cobertura")).toContainText("presidente");
+    expect(withVotes).toBeGreaterThan(0);
+    await expect(page.locator("#cobertura")).not.toContainText("dobrando");
+  });
+
+  test("EL-PG0 presidente 2022: Lula no 2º turno = 60.345.999 (TSE)", async ({ page }) => {
+    test.skip(!PG, "números reais");
+    await page.goto("/eleicoes?ano=2022&cargo=presidente");
+    const t = await page.getByTestId("cargo").innerText();
+    expect(t).toContain("60.345.999");
+    expect(t).not.toContain("120.691.998"); // o valor em dobro do BUG-019
   });
 
   test("EL-E2 municipal exige estado; ano inválido cai no mais recente; uf inválida é ignorada", async ({ page }) => {

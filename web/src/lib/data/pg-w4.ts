@@ -27,9 +27,8 @@ const OFFICE_LABEL: Partial<Record<OfficeSlug, string>> = {
 const OFFICE_ORDER = Object.keys(OFFICE_LABEL) as OfficeSlug[];
 export const ELECTION_OFFICES = OFFICE_ORDER;
 
-/** BUG-019: o ETL de votos somou `_BRASIL.csv` e `_BR.csv`, e a eleição presidencial está nos dois: voto de presidente fica em dobro no banco.
- *  Até a recarga, o app não mostra voto de presidente (nem o de vice). Os demais cargos foram conferidos (ex.: Boulos, dep. federal 2022 = 1.001.472). */
-const VOTES_UNRELIABLE = new Set<OfficeSlug>(["presidente", "vice_presidente"]);
+/** BUG-019 (voto de presidente em dobro) foi corrigido no ETL e no banco (D165–D169); Lula 2022 2º turno = 60.345.999, igual ao TSE.
+ *  Voto de presidente e vice volta a ser mostrado como qualquer outro cargo. */
 
 export const UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"];
 
@@ -79,7 +78,7 @@ export const pgW4: DataSourceW4 = {
         number: c.ballot_number == null ? null : Number(c.ballot_number),
         party: String(c.party),
         result: (c.result as ElectionResult | null) ?? null,
-        votes: VOTES_UNRELIABLE.has(f.office) || c.votes == null ? null : Number(c.votes),
+        votes: c.votes == null ? null : Number(c.votes),
       });
       by.set(String(c.contest_id), arr);
     }

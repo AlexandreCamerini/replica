@@ -73,10 +73,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
           segundo turno ou foram identificados por elas). Por isso a contagem de candidaturas é menor que a registrada pelo TSE, e uma disputa antiga pode mostrar
           o vencedor sem os derrotados. Nada aqui é apuração ao vivo.
         </p>
-        <p>
-          Voto de <strong>presidente</strong> fica em “—”: o arquivo do TSE chega com a eleição presidencial em dois pacotes e nossa carga somou os dois, dobrando o
-          número. Até a recarga, preferimos não mostrar um total errado. Votos de 2012 a 2016 não estão carregados.
-        </p>
+        <p>Votos de 2012 a 2016 não estão carregados.</p>
       </Notice>
 
       <section aria-labelledby="pan-h" className="mt-8">
@@ -213,7 +210,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
                           <td className="px-3 py-2">{x.party}</td>
                           <td className="px-3 py-2">{x.result ? RESULT[x.result] : <Dash why="resultado não carregado" />}</td>
                           <td className="px-3 py-2 text-right tabular-nums">
-                            {x.votes !== null ? count(x.votes) : <Dash why={office === "presidente" ? "voto de presidente suspenso até a recarga: o arquivo do TSE foi somado duas vezes" : "voto não carregado para esta eleição"} />}
+                            {x.votes !== null ? count(x.votes) : <Dash why="voto não carregado para esta eleição" />}
                           </td>
                         </tr>
                       ))}
