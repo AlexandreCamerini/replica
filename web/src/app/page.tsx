@@ -7,6 +7,10 @@ import { data } from "@/lib/data";
 import { REGIONS, UF_ROWS } from "@/lib/data/reference";
 import { count } from "@/lib/format";
 
+// ISR: sem isto a home é gerada no build e congela contadores e stamp até o próximo deploy.
+// O ETL invalida a tag `data`; os 10 min cobrem uma revalidação perdida.
+export const revalidate = 600;
+
 export default async function Home() {
   const [counters, munis, stamp] = await Promise.all([data.getCounters(), data.listMunicipalities(), data.getStamp("tse.candidatos")]);
   const byLetter = new Map<string, typeof munis>();
