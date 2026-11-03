@@ -10,6 +10,8 @@ import logging
 
 import psycopg
 
+from .checks_identity import run_identity_checks  # BUG-032 (D212)
+
 log = logging.getLogger("etl.check")
 
 # D92: municípios sem prefeito titular em exercício com motivo conferido na fonte (consulta_cand_2024 do TSE, 03/11/2026).
@@ -305,6 +307,7 @@ def run_checks(conn: psycopg.Connection) -> int:
     if stale:
         log.warning("exceção vencida (o município já tem prefeito; tirar de PREFEITO_EXCECOES): %s", ", ".join(sorted(stale)))
     log.info("prefeito: %d município(s) em exceção listada (PREFEITO_EXCECOES, com motivo)", len(PREFEITO_EXCECOES))
+    failed += run_identity_checks(conn)
     if failed:
         log.error("%d invariante(s) quebrada(s)", failed)
     return failed

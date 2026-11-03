@@ -70,6 +70,13 @@ COLS = [
 ]
 
 
+def tse_key(year: int, sq: str) -> str:
+    """Chave da pessoa no TSE em person_external_ids: (ano da eleição, SQ_CANDIDATO). O SQ só é único dentro da eleição e o TSE
+    reaproveita os números entre anos (BUG-032: o "Dinelci" de Fonte Boa 2012 tem o mesmo SQ do Roberto Cidade em Manaus 2016).
+    Candidaturas de anos diferentes só se ligam à mesma pessoa pelo título de eleitor ou por nome civil + nascimento (D210)."""
+    return f"{int(year)}:{sq.strip()}"
+
+
 def term_dates(office: str, year: int) -> tuple[date, date]:
     """Posse e fim previsto (exclusivo). EC 111/2021: a partir de 2027 presidente toma posse em 5/1 e governador em 6/1."""
     y = year + 1
@@ -253,7 +260,7 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
         if x["kind"] == "suplementar":
             s0 = x["held"]
         may_create = result in ELECTED and e0 > today
-        m = people.resolve(source="tse", external_id=sq, civil_name=civil, birth_date=birth, birth_uf=birth_uf, titulo=titulo,
+        m = people.resolve(source="tse", external_id=tse_key(year, sq), civil_name=civil, birth_date=birth, birth_uf=birth_uf, titulo=titulo,
                            raw={"ano": year, "nome": civil, "urna": urna, "cargo": x["office"], "uf": x["SG_UF"]})
         if m.method == "queued":
             r.reject(1)
@@ -266,7 +273,7 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             birthplace_place_id=muni_lookup(birth_uf, x["NM_MUNICIPIO_NASCIMENTO"]) if birth_uf else None,
             education=(lambda e: e[0].upper() + e[1:].lower() if e else None)(nz(x["DS_GRAU_INSTRUCAO"]) or ""),
             slug_hints=((x["SG_UF"] or "").lower() or None, x["office"].replace("_", "-")),
-            source="tse", external_id=sq, titulo=titulo,
+            source="tse", external_id=tse_key(year, sq), titulo=titulo,
         )
         el_id = elections[(x["kind"], year, x["turno"], x["held"])]
         contest_id = contests[(el_id, offices[x["office"]], x["place"])]

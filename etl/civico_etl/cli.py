@@ -10,6 +10,7 @@ Exemplos:
   civico-etl senado.secretas                                          # votação secreta do Senado pela fonte (D123)
   civico-etl agenda.congresso                                         # pauta de plenário Câmara/Senado (mês passado a mês que vem)
   civico-etl tse.fix019 --year 2022 [--apply]                        # BUG-019: corrige presidente contado 2x (dry-run sem --apply)
+  civico-etl tse.fix032 [--year 2012] [--apply]                    # BUG-032: identidade casada por SQ sem o ano (dry-run sem --apply)
   civico-etl derive.stats
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
 """
@@ -43,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
 
         return sapl_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -51,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, help="Câmara/Senado: no máximo N parlamentares (desenvolvimento)")
     p.add_argument("--no-expenses", action="store_true", help="Câmara: pular a cota parlamentar")
     p.add_argument("--force", action="store_true", help="ignorar checksum e reprocessar")
-    p.add_argument("--apply", action="store_true", help="tse.fix019: gravar a correção (sem isto, dry-run)")
+    p.add_argument("--apply", action="store_true", help="tse.fix019/tse.fix032: gravar a correção (sem isto, dry-run)")
     a = p.parse_args(argv)
 
     conn = db.connect()
@@ -93,6 +94,10 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.tse_bug019 import run_fix
 
             run_fix(conn, a.year or [2018, 2022, 2026], apply=a.apply)
+        if a.job == "tse.fix032":  # BUG-032: religa candidaturas/mandatos casados pelo SQ_CANDIDATO de outra eleição
+            from .jobs.tse_bug032 import run_fix as run_fix032
+
+            run_fix032(conn, a.year, apply=a.apply)
         if a.job in ("camara.diario", "all"):
             from .jobs.camara_diario import run_camara
 
