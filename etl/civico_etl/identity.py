@@ -5,7 +5,11 @@ Ordem (architecture.md › Identidade):
   2. título de eleitor publicado pelo TSE (fonte 'tse-titulo')        -> exact_id, 1.0
   3. nome civil + data de nascimento, casamento único                 -> name_birth, 0.95
   4. nome civil + nascimento + UF de nascimento, único                -> name_birth_place, 0.9
+  4b. cadeira conhecida (cargo + lugar, quem teve mandato nela): exige o MESMO nascimento E algum token do nome civil em
+      comum (BUG-033, D221). Nome parlamentar igual não basta (pai e filho: Átila Lira, João Carlos Bacelar) e nascimento
+      igual também não (Eli Corrêa Filho x Geninho Zuliani, ambos de 13/01/1976 na bancada de SP).
   Abaixo disso (ambíguo): vai para identity_match_queue e NÃO cria vínculo. Sem nenhum candidato: pessoa nova.
+  Fontes com um id por pessoa (Câmara, Senado): quem já tem outro id da mesma fonte não é candidato a casar (D221).
 """
 
 from __future__ import annotations
@@ -25,6 +29,24 @@ from .util import fold, slugify
 log = logging.getLogger("etl.identity")
 
 
+# a casa publica um id por pessoa: uma pessoa do diretório com dois ids da Câmara (ou do Senado) é fusão de duas pessoas
+SINGLE_ID_SOURCES = {"camara", "senado"}
+# partículas e sufixos de parentesco não identificam ninguém ("Filho" é justamente o que separa pai e filho)
+NAME_STOP = {"de", "da", "do", "das", "dos", "e", "d", "filho", "filha", "neto", "neta", "junior", "jr", "sobrinho", "segundo", "terceiro"}
+
+
+def name_tokens(name: str | None) -> set[str]:
+    """Tokens significativos do nome civil, sem acento e sem partículas."""
+    return {t for t in re.split(r"[^a-z0-9]+", fold(name)) if len(t) >= 2 and t not in NAME_STOP}
+
+
+def seat_match(civil_name: str | None, birth_date: date | None, person_civil: str | None, person_display: str | None, person_birth: date | None) -> bool:
+    """Ramo da cadeira (BUG-033): mesma data de nascimento E algum token do nome civil em comum. Sem os dois, não é prova."""
+    if not (civil_name and birth_date and person_birth) or birth_date != person_birth:
+        return False
+    return bool(name_tokens(civil_name) & (name_tokens(person_civil) | name_tokens(person_display)))
+
+
 @dataclass
 class Match:
     person_id: str | None
@@ -40,8 +62,12 @@ class PersonResolver:
         self.by_name_birth: dict[tuple[str, date | None], set[str]] = defaultdict(set)
         self.birth_uf: dict[str, str | None] = {}
         self.slugs: set[str] = set()
+        self.single_src = {sid for slug, sid in self.sources.items() if slug in SINGLE_ID_SOURCES}
+        self.holds: dict[str, set[str]] = defaultdict(set)  # pessoa -> fontes de id único em que ela já tem id
         for r in conn.execute("select person_id, source_id, external_id from person_external_ids"):
             self.external[(str(r["source_id"]), r["external_id"])] = str(r["person_id"])
+            if str(r["source_id"]) in self.single_src:
+                self.holds[str(r["person_id"])].add(str(r["source_id"]))
         for r in conn.execute(
             """select p.id, p.slug, p.display_name, p.civil_name, p.birth_date, b.uf
                from people p left join places b on b.id = p.birthplace_place_id"""
@@ -60,6 +86,13 @@ class PersonResolver:
     # ---- consulta ----
     def by_external(self, source: str, external_id: str) -> str | None:
         return self.external.get((self.sources[source], external_id))
+
+    def _free(self, cands: set[str], source: str) -> set[str]:
+        """Tira quem já tem outro id desta fonte, se ela publica um id por pessoa."""
+        sid = self.sources[source]
+        if sid not in self.single_src:
+            return set(cands)
+        return {c for c in cands if sid not in self.holds.get(c, ())}
 
     def resolve(
         self,
@@ -82,23 +115,27 @@ class PersonResolver:
             if pid:
                 self.link(pid, source, external_id, "exact_id", 1.0)
                 return Match(pid, "exact_id", 1.0)
-        if civil_name and birth_date and len(self.by_name_birth.get((fold(civil_name), birth_date), set())) == 1:
+        nb = self._free(self.by_name_birth.get((fold(civil_name), birth_date), set()), source) if civil_name and birth_date else set()
+        if len(nb) == 1:
             # nome civil + nascimento único vence a cadeira (mais específico)
-            pid = next(iter(self.by_name_birth[(fold(civil_name), birth_date)]))
+            pid = next(iter(nb))
             self.link(pid, source, external_id, "name_birth", 0.95)
             if titulo:
                 self.link(pid, "tse-titulo", titulo, "exact_id", 1.0)
             return Match(pid, "name_birth", 0.95)
-        if seat and (display_name or birth_date):
-            # cadeira conhecida (cargo + lugar): nome parlamentar igual ou mesmo nascimento entre quem já tem mandato nela
+        if seat and civil_name and birth_date:
+            # cadeira conhecida (cargo + lugar), entre quem já tem mandato nela: mesmo nascimento E token do nome civil em comum
+            # (D221). Antes bastava nome parlamentar igual OU nascimento igual, e isso fundiu pai com filho e dois colegas de bancada.
             office_id, place_id = seat
             rows = self.conn.execute(
-                """select distinct p.id, p.display_name, p.birth_date from mandates m join people p on p.id = m.person_id
+                """select distinct p.id, p.display_name, p.civil_name, p.birth_date from mandates m join people p on p.id = m.person_id
                    where m.office_id = %s and m.place_id = %s and m.started_on >= current_date - interval '9 years'""",
                 (office_id, place_id),
             ).fetchall()
-            key = re.sub(r"[^a-z0-9]", "", fold(display_name)) if display_name else None
-            hits = {str(r["id"]) for r in rows if (key and re.sub(r"[^a-z0-9]", "", fold(r["display_name"])) == key) or (birth_date and r["birth_date"] == birth_date)}
+            hits = self._free({str(r["id"]) for r in rows if seat_match(civil_name, birth_date, r["civil_name"], r["display_name"], r["birth_date"])}, source)
+            if len(hits) > 1:  # ambíguo não funde
+                self._pending_queue.append((self.sources[source], external_id, json.dumps(raw or {}, ensure_ascii=False, default=str), None, 0.5))
+                return Match(None, "queued", 0.5)
             if len(hits) == 1:
                 pid = next(iter(hits))
                 self.link(pid, source, external_id, "name_birth_place", 0.9)
@@ -106,7 +143,7 @@ class PersonResolver:
                     self.link(pid, "tse-titulo", titulo, "exact_id", 1.0)
                 return Match(pid, "name_birth_place", 0.9)
         if civil_name and birth_date:
-            cands = self.by_name_birth.get((fold(civil_name), birth_date), set())
+            cands = self._free(self.by_name_birth.get((fold(civil_name), birth_date), set()), source)
             if len(cands) == 1:
                 pid = next(iter(cands))
                 self.link(pid, source, external_id, "name_birth", 0.95)
@@ -119,8 +156,10 @@ class PersonResolver:
                     pid = next(iter(narrowed))
                     self.link(pid, source, external_id, "name_birth_place", 0.9)
                     return Match(pid, "name_birth_place", 0.9)
-            if cands:
-                self._pending_queue.append((self.sources[source], external_id, json.dumps(raw or {}, ensure_ascii=False, default=str), next(iter(cands)), 0.5))
+            # mesmo nome civil + nascimento de quem já tem outro id da casa também vai para a fila: não funde nem cria um homônimo
+            held = cands or self.by_name_birth.get((fold(civil_name), birth_date), set())
+            if held:
+                self._pending_queue.append((self.sources[source], external_id, json.dumps(raw or {}, ensure_ascii=False, default=str), next(iter(held)), 0.5))
                 return Match(None, "queued", 0.5)
         return Match(None, "new", 0.0)
 
@@ -130,6 +169,8 @@ class PersonResolver:
         if key in self.external:
             return
         self.external[key] = person_id
+        if key[0] in self.single_src:
+            self.holds[person_id].add(key[0])
         self._pending_ext.append((person_id, self.sources[source], external_id, method, confidence))
 
     def alloc_slug(self, display_name: str, *hints: str | None) -> str:
