@@ -269,7 +269,7 @@ export const OFFICES: Office[] = [
       "O Congresso pode mudar a lei e a Constituição, que é a base das decisões do STF (art. 60).",
     ],
     refs: ["Arts. 101 a 103-B", "Art. 95, parágrafo único"],
-    terms: [{ slug: "stf", label: "STF" }, { slug: "sumula-vinculante", label: "Súmula vinculante" }],
+    terms: [{ slug: "supremo-tribunal-federal-stf", label: "Supremo Tribunal Federal (STF)" }, { slug: "sumula-vinculante", label: "Súmula vinculante" }],
   },
 ];
 
