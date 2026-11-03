@@ -51,7 +51,7 @@ test.describe("F05–F08 a partir do crachá e telas provisórias", () => {
 
   test("stubs de release posterior dizem o release", async ({ page, axe }) => {
     // S22, S23 e S24 saíram de stub no build 5 (têm spec própria em w1a-*); aqui ficam as que ainda são stub
-    for (const [path, sid] of [["/impostos", "S16"], ["/propostas", "S13"]]) {
+    for (const [path, sid] of [["/stf", "S15"], ["/propostas", "S13"]]) {
       await page.goto(path);
       await expect(page.getByText(new RegExp(`${sid} · entra no R\\d`))).toBeVisible();
       await expect(page.getByRole("link", { name: /quem representa a sua cidade/ })).toBeVisible();

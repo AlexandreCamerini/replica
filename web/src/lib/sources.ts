@@ -24,15 +24,15 @@ export const SOURCE_META: Record<string, SourceMeta> = {
   },
   // W3-B (outro agente) criou estas fontes sem metadado; a cadência abaixo é meta editorial provisória (D113), ajustar se a rotina for outra
   sapl: { brings: "vereadores de 6 capitais pelo SAPL: projetos com autoria, presença em sessão (sem porcentagem) e votos nominais", cadence: "uma vez por semana", maxAgeHours: 8 * 24 },
-  "bcb-sgs": { brings: "séries do Banco Central usadas em Governos (indicadores econômicos)", cadence: "uma vez por mês", maxAgeHours: 35 * 24 },
-  "ibge-sidra": { brings: "Contas Nacionais, IPCA e PNAD Contínua usados em Governos", cadence: "a cada divulgação do IBGE; conferimos uma vez por mês", maxAgeHours: 100 * 24 },
-  "receita-federal": { brings: "arrecadação das receitas federais (Impostos)", cadence: "uma vez por mês", maxAgeHours: 40 * 24 },
   tcu: { brings: "lista de inabilitados para função pública (sem CPF no site)", cadence: "uma vez por mês", maxAgeHours: 35 * 24 },
   alemg: {
     brings: "deputados estaduais de MG: verba indenizatória por mês (valor reembolsado) e proposições (projetos de lei, de lei complementar, de resolução e PECs) com autoria. Presença e votos em plenário não são publicados em dado aberto",
     cadence: "uma vez por semana",
     maxAgeHours: 8 * 24,
   },
+  "ibge-sidra": { brings: "PIB, inflação (IPCA) e desemprego (PNAD Contínua), ano a ano, para /governos", cadence: "uma vez por trimestre", maxAgeHours: 120 * 24 },
+  "bcb-sgs": { brings: "meta da taxa Selic no fim de cada ano, para /governos", cadence: "uma vez por trimestre", maxAgeHours: 120 * 24 },
+  "receita-federal": { brings: "arrecadação federal por estado, mês e tributo, para /impostos", cadence: "uma vez por mês", maxAgeHours: 60 * 24 },
 };
 
 /** Fontes que o produto ainda não lê. Aparecem na tabela com “—” e o motivo, nunca como se existissem. */

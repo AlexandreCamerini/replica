@@ -1,3 +1,4 @@
+import { fakeW4 } from "./fake-w4";
 import {
   EXPENSE_CATEGORIES,
   MUNICIPALITY_ROWS,
@@ -525,6 +526,7 @@ function salaryFor(m: Mandate): { cents: number | null; ceiling: boolean } {
 // ---------- implementação ----------
 export const fakeSource: DataSource = {
   isDemo: true,
+  ...fakeW4,
 
   async searchPlaces(q, limit = 10) {
     const f = fold(q);

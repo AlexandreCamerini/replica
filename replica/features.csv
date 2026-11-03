@@ -33,14 +33,14 @@ Detalhe de votação com placar e voto por partido,congresso,should,yes,yes,"S10
 Metodologia e fontes públicas,confianca,should,yes,yes,"S22; texto próprio; build5: /sobre com 8 âncoras (neutralidade, fontes, presença, traço vs 0, identidade, atualização, #s-priv, #s-resposta), texto próprio e links oficiais"
 Matriz de quem publica dados por estado e cidade,confianca,should,yes,partial,"S23; build5: matriz UF × 8 tipos de dado de data_coverage (números conferidos por teste contra o banco), busca de cidade, CTA /sugestoes?tipo=dado; hoje todas as células são '—' porque nenhuma cidade foi conferida (só 'desconhecido'); preenche quando o ETL municipal existir (W3)"
 Tema claro/escuro e mobile-first,shell,should,yes,yes,todas
-Partidos: espectro esquerda-direita e alinhamento com governo,partidos,could,yes,no,S11; critério de espectro precisa ser público e citável
+Partidos: espectro esquerda-direita e alinhamento com governo,partidos,could,yes,partial,"S11; critério de espectro precisa ser público e citável; w4: S11 lista A–Z com número, cadeiras Câmara/Senado (512/513 e 81/81) e coincidência com a orientação do governo (Câmara; Bolsonaro 2020–21 e Lula 2023–26; só com 30+ votações); SEM espectro (D144); orientação por bloco/federação fica —"
 Camadas do mapa: contas escolas obras dinheiro votações,home,could,yes,no,S01; cada camada é uma fonte nova
-Governos: mandatos presidenciais e indicadores ano a ano,governos,could,yes,no,S12
+Governos: mandatos presidenciais e indicadores ano a ano,governos,could,yes,yes,"S12; w4: S12 nove mandatos desde 1985 (datas a conferir no Planalto, D148) e PIB, IPCA, Selic e desemprego ano a ano (IBGE/BCB) com — e motivo"
 Planos de governo lado a lado por tema,governos,could,yes,no,S13; trechos literais do TSE
-Eleições: resultados por lugar e histórico,eleicoes,could,yes,no,S14
+Eleições: resultados por lugar e histórico,eleicoes,could,yes,partial,"S14; w4: S14 panorama por ano/cargo, UF e município; só candidaturas carregadas (D141); voto de presidente em — até a recarga (BUG-019)"
 Apuração ao vivo,eleicoes,could,yes,no,S14; realtime só em dia de eleição
 STF: pauta ministros e processos,stf,could,yes,no,S15
-Impostômetro com arrecadação federal por UF e mês,impostos,could,yes,no,S16
+Impostômetro com arrecadação federal por UF e mês,impostos,could,yes,yes,"S16; w4: S16 arrecadação federal por UF, mês e tributo, Receita 2013–2026; 2023 = R$ 2.318,1 bi e 2024 = R$ 2.651,3 bi (= publicado)"
 Entenda os cargos,educativo,could,yes,yes,"S18; build6: /cargos com 8 cargos, artigo da CF, diagrama e lista de relações; texto próprio"
 Dicionário político,educativo,could,yes,partial,"S19; build6: /dicionario com 122 de 213 termos do original, fonte oficial por termo, índice A–Z"
 Ouvir esta página (TTS),acessibilidade,could,yes,yes,todas; Web Speech API; build: Web Speech API; some sem suporte

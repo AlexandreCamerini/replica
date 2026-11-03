@@ -42,6 +42,7 @@ import type {
   LawListItem,
   SpeechItem,
 } from "./types";
+import { pgW4 } from "./pg-w4";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
 // Nenhuma query fora daqui. Listas públicas ordenam por nome (collation pt_br), nunca por métrica: regra de neutralidade.
@@ -206,6 +207,7 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
 
 export const pgSource: DataSource = {
   isDemo: false,
+  ...pgW4,
 
   async searchPlaces(q, limit = 10) {
     const f = q.trim();
