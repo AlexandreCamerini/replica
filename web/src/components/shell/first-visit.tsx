@@ -46,18 +46,18 @@ export function FirstVisit() {
         }
       }}
       onStart={() => {
-        // depois do close(): o modal devolve o foco ao que estava antes, e isso vence um foco dado cedo demais
-        const focusCity = () => document.querySelector<HTMLInputElement>("main input[role=combobox]")?.focus();
-        if (path !== "/representantes") {
-          router.push("/representantes");
-          const t = setInterval(() => {
-            if (document.querySelector("main input[role=combobox]")) {
-              clearInterval(t);
-              setTimeout(focusCity, 50);
-            }
-          }, 100);
-          setTimeout(() => clearInterval(t), 5000);
-        } else setTimeout(focusCity, 50);
+        // o modal devolve o foco a quem o abriu ao fechar (e pode fazê-lo depois da animação): tenta de novo até pegar,
+        // mas só enquanto o foco está "solto" (body); se a pessoa já foi para outro lugar, não toma o foco dela
+        const input = () => document.querySelector<HTMLInputElement>("main input[role=combobox]");
+        const loose = () => !document.activeElement || document.activeElement === document.body || !!document.activeElement.closest("[role=dialog]");
+        if (path !== "/representantes") router.push("/representantes");
+        let tries = 0;
+        const t = setInterval(() => {
+          const el = input();
+          if (el && document.activeElement === el) return clearInterval(t);
+          if (el && (loose() || tries === 0)) el.focus();
+          if (++tries > 30) clearInterval(t);
+        }, 100);
       }}
     />
   );
