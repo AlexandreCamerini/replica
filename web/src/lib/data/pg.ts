@@ -621,6 +621,10 @@ export const pgSource: DataSource = {
     if (!r) return { dataset, source: "Fonte oficial", sourceUrl: "/sobre#fontes", refreshedAt: new Date(0).toISOString() } satisfies Stamp;
     return { dataset: String(r.dataset), source: String(r.name), sourceUrl: String(r.url), refreshedAt: isoTs(r.refreshed_at) };
   },
+  async listStampYears(prefix) {
+    const rows = await sql`select distinct right(dataset, 4)::int as y from dataset_stamps where dataset like ${prefix + ".%"} and right(dataset, 4) ~ '^[0-9]{4}$' order by 1`;
+    return rows.map((r) => Number(r.y));
+  },
   async listSourceStatus() {
     const rows = await sql`
       select s.slug, s.name, s.url, ds.dataset, ds.refreshed_at

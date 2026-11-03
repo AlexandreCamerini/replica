@@ -15,6 +15,7 @@ import { MissingDataNote, StatTile } from "@/components/ui/data";
 import { ListenButton } from "@/components/ui/misc";
 import { data, type MandateStatus, type PeriodStats } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
+import { campaignTotals, joinYears } from "@/lib/campaign";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Params> };
 
@@ -71,6 +72,8 @@ export default async function Page({ params, searchParams }: Props) {
       const b = yearParam ? new Date(Math.min(end.getTime(), Date.UTC(yearParam, 11, 31))) : end;
       return acc + Math.max(0, (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth() + 1);
     }, 0);
+  const camp = campaignTotals(candidacies);
+  const financeYears = await data.listStampYears("tse.contas");
   const wins = [...new Set(candidacies.filter((c) => c.result.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
   const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
   const user = await currentUser();
@@ -232,10 +235,17 @@ export default async function Page({ params, searchParams }: Props) {
           />
           <StatTile value={elected?.votes ?? null} kind="count" label="votos recebidos" sub={elected ? `eleição de ${elected.year}` : undefined} />
           <StatTile
-            value={elected?.raisedCents ?? null}
+            value={camp.raisedCents}
             kind="money"
-            label="arrecadou na campanha"
-            sub={elected?.spentCents != null ? `gastou ${money(elected.spentCents)}` : elected ? "gastos não publicados" : undefined}
+            label={camp.years.length > 1 ? `arrecadou em ${camp.years.length} campanhas` : "arrecadou na campanha"}
+            sub={
+              camp.raisedCents === null
+                ? financeYears.length
+                  ? `sem prestação de contas no TSE entre ${financeYears[0]} e ${financeYears[financeYears.length - 1]}`
+                  : "prestação de contas do TSE ainda não carregada"
+                : `${joinYears(camp.years)}${camp.spentCents !== null ? ` · gastou ${money(camp.spentCents)}` : ""}`
+            }
+            help="Soma do que a pessoa declarou ao TSE em cada campanha, uma vez por eleição (o 2º turno não conta de novo). Despesa = valor pago."
           />
           {legislative && (
             <>

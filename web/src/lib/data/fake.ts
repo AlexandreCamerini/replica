@@ -820,6 +820,9 @@ export const fakeSource: DataSource = {
   async listSpeeches() {
     return { items: [], nextCursor: null, total: 0 };
   },
+  async listStampYears(prefix) {
+    return prefix.startsWith("tse") ? [2018, 2020, 2022, 2024, 2026] : [2023, 2024, 2025, 2026];
+  },
   async getContacts() {
     return [];
   },

@@ -7,6 +7,7 @@ import { LinkChip } from "@/components/profile/ui";
 import { NotPublished, SourceFooter } from "@/components/ui/data";
 import { data, type Person } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
+import { campaignTotals, joinYears } from "@/lib/campaign";
 
 export const metadata: Metadata = { title: "Comparar", description: "De 2 a 5 pessoas lado a lado, com os mesmos dados oficiais." };
 
@@ -90,7 +91,7 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
       const main = mandates.find((m) => m.status === "em_exercicio") ?? mandates[0];
       const lastElected = cands.find((c) => c.result.startsWith("eleito"));
       const decl = cands.filter((c) => c.assetsCents !== null);
-      return { p, main, lastElected, latest: decl[0], first: decl[decl.length - 1], stats };
+      return { p, main, lastElected, latest: decl[0], first: decl[decl.length - 1], stats, camp: campaignTotals(cands) };
     }),
   );
   const agreement = await data.getAgreement(people.map((p) => p.id), year ?? "career");
@@ -118,8 +119,9 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
       rows: [
         ["Última vitória", (r) => r.lastElected?.year ?? dash],
         ["Votos", (r) => (r.lastElected?.votes != null ? count(r.lastElected.votes) : dash)],
-        ["Arrecadou", (r) => (r.lastElected?.raisedCents != null ? money(r.lastElected.raisedCents) : dash)],
-        ["Gastou", (r) => (r.lastElected?.spentCents != null ? money(r.lastElected.spentCents) : dash)],
+        ["Arrecadou na última vitória", (r) => (r.lastElected?.raisedCents != null ? money(r.lastElected.raisedCents) : dash)],
+        ["Gastou na última vitória", (r) => (r.lastElected?.spentCents != null ? money(r.lastElected.spentCents) : dash)],
+        ["Arrecadou, somando as campanhas", (r) => (r.camp.raisedCents !== null ? `${money(r.camp.raisedCents)} (${joinYears(r.camp.years)})` : dash)],
       ],
     },
     {
