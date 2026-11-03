@@ -175,6 +175,8 @@ export type ActivityItem = {
 };
 
 export type LawItem = { number: string; sanctionedOn: string; summary: string; url: string | null; proposal: string; role: "autor" | "coautor" };
+/** S09 aba "virou lei": norma publicada + a proposta de origem e os autores principais que têm crachá. */
+export type LawListItem = { number: string; sanctionedOn: string; summary: string; url: string | null; proposal: string | null; proposalUrl: string | null; authors: { slug: string; name: string }[]; moreAuthors: number };
 export type CommitteeItem = { acronym: string | null; name: string; role: string; from: string; to: string | null; body: Body };
 export type SpeechItem = { id: string; occurredAt: string; summary: string | null; url: string | null };
 export type ContactItem = { kind: "email" | "telefone" | "gabinete" | "site" | "instagram" | "facebook" | "x" | "youtube" | "tiktok" | "outra_rede"; value: string };
@@ -295,6 +297,8 @@ export interface DataSource {
   /** Novidades de várias pessoas (feed de quem a pessoa acompanha), mais recentes primeiro. */
   getActivity(personIds: string[], limit?: number): Promise<ActivityItem[]>;
   getLaws(personId: string): Promise<LawItem[]>;
+  /** Leis federais por data de publicação (mais recente primeiro). */
+  listLaws(f: { year?: number; cursor?: string; limit?: number }): Promise<Page<LawListItem> & { years: number[] }>;
   getCommittees(personId: string): Promise<CommitteeItem[]>;
   listSpeeches(personId: string, f: { year?: number; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
   getContacts(personId: string): Promise<ContactItem[]>;

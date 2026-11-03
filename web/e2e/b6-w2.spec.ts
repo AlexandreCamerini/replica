@@ -46,4 +46,20 @@ test.describe("B6-W2", () => {
     await page.goto("/p/randolfe-rodrigues");
     await expect(page.locator("#equipe")).toContainText("Ainda não carregado");
   });
+
+  test("B6-W15 congresso: aba \"o que virou lei\" por data, com filtro de ano na URL", async ({ page, axe }) => {
+    await page.goto("/congresso");
+    await page.getByRole("navigation", { name: "O que ver" }).getByRole("link", { name: "O que virou lei" }).click();
+    await expect(page).toHaveURL(/aba=leis/);
+    const items = page.getByTestId("leis").locator("li");
+    await expect(items.first()).toBeVisible();
+    const dates = (await items.locator("time").evaluateAll((ts) => ts.map((t) => t.getAttribute("datetime")!)));
+    expect(dates).toEqual([...dates].sort().reverse());
+    await expect(page.locator("section[aria-labelledby='leis-h']").getByText(/^Fonte:/)).toBeVisible();
+    await axe();
+    await page.locator('section[aria-labelledby="leis-h"] select[name="ano"]').selectOption("2024");
+    await page.locator("section[aria-labelledby='leis-h']").getByRole("button", { name: "Filtrar" }).click();
+    await expect(page).toHaveURL(/ano=2024/);
+    for (const d of await page.getByTestId("leis").locator("time").evaluateAll((ts) => ts.map((t) => t.getAttribute("datetime")!))) expect(d.startsWith("2024")).toBe(true);
+  });
 });

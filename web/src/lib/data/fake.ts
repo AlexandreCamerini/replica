@@ -860,6 +860,9 @@ export const fakeSource: DataSource = {
   async getLaws() {
     return [];
   },
+  async listLaws() {
+    return { items: [], nextCursor: null, total: 0, years: [] }; // a demo não simula leis
+  },
   async getCommittees() {
     return [];
   },

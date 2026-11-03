@@ -35,6 +35,7 @@ import type {
   CommitteeItem,
   ContactItem,
   LawItem,
+  LawListItem,
   SpeechItem,
 } from "./types";
 
@@ -803,6 +804,41 @@ export const pgSource: DataSource = {
       where pa.person_id = ${personId}::uuid and pa.role in ('principal','coautoria')
       order by l.sanctioned_on desc`;
     return rows.map<LawItem>((r) => ({ number: String(r.number), sanctionedOn: iso(r.sanctioned_on), summary: String(r.summary), url: (r.url as string | null) ?? null, proposal: String(r.proposal), role: r.role === "principal" ? "autor" : "coautor" }));
+  },
+  async listLaws(f) {
+    const limit = Math.min(f.limit ?? 30, 200);
+    const offset = off(f.cursor);
+    const where = sql`l.sphere = 'federal' ${f.year ? sql`and extract(year from l.sanctioned_on) = ${f.year}` : sql``}`;
+    const [{ n }] = await sql`select count(*)::int as n from laws l where ${where}`;
+    const rows = await sql`
+      select l.number, l.sanctioned_on, l.summary, l.url, pr.type || ' ' || pr.number || '/' || pr.year as proposal, pr.url as proposal_url,
+             coalesce((select json_agg(json_build_object('slug', p.slug, 'name', p.display_name) order by p.display_name collate pt_br)
+                       from proposal_authors pa join people p on p.id = pa.person_id where pa.proposal_id = pr.id and pa.role = 'principal'), '[]') as authors
+      from laws l left join lateral (select * from proposals x where x.became_law_id = l.id order by x.presented_on nulls last limit 1) pr on true
+      where ${where}
+      order by l.sanctioned_on desc, l.number limit ${limit} offset ${offset}`;
+    const years = await sql`select distinct extract(year from sanctioned_on)::int as y from laws where sphere = 'federal' order by 1 desc`;
+    return {
+      ...page(
+        rows.map<LawListItem>((r) => {
+          const authors = (r.authors as { slug: string; name: string }[]) ?? [];
+          return {
+            number: String(r.number),
+            sanctionedOn: iso(r.sanctioned_on),
+            summary: String(r.summary),
+            url: (r.url as string | null) ?? null,
+            proposal: (r.proposal as string | null) ?? null,
+            proposalUrl: (r.proposal_url as string | null) ?? null,
+            authors: authors.slice(0, 3),
+            moreAuthors: Math.max(0, authors.length - 3),
+          };
+        }),
+        Number(n),
+        offset,
+        limit,
+      ),
+      years: years.map((y) => Number(y.y)),
+    };
   },
   async getCommittees(personId) {
     const rows = await sql`

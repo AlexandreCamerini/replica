@@ -18,6 +18,7 @@ const HOUSES: { id: Body; label: string; plenary: string }[] = [
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
   const body: Body = sp.casa === "senado" ? "senado" : "camara";
+  const tab = sp.aba === "leis" ? "leis" : "votacoes";
   const house = HOUSES.find((h) => h.id === body)!;
   const shown = Math.min(Math.max(Number(sp.n) || STEP, STEP), 300);
   const result = sp.resultado === "aprovado" || sp.resultado === "rejeitado" ? sp.resultado : undefined;
@@ -45,11 +46,26 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     <Container>
       <PageHeader title="Congresso" lead="Quem ocupa cada cadeira hoje e como terminou cada votação nominal. Toque numa votação para ver o voto de cada pessoa." />
 
+      <nav aria-label="O que ver" className="mb-3">
+        <ul className="flex gap-2">
+          <li>
+            <LinkChip href={hrefWith(base, {}, { casa: body === "senado" ? "senado" : undefined })} active={tab !== "leis"}>
+              Votações nominais
+            </LinkChip>
+          </li>
+          <li>
+            <LinkChip href={hrefWith(base, {}, { casa: body === "senado" ? "senado" : undefined, aba: "leis" })} active={tab === "leis"}>
+              O que virou lei
+            </LinkChip>
+          </li>
+        </ul>
+      </nav>
+
       <nav aria-label="Casa" className="mb-6">
         <ul className="flex gap-2">
           {HOUSES.map((h) => (
             <li key={h.id}>
-              <LinkChip href={hrefWith(base, {}, { casa: h.id === "senado" ? "senado" : undefined })} active={h.id === body}>
+              <LinkChip href={hrefWith(base, {}, { casa: h.id === "senado" ? "senado" : undefined, aba: tab === "leis" ? "leis" : undefined })} active={h.id === body}>
                 {h.label}
               </LinkChip>
             </li>
@@ -70,6 +86,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           <p className="mt-3 text-xs text-muted">Cor não indica partido: escolha um partido acima para destacar as cadeiras dele. A ordem é alfabética por sigla.</p>
         </section>
 
+        {tab === "leis" ? (
+          <LawsPanel sp={sp} />
+        ) : (
         <section aria-labelledby="votacoes-h" className="rounded-md border border-border bg-surface p-4 md:p-6">
           <h2 id="votacoes-h" className="flex flex-wrap items-baseline gap-x-2 text-xl text-fg">
             Votações nominais
@@ -125,6 +144,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           <MoreLink href={hrefWith(base, keep, { n: String(shown + STEP) }, "votacoes-h")} remaining={events.total - events.items.length} />
           <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
         </section>
+        )}
       </div>
 
       <div className="mt-8">
@@ -136,5 +156,73 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         />
       </div>
     </Container>
+  );
+}
+
+/** W2 item 15: aba "o que virou lei", por data de publicação. Fonte: `laws` (normas ligadas às propostas carregadas). */
+async function LawsPanel({ sp }: { sp: Params }) {
+  const shown = Math.min(Math.max(Number(sp.nl) || STEP, STEP), 200);
+  const first = await data.listLaws({ limit: 1 });
+  const year = sp.ano && first.years.includes(Number(sp.ano)) ? Number(sp.ano) : undefined;
+  const [laws, stamp] = await Promise.all([data.listLaws({ year, limit: shown }), data.getStamp("camara.proposicoes")]);
+  const keep: Params = { aba: "leis", casa: sp.casa === "senado" ? "senado" : undefined, ano: year ? String(year) : undefined };
+  return (
+    <section aria-labelledby="leis-h" className="rounded-md border border-border bg-surface p-4 md:p-6">
+      <h2 id="leis-h" className="flex flex-wrap items-baseline gap-x-2 text-xl text-fg">
+        O que virou lei
+        <span className="text-base font-normal tabular text-muted">{count(laws.total)}</span>
+      </h2>
+      <p className="mt-1 mb-4 text-sm text-muted">
+        Leis e emendas à Constituição publicadas que vieram de propostas já carregadas no site (apresentadas na Câmara ou no Senado a partir de 2019), da mais recente para a
+        mais antiga. Ainda não é a lista completa de normas do país.
+      </p>
+      <form action="/congresso" className="mb-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="aba" value="leis" />
+        {sp.casa === "senado" && <input type="hidden" name="casa" value="senado" />}
+        <SelectField label="Ano" name="ano" value={year ? String(year) : ""} options={[{ value: "", label: "Todos" }, ...first.years.map((y) => ({ value: String(y), label: String(y) }))]} />
+        <button type="submit" className="h-10 rounded-pill bg-surface-inverse px-4 text-sm font-semibold text-on-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+          Filtrar
+        </button>
+      </form>
+      {laws.items.length === 0 ? (
+        <p className="rounded-sm bg-surface-sunken px-4 py-6 text-center text-sm text-muted">Nenhuma lei{year ? ` publicada em ${year}` : ""} entre as propostas carregadas.</p>
+      ) : (
+        <ol className="flex flex-col divide-y divide-border" data-testid="leis">
+          {laws.items.map((l) => (
+            <li key={l.number} className="flex flex-col gap-1 py-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                <span className="font-semibold text-fg">{l.number}</span>
+                <time dateTime={l.sanctionedOn}>publicada em {date(l.sanctionedOn)}</time>
+                {l.proposal && <span>proposta de origem: {l.proposal}</span>}
+              </div>
+              <p className="text-sm text-fg">{l.summary}</p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                {l.authors.length > 0 && (
+                  <span>
+                    Autoria:{" "}
+                    {l.authors.map((a, i) => (
+                      <span key={a.slug}>
+                        {i > 0 && ", "}
+                        <Link href={`/p/${a.slug}`} className="font-semibold text-fg underline-offset-2 hover:underline">
+                          {a.name}
+                        </Link>
+                      </span>
+                    ))}
+                    {l.moreAuthors > 0 && ` e mais ${l.moreAuthors}`}
+                  </span>
+                )}
+                {l.url && (
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent-text underline underline-offset-2">
+                    texto da lei<span className="sr-only"> (abre em nova aba)</span>
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      <MoreLink href={hrefWith("/congresso", keep, { nl: String(shown + STEP) }, "leis-h")} remaining={laws.total - laws.items.length} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+    </section>
   );
 }
