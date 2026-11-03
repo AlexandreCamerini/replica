@@ -19,6 +19,8 @@ const display = Barlow_Condensed({
 const mono = JetBrains_Mono({ variable: "--ds-font-mono", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
+  // URL absoluta do og:image (WhatsApp exige). SITE_URL na publicação; sem ela, o Next usa a origem local.
+  ...(process.env.SITE_URL && /^https?:\/\//.test(process.env.SITE_URL) ? { metadataBase: new URL(process.env.SITE_URL) } : {}),
   title: { default: "Quem representa você", template: "%s · quem·representa" },
   description: "Quem está no cargo por você, do vereador ao presidente, com dados oficiais.",
 };
