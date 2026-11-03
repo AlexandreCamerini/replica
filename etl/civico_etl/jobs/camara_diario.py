@@ -551,25 +551,49 @@ def cota_occurred(dat_emissao: str | None, ano: str | int | None, mes: str | int
     return date(a, m, 1)
 
 
-def cota_liquido(vlr_documento: Any, vlr_glosa: Any, vlr_liquido: Any) -> int | None:
-    """Valor debitado da cota, em centavos (BUG-030 / D200).
+def cota_liquido(vlr_documento: Any, vlr_glosa: Any, vlr_liquido: Any, glosa_em_outra_linha: bool = False) -> int | None:
+    """Valor debitado da cota, em centavos (BUG-030 / D200, BUG-034 / D230).
 
     O dicionário de dados da Câmara (dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) define
     `vlrLiquido = vlrDocumento - vlrGlosa`, e estorno legítimo (bilhete de compensação) vem com `vlrDocumento` negativo.
-    As linhas de lançamento administrativo sem documento fiscal ("COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA", subcota 40, e
-    "PASSAGEM AÉREA - MISSÃO OFICIAL", subcota 996) vêm com `vlrDocumento` positivo, sem glosa e `vlrLiquido` = -vlrDocumento:
-    o sinal contradiz a própria definição, e a página camara.leg.br/deputados/{id}?ano= soma o valor. Regra: quando o líquido
-    publicado é exatamente o oposto de (documento - glosa) e esse resultado é positivo, vale (documento - glosa). Estorno
-    (documento negativo) e líquido negativo por glosa maior que o documento ficam como a fonte publica.
+    Duas exceções publicadas na fonte, conferidas contra a página camara.leg.br/deputados/{id}?ano=:
+
+    1. D200: lançamento administrativo ("COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA", subcota 40, e "PASSAGEM AÉREA - MISSÃO
+       OFICIAL", subcota 996) vem com `vlrLiquido` = -(documento - glosa). A página soma (documento - glosa).
+    2. D230: linha com glosa e `vlrLiquido` = documento - 2 x glosa (a glosa descontada duas vezes; 12 linhas em 2019–2026,
+       subcotas 3, 14 e 120). A página soma `vlrDocumento` nas 11 linhas conferidas. A exceção é o rateio: quando a glosa
+       foi lançada como linha própria do mesmo documento em outra subcota (`glosa_em_outra_linha`), o líquido bate com a
+       página como está.
+
+    O resto fica como a fonte publica, inclusive o líquido negativo que nenhuma das duas regras explica (D230: Enio Verri,
+    10/2020, a página mostra um valor que não sai dos campos da linha).
     """
     liq = cents(vlr_liquido)
     doc = cents(vlr_documento)
     if liq is None or doc is None:
         return liq
-    devido = doc - (cents(vlr_glosa) or 0)
+    glosa = cents(vlr_glosa) or 0
+    devido = doc - glosa
     if devido > 0 and liq == -devido:
         return devido
+    if glosa > 0 and doc > 0 and liq == doc - 2 * glosa and not glosa_em_outra_linha:
+        return doc
     return liq
+
+
+def cota_glosa_em_outra_linha(rows: list[tuple[str, str, Any, Any]]) -> list[bool]:
+    """Para cada linha (deputado, documento, vlrGlosa, vlrLiquido): outra linha do mesmo documento tem líquido igual à glosa
+    desta (rateio do documento entre subcotas, com a glosa lançada na outra linha; D230). Documento vazio não agrupa."""
+    by_doc: dict[tuple[str, str], list[tuple[int, int | None]]] = defaultdict(list)
+    for i, (dep, doc, _gl, liq) in enumerate(rows):
+        if _cota_doc(doc):
+            by_doc[(dep, _cota_doc(doc))].append((i, cents(liq)))
+    out = []
+    for i, (dep, doc, gl, _liq) in enumerate(rows):
+        g = cents(gl) or 0
+        sib = by_doc.get((dep, _cota_doc(doc)), []) if _cota_doc(doc) else []
+        out.append(g > 0 and any(j != i and liq == g for j, liq in sib))
+    return out
 
 
 def cota_keys(rows: list[tuple[str, str, tuple]], prefix: str) -> list[str]:
@@ -589,9 +613,15 @@ def _cota_doc(doc: Any) -> str:
     return "" if d == "-" else d
 
 
-def cota_api_liquido(x: dict) -> int | None:
+def cota_api_liquido(x: dict, glosa_em_outra_linha: bool = False) -> int | None:
     """Mesma regra de `cota_liquido` para um item da API /deputados/{id}/despesas."""
-    return cota_liquido(x.get("valorDocumento"), x.get("valorGlosa"), x.get("valorLiquido"))
+    return cota_liquido(x.get("valorDocumento"), x.get("valorGlosa"), x.get("valorLiquido"), glosa_em_outra_linha)
+
+
+def cota_api_amounts(api_rows: list[dict]) -> list[int | None]:
+    """Valor de cada item da API com a regra de `cota_liquido`, com o rateio calculado entre os itens do mesmo deputado."""
+    flags = cota_glosa_em_outra_linha([("", str(x.get("codDocumento") or ""), x.get("valorGlosa"), x.get("valorLiquido")) for x in api_rows])
+    return [cota_api_liquido(x, f) for x, f in zip(api_rows, flags)]
 
 
 def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> list[dict]:
@@ -605,8 +635,8 @@ def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> li
     for doc, amount in file_rows:
         left[(_cota_doc(doc), amount)] += 1
     extra = []
-    for x in api_rows:
-        k = (_cota_doc(x.get("codDocumento")), cota_api_liquido(x) or 0)
+    for x, amount in zip(api_rows, cota_api_amounts(api_rows)):
+        k = (_cota_doc(x.get("codDocumento")), amount or 0)
         if left.get(k, 0) > 0:
             left[k] -= 1
         else:
@@ -649,9 +679,10 @@ def _expenses(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> No
             with zipfile.ZipFile(f.path) as z:
                 name = next(n for n in z.namelist() if n.lower().endswith(".csv"))
                 with z.open(name) as fh:
-                    reader = csv.DictReader(io.TextIOWrapper(fh, encoding="utf-8-sig", newline=""), delimiter=";")
+                    reader = list(csv.DictReader(io.TextIOWrapper(fh, encoding="utf-8-sig", newline=""), delimiter=";"))
+                    realocada = cota_glosa_em_outra_linha([((x["ideCadastro"] or "").strip(), x["ideDocumento"], x["vlrGlosa"], x["vlrLiquido"]) for x in reader])
                     pending, ident, unknown, legacy_docs, legacy_fallback = [], [], set(), set(), []
-                    for x in reader:
+                    for x, glosa_fora in zip(reader, realocada):
                         dep = (x["ideCadastro"] or "").strip()
                         if not dep:
                             continue  # lideranças e órgãos: não são pessoa
@@ -662,7 +693,7 @@ def _expenses(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> No
                         if not pid:
                             unknown.add(dep)
                             continue
-                        amount = cota_liquido(x["vlrDocumento"], x["vlrGlosa"], x["vlrLiquido"])
+                        amount = cota_liquido(x["vlrDocumento"], x["vlrGlosa"], x["vlrLiquido"], glosa_fora)
                         occurred = cota_occurred(x["datEmissao"], x["numAno"], x["numMes"])
                         if amount is None or not occurred:
                             r.reject(1)
@@ -717,8 +748,9 @@ def _expenses_api(conn: psycopg.Connection, ctx: _Ctx, year: int) -> None:
                     failed.append(dep)
                     log.warning("cota pela API: deputado %s %d sem resposta (%s)", dep, year, e)
                     continue
+                amounts = {id(x): a for x, a in zip(items, cota_api_amounts(items))}
                 for x in cota_api_extra(file_rows.get(dep, []), items):
-                    amount = cota_api_liquido(x)
+                    amount = amounts[id(x)]
                     occurred = cota_occurred(x.get("dataDocumento"), x.get("ano"), x.get("mes"))
                     if amount is None or not occurred:
                         r.reject(1)

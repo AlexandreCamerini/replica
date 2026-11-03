@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from civico_etl.jobs.camara_diario import cota_api_extra, cota_keys, cota_liquido, cota_occurred
+from civico_etl.jobs.camara_diario import cota_api_amounts, cota_api_extra, cota_glosa_em_outra_linha, cota_keys, cota_liquido, cota_occurred
 from civico_etl.jobs.checks import CHECKS, COTA_REFERENCIA
 
 # Adriana Ventura (204528), passagem SIGEPA 2025-08-27: emissão e estorno no mesmo documento
@@ -80,7 +80,7 @@ def test_estorno_legitimo_continua_negativo():
 
 
 def test_liquido_publicado_vale_quando_nao_e_o_oposto_exato():
-    assert cota_liquido("6800", "3834", "-868") == -86800        # glosa maior que o líquido devido: fica como a fonte
+    assert cota_liquido("6550", "4431.33", "-1762.66") == -176266  # Enio Verri 10/2020: sem regra que explique a página (D230)
     assert cota_liquido("624.10", "0", "624.10") == 62410
     assert cota_liquido("104.68", "104.68", "0") == 0            # telefonia coberta pela franquia
     assert cota_liquido("10", "", "") is None                    # sem líquido: rejeitada como antes
@@ -108,3 +108,46 @@ def test_luciano_vieira_2024_bate_com_a_pagina(conn):
         """select sum(x.amount_cents) as s from expenses x where x.source_key ~ '^cota(api)?2024:220616:'"""
     ).fetchone()
     assert abs(row["s"] - 51_637_469) <= 100  # R$ 1 de tolerância (hoje: -0,03)
+
+
+# BUG-034 / D230: glosa descontada duas vezes no líquido (vlrLiquido = documento - 2 x glosa). A página soma o documento.
+# Linhas reais dos arquivos Ano-AAAA.csv.zip, com o mês da página camara.leg.br/deputados/{id}?ano= lido em 03/11/2026.
+def test_glosa_descontada_duas_vezes_vale_o_documento():
+    assert cota_liquido("6800", "3834", "-868") == 680000          # Eduardo Bolsonaro 02/2020 (página: +7.668,00 no mês)
+    assert cota_liquido("8700", "4687", "-674") == 870000          # Eduardo da Fonte 08/2021 (+9.374,00)
+    assert cota_liquido("8700", "7683", "-6666") == 870000         # Eduardo da Fonte 09/2021 (+15.366,00 desta linha)
+    assert cota_liquido("2515", "1017", "481") == 251500           # mesma pessoa e mês (+2.034,00; total do mês +17.400,00)
+    assert cota_liquido("9370", "1522", "6326") == 937000          # Félix Mendonça Júnior 08/2024 (+3.044,00)
+    assert cota_liquido("8955", "42", "8871") == 895500            # André Ferreira 03/2022 (+84,00)
+
+
+def test_glosa_simples_continua_liquido():
+    assert cota_liquido("2495.16", "10", "2485.16") == 248516
+    assert cota_liquido("30000", "11998", "11179.7") == 1117970   # Amaro Neto 12/2022: outro padrão; a página bate com a fonte
+
+
+def test_rateio_com_glosa_em_outra_subcota_fica_como_a_fonte():
+    # Bia Kicis 10/2019, documento 6939207 dividido: alimentação 993.9/0/72 e hospedagem 993.9/72/849.9. A página soma 849.9.
+    linhas = [("204374", "6939207", "0", "72"), ("204374", "6939207", "72", "849.9")]
+    assert cota_glosa_em_outra_linha(linhas) == [False, True]
+    assert cota_liquido("993.9", "72", "849.9", True) == 84990
+    # Daniel Trzeciak 03/2022: o mesmo documento duas vezes na subcota 3 (4542.04/1215.81/2110.42 e 4542.04/1215.81/0 com
+    # restituição). A outra linha não traz a glosa como líquido; a página soma o documento (+2.431,62 no mês).
+    linhas = [("204409", "7356870", "1215.81", "2110.42"), ("204409", "7356870", "1215.81", "0")]
+    assert cota_glosa_em_outra_linha(linhas) == [False, False]
+    assert cota_liquido("4542.04", "1215.81", "2110.42", False) == 454204
+    # documento vazio não agrupa
+    assert cota_glosa_em_outra_linha([("1", "", "5", "1"), ("1", "-", "0", "5")]) == [False, False]
+
+
+def test_api_aplica_a_mesma_regra_e_casa_com_o_arquivo():
+    # Lafayette de Andrada 01/2025 (98057): 6805.82 / 528.49 / 5748.84 no arquivo e na API
+    api = [{"codDocumento": "7877201", "valorDocumento": 6805.82, "valorGlosa": 528.49, "valorLiquido": 5748.84}]
+    assert cota_api_amounts(api) == [680582]
+    assert cota_api_extra([("7877201", 680582)], api) == []
+
+
+def test_referencia_tem_casos_de_glosa_dupla():
+    assert COTA_REFERENCIA[("92346", 2020)] == 31_837_074     # Eduardo Bolsonaro: 318.370,74 na página
+    assert COTA_REFERENCIA[("141421", 2021)] == 49_125_201    # Eduardo da Fonte: 491.252,01
+    assert ("132504", 2020) not in COTA_REFERENCIA            # Enio Verri: divergência documentada (D230)

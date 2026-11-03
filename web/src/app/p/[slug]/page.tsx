@@ -252,8 +252,12 @@ export default async function Page({ params, searchParams }: Props) {
                     {m.party.name} · {ended ? `de ${date(m.startedOn)} até ${date(m.endsOn)}` : `de ${date(m.startedOn)} a ${date(m.endsOn)}`}
                   </span>
                   {succession && (
-                    <span className="text-sm text-fg">
-                      Assumiu o cargo em {date(m.startedOn)} por sucessão: era {f ? "a vice" : "o vice"} e o titular renunciou para disputar outro cargo (Constituição, art. 14, § 6º).
+                    <span className="text-sm text-fg" data-testid="sucessao">
+                      {/* D232: o motivo vem do dado. Sucessão da lista curada (fonte oficial) traz o fato com a data; a da regra D06 (TSE) diz de onde vem a renúncia. */}
+                      Assumiu o cargo em {date(m.startedOn)} por sucessão: era {f ? "a vice" : "o vice"};{" "}
+                      {m.statusSource === "tse"
+                        ? "a renúncia do titular é deduzida da candidatura dele a outro cargo no TSE (Constituição, art. 14, § 6º)."
+                        : `${m.electedBy!.replace(/^sucessão:\s*/, "")}.`}
                     </span>
                   )}
                   <span className="text-xs text-muted">situação segundo {STATUS_SOURCE_LABEL[m.statusSource] ?? `o ${m.statusSource.toUpperCase()}`}{m.status === "renunciou" && m.statusSource === "tse" ? ", com a renúncia deduzida pela regra da Constituição (candidatura a outro cargo ou posse em cargo incompatível)" : ""}</span>

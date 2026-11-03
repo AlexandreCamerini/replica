@@ -122,6 +122,12 @@ COTA_REFERENCIA: dict[tuple[str, int], int] = {
     ("204431", 2025): 57_080_589,   # Marcos Aurélio Sampaio (PI, Nordeste): 570.805,89 (antes 528.877,89)
     # "passagem aérea - missão oficial" (subcota 996): mesmo sinal invertido, e a API repetia a linha sem documento
     ("160541", 2025): 43_540_301,   # 435.403,01 (antes 249.604,71)
+    # BUG-034 / D230: linha com glosa e líquido = documento - 2 x glosa; a página soma o documento.
+    ("92346", 2020): 31_837_074,    # Eduardo Bolsonaro: 318.370,74 (antes 310.702,74; fev 6800/3834/-868)
+    ("141421", 2021): 49_125_201,   # Eduardo da Fonte: 491.252,01 (antes 464.478,01; ago e set, 3 linhas)
+    ("204409", 2022): 35_495_817,   # Daniel Trzeciak: 354.958,17 (antes 352.526,55; mesmo documento duas vezes na subcota 3)
+    # Enio Verri 2020 (132504) fica fora: a página dá 423.942,17 e a linha 6550/4431.33/-1762.66 não tem regra que a
+    # explique (D230); o banco mantém o valor da fonte, 416.179,51.
 }
 _COTA_VALUES = ", ".join(f"('{d}', {y}, {c})" for (d, y), c in sorted(COTA_REFERENCIA.items())) or "(null, null, null)"
 

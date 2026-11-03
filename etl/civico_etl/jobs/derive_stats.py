@@ -292,7 +292,8 @@ _FIM = "2027-01-06"  # EC 111/2021: posse dos governadores eleitos em 2026
 
 
 def _sucessao(uf: str, titular: str, vice: str, d: str, src: str, fonte: str, dmy: str) -> list[dict[str, str]]:
-    """Vice que assumiu: a regra D06 já cria o sucessor; aqui só entram as datas da fonte oficial e o motivo da vaga de vice."""
+    """Vice que assumiu: a regra D06 já cria o sucessor; aqui só entram as datas da fonte oficial, o motivo da vaga de vice e o
+    motivo da sucessão que o crachá mostra (D232: o fato com a data, sem supor por que o titular saiu)."""
     return [
         {"acao": "saida", "slug": titular, "office": "governador", "uf": uf, "started_on": "2023-01-01", "status": "renunciou", "ends_on": d,
          "status_source": src, "fonte": fonte},
@@ -302,7 +303,7 @@ def _sucessao(uf: str, titular: str, vice: str, d: str, src: str, fonte: str, dm
         # titular das regras) a posse cria o mandato. Com o "inicio" antes, a posse não sobrepõe o mandato que já existe.
         {"acao": "inicio", "slug": vice, "office": "governador", "uf": uf, "started_on": d, "ends_on": _FIM, "status_source": src, "fonte": fonte},
         {"acao": "posse", "slug": vice, "civil": None, "office": "governador", "uf": uf, "started_on": d, "ends_on": _FIM, "status": "em_exercicio",
-         "status_source": src, "elected_by": "sucessão: vice assumiu (titular renunciou para concorrer)", "fonte": fonte},
+         "status_source": src, "elected_by": f"sucessão: o governador renunciou em {dmy}", "fonte": fonte},
     ]
 
 
@@ -318,9 +319,11 @@ EXECUTIVO_FORA_DO_TSE: list[dict[str, str]] = [
     },
     {
         "acao": "saida", "slug": "tadeu-de-souza", "office": "vice_governador", "uf": "AM", "started_on": "2023-01-01",
-        "vacancy_note": "a Assembleia Legislativa elegeu Serafim Corrêa vice-governador em 04/05/2026, segundo a imprensa; não achamos o ato "
-                        "em fonte oficial e ele ainda não está no diretório",
-        "fonte": "https://agenciabrasil.ebc.com.br/justica/noticia/2026-05/roberto-cidade-e-eleito-governador-do-amazonas-em-eleicao-indireta",
+        # D231: a ALEAM (14/10/2026) chama Serafim Corrêa de vice-governador do Amazonas; a eleição indireta foi em 04/05/2026,
+        # junto com a do governador (Agência Brasil). Ele não está no diretório, e criar a pessoa é trabalho de identidade.
+        "vacancy_note": "Serafim Corrêa é o vice-governador desde 04/05/2026, eleito pela Assembleia Legislativa com o governador "
+                        "(a Assembleia o chama de vice-governador em 14/10/2026); ele ainda não está no diretório do site",
+        "fonte": "https://www.aleam.gov.br/presidente-da-aleam-adjuto-afonso-acompanha-balanco-das-acoes-estaduais-de-combate-as-queimadas-no-amazonas/",
     },
     # DF: Ibaneis renunciou em 28/03/2026 (data da imprensa: Jornal de Brasília, Poder360) sem candidatura no TSE, então a regra D06
     # não dispara. A CLDF deu posse a Celina Leão em 30/03/2026.
@@ -331,7 +334,7 @@ EXECUTIVO_FORA_DO_TSE: list[dict[str, str]] = [
      "fonte": "https://www.cl.df.gov.br/-/celina-leao-toma-posse-como-governadora-do-distrito-federal"},
     {"acao": "posse", "slug": "celina-leao", "civil": None, "office": "governador", "uf": "DF", "started_on": "2026-03-30", "ends_on": _FIM,
      "status": "em_exercicio", "status_source": "cldf",
-     "elected_by": "sucessão: a vice assumiu (o governador renunciou em 28/03/2026); posse na Câmara Legislativa do DF em 30/03/2026",
+     "elected_by": "sucessão: o governador renunciou em 28/03/2026, e a posse foi na Câmara Legislativa do DF em 30/03/2026",
      "fonte": "https://www.cl.df.gov.br/-/celina-leao-toma-posse-como-governadora-do-distrito-federal"},
     # RJ: Castro renunciou em 23/03/2026 (Agência Brasil); o RJ não tinha vice (Pampolha renunciou em 21/05/2025 ao ser aprovado
     # para o TCE-RJ, Alerj). O presidente do TJ-RJ governa como interino; o STF (Rcl 92644) o manteve "até nova deliberação".
@@ -357,7 +360,7 @@ EXECUTIVO_FORA_DO_TSE: list[dict[str, str]] = [
      "fonte": "https://al.rr.leg.br/2026/04/30/apos-decisao-do-tse-alerr-oficializa-troca-de-comando-interina-nos-poderes-executivo-e-legislativo/"},
     {"acao": "posse", "slug": "edilson-damiao", "civil": None, "office": "governador", "uf": "RR", "started_on": "2026-03-27", "ends_on": "2026-04-30",
      "status": "cassado", "status_source": "ale-rr",
-     "elected_by": "sucessão: o vice assumiu (o governador renunciou em 27/03/2026); cassado com a chapa de 2022 pelo TSE",
+     "elected_by": "sucessão: o governador renunciou em 27/03/2026; o mandato acabou em 30/04/2026 com a cassação da chapa eleita em 2022 pelo TSE",
      "vacancy_note": "exercício interino pelo presidente da Assembleia Legislativa de Roraima (Soldado Sampaio) desde 30/04/2026; a eleição "
                      "suplementar de 21/06/2026 ficou sub judice e nenhuma fonte oficial que lemos confirma quem governa hoje",
      "fonte": "https://al.rr.leg.br/2026/04/30/apos-decisao-do-tse-alerr-oficializa-troca-de-comando-interina-nos-poderes-executivo-e-legislativo/"},
