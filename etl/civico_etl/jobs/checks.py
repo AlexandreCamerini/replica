@@ -125,6 +125,12 @@ CHECKS: list[tuple[str, str]] = [
            where e.is_secret is null or (e.is_secret and exists (select 1 from votes v where v.voting_event_id = e.id))""",
     ),
     (
+        # D125: pauta só liga proposta da mesma casa
+        "agenda: item de pauta ligado a proposta de outra casa",
+        """select count(*) from agenda_items i join agenda_events a on a.id = i.agenda_event_id join proposals p on p.id = i.proposal_id
+           where p.body_id <> a.body_id""",
+    ),
+    (
         "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias",
         """select count(*) from dataset_stamps ds join sources s on s.id = ds.source_id
            where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')

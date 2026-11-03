@@ -7,6 +7,8 @@ Exemplos:
   civico-etl camara.diario --year 2025 --limit 40                        # --limit: N deputados (desenvolvimento)
   civico-etl camara.presenca --year 2025 --year 2026                  # presença oficial em sessões deliberativas
   civico-etl senado.diario --year 2025
+  civico-etl senado.secretas                                          # votação secreta do Senado pela fonte (D123)
+  civico-etl agenda.congresso                                         # pauta de plenário Câmara/Senado (mês passado a mês que vem)
   civico-etl derive.stats
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
 """
@@ -31,8 +33,12 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs.ale_cli import main as ale_main
 
         return ale_main(args)
+    if args and args[0].startswith("sapl."):  # Câmaras Municipais via SAPL (W3-B): sapl.descobrir, sapl.carregar, sapl.todas
+        from .jobs.sapl import main as sapl_main
+
+        return sapl_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -97,6 +103,10 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.senado_diario import run_secretas
 
             run_secretas(conn, years=a.year or list(range(2019, today.year + 1)), force=a.force)
+        if a.job in ("agenda.congresso", "all"):
+            from .jobs.agenda_congresso import run_agenda
+
+            run_agenda(conn, years=a.year, force=a.force)
         if a.job in ("parlamento.extras", "all"):
             from .jobs.parlamento_extras import run_extras
 
