@@ -250,6 +250,23 @@ Evidence: sonda de `getBoundingClientRect`: itens `li` de `ul.grid` sem coluna b
 Suspected cause: `ul class="grid gap-2 sm:grid-cols-2"` sem `grid-cols-1`: a coluna implícita é `auto` e cresce com o nome mais longo (`truncate` não corta sem `min-width: 0`). Os specs comparavam `scrollWidth` com `innerWidth`, que na emulação de celular se alarga junto com o conteúdo.
 Status: fixed (`grid-cols-1` em 9 grades; `relative` nas 5 regiões roláveis restantes); SH-E2 agora também cobre /sobre, /atualizacoes, /dados-abertos e /congresso.
 
+### BUG-014: prefeito eleito com recurso pendente aparece como cassado (Campinas sem prefeito)
+
+- Severity: S1 (7 cidades sem prefeito no crachá, na lista de representantes, no MCP e nos contadores; Campinas entre elas)
+- Flow / case: F01 / MAN-1 (dados reais)
+- Screen: S05, S07, MCP `quem_me_representa`
+- Build: 45b6940 · banco local 54329
+
+Steps
+1. Rodar `civico-etl tse.votos --year 2024`.
+2. Abrir /representantes?cidade=3509502 (Campinas · SP).
+
+Expected: Dário Saadi prefeito em exercício (o original e a Prefeitura mostram).
+Actual: mandato `cassado`; Campinas sem prefeito. Mesma coisa em Senador Rui Palmeira (AL), Barroquinha (CE), Iconha (ES), Ewbank da Câmara (MG), Antonina (PR) e Ibirá (SP), e em 9 vereadores (Barroquinha ×3, Maurilândia, Tijucas, Cesário Lange ×2, Ibirá, Tabapuã).
+Evidence: `votacao_candidato_munzona_2024_BRASIL.csv`: os 16 têm `DS_SITUACAO_CASSACAO = CASSADO COM RECURSO` e `DS_SIT_TOT_TURNO = ELEITO`/`ELEITO POR QP`/`ELEITO POR MÉDIA`. Nenhum `CASSADO` puro é eleito (6.132 linhas, todas `NÃO ELEITO`). Nenhum check pegou (só havia "no máximo 1 titular").
+Suspected cause: filtro em `tse_votos_contas.run_votes` (`"CASSAD" in s and "NÃO" not in s and "SEM" not in s`) aceitava "com recurso"; `_mark_cassados` só marcava, nunca desfazia.
+Status: fixed (D90–D92): só `CASSADO` puro cassa; a regra desfaz o que marcou; check novo "1 prefeito titular por município" com 16 exceções listadas. Recarga 2024 restaurou 16 mandatos; `check` verde.
+
 ## A conferir (não reproduzido como bug)
 
 - Flaky sob carga (passam na repetição, 3/3 ok isoladamente em <1 s): F02-H1, F02-E1 (clique em link da home não navega em 15 s com 2 workers contra um único `next start`) e F01-E6 mobile. Config: `workers: 2`, `retries: 1`.
