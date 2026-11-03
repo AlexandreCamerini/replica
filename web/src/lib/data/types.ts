@@ -280,6 +280,11 @@ export type CoverageMatrix = {
 
 export type Page<T> = { items: T[]; nextCursor: string | null; total: number };
 
+/** De onde vem o partido vigente da pessoa e desde quando (BUG-022, D220). `since` = início da linha do tempo `party_memberships` nesse partido. */
+export type PartyProvenance =
+  | { kind: "camara" | "senado" | "tse"; since: string; electionYear?: number }
+  | { kind: "none"; reason: string };
+
 /** Uma pessoa no cargo, já com o que a lista precisa (cartão). */
 export type Officeholder = {
   person: Person;
@@ -343,6 +348,8 @@ export interface DataSource extends DataSourceW4 {
   getPerson(slug: string): Promise<{ person: Person; redirectTo?: string } | null>;
   getMandates(personId: string): Promise<(Mandate & { party: Party; officeName: string; placeLabel: string })[]>;
   getCandidacies(personId: string): Promise<(Candidacy & { party: Party; officeName: string; placeLabel: string })[]>;
+  /** Fonte e data do partido vigente (person_current_party). `none` traz o motivo. */
+  getPartyProvenance(personId: string): Promise<PartyProvenance>;
   getStats(personId: string, period: PeriodStats["period"]): Promise<PeriodStats>;
   getActiveYears(personId: string): Promise<number[]>;
   /** Estatísticas de cada ano carregado (sem "career"), do mais antigo ao mais recente. */

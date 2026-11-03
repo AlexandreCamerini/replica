@@ -69,7 +69,7 @@ export default async function Page({ params, searchParams }: Props) {
   if (!person) notFound();
   const sp = await searchParams;
 
-  const [mandates, candidacies, years] = await Promise.all([data.getMandates(person.id), data.getCandidacies(person.id), data.getActiveYears(person.id)]);
+  const [mandates, candidacies, years, partyFrom] = await Promise.all([data.getMandates(person.id), data.getCandidacies(person.id), data.getActiveYears(person.id), data.getPartyProvenance(person.id)]);
   const main = mandates.find((m) => m.status === "em_exercicio") ?? mandates[0];
   const yearParam = sp.ano && years.includes(Number(sp.ano)) ? Number(sp.ano) : null;
   const period: PeriodStats["period"] = yearParam ? (String(yearParam) as `${number}`) : "career";
@@ -165,6 +165,15 @@ export default async function Page({ params, searchParams }: Props) {
                 <abbr title={main.party.name} className="no-underline">
                   {main.party.acronym}
                 </abbr>
+              </p>
+            )}
+            {main && (
+              <p className="mt-0.5 text-xs text-muted" data-testid="partido-fonte">
+                {partyFrom.kind === "none"
+                  ? main.party.id
+                    ? `Partido na posse do mandato, em ${date(main.startedOn)}. Filiação atual: — (${partyFrom.reason}).`
+                    : `Partido: — (${partyFrom.reason}).`
+                  : `Partido segundo ${partyFrom.kind === "camara" ? "a Câmara" : partyFrom.kind === "senado" ? "o Senado" : `o TSE (candidatura de ${partyFrom.electionYear})`}, vigente desde ${date(partyFrom.since)}.`}
               </p>
             )}
             <h1 className="mt-1 font-display text-hero leading-none break-words text-fg">{person.displayName}</h1>

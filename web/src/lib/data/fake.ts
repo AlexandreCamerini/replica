@@ -668,6 +668,13 @@ export const fakeSource: DataSource = {
       .map((c) => ({ ...c, party: partyById[c.partyId], officeName: officeName(c.office, person.gender), placeLabel: placeLabel(c.placeIbge) }))
       .sort((a, b) => b.year - a.year);
   },
+  async getPartyProvenance(personId) {
+    const m = mainMandate(personId);
+    if (!m) return { kind: "none", reason: "sem filiação registrada nas fontes" };
+    if (m.office === "deputado_federal") return { kind: "camara", since: m.startedOn };
+    if (m.office === "senador") return { kind: "senado", since: m.startedOn };
+    return { kind: "tse", since: m.startedOn, electionYear: Number(m.startedOn.slice(0, 4)) - 1 };
+  },
   async getStats(personId, period) {
     const m = mainMandate(personId);
     const year = period === "career" ? null : Number(period);

@@ -511,6 +511,26 @@ export const pgSource: DataSource = {
       order by case m.status when 'em_exercicio' then 0 when 'eleito_aguardando_posse' then 1 when 'licenciado' then 2 when 'afastado' then 2 else 3 end, m.started_on desc`;
     return rows.map((r) => ({ ...mandate(r), party: party(r), officeName: officeName(r), placeLabel: placeLabel(r) }));
   },
+  // D220: fonte do partido vigente. Lê party_memberships via person_current_party (web_reader não lê party_observations).
+  // Quem está em exercício na Câmara/Senado tem o partido da casa (D182); senão, candidatura do TSE na mesma data; senão, sem fonte.
+  async getPartyProvenance(personId) {
+    const [r] = await sql`
+      select cp.from_on,
+        (select case b.kind when 'camara_deputados' then 'camara' else 'senado' end
+           from mandates m join legislative_bodies b on b.id = m.body_id
+          where m.person_id = cp.person_id and m.status = 'em_exercicio' and b.kind in ('camara_deputados', 'senado')
+          order by m.started_on desc limit 1) as house,
+        (select e.year from candidacies c join elections e on e.id = c.election_id
+          where c.person_id = cp.person_id and c.party_id = cp.party_id and e.held_on = cp.from_on
+          order by e.year desc limit 1) as tse_year
+      from person_current_party cp where cp.person_id = ${personId}::uuid`;
+    if (!r) return { kind: "none", reason: "sem filiação registrada nas fontes" };
+    const since = iso(r.from_on);
+    if (!since) return { kind: "none", reason: "sem data de filiação" };
+    if (r.house === "camara" || r.house === "senado") return { kind: r.house, since };
+    if (r.tse_year != null) return { kind: "tse", since, electionYear: Number(r.tse_year) };
+    return { kind: "none", reason: "fonte da filiação não identificada" };
+  },
   async getCandidacies(personId) {
     const rows = await sql`
       select e.year, o.slug as office, p.gender, o.name_m, o.name_f, pl.ibge_code as place_ibge, pl.name as place_name, pl.kind as place_kind, pl.uf as place_uf,
