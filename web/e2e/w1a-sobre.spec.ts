@@ -1,5 +1,16 @@
 import { expect, test } from "./fixtures";
 
+test.describe("W1a · tema escuro (axe)", () => {
+  test.use({ colorScheme: "dark" });
+  for (const path of ["/sobre", "/atualizacoes", "/dados-abertos?cidade=3509502", "/"]) {
+    test(`DARK ${path} sem violações de contraste`, async ({ page, axe }) => {
+      await page.goto(path);
+      await expect(page.locator("html")).not.toHaveAttribute("data-theme", "light");
+      await axe();
+    });
+  }
+});
+
 test.describe("W1a · S22 Metodologia e fontes", () => {
   test("S22-H1 âncoras do texto, sumário e links oficiais", async ({ page, axe }) => {
     await page.goto("/sobre");
@@ -15,7 +26,10 @@ test.describe("W1a · S22 Metodologia e fontes", () => {
     expect(await ext.count()).toBeGreaterThanOrEqual(8);
     for (const a of await ext.all()) await expect(a).toHaveAttribute("rel", /noopener/);
     // regra de presença e "—" vs 0 estão escritas
-    await expect(page.locator("#presenca")).toContainText("Presente");
+    await expect(page.locator("#presenca")).toContainText("lista oficial de presença");
+    await expect(page.locator("#presenca")).toContainText("Senado");
+    await expect(page.locator("#presenca")).not.toContainText("registrou voto"); // regra antiga (derivada), substituída pela lista oficial
+    await expect(page.locator("#s-priv")).toContainText("ainda não é automática");
     await expect(page.locator("#traco")).toContainText("não é zero");
   });
 

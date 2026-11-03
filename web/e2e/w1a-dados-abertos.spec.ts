@@ -1,7 +1,17 @@
 import postgres from "postgres";
+import { cellView } from "../src/lib/coverage";
 import { CAMPINAS, expect, test } from "./fixtures";
 
 test.describe("W1a · S23 Quem publica dados", () => {
+  test("S23-U1 cellView: porcentagem só com cidade conferida; sem conferência é null, não 0", () => {
+    expect(cellView({ no_site: 3, nao_publica: 5, desconhecido: 2 }, 10)).toEqual({ cities: 10, checked: 8, noSite: 3, pct: 30 });
+    expect(cellView({ desconhecido: 10 }, 10).pct).toBeNull();
+    expect(cellView({}, 10).pct).toBeNull();
+    expect(cellView(undefined, 0).pct).toBeNull();
+    expect(cellView({ nao_publica: 4, carregando: 6 }, 10).pct).toBe(0); // conferido e nenhuma tem: 0% é fato
+    expect(cellView({ no_site: 10 }, 10).pct).toBe(100);
+  });
+
   test("S23-H1 matriz UF × dado, CTA e busca de cidade", async ({ page, axe }) => {
     await page.goto("/dados-abertos");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Quem publica dados");
