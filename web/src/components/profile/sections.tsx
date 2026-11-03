@@ -7,7 +7,15 @@ import { Empty, MoreLink, SelectField, Section, fieldCls, hrefWith, type Params 
 const STEP = 20;
 const shown = (v: string | undefined) => Math.min(Math.max(Number(v) || STEP, STEP), 500);
 
-type Common = { personId: string; base: string; sp: Params; year: number | null };
+type Common = { personId: string; base: string; sp: Params; year: number | null; /** motivo, quando o dado consta como não carregado: mostra "—", nunca "nenhum" */ notLoaded?: string };
+
+function NotLoaded({ reason }: { reason: string }) {
+  return (
+    <Empty>
+      <span aria-label="não carregado">—</span> Ainda não carregado: {reason}.
+    </Empty>
+  );
+}
 
 function HiddenKeep({ sp, keep }: { sp: Params; keep: string[] }) {
   return (
@@ -20,14 +28,20 @@ function HiddenKeep({ sp, keep }: { sp: Params; keep: string[] }) {
 const FILTER_BTN =
   "h-10 self-end rounded-pill bg-surface-inverse px-4 text-sm font-semibold text-on-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
 
-export async function Proposals({ personId, base, sp, year, f }: Common & { f: boolean }) {
+export async function Proposals({ personId, base, sp, year, f, body = "camara", notLoaded }: Common & { f: boolean; body?: "camara" | "senado" }) {
+  if (notLoaded)
+    return (
+      <Section id="propostas" title="Propostas">
+        <NotLoaded reason={notLoaded} />
+      </Section>
+    );
   const limit = shown(sp.np);
   const type = sp.tipo === "lei" || sp.tipo === "pedido" ? sp.tipo : undefined;
   const role = sp.autoria === "autor" || sp.autoria === "coautor" ? sp.autoria : undefined;
   const [page, topics, stamp] = await Promise.all([
     data.listProposals(personId, { year: year ?? undefined, topic: sp.tema || undefined, type, role, q: sp.busca?.slice(0, 80) || undefined, limit }),
     data.listTopics(),
-    data.getStamp("camara.proposicoes"),
+    data.getStamp(body === "senado" ? "senado.autorias" : "camara.proposicoes"),
   ]);
   const topicName = Object.fromEntries(topics.map((t) => [t.slug, t.name]));
   const filtered = !!(sp.tema || type || role || sp.busca);
@@ -91,7 +105,13 @@ const VOTE_OPTIONS: { value: VoteValue | ""; label: string }[] = [
   { value: "nao_votou", label: "Não votou" },
 ];
 
-export async function Votes({ personId, base, sp, year, body }: Common & { body: "camara" | "senado" }) {
+export async function Votes({ personId, base, sp, year, body, notLoaded }: Common & { body: "camara" | "senado" }) {
+  if (notLoaded)
+    return (
+      <Section id="votos" title="Votos em plenário">
+        <NotLoaded reason={notLoaded} />
+      </Section>
+    );
   const limit = shown(sp.nv);
   const value = VOTE_OPTIONS.some((o) => o.value === sp.voto && o.value) ? (sp.voto as VoteValue) : undefined;
   const [page, topics, stamp] = await Promise.all([
@@ -153,7 +173,13 @@ export async function Votes({ personId, base, sp, year, body }: Common & { body:
   );
 }
 
-export async function Expenses({ personId, base, sp, year, body }: Common & { body: "camara" | "senado" }) {
+export async function Expenses({ personId, base, sp, year, body, notLoaded }: Common & { body: "camara" | "senado" }) {
+  if (notLoaded)
+    return (
+      <Section id="gastos" title="Gastos do gabinete">
+        <NotLoaded reason={notLoaded} />
+      </Section>
+    );
   const limit = shown(sp.ng);
   const [page, stamp] = await Promise.all([
     data.listExpenses(personId, { year: year ?? undefined, category: sp.gcat || undefined, limit }),
@@ -259,11 +285,15 @@ const RESULT: Record<ElectionResult, [string, string]> = {
 };
 
 export async function Elections({ candidacies, f }: { candidacies: C[]; f: boolean }) {
-  const stamp = await data.getStamp("tse.candidatos");
+  const [stamp, loaded] = await Promise.all([data.getStamp("tse.candidatos"), data.listStampYears("tse.candidatos")]);
   return (
     <Section id="eleicoes" title="Eleições disputadas" count={String(candidacies.length)}>
       {candidacies.length === 0 ? (
-        <Empty>Nenhuma candidatura encontrada no TSE.</Empty>
+        loaded.length ? (
+          <Empty>Nenhuma candidatura encontrada no TSE nas eleições de {loaded[0]} a {loaded[loaded.length - 1]} (as que já carregamos).</Empty>
+        ) : (
+          <NotLoaded reason="as candidaturas do TSE ainda não foram carregadas" />
+        )
       ) : (
         <div tabIndex={0} role="region" aria-label="Eleições disputadas" className="relative overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
           <table className="w-full min-w-[560px] text-sm">
@@ -300,11 +330,12 @@ export async function Elections({ candidacies, f }: { candidacies: C[]; f: boole
 // ---------- seções R2: leis, comissões, discursos, contato, custo, dados ainda não carregados ----------
 
 export async function Laws({ personId, f }: { personId: string; f: boolean }) {
-  const [laws, stamp] = await Promise.all([data.getLaws(personId), data.getStamp("camara.proposicoes")]);
+  const [laws, stamp, loaded] = await Promise.all([data.getLaws(personId), data.getStamp("camara.proposicoes"), data.listStampYears("camara.proposicoes")]);
+  const win = loaded.length ? `de ${loaded[0]} a ${loaded[loaded.length - 1]}` : "carregadas";
   return (
     <Section id="leis" title="Leis que vieram de propostas" count={String(laws.length)} intro={`Propostas com ${f ? "ela" : "ele"} entre os autores que viraram norma publicada no Diário Oficial.`}>
       {laws.length === 0 ? (
-        <Empty>Nenhuma proposta de autoria virou lei no período carregado.</Empty>
+        <Empty>Nenhuma proposta de autoria virou lei entre as propostas {win === "carregadas" ? "carregadas" : `apresentadas ${win}`}.</Empty>
       ) : (
         <ol className="flex flex-col divide-y divide-border">
           {laws.map((l) => (

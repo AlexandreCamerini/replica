@@ -688,6 +688,15 @@ export const fakeSource: DataSource = {
   async getActiveYears(personId) {
     return mandateYears(personId);
   },
+  async getYearlyStats(personId) {
+    const years = [...mandateYears(personId)].sort((a, b) => a - b);
+    return Promise.all(
+      years.map(async (y) => {
+        const st = await fakeSource.getStats(personId, String(y) as `${number}`);
+        return { year: y, presencePresent: st.presencePresent, presenceTotal: st.presenceTotal, proposalsPrincipal: st.proposalsPrincipal, proposalsCosigned: st.proposalsCosigned, votesRegistered: st.votesRegistered, expensesCents: st.expensesCents };
+      }),
+    );
+  },
 
   async listProposals(personId, f) {
     const q = f.q ? fold(f.q) : "";

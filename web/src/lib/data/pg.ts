@@ -13,6 +13,7 @@ import type {
   Page,
   Party,
   PeriodStats,
+  YearStats,
   Person,
   PersonVote,
   Place,
@@ -83,6 +84,18 @@ const DATASET_LABEL: Record<string, string> = {
   comissoes: "Comissões",
   viagens: "Viagens",
   contato: "Contato",
+};
+const EXECUTIVE = new Set<OfficeSlug>(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
+// o que cada cargo fora do federal tem de dado próprio (chaves de data_coverage)
+const LEG = ["presenca", "votos", "propostas", "gastos_gabinete"];
+const OWN_DATASETS: Partial<Record<OfficeSlug, string[]>> = {
+  deputado_estadual: [...LEG, "salario_deputados_estaduais"],
+  deputado_distrital: [...LEG, "salario_deputados_estaduais"],
+  vereador: [...LEG, "salario_vereadores"],
+  prefeito: ["salario_prefeito"],
+  vice_prefeito: ["salario_prefeito"],
+  governador: [],
+  vice_governador: [],
 };
 const toDataset = (d: string): MissingDataset["dataset"] =>
   (d.startsWith("salario") ? "salario" : (["presenca", "votos", "propostas", "gastos_gabinete", "patrimonio"].includes(d) ? d : "propostas")) as MissingDataset["dataset"];
@@ -323,7 +336,8 @@ export const pgSource: DataSource = {
       where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
       order by case m.status when 'em_exercicio' then 0 else 1 end, m.started_on desc limit 1`;
     const missing: MissingDataset[] = [];
-    if (m && m.level === "federal") {
+    const executive = !!m && EXECUTIVE.has(m.office as OfficeSlug);
+    if (m && m.level === "federal" && !executive) {
       // o que o ETL federal ainda não carrega para esta casa (ex.: proposições e CEAPS do Senado): vem do derive.stats
       const FEDERAL_REASON: Record<string, string> = {
         propostas: "a carga das matérias de autoria no Senado entra na próxima fase",
@@ -335,22 +349,32 @@ export const pgSource: DataSource = {
         missing.push({ dataset: toDataset(d), label: DATASET_LABEL[d] ?? d, status: "carregando", reason: FEDERAL_REASON[d] ?? "carga pendente" });
     }
     if (m && m.level !== "federal") {
-      // cobertura do lugar: UF para deputados estaduais, município para vereadores/prefeitos
+      // cobertura do lugar (UF ou município), filtrada pelo que ESTE cargo tem: Executivo não tem presença, votos,
+      // propostas nem cota de gabinete; cada cargo só vê a pendência do próprio salário (D04 da auditoria de dados)
       const cov = await sql`select dataset, status, reason from data_coverage where place_id = ${m.place_id as string}::uuid and status <> 'no_site' order by dataset`;
-      const relevant = cov.filter((c) => (m.level === "estadual" ? !String(c.dataset).includes("prefeito") && !String(c.dataset).includes("vereador") : !String(c.dataset).includes("estaduais")));
-      missing.push(...relevant.map((c) => ({ dataset: toDataset(String(c.dataset)), label: DATASET_LABEL[String(c.dataset)] ?? String(c.dataset), status: c.status as MissingDataset["status"], reason: String(c.reason) })));
+      const own = OWN_DATASETS[m.office as OfficeSlug] ?? [];
+      missing.push(
+        ...cov
+          .filter((c) => own.includes(String(c.dataset)))
+          .map((c) => ({ dataset: toDataset(String(c.dataset)), label: DATASET_LABEL[String(c.dataset)] ?? String(c.dataset), status: c.status as MissingDataset["status"], reason: String(c.reason) })),
+      );
+      if ((m.office === "governador" || m.office === "vice_governador") && m.amount_cents == null)
+        missing.push({ dataset: "salario", label: "Salário", status: "desconhecido", reason: "fixado por lei de cada estado; ainda não conferimos a lei deste estado" });
     }
+    // dado que consta como faltando nunca aparece como número (0 de "não carregado" vira "—")
+    const gone = new Set(missing.map((x) => x.dataset));
+    const keep = (d: MissingDataset["dataset"], v: number | null) => (gone.has(d) ? null : v);
     // teto (is_ceiling) e "não conferido" nunca juntos: com valor de salário (pago ou teto) na tela, a pendência de salário sai da lista
     if (m?.amount_cents != null) for (let i = missing.length - 1; i >= 0; i--) if (missing[i].dataset === "salario") missing.splice(i, 1);
     const topics = (s?.top_topics as { topic_slug: string; proposals: number }[] | undefined) ?? [];
     return {
       period,
-      presencePresent: num(s?.presence_present),
-      presenceTotal: num(s?.presence_total),
-      proposalsPrincipal: num(s?.proposals_principal),
-      proposalsCosigned: num(s?.proposals_cosigned),
-      votesRegistered: num(s?.votes_registered),
-      expensesCents: num(s?.expenses_cents),
+      presencePresent: keep("presenca", num(s?.presence_present)),
+      presenceTotal: keep("presenca", num(s?.presence_total)),
+      proposalsPrincipal: keep("propostas", num(s?.proposals_principal)),
+      proposalsCosigned: keep("propostas", num(s?.proposals_cosigned)),
+      votesRegistered: keep("votos", num(s?.votes_registered)),
+      expensesCents: keep("gastos_gabinete", num(s?.expenses_cents)),
       salaryMonthlyCents: num(m?.amount_cents),
       salaryIsCeiling: Boolean(m?.is_ceiling),
       topTopics: topics.map((t) => ({ topic: t.topic_slug, count: Number(t.proposals) })),
@@ -358,6 +382,19 @@ export const pgSource: DataSource = {
       partyAlignmentTotal: num(s?.party_alignment_total),
       missing,
     } satisfies PeriodStats;
+  },
+  async getYearlyStats(personId) {
+    const rows = await sql`select period::int as y, s.* from person_period_stats s where person_id = ${personId}::uuid and period <> 'career' order by 1`;
+    const missing = (r: Row, d: string) => ((r.missing_datasets as string[] | null) ?? []).includes(d);
+    return rows.map<YearStats>((r) => ({
+      year: Number(r.y),
+      presencePresent: missing(r, "presenca") ? null : num(r.presence_present),
+      presenceTotal: missing(r, "presenca") ? null : num(r.presence_total),
+      proposalsPrincipal: missing(r, "propostas") ? null : num(r.proposals_principal),
+      proposalsCosigned: missing(r, "propostas") ? null : num(r.proposals_cosigned),
+      votesRegistered: missing(r, "votos") ? null : num(r.votes_registered),
+      expensesCents: missing(r, "gastos_gabinete") ? null : num(r.expenses_cents),
+    }));
   },
   async getActiveYears(personId) {
     const rows = await sql`select distinct y::int as y from mandates m,

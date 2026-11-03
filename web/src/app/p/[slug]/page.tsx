@@ -13,7 +13,7 @@ import { LinkChip, hrefWith, type Params } from "@/components/profile/ui";
 import { CompareToggle } from "@/components/shell/compare";
 import { MissingDataNote, StatTile } from "@/components/ui/data";
 import { ListenButton } from "@/components/ui/misc";
-import { data, type MandateStatus, type PeriodStats } from "@/lib/data";
+import { data, type MandateStatus, type PeriodStats, type YearStats } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
 import { campaignTotals, joinYears } from "@/lib/campaign";
 
@@ -21,6 +21,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Params> 
 
 const FULL_DATA = new Set(["deputado_federal", "senador"]);
 const LEGISLATIVE = new Set(["senador", "deputado_federal", "deputado_estadual", "deputado_distrital", "vereador"]);
+const EXECUTIVE = new Set(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
 
 async function load(slug: string) {
   if (!/^[a-z0-9-]{1,120}$/.test(slug)) return null;
@@ -61,7 +62,13 @@ export default async function Page({ params, searchParams }: Props) {
   const f = person.gender === "f";
   const yrs = age(person.birthDate);
   const [birthplace] = person.birthplaceIbge ? await Promise.all([data.getPlace(person.birthplaceIbge)]) : [null];
-  const periodLabel = yearParam ? `em ${yearParam}` : "na carreira";
+  // "na carreira" diz a janela real: o primeiro ano com dado carregado de cada número (D02 da auditoria de dados)
+  const yearly = await data.getYearlyStats(person.id);
+  const sinceOf = (k: Exclude<keyof YearStats, "year">) => yearly.find((y) => y[k] !== null)?.year ?? null;
+  const firstYear = yearly.find((y) => y.presenceTotal !== null || y.proposalsPrincipal !== null || y.votesRegistered !== null || y.expensesCents !== null)?.year ?? null;
+  const labelOf = (k: Exclude<keyof YearStats, "year">) => (yearParam ? `em ${yearParam}` : sinceOf(k) ? `desde ${sinceOf(k)}` : firstYear ? `desde ${firstYear}` : "na carreira");
+  const periodLabel = yearParam ? `em ${yearParam}` : firstYear ? `desde ${firstYear}` : "na carreira";
+  const executive = !!main && EXECUTIVE.has(main.office);
   // meses de mandato no período (para o custo): ano escolhido ou soma dos mandatos já exercidos
   const months = mandates
     .filter((m) => m.status !== "eleito_aguardando_posse")
@@ -211,7 +218,7 @@ export default async function Page({ params, searchParams }: Props) {
       {/* números */}
       <section aria-labelledby="numeros-h" className="mt-4">
         <h2 id="numeros-h" className="sr-only">
-          Números {periodLabel}
+          Números {legislative ? periodLabel : ""}
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile
@@ -252,26 +259,26 @@ export default async function Page({ params, searchParams }: Props) {
               <StatTile
                 value={stats.presenceTotal ? Math.round(((stats.presencePresent ?? 0) / stats.presenceTotal) * 100) : null}
                 kind="percent"
-                label={`presença ${periodLabel}`}
+                label={`presença ${labelOf("presencePresent")}`}
                 sub={stats.presenceTotal ? `${count(stats.presencePresent ?? 0)} de ${count(stats.presenceTotal)} sessões deliberativas` : missingOf("presenca")?.reason}
                 help="Sessões deliberativas do plenário em que o nome está na lista oficial de presença da Câmara, entre as realizadas enquanto a pessoa estava em exercício. A lista não traz justificativa: ausência justificada conta como ausência. O Senado não publica lista de presença por senador."
               />
               <StatTile
                 value={stats.proposalsPrincipal}
                 kind="count"
-                label={`propostas ${periodLabel}`}
+                label={`propostas ${labelOf("proposalsPrincipal")}`}
                 sub={stats.proposalsPrincipal !== null ? `+ ${count(stats.proposalsCosigned ?? 0)} como ${f ? "coautora" : "coautor"}` : missingOf("propostas")?.reason}
               />
               <StatTile
                 value={stats.votesRegistered}
                 kind="count"
-                label={`votos em plenário ${periodLabel}`}
+                label={`votos em plenário ${labelOf("votesRegistered")}`}
                 sub={stats.votesRegistered === null ? missingOf("votos")?.reason : undefined}
               />
               <StatTile
                 value={stats.expensesCents}
                 kind="money"
-                label={`gastos do gabinete ${periodLabel}`}
+                label={`gastos do gabinete ${labelOf("expensesCents")}`}
                 sub={stats.expensesCents === null ? missingOf("gastos_gabinete")?.reason : "cota para exercício do mandato"}
               />
             </>
@@ -279,20 +286,27 @@ export default async function Page({ params, searchParams }: Props) {
         </div>
       </section>
 
+      {executive && (
+        <p className="mt-4 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-fg" data-testid="executivo">
+          {main?.officeName} é cargo do Executivo: não tem presença em plenário, votos nem propostas como as de parlamentar, por isso esses números não aparecem aqui.
+          {" "}O que o governo ou a prefeitura gasta vem das contas públicas, que ainda não estão no site.
+        </p>
+      )}
+
       {stats.missing.length > 0 && (
         <div className="mt-6">
           <MissingDataNote items={stats.missing.map((m) => ({ what: m.label, why: m.reason }))} />
         </div>
       )}
 
-      {full && <YearSummary stats={stats} periodLabel={periodLabel} f={f} />}
+      {full && <YearSummary stats={stats} periodLabel={periodLabel} f={f} senado={main.office === "senador"} />}
 
       <div className="mt-8 flex flex-col gap-6">
         {full && (
           <>
-            <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} />
-            <Votes personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} />
-            <Expenses personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} />
+            <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("propostas")?.reason} />
+            <Votes personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("votos")?.reason} />
+            <Expenses personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("gastos_gabinete")?.reason} />
             <Laws personId={person.id} f={f} />
             <Committees personId={person.id} />
             <Speeches personId={person.id} base={base} sp={sp} year={yearParam} />
@@ -344,7 +358,7 @@ export default async function Page({ params, searchParams }: Props) {
   );
 }
 
-async function YearSummary({ stats, periodLabel, f }: { stats: PeriodStats; periodLabel: string; f: boolean }) {
+async function YearSummary({ stats, periodLabel, f, senado }: { stats: PeriodStats; periodLabel: string; f: boolean; senado: boolean }) {
   const topics = await data.listTopics();
   const name = Object.fromEntries(topics.map((t) => [t.slug, t.name]));
   const share = stats.partyAlignmentTotal ? Math.round(((stats.partyAligned ?? 0) / stats.partyAlignmentTotal) * 100) : null;
@@ -367,7 +381,15 @@ async function YearSummary({ stats, periodLabel, f }: { stats: PeriodStats; peri
             ))}
           </ol>
         ) : (
-          <p className="text-sm text-muted">Nenhuma proposta com tema classificado {periodLabel}.</p>
+          <p className="text-sm text-muted">
+            {senado ? (
+              <>
+                <span aria-label="não carregado">—</span> as matérias do Senado ainda não têm tema classificado no site.
+              </>
+            ) : (
+              `Nenhuma proposta com tema classificado ${periodLabel}.`
+            )}
+          </p>
         )}
         <p className="mt-2 text-xs text-muted">Tema segundo a classificação oficial da casa, agrupada em 17 temas.</p>
       </div>
@@ -378,7 +400,7 @@ async function YearSummary({ stats, periodLabel, f }: { stats: PeriodStats; peri
             <span aria-label="não publicado pela fonte" title="A fonte oficial não publica este dado">
               —
             </span>{" "}
-            sem votação com orientação do partido {periodLabel}.
+            {senado ? "a orientação de bancada do Senado ainda não está carregada." : `sem votação com orientação do partido ${periodLabel}.`}
           </p>
         ) : (
           <p className="text-sm text-fg">

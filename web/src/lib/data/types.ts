@@ -86,6 +86,17 @@ export type PeriodStats = {
   missing: MissingDataset[];
 };
 
+/** Uma linha por ano com dado (S08 "ano a ano"). Mesma regra: null = a fonte não publica ou não carregou. */
+export type YearStats = {
+  year: number;
+  presencePresent: number | null;
+  presenceTotal: number | null;
+  proposalsPrincipal: number | null;
+  proposalsCosigned: number | null;
+  votesRegistered: number | null;
+  expensesCents: number | null;
+};
+
 export type Dataset =
   | "salario"
   | "presenca"
@@ -236,6 +247,8 @@ export interface DataSource {
   getCandidacies(personId: string): Promise<(Candidacy & { party: Party; officeName: string; placeLabel: string })[]>;
   getStats(personId: string, period: PeriodStats["period"]): Promise<PeriodStats>;
   getActiveYears(personId: string): Promise<number[]>;
+  /** Estatísticas de cada ano carregado (sem "career"), do mais antigo ao mais recente. */
+  getYearlyStats(personId: string): Promise<YearStats[]>;
   listProposals(personId: string, f: ProposalFilter): Promise<Page<Proposal>>;
   listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote>>;
   listExpenses(personId: string, f: ExpenseFilter): Promise<Page<Expense> & { byCategory: { label: string; cents: number }[] }>;

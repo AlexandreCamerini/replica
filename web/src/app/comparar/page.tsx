@@ -87,13 +87,15 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
   const period = year ? (String(year) as `${number}`) : ("career" as const);
   const rows = await Promise.all(
     people.map(async (p) => {
-      const [mandates, cands, stats] = await Promise.all([data.getMandates(p.id), data.getCandidacies(p.id), data.getStats(p.id, period)]);
+      const [mandates, cands, stats, yearly] = await Promise.all([data.getMandates(p.id), data.getCandidacies(p.id), data.getStats(p.id, period), data.getYearlyStats(p.id)]);
       const main = mandates.find((m) => m.status === "em_exercicio") ?? mandates[0];
       const lastElected = cands.find((c) => c.result.startsWith("eleito"));
       const decl = cands.filter((c) => c.assetsCents !== null);
-      return { p, main, lastElected, latest: decl[0], first: decl[decl.length - 1], stats, camp: campaignTotals(cands) };
+      return { p, main, lastElected, latest: decl[0], first: decl[decl.length - 1], stats, camp: campaignTotals(cands), since: yearly.find((y) => y.votesRegistered !== null || y.proposalsPrincipal !== null || y.expensesCents !== null)?.year ?? null };
     }),
   );
+  const sinceAll = rows.map((r) => r.since).filter((y): y is number => y !== null);
+  const since = sinceAll.length ? Math.min(...sinceAll) : null;
   const agreement = await data.getAgreement(people.map((p) => p.id), year ?? "career");
   const nameOf = Object.fromEntries(people.map((p) => [p.id, p.displayName]));
   const slugs = people.map((p) => p.slug);
@@ -133,7 +135,7 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
       ],
     },
     {
-      title: year ? `Atividade em ${year}` : "Atividade na carreira",
+      title: year ? `Atividade em ${year}` : since ? `Atividade desde ${since} (o que está carregado)` : "Atividade na carreira",
       rows: [
         ["Presença em sessões deliberativas", (r) => (r.stats.presenceTotal ? `${Math.round(((r.stats.presencePresent ?? 0) / r.stats.presenceTotal) * 100)}% (${count(r.stats.presencePresent ?? 0)} de ${count(r.stats.presenceTotal)})` : <span title={r.stats.missing.find((m) => m.dataset === "presenca")?.reason}>{dash}</span>)],
         ["Propostas como autor(a)", (r) => (r.stats.proposalsPrincipal === null ? dash : count(r.stats.proposalsPrincipal))],
@@ -217,7 +219,7 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
           Votaram igual?
         </h2>
         <p className="mb-3 text-sm text-muted">
-          Só votações nominais em que as duas pessoas registraram voto{year ? ` em ${year}` : ""}. Ausência não conta como divergência.
+          Só votações nominais em que as duas pessoas registraram voto{year ? ` em ${year}` : since ? `, desde ${since} (o que está carregado)` : ""}. Ausência não conta como divergência.
         </p>
         <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {agreement.map((a) => (
