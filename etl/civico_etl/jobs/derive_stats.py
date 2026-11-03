@@ -270,6 +270,41 @@ MANDATE_RULES = [
     ),
 ]
 
+# BUG-024 / D184: titular do executivo que o TSE não publica (eleição indireta pela Assembleia depois de dupla vacância nos
+# dois últimos anos do mandato). Lista curta, curada, com fonte oficial; cada linha vira mandato com status_source da casa
+# que elegeu. Idempotente (upsert pela chave natural). Sai da lista quando o mandato acaba (ends_on no passado não pesa).
+EXECUTIVO_FORA_DO_TSE: list[dict[str, str]] = [
+    {
+        "slug": "roberto-cidade", "civil": "Roberto Maia Cidade Filho", "office": "governador", "uf": "AM",
+        "started_on": "2026-05-04", "ends_on": "2027-01-06", "status_source": "aleam",
+        "elected_by": "eleição indireta na Assembleia Legislativa do Amazonas em 04/05/2026 (mandato-tampão após a renúncia do governador e do vice)",
+        "fonte": "https://agenciabrasil.ebc.com.br/justica/noticia/2026-05/roberto-cidade-e-eleito-governador-do-amazonas-em-eleicao-indireta",
+    },
+]
+
+
+def apply_executivo_fora_do_tse(conn: psycopg.Connection) -> int:
+    n = 0
+    for x in EXECUTIVO_FORA_DO_TSE:
+        row = conn.execute(
+            """insert into mandates (person_id, office_id, place_id, body_id, party_id, role, status, started_on, ends_on, elected_by, status_source)
+               select p.id, o.id, pl.id, null, null, 'titular', 'em_exercicio', %(started_on)s, %(ends_on)s, %(elected_by)s, %(status_source)s
+               from people p, offices o, places pl
+               where p.slug = %(slug)s and p.civil_name = %(civil)s and o.slug = %(office)s and pl.kind = 'uf' and pl.uf = %(uf)s
+               on conflict (person_id, office_id, place_id, started_on) do update
+                 set ends_on = excluded.ends_on, elected_by = excluded.elected_by, status_source = excluded.status_source, status = excluded.status, updated_at = now()
+                 where (mandates.ends_on, mandates.elected_by, mandates.status_source, mandates.status)
+                       is distinct from (excluded.ends_on, excluded.elected_by, excluded.status_source, excluded.status)
+               returning id""",
+            x,
+        ).fetchone()
+        if row:
+            n += 1
+        elif not conn.execute("select 1 from people where slug = %(slug)s and civil_name = %(civil)s", x).fetchone():
+            log.warning("executivo fora do TSE: pessoa %s não encontrada (lista EXECUTIVO_FORA_DO_TSE)", x["slug"])
+    return n
+
+
 # cobertura padrão: só insere o que ainda não foi auditado (on conflict do nothing)
 COVERAGE_SQL = """
 insert into data_coverage (place_id, dataset, status, reason, checked_on)
@@ -300,6 +335,9 @@ on conflict (place_id, dataset) do nothing
 
 def run_derive(conn: psycopg.Connection) -> None:
     cur = conn.cursor()
+    k = apply_executivo_fora_do_tse(conn)
+    if k:
+        log.info("executivo fora do TSE: %d mandato(s) gravado(s)", k)
     for name, q in MANDATE_RULES:
         cur.execute(q)
         if cur.rowcount:

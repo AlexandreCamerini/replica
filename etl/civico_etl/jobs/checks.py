@@ -46,6 +46,16 @@ PRESIDENTE_TSE: dict[tuple[int, int], tuple[int, int]] = {
 _PRES_VALUES = ", ".join(f"({y}, {t}, {v}, {a})" for (y, t), (v, a) in sorted(PRESIDENTE_TSE.items()))
 _PRES_TETO = int(max(a for _, a in PRESIDENTE_TSE.values()) * 1.1)
 
+# BUG-024 / D185: UF sem governador titular em exercício só com motivo conferido na fonte. Vazia hoje: o AM (dupla vacância
+# de 04/2026) tem o governador eleito pela Assembleia em EXECUTIVO_FORA_DO_TSE (derive_stats).
+GOVERNADOR_EXCECOES: dict[str, str] = {}
+_GOV_EXC = ", ".join(f"'{k}'" for k in sorted(GOVERNADOR_EXCECOES)) or "''"
+_GOVERNADORES_POR_UF = """
+    select pl.uf, (select count(*) from mandates m join offices o on o.id = m.office_id
+                   where m.place_id = pl.id and o.slug = 'governador' and m.role = 'titular' and m.status = 'em_exercicio'
+                     and m.started_on <= current_date and m.ends_on > current_date) as n
+    from places pl where pl.kind = 'uf'"""
+
 # BUG-020 / D183: cota parlamentar de uma amostra fixa contra o total da Câmara (arquivo Ano-AAAA.csv.zip + linhas que só a API
 # tem, D181), conferido em 03/11/2026 na API /deputados/{id}/despesas e na página camara.leg.br/deputados/{id}?ano=AAAA.
 # (id da Câmara, ano) -> centavos. Tolerância de 0,5% para republicação da fonte; o defeito do BUG-020 era -9% a -14%.
@@ -149,6 +159,10 @@ CHECKS: list[tuple[str, str]] = [
         "cota da Câmara: toda linha com chave por linha da fonte (cotaAAAA: ou cotaapiAAAA:)",
         """select count(*) from expenses x join legislative_bodies b on b.id = x.body_id and b.kind = 'camara_deputados'
            where x.source_key !~ '^cota(api)?[0-9]{4}:'""",
+    ),
+    (
+        "UF: exatamente 1 governador titular em exercício (salvo exceção listada com motivo)",
+        f"select count(*) from ({_GOVERNADORES_POR_UF}) x where x.n <> 1 and x.uf not in ({_GOV_EXC})",
     ),
     (
         "executivo: um titular em exercício por lugar e cargo",
