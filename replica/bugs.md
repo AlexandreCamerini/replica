@@ -477,6 +477,7 @@ Cause: `camara_diario.py::_expenses` grava `cents(x["vlrLiquido"])` sem tratar a
 Gap no teste: a `COTA_REFERENCIA` (D183) tem 5 deputados de SP e MG, todos sem complementação. A amostra não exercita o caso.
 Fix sugerido: decidir a regra em decisions.md (a página da Câmara soma `vlrDocumento` dessas linhas). Usar valor absoluto ou `vlrDocumento` na subcota 40, recarregar 2019 a 2026 e pôr na referência um deputado com complementação, como Luciano Vieira 2024 (516.374,69).
 Status: fixed (replica-backend, D200). A regra é a do dicionário de dados (`vlrLiquido = vlrDocumento − vlrGlosa`): quando a fonte publica o oposto exato, vale o devido. Isso pega a subcota 40 e também a 996 (missão oficial). Estorno com documento negativo continua negativo. O complemento da API também duplicava a missão oficial sem documento, e isso foi corrigido junto. 2019–2026 foram recarregados e o `derive.stats` rodado. Antes e depois contra a página: Luciano Vieira 2024 foi de 449.993,86 para 516.374,66 (página 516.374,69); Erika Hilton 2025, de 444.871,49 para 506.616,91 (igual); Socorro Neri (AC) 2024, de 489.824,30 para 584.552,30 (igual); Pastor Diniz (RR) 2025, de 529.871,20 para 621.105,20 (igual); 160541 2025, de 249.604,71 para 435.403,11 (página 435.403,01). São 22 deputado-ano conferidos (17 com complementação ou missão, 5 sem), todos até R$ 0,27. `COTA_REFERENCIA` passou de 10 para 17 pares. Novo `check`: complementação e missão oficial nunca negativas. Os testes estão em `etl/tests/test_cota.py`.
+Reverificação 2 2026-11-03: confirmado. A regra só vira linha das subcotas 40 e 996: nos 8 arquivos (2019–2026), 4.345 linhas de complementação e 6 de missão oficial, e nenhuma linha de outra subcota tem líquido = −(documento − glosa). Não há estorno real dessas subcotas que a regra esteja somando: nenhuma linha 40/996 tem líquido positivo na fonte, e todos os negativos que sobram são SIGEPA/RPA com documento negativo, mais as 4 linhas de glosa. Banco = arquivo com a regra em 3.877 de 3.880 deputado-ano, de 2019 a 2026. As 3 diferenças são de R$ 1,00 em 2019, uma linha a menos, anterior a esta correção. Página `camara.leg.br/deputados/{id}?ano=`, fora da `COTA_REFERENCIA`, com moradia: Pedro Paulo (RJ) 2019 dá 384.025,11 contra 384.025,05 só na 56ª (a página não mostra a 55ª; o banco soma o ano, D183); Alan Rick (AC) 2020 432.237,78 =; Talíria Petrone (RJ) 2021 434.919,21 =; Glaustin da Fokus (GO) 2021 388.569,09 =; Geovania de Sá (SC) 2022 444.516,36 =; Duda Ramos (RR) 2023 556.418,59 =; Misael Varella (MG) 2024 498.473,33 contra 498.472,78 (+0,55, nenhuma linha da API); Fábio Teruel (SP) 2025 278.459,79 =. Sem moradia: Zeca Dirceu (PR) 2021 474.339,00 =; Leo Prates (BA) 2025 552.196,55 = (inclui 71.550,36 de SIGEPA da API); Aluisio Mendes (MA) 2023 467.920,35 contra 467.920,34 na 57ª; Pastor Eurico (PE) 2019: a página traz fevereiro a novembro, iguais ao centavo, e omite janeiro (55ª) e dezembro (101.220,69 no arquivo). O tile do crachá mostra o valor do banco arredondado. Ressalva: o D200 diz que as linhas 40/996 vêm "sem `ideDocumento` nem data", mas as da subcota 40 têm `ideDocumento` e as da 996 têm número e data. A regra não depende disso. As 4 linhas de glosa que ficaram sem conferência foram conferidas e divergem da página: ver BUG-034.
 
 ### BUG-031: governador de DF, RJ e RR é quem já saiu do cargo; o `check` "1 por UF" passa assim mesmo
 
@@ -504,6 +505,7 @@ Status: fixed (replica-backend, D202/D203). Antes e depois:
 - Sete sucessões ficaram com a data de posse da fonte oficial em vez de 04/04.
 
 As 27 UFs foram conferidas em fonte oficial e estão em `GOVERNO_POR_UF`. O `check` agora confere a pessoa, e não a contagem: antes da correção acusava 21 divergências, depois 0. Teste em `etl/tests/test_governadores.py`. e2e FX-024 (home 25 de 27, RJ e RR nomeados) e FX-031 (Brasília, Rio e Boa Vista) verdes no 3101. O BUG-024 está fechado junto.
+Reverificação 2 2026-11-03: confirmado. A tela no 3101 bate com a fonte nas 12 cidades abertas (AC, AL, AM, DF, RJ, RR, MA, PE, SP, RS, TO, RN). A home mostra "Governo do estado 25 de 27" e "Vice-governo 15 de 27". Os crachás de Castro, Ibaneis, Damião e Lessa trazem a saída com data e origem. As 27 UFs foram conferidas por pesquisa independente: nenhuma pessoa em exercício diverge. Pontos sensíveis: RJ, com Ricardo Couto interino, confere com o STF (Rcl 92644, notícia de 24/04/2026 aberta), e o STF tirou o caso de pauta em 19/08/2026 (imprensa). RR: a suplementar de 21/06/2026 segue sem proclamação; em 21/10 o TSE ainda não tinha declarado Arthur Henrique (imprensa, Folha BV), e o interino é Soldado Sampaio. O "—" com motivo nas duas UFs é honesto e claro: diz quem exerce, desde quando e por quê. AL: Dantas esteve licenciado de 14/10 a 30/10/2026 e reassumiu (imprensa); a renúncia de Lessa segue só na imprensa, que cita nota oficial, e a tela diz isso. MA: não há sinal de renúncia de Brandão (DOE-MA de 14/01/2026). PE: o TSE lista Raquel Lyra reeleita com Priscila Krause. Datas de posse oficiais conferem para ES (02/04), MG (22/03), MT (31/03, ALMT), PA (02/04, ALEPA) e PB (02/04, A União). Para AC (02/04) e GO (31/03), a data sai do texto do portal. Ressalvas S4, sem bug aberto: (1) AM: o motivo do vice diz que a eleição de Serafim Corrêa não tem fonte oficial, mas o TJAM (25/08/2026) o chama de vice-governador em exercício. (2) O crachá de Celina Leão diz que "o titular renunciou para disputar outro cargo". Ibaneis renunciou com esse fim, mas desistiu em 08/07/2026; o texto é fixo para toda sucessão.
 
 ### BUG-032: o casamento de identidade pelo `SQ_CANDIDATO` sem o ano liga candidaturas de 2012 e 2014 a outras pessoas (15.769 pessoas, 3.406 mandatos)
 
@@ -527,3 +529,74 @@ Heurística pedida (nome de urna sem token em comum com o nome civil): sozinha, 
 Fix sugerido: chave externa `tse:{ano}:{sq}` (ou `{eleição}:{sq}`), desligar `exact_id` entre eleições, reprocessar 2012, 2014 e 2016 com o título como chave de identidade, e criar um `check` que falhe se a mesma pessoa tiver o mesmo `tse_sequencial` em anos diferentes.
 
 Status: fixed (fix ETL S1, D210 a D213). O loader passa a usar a chave `tse:ANO:SQ`. `civico-etl tse.fix032` conferiu as 196.744 candidaturas contra o `consulta_cand` do próprio ano, pelo título ou por nome + nascimento. 15.811 candidaturas de 2012, em 15.799 pessoas, estavam erradas. 1.051 foram religadas pelo título, com 743 mandatos. 14.760 saíram porque o dono não está no diretório (D34) ou porque a pessoa certa já tinha outra candidatura conferida na eleição, e com elas saíram 2.848 mandatos. Não houve caso ambíguo, e nenhum slug mudou. Depois do reparo, ninguém tem o mesmo SQ em anos diferentes. Roberto Cidade ficou só com 2016 a 2026, e /p/roberto-cidade no 3101 não mostra Fonte Boa. Trilha e cópia do que saiu estão em `identity_repair_log` (migração 0058). O backup pg_dump foi feito antes. Há 3 `check` novos em `checks_identity.py` e o teste `test_identity_bug032.py`.
+Reverificação 2 2026-11-03: parcial. As 1.051 religações conferem todas: o título do `consulta_cand_2012` é o da pessoa de destino, nas 1.051. Numa amostra de 15, nome civil e nascimento também batem em 14; a 15ª tem o nome grafado diferente (Jaciberques/Jacibergues). Numa amostra de 15 remoções, o dono pelo título não está no diretório nem por nome + nascimento. Os 5 removidos por conflito são registros substituídos, e a pessoa certa ficou com a outra candidatura. Roberto Cidade e as 5 pessoas sorteadas eleitas em 2012 (Jô/MT, Béa/PE, Vanderlei/MG, Oziel/BA, Claudio Rodrigues/PR) mantêm 2012 e o mandato de 2013. Falha a premissa do D210, de que "o SQ só é único dentro da eleição": em 2012, 91 SQ_CANDIDATO pertencem a duas pessoas de municípios diferentes. Por isso o `tse.fix032` conferiu 8 candidaturas contra a linha errada e removeu do dono verdadeiro: Alcir Costa (prefeito eleito de Santa Maria do Pará), Professor Wander (vice-prefeito eleito de Jundiaí do Sul), Nei (vereador eleito de Salesópolis), Leonora Périco, Alceu Junior, Marcelo Cerrea, Dr. Eurípedes e mais uma de Nei. Com elas saíram 3 mandatos verdadeiros de 2013–2016 de pessoas com crachá. Ver BUG-035. Os 2.848 mandatos removidos incluem esses 3. Achado à parte, não causado pelo reparo: 1.002 prefeitos, vices e vereadores atuais, eleitos em 2012 pelo título, não têm a candidatura de 2012 no banco nem no `identity_repair_log` (BUG-036).
+
+## Reverificação 2 (2026-11-03, reverify.md, seção "Reverificação 2")
+
+### BUG-033: Eli Corrêa Filho (Câmara 160532) fundido em Geninho Zuliani: o prefeito de Olímpia aparece com o nome de outro deputado
+
+- Severity: S1 (identidade errada publicada: nome, gastos e mandato de uma pessoa no crachá de outra)
+- Flow / case: F03 / identidade · Screen: S05 · Build: e683a93. O vínculo é de 2026-11-02 23:45, anterior às correções desta noite.
+- Browser / device: curl no 3101 e Postgres local
+
+Steps
+1. Abrir /p/geninho-sp. O `<title>` e o cabeçalho dizem "Eli Corrêa Filho".
+2. `select display_name, civil_name, birth_date from people where slug = 'geninho-sp'` devolve "Eli Corrêa Filho", "Eugenio Jose Zuliani" e 1976-01-13.
+3. `person_external_ids` da pessoa tem dois ids da Câmara: 204527 (`name_birth`, Geninho Zuliani) e 160532 (`name_birth_place`).
+4. Na API da Câmara, o 160532 é ADRIANO ELI CORRÊA, nascido em 1976-01-13 em São Paulo. Os nomes civis não têm nenhum token em comum.
+
+Expected: o 160532 cria outra pessoa ou vai para a fila. Duas pessoas com a mesma data de nascimento na mesma bancada não são a mesma pessoa.
+Actual: a cota de 2019 a 2022 do Eli Corrêa (2021: R$ 335.460,97 no banco) está ligada ao crachá do Geninho, e o nome de exibição foi sobrescrito. O crachá do prefeito de Olímpia (mandato 2025–2029) mostra outro nome.
+Cause: `identity.py::resolve`, no ramo `seat`, considera a mesma cadeira (deputado federal · SP) e aceita `display_name` igual **ou** `birth_date` igual. Com 70 cadeiras, uma coincidência de nascimento basta, e o vínculo é gravado como `name_birth_place`, 0,9. Outros dois vínculos por esse método (Átila Lira 74459 e João Carlos Bacelar 74131) não foram conferidos.
+Fix sugerido: no ramo `seat`, exigir nascimento igual **e** algum token do nome civil em comum. Desfazer o 160532 e criar a pessoa. Reconferir os 3 `name_birth_place` da Câmara. Criar um `check` para nome civil da fonte sem token em comum com o da pessoa ligada.
+
+### BUG-034: cota com glosa e líquido negativo (subcotas 3 e 120, 2020–2021) não bate com a página: banco R$ 7,7 mil a 26,8 mil abaixo
+
+- Severity: S2 (número publicado errado em 3 deputado-ano, de 1,6% a 5,8%)
+- Flow / case: F03 / dado contra fonte · Screen: S05 · Build: e683a93. São as 4 linhas que o D200 deixou de fora "não conferido na página".
+
+Steps
+1. `Ano-2020.csv`, Eduardo Bolsonaro (92346), fevereiro, subcota 120: `vlrDocumento` 6800, `vlrGlosa` 3834, `vlrLiquido` -868.
+2. camara.leg.br/deputados/92346?ano=2020 mostra cota 318.370,74 e fevereiro 51.589,32. O banco e o crachá dão 310.702,74 (R$ 310.703), com fevereiro 43.921,32 no arquivo.
+3. Mês a mês, a página bate com o arquivo em todos os meses, menos no mês da linha de glosa.
+
+Expected: total igual ao da página.
+Actual (página contra banco, diferença só no mês da linha):
+| Deputado | Ano | Página | Banco | Diferença | Linha (doc / glosa / líquido) |
+|---|---|---|---|---|---|
+| Eduardo Bolsonaro (92346) | 2020 | 318.370,74 | 310.702,74 | +7.668,00 (fev) | 6800 / 3834 / -868 |
+| Enio Verri (132504) | 2020 | 423.942,17 | 416.179,51 | +7.762,66 (out) | 6550 / 4431,33 / -1762,66 |
+| Eduardo da Fonte (141421) | 2021 | 491.252,01 | 464.478,01 | +9.374,00 (ago) e +17.400,00 (set) | 8700 / 4687 / -674 e 8700 / 7683 / -6666 |
+A página não subtrai o líquido negativo. Em três das quatro linhas, o mês da página é o do arquivo com a linha trocada por um valor positivo: 6.800 e 8.700 (`vlrDocumento`) e 6.000. A regra exata da página não foi deduzida.
+Cause: `cota_liquido` só corrige o caso líquido = −(documento − glosa), e essas linhas são outro padrão. É provável que sejam ajustes de glosa publicados no líquido da mesma linha.
+Fix sugerido: decidir a regra em decisions.md com mais casos da página. O candidato é contar `vlrDocumento` quando `vlrLiquido < 0` e `vlrDocumento > 0` fora das subcotas 998/999. Pôr um desses 3 pares na `COTA_REFERENCIA`.
+
+### BUG-035: em 2012 o SQ_CANDIDATO não é único na eleição; o `tse.fix032` removeu 8 candidaturas do dono verdadeiro (3 mandatos)
+
+- Severity: S2 (histórico eleitoral verdadeiro apagado de 8 crachás. Alcir Costa perde o mandato de prefeito 2013–2016, e Professor Wander o de vice-prefeito)
+- Flow / case: F03 / identidade · Screen: S05 · Build: e683a93 (efeito do reparo do BUG-032)
+
+Steps
+1. `consulta_cand_2012_BRASIL.csv`: o SQ 140000001581 aparece em BOM JESUS DO TOCANTINS (vereador, Valmir Aguiar) e em SANTA MARIA DO PARÁ (prefeito ELEITO, Alcir Costa da Silva, título 020007371309).
+2. `identity_repair_log` tem 140000001581 como `removido`/`sem_pessoa` de `alcir-costa`, com `raw.fonte` de outra linha. A pessoa `alcir-costa` tem esse título em `tse-titulo`.
+3. /p/alcir-costa não mostra a candidatura a prefeito de 2012 nem o mandato de 2013–2016.
+
+Expected: com SQ repetido, a candidatura casa pela linha do mesmo município/cargo (ou pelo título), e não por "a primeira linha com o SQ".
+Actual: há 91 SQ de 2012 com duas pessoas, e em 2014 a 2026 nenhum. Eles levaram a 8 falsas remoções (todas `sem_pessoa`): 140000001606 marcelo-cerrea, 90000001360 dr-euripedes, 250000004507 nei-do-ze-do-anisio (2×, 1 mandato), 250000004379 leonora-perico, 140000001581 alcir-costa (1 mandato), 250000004509 alceu-junior, 160000001562 professor-wander-pr (1 mandato). Outras 11 pessoas do diretório não têm a candidatura de 2012 desses SQ, e a chave `tse:2012:SQ` não identifica a candidatura nesses 91 casos.
+Cause: a premissa do D210 ("o SQ só é único dentro da eleição") não vale para 2012. O `fix032` busca a linha da fonte só por (ano, SQ).
+Fix sugerido: em 2012, chave `tse:2012:UE:SQ`, ou conferência por (SQ, SG_UE, cargo). Restaurar as 8 de `identity_repair_log.raw` e os 3 mandatos. Criar um `check` para candidatura removida cujo `from_person` tem o título de alguma linha do SQ.
+
+### BUG-036: 1.002 prefeitos, vices e vereadores atuais eleitos em 2012 não têm a candidatura de 2012 no banco
+
+- Severity: S3 (histórico incompleto no crachá; não é dado errado)
+- Flow / case: F03 / cobertura · Screen: S05 · Build: e683a93. Não foi causado pelo `fix032`: nenhuma dessas SQ está no `identity_repair_log`, exceto 4 (BUG-035).
+
+Steps
+1. Cruzar quem está em exercício como prefeito, vice ou vereador com as linhas ELEITO do `consulta_cand_2012` pelo título: 13.652 pessoas.
+2. Dessas, 1.002 não têm a candidatura eleita de 2012 nem o mandato de 2013. Exemplos: davi-davino (vereador de Maceió), suzy-higino (prefeita de Olho d'Água Grande), paulinho-zaquette (Corbélia) e lauro-bandeira (Domingos Mourão).
+3. Em 171 delas, o mesmo número de SQ é usado por outra candidatura do banco em outro ano, o que sugere a colisão antiga do BUG-032. Nas outras 831, o SQ está livre.
+
+Expected: pela D34, quem tem mandato atual traz as eleições antigas.
+Actual: o crachá começa em 2016 para essas pessoas.
+Cause: não determinada. A hipótese é que a candidatura de 2012 colidiu antes do reparo e caiu na regra de registro substituído do loader, e o `fix032` só reconfere o que está no banco.
+Fix sugerido: rodar `tse.candidatos 2012` de novo com a chave nova, para quem tem crachá, e conferir pela mesma contagem (meta: 0).
