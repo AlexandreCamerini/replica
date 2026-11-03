@@ -22,6 +22,8 @@ SOURCES = [
     ("senado", "Senado Federal · Dados Abertos", "https://www12.senado.leg.br/dados-abertos", "Lei 12.527"),
     ("ibge", "IBGE · API de Localidades", "https://servicodados.ibge.gov.br/api/docs/localidades", "CC BY 4.0"),
     ("norma", "Norma publicada (DOU)", "https://www.in.gov.br/", None),
+    ("tcu", "TCU · Dados abertos (inabilitados para função pública)", "https://sites.tcu.gov.br/dados-abertos/inidoneos-irregulares/", None),
+    ("sapl", "SAPL das Câmaras Municipais (Interlegis/Senado Federal)", "https://www12.senado.leg.br/interlegis/produtos/sapl", None),
     ("constituicao", "Constituição Federal: art. 27 §2º (deputado estadual), art. 32 §3º (distrital), art. 29 VI (vereador)",
      "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", None),
 ]

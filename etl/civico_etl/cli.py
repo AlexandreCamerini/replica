@@ -33,6 +33,10 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs.ale_cli import main as ale_main
 
         return ale_main(args)
+    if args and args[0].startswith("sancoes."):  # sanções de órgãos de controle (W3-B): sancoes.tcu
+        from .jobs.sancoes import main as sancoes_main
+
+        return sancoes_main(args)
     if args and args[0].startswith("sapl."):  # Câmaras Municipais via SAPL (W3-B): sapl.descobrir, sapl.carregar, sapl.todas
         from .jobs.sapl import main as sapl_main
 

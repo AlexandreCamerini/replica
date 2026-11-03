@@ -136,6 +136,14 @@ CHECKS: list[tuple[str, str]] = [
         "select count(*) from sanctions where person_id is not null and (match_method is null or match_confidence is null)",
     ),
     (
+        # D128: vereador do SAPL casado só com pessoa que tem mandato de vereador naquele município
+        "SAPL: vereador casado com pessoa sem mandato de vereador no município da câmara",
+        """select count(*) from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id
+           where sp.person_id is not null and (sp.match_status <> 'casado' or not exists (
+             select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'vereador'
+             where m.person_id = sp.person_id and m.place_id = h.place_id))""",
+    ),
+    (
         "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias",
         """select count(*) from dataset_stamps ds join sources s on s.id = ds.source_id
            where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')
