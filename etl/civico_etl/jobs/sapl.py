@@ -361,6 +361,8 @@ def main(argv: list[str]) -> int:
                     failed += 1
                     conn.rollback()
                     log.error("SAPL %s falhou: %s", h["name"], e)
+                    conn.execute("update sapl_houses set note = %s where id = %s", (f"carga falhou em {date.today()}: {e}"[:500], h["id"]))
+                    conn.commit()
     finally:
         conn.close()
     return 1 if failed else 0
