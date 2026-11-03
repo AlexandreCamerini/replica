@@ -418,7 +418,7 @@ Status: fixed (fixui, D194). Bloco “Números” do crachá ganhou uma lista de
 - Severity: S4 · Screen: S02 · Build: anterior (já estava em "A conferir", build 6)
 Steps: suíte contra 3101: falhou nas 2 tentativas; isolado com `--repeat-each 3`: 1 de 3 falhou. Contra o build de produção (3301): passou.
 Cause provável: corrida entre a hidratação do combobox e o `focus()` disparado ao fechar o modal; em celular lento pode aparecer em produção.
-Status: open.
+Status: fixed (fixui, D196). Era bug real: o intervalo de foco parava no primeiro acerto e só esperava 3 s; no dev a rota /representantes compila em mais tempo e o modal devolve o foco depois do primeiro acerto. `first-visit.tsx` agora só age em /representantes, espera até 10 s, refaz o foco se ficar solto e para depois de 500 ms estável. ONB-H2 passou 5 de 5 com `--repeat-each 5` no dev.
 
 ### BUG-028: presença do crachá não bate com a da Câmara (2025: 108 de 120 contra 110 + 11 justificadas)
 

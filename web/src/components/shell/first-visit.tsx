@@ -51,12 +51,29 @@ export function FirstVisit() {
         const input = () => document.querySelector<HTMLInputElement>("main input[role=combobox]");
         const loose = () => !document.activeElement || document.activeElement === document.body || !!document.activeElement.closest("[role=dialog]");
         if (path !== "/representantes") router.push("/representantes");
+        // BUG-027: o intervalo antigo parava no primeiro foco e só esperava 3 s. No dev server a rota /representantes leva mais que isso
+        // para compilar, e o modal ainda devolvia o foco ao fechar depois do primeiro acerto. Agora: só age em /representantes, espera até 10 s
+        // pelo campo, e só desiste depois de o foco ficar estável por 500 ms (ou se a pessoa foi para outro controle).
         let tries = 0;
+        let mine: HTMLInputElement | null = null; // campo em que já pusemos o foco
+        let stable = 0;
         const t = setInterval(() => {
+          tries++;
+          if (tries > 100) return clearInterval(t);
+          if (location.pathname !== "/representantes") return;
           const el = input();
-          if (el && document.activeElement === el) return clearInterval(t);
-          if (el && (loose() || tries === 0)) el.focus();
-          if (++tries > 30) clearInterval(t);
+          if (!el) return;
+          if (document.activeElement === el) {
+            mine = el;
+            if (++stable >= 5) clearInterval(t);
+            return;
+          }
+          stable = 0;
+          if (mine === el && !loose()) return clearInterval(t); // tinha o foco e a pessoa levou para outro lugar: não toma de volta
+          if (mine !== el || loose()) {
+            el.focus();
+            mine = el;
+          }
         }, 100);
       }}
     />
