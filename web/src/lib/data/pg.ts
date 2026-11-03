@@ -340,6 +340,8 @@ export const pgSource: DataSource = {
       const relevant = cov.filter((c) => (m.level === "estadual" ? !String(c.dataset).includes("prefeito") && !String(c.dataset).includes("vereador") : !String(c.dataset).includes("estaduais")));
       missing.push(...relevant.map((c) => ({ dataset: toDataset(String(c.dataset)), label: DATASET_LABEL[String(c.dataset)] ?? String(c.dataset), status: c.status as MissingDataset["status"], reason: String(c.reason) })));
     }
+    // teto (is_ceiling) e "não conferido" nunca juntos: com valor de salário (pago ou teto) na tela, a pendência de salário sai da lista
+    if (m?.amount_cents != null) for (let i = missing.length - 1; i >= 0; i--) if (missing[i].dataset === "salario") missing.splice(i, 1);
     const topics = (s?.top_topics as { topic_slug: string; proposals: number }[] | undefined) ?? [];
     return {
       period,

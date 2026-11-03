@@ -219,10 +219,10 @@ export default async function Page({ params, searchParams }: Props) {
             kind="money"
             ceiling={stats.salaryIsCeiling}
             label={stats.salaryIsCeiling ? "teto do salário" : "salário por mês"}
-            sub={stats.salaryIsCeiling ? "o valor pago não é publicado" : stats.salaryMonthlyCents ? "valor bruto" : missingOf("salario")?.reason}
+            sub={stats.salaryIsCeiling ? "limite fixado pela Constituição para o cargo" : stats.salaryMonthlyCents ? "valor bruto" : missingOf("salario")?.reason}
             help={
               stats.salaryIsCeiling
-                ? "Limite que a Constituição permite para este cargo neste lugar. O órgão não publica quanto paga de fato."
+                ? "Limite que a Constituição permite para este cargo neste lugar (art. 27, § 2º, para deputado estadual; art. 29, VI, para vereador, pela população do município). Quanto a casa paga de fato ainda não está no site."
                 : "Subsídio bruto mensal, antes de descontos, conforme o órgão publica."
             }
           />
