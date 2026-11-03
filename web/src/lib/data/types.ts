@@ -379,6 +379,8 @@ export interface DataSource extends DataSourceW4 {
   listSpeeches(personId: string, f: { year?: number; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
   getContacts(personId: string): Promise<ContactItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
+  /** Normas que fixam o salário do cargo (decreto legislativo ou Constituição), com a data da última carga. Vazio = sem salário carregado. */
+  getSalarySources(office: OfficeSlug): Promise<{ name: string; url: string; updatedAt: string }[]>;
   /** Anos já carregados de um conjunto com carimbo por ano (ex.: "tse.contas" → [2018, 2020, …]), crescente. */
   listStampYears(prefix: string): Promise<number[]>;
   latestRefresh(): Promise<string>;

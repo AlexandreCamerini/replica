@@ -103,6 +103,21 @@ async function CompareTable({ people, periodoRaw, sp }: { people: Person[]; peri
   const periodHref = (y: number | null) => `/comparar?p=${slugs.join(",")}${y ? `&periodo=${y}` : ""}`;
   const stamp = await data.getStamp("tse.candidatos");
   const dash = <NotPublished />;
+  // fonte e data de cada bloco da tabela, pela casa de cada pessoa comparada (BUG-026)
+  const offices = new Set(rows.map((r) => r.main?.office));
+  const hasCamara = offices.has("deputado_federal");
+  const hasSenado = offices.has("senador");
+  const hasOther = [...offices].some((o) => o && o !== "deputado_federal" && o !== "senador");
+  const line = async (label: string, dataset: string) => {
+    const st = await data.getStamp(dataset);
+    return { label, source: st.source, href: st.sourceUrl, updatedAt: st.refreshedAt };
+  };
+  const sourceLines = [
+    await line("Quem é, eleição e patrimônio", "tse.candidatos"),
+    await line("Arrecadação de campanha", "tse.contas"),
+    ...(hasCamara ? [await line("Presença, propostas, votos e cota (Câmara)", "camara.votacoes")] : []),
+    ...(hasSenado ? [await line("Propostas, votos e cota (Senado)", "senado.votacoes")] : []),
+  ];
 
   const groups: { title: string; rows: [string, (r: (typeof rows)[number]) => Cell][] }[] = [
     {
@@ -211,8 +226,20 @@ async function CompareTable({ people, periodoRaw, sp }: { people: Person[]; peri
       </div>
 
       <p className="mt-2 text-xs text-muted">
-        Presença: lista oficial de presença da Câmara nas sessões deliberativas do plenário. O Senado não publica a lista de presença por senador, por isso “—”.
+        Presença: lista oficial de presença da Câmara nas sessões deliberativas do plenário (a página da Câmara conta dias, então o número pode diferir; ver <Link href="/sobre#presenca" className="underline underline-offset-2">como contamos</Link>). O Senado não publica a lista de presença por senador, por isso “—”.
       </p>
+      <ul className="mt-2 flex flex-col gap-1 font-mono text-xs text-muted" data-testid="comparar-fontes" aria-label="Fontes de cada bloco da tabela">
+        {sourceLines.map((l, i) => (
+          <li key={`${i}-${l.label}`}>
+            {l.label}: Fonte:{" "}
+            <a href={l.href} className="underline underline-offset-2 hover:text-fg">
+              {l.source}
+            </a>{" "}
+            · atualizado em <time dateTime={l.updatedAt}>{new Date(l.updatedAt).toLocaleDateString("pt-BR")}</time>
+          </li>
+        ))}
+      </ul>
+      {hasOther && <p className="mt-1 text-xs text-muted">Para Assembleias Legislativas e Câmaras Municipais, a fonte e a data de presença, propostas, votos e gastos estão no crachá de cada pessoa.</p>}
 
       <section aria-labelledby="iguais-h" className="mt-8">
         <h2 id="iguais-h" className="text-xl text-fg">

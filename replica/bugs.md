@@ -411,7 +411,7 @@ Status: fixed na tela (fixui, D193). Deputados estaduais abaixo das cadeiras (CF
 Steps
 1. /comparar?p=adriana-ventura,baleia-rossi: presença, propostas, votos e cota são da Câmara; o único rodapé da página é "Fonte: TSE · Dados Abertos".
 2. /p/adriana-ventura, bloco "Números desde 2019": nenhum "Fonte: … · atualizado em …"; o salário acumulado não cita o decreto legislativo nem a data (só o texto de ajuda "como a lei publica").
-Status: open.
+Status: fixed (fixui, D194). Bloco “Números” do crachá ganhou uma lista de fontes com “Fonte: … · atualizado em …” por número (salário: decreto ou Constituição; patrimônio e votos: TSE candidatos; campanha: TSE contas; presença, propostas, votos e gastos: Câmara, Senado, Assembleia ou SAPL conforme a casa). /comparar cita a fonte de cada bloco (TSE; Câmara ou Senado) com a data da carga.
 
 ### BUG-027: ONB-H2 (foco no campo de cidade depois do onboarding) falha no dev server
 

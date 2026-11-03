@@ -896,6 +896,9 @@ export const fakeSource: DataSource = {
   async listSpeeches() {
     return { items: [], nextCursor: null, total: 0 };
   },
+  async getSalarySources() {
+    return [{ name: "Decreto Legislativo nº 172/2022 (demonstração)", url: "https://www2.camara.leg.br/", updatedAt: "2026-11-01T06:10:00-03:00" }];
+  },
   async listStampYears(prefix) {
     return prefix.startsWith("tse") ? [2018, 2020, 2022, 2024, 2026] : [2023, 2024, 2025, 2026];
   },

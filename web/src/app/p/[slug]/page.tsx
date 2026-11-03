@@ -12,6 +12,7 @@ import { Assets, CampaignMoney, Committees, Contact, Elections, Expenses, HowToR
 import { LinkChip, hrefWith, type Params } from "@/components/profile/ui";
 import { YearByYear } from "@/components/profile/yearly";
 import { CompareToggle } from "@/components/shell/compare";
+import { NumerosFontes, type SourceLine } from "@/components/profile/numeros-fontes";
 import { MissingDataNote, StatTile } from "@/components/ui/data";
 import { ListenButton } from "@/components/ui/misc";
 import { data, type MandateStatus, type PeriodStats, type YearStats } from "@/lib/data";
@@ -97,6 +98,31 @@ export default async function Page({ params, searchParams }: Props) {
   const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
   // W3-A: deputado estadual/distrital lê a Assembleia da UF (o que é lido, com fonte e data, e o motivo de cada "—")
   const assembly = main && STATE_LEG.has(main.office) && placeUf ? await data.getAssembly(placeUf) : null;
+  // fonte e data de cada número do bloco “Números” (BUG-026)
+  const stampLine = async (label: string, dataset: string): Promise<SourceLine> => {
+    const st = await data.getStamp(dataset);
+    return { label, source: st.source, href: st.sourceUrl, updatedAt: st.refreshedAt };
+  };
+  const numberSources: SourceLine[] = [];
+  if (main && (stats.salaryMonthlyCents || accrued)) {
+    for (const src of await data.getSalarySources(main.office)) numberSources.push({ label: stats.salaryIsCeiling ? "Teto do salário" : "Salário", source: src.name, href: src.url, updatedAt: src.updatedAt });
+  }
+  numberSources.push(await stampLine("Patrimônio e votos recebidos", "tse.candidatos"), await stampLine("Arrecadação de campanha", "tse.contas"));
+  if (main?.office === "deputado_federal") {
+    numberSources.push(
+      await stampLine("Presença", "camara.presenca"),
+      await stampLine("Propostas", "camara.proposicoes"),
+      await stampLine("Votos em plenário", "camara.votacoes"),
+      await stampLine("Gastos do gabinete", "camara.despesas"),
+    );
+  } else if (main?.office === "senador") {
+    numberSources.push(await stampLine("Propostas", "senado.autorias"), await stampLine("Votos em plenário", "senado.votacoes"), await stampLine("Gastos do gabinete", "senado.despesas"));
+  } else if (assembly?.read) {
+    const labels: Record<string, string> = { presenca: "Presença", votos: "Votos em plenário", propostas: "Propostas", gastos_gabinete: "Gastos do gabinete" };
+    for (const it of assembly.items) if (it.stampDataset) numberSources.push(await stampLine(labels[it.dataset] ?? it.label, it.stampDataset));
+  } else if (council) {
+    numberSources.push({ label: "Presença, propostas e votos", source: `SAPL da Câmara Municipal de ${council.city}`, href: council.baseUrl, updatedAt: council.loadedAt });
+  }
   const user = await currentUser();
   const following = user ? await isFollowing(user.id, person.id).catch(() => false) : false;
 
@@ -311,6 +337,7 @@ export default async function Page({ params, searchParams }: Props) {
             </>
           )}
         </div>
+        <NumerosFontes lines={numberSources} />
       </section>
 
       {executive && (

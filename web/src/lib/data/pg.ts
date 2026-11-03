@@ -1096,6 +1096,13 @@ export const pgSource: DataSource = {
     if (!r) return { dataset, source: "Fonte oficial", sourceUrl: "/sobre#fontes", refreshedAt: new Date(0).toISOString() } satisfies Stamp;
     return { dataset: String(r.dataset), source: String(r.name), sourceUrl: String(r.url), refreshedAt: isoTs(r.refreshed_at) };
   },
+  async getSalarySources(office) {
+    const rows = await sql`
+      select so.name, so.url, max(s.updated_at) as at
+      from salaries s join offices o on o.id = s.office_id join sources so on so.id = s.source_id
+      where o.slug = ${office} group by 1, 2 order by min(s.valid_from)`;
+    return rows.map((r) => ({ name: String(r.name), url: String(r.url), updatedAt: isoTs(r.at) }));
+  },
   async listStampYears(prefix) {
     const rows = await sql`select distinct right(dataset, 4)::int as y from dataset_stamps where dataset like ${prefix + ".%"} and right(dataset, 4) ~ '^[0-9]{4}$' order by 1`;
     return rows.map((r) => Number(r.y));
