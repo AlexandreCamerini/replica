@@ -20,6 +20,8 @@ export default async function Page() {
   const stamp = await data.getStamp("camara.votacoes");
   const sumC = rows.reduce((s, r) => s + r.seatsCamara, 0);
   const sumS = rows.reduce((s, r) => s + r.seatsSenado, 0);
+  const semC = camara.length - sumC;
+  const semS = senado.length - sumS;
   const pct = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 
   return (
@@ -79,7 +81,8 @@ export default async function Page() {
       </TableRegion>
       <p className="mt-2 text-xs text-muted" data-testid="soma">
         Cadeiras somadas: {count(sumC)} de {count(camara.length)} deputados em exercício e {count(sumS)} de {count(senado.length)} senadores.
-        {sumC !== camara.length || sumS !== senado.length ? " A diferença é de quem está sem partido vigente no cadastro." : ""}
+        {semC > 0 && ` ${count(semC)} ${semC === 1 ? "deputado sem partido vigente na fonte" : "deputados sem partido vigente na fonte"}.`}
+        {semS > 0 && ` ${count(semS)} ${semS === 1 ? "senador sem partido vigente na fonte" : "senadores sem partido vigente na fonte"}.`}
       </p>
 
       <section className="mt-8 grid gap-4 md:grid-cols-2">

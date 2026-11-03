@@ -143,7 +143,10 @@ export const pgW4: DataSourceW4 = {
     const parties = await sql`
       select pa.id, pa.acronym, pa.name, pa.tse_number
       from parties pa
-      where pa.valid_to is null and exists (select 1 from mandates m where m.party_id = pa.id and m.status = 'em_exercicio')
+      where pa.valid_to is null and (
+        exists (select 1 from mandates m where m.party_id = pa.id and m.status = 'em_exercicio')
+        -- partido que só existe como partido atual da pessoa (ex.: MISSÃO) também entra: as cadeiras abaixo usam a mesma regra (BUG-021)
+        or exists (select 1 from person_current_party cp join mandates m on m.person_id = cp.person_id and m.status = 'em_exercicio' where cp.party_id = pa.id))
       order by pa.acronym collate pt_br`;
     // cadeiras: a mesma regra do hemiciclo (partido atual da pessoa; senão o do mandato)
     const seats = await sql`
