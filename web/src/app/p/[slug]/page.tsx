@@ -41,6 +41,7 @@ const STATUS_SOURCE_LABEL: Record<string, string> = {
   cldf: "a Câmara Legislativa do DF",
   alerj: "a Assembleia Legislativa do RJ",
   "ale-rr": "a Assembleia Legislativa de Roraima",
+  aleam: "a Assembleia Legislativa do Amazonas",
   stf: "o STF",
   imprensa: "a imprensa (o ato não foi localizado em fonte oficial)",
 };
