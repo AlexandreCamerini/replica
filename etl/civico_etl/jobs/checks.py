@@ -109,6 +109,16 @@ CHECKS: list[tuple[str, str]] = [
         "select count(*) from person_period_stats where presence_present > presence_total",
     ),
     (
+        # W3-B / D120: salário acumulado do Congresso cobre todo mês de mandato desde 2015 (DL 276/2014 em diante)
+        "salário: todo mês de mandato federal (deputado/senador) desde 02/2015 tem subsídio publicado vigente",
+        """select count(*) from mandates m join offices o on o.id = m.office_id
+           cross join lateral generate_series(date_trunc('month', greatest(m.started_on, date '2015-02-01')),
+                                              date_trunc('month', least(m.ends_on - 1, current_date)), interval '1 month') gs
+           where o.slug in ('deputado_federal', 'senador') and m.status <> 'eleito_aguardando_posse'
+             and not exists (select 1 from salaries s where s.office_id = m.office_id and s.place_id is null and not s.is_ceiling
+                             and s.valid_from <= gs::date)""",
+    ),
+    (
         "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias",
         """select count(*) from dataset_stamps ds join sources s on s.id = ds.source_id
            where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')
