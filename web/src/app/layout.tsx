@@ -5,6 +5,7 @@ import { DataFreshnessBar, DemoBanner } from "@/components/shell/bars";
 import { CompareProvider } from "@/components/shell/compare";
 import { AppFooter } from "@/components/shell/footer";
 import { AppHeader } from "@/components/shell/header";
+import { data } from "@/lib/data";
 
 // next/font sobrescreve as variáveis do tokens.css com a família hospedada + fallback métrico
 const sans = Inter({ variable: "--ds-font-sans", subsets: ["latin"], display: "swap" });
@@ -24,7 +25,8 @@ export const metadata: Metadata = {
 // aplica o tema salvo antes da primeira pintura (sem piscar)
 const themeScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const offices = (await data.listOffices()).map((o) => ({ slug: o.slug, name: o.nameM }));
   return (
     <html lang="pt-BR" className={`${sans.variable} ${display.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
@@ -39,7 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </a>
         <CompareProvider>
           <DemoBanner />
-          <AppHeader />
+          <AppHeader offices={offices} />
           <DataFreshnessBar />
           <main id="conteudo" tabIndex={-1} className="pb-16 outline-none">
             {children}

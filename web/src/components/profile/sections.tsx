@@ -277,8 +277,8 @@ export async function Elections({ candidacies, f }: { candidacies: C[]; f: boole
               </tr>
             </thead>
             <tbody>
-              {candidacies.map((c) => (
-                <tr key={`${c.year}-${c.office}`} className="border-b border-border last:border-0">
+              {candidacies.map((c, i) => (
+                <tr key={`${c.year}-${c.office}-${c.placeIbge}-${i}`} className="border-b border-border last:border-0">
                   <th scope="row" className="py-2 pr-3 text-left font-mono font-semibold text-fg">{c.year}</th>
                   <td className="py-2 pr-3 text-fg">
                     {c.officeName} · {c.placeLabel}

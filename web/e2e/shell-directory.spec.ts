@@ -18,8 +18,11 @@ test.describe("Shell e diretório", () => {
     await expect(page.getByRole("menu")).toBeHidden();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Quem publica dados");
     const dark = page.getByRole("radio", { name: "Tema escuro" });
-    await dark.click();
-    await expect(dark).toHaveAttribute("aria-checked", "true");
+    // a página de destino é pesada em dev: um clique antes da hidratação é perdido, então repete até pegar
+    await expect(async () => {
+      await dark.click();
+      await expect(dark).toHaveAttribute("aria-checked", "true", { timeout: 1500 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -46,8 +49,8 @@ test.describe("Shell e diretório", () => {
   test("S04-H1 diretório filtra, pagina e conta", async ({ page, axe }) => {
     await page.goto("/quem");
     await axe();
-    await page.getByLabel("Cargo").selectOption("senador");
-    await page.getByLabel("Estado").selectOption("SP");
+    await page.locator("select[name=cargo]").selectOption("senador");
+    await page.locator("select[name=uf]").selectOption("SP");
     await page.getByRole("button", { name: "Buscar" }).click();
     await expect(page).toHaveURL(/cargo=senador/);
     await expect(page).toHaveURL(/uf=SP/);

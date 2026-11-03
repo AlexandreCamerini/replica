@@ -47,8 +47,9 @@ test.describe("F05–F08 a partir do crachá e telas provisórias", () => {
     await expect(page.getByRole("button", { name: "Compartilhar" })).toBeVisible({ timeout: 5000 });
   });
 
-  test("stubs R2 dizem o release", async ({ page, axe }) => {
-    for (const [path, sid] of [["/dados-abertos", "S23"], ["/sobre", "S22"], ["/atualizacoes", "S24"]]) {
+  test("stubs de release posterior dizem o release", async ({ page, axe }) => {
+    // S22, S23 e S24 saíram de stub no build 5 (têm spec própria em w1a-*); aqui ficam as que ainda são stub
+    for (const [path, sid] of [["/ajudar", "S26"], ["/propostas", "S13"]]) {
       await page.goto(path);
       await expect(page.getByText(new RegExp(`${sid} · entra no R\\d`))).toBeVisible();
       await expect(page.getByRole("link", { name: /quem representa a sua cidade/ })).toBeVisible();

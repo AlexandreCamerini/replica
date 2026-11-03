@@ -1,17 +1,18 @@
 "use client";
 
 import { clsx } from "clsx";
-import { Bell, ChevronDown, LogIn, MessageSquarePlus, Search } from "lucide-react";
+import { Bell, ChevronDown, LogIn, MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { ThemeToggle } from "@/components/ui/misc";
+import { GlobalSearch, type OfficeOption } from "./global-search";
 import { MORE, PRIMARY } from "./nav-items";
 
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`));
 
-export function AppHeader() {
+export function AppHeader({ offices }: { offices: OfficeOption[] }) {
   const path = usePathname() ?? "/";
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => {
@@ -24,14 +25,13 @@ export function AppHeader() {
     "inline-flex h-10 items-center gap-2 rounded-pill px-3 text-sm font-semibold text-fg outline-none hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-focus";
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/85">
-      <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-2 px-4 md:px-6">
-        <Link href="/" className="mr-auto rounded-xs font-display text-xl font-bold tracking-tight text-fg outline-none focus-visible:outline-2 focus-visible:outline-focus">
+      <div className="mx-auto flex min-h-14 max-w-[1200px] flex-wrap items-center gap-x-2 gap-y-2 px-4 py-2 md:flex-nowrap md:px-6 md:py-0">
+        <Link href="/" className="mr-auto rounded-xs font-display md:mr-0 text-xl font-bold tracking-tight text-fg outline-none focus-visible:outline-2 focus-visible:outline-focus">
           quem<span className="text-accent-text">·</span>representa
         </Link>
-        <Link href="/quem" className={iconLink} aria-label="Buscar pessoa">
-          <Search aria-hidden className="size-4" />
-          <span className="hidden sm:inline">Buscar</span>
-        </Link>
+        <div className="order-last w-full md:order-none md:mx-2 md:max-w-md md:flex-1">
+          <GlobalSearch offices={offices} />
+        </div>
         <Link href="/sugestoes" className={clsx(iconLink, "hidden md:inline-flex")}>
           <MessageSquarePlus aria-hidden className="size-4" />
           Sugerir
