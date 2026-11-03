@@ -161,6 +161,24 @@ export type Expense = {
 
 export type Stamp = { dataset: string; source: string; sourceUrl: string; refreshedAt: string };
 
+/** Uma fonte oficial e os carimbos de cada conjunto carregado dela (S24). Sem estado "no prazo": isso se calcula em lib/sources. */
+export type SourceStatus = {
+  slug: string;
+  name: string;
+  url: string;
+  datasets: { dataset: string; refreshedAt: string }[];
+  lastRefreshedAt: string | null;
+};
+
+/** Contagem de cidades por situação do dado, por UF e tipo de dado (S23). Só municípios; a UF não entra na conta. */
+export type CoverageCounts = Partial<Record<CoverageStatus, number>>;
+export type CoverageMatrix = {
+  datasets: { key: string; label: string }[];
+  rows: { uf: string; name: string; cities: number; cells: Record<string, CoverageCounts> }[];
+  total: { cities: number; cells: Record<string, CoverageCounts> };
+  checkedOn: string | null;
+};
+
 export type Page<T> = { items: T[]; nextCursor: string | null; total: number };
 
 /** Uma pessoa no cargo, já com o que a lista precisa (cartão). */
@@ -233,4 +251,6 @@ export interface DataSource {
   getContacts(personId: string): Promise<ContactItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
   latestRefresh(): Promise<string>;
+  listSourceStatus(): Promise<SourceStatus[]>;
+  getCoverageMatrix(): Promise<CoverageMatrix>;
 }

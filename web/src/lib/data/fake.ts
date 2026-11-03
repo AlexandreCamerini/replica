@@ -20,6 +20,7 @@ import type {
   ElectionResult,
   Expense,
   Level,
+  CoverageStatus,
   Mandate,
   MandateStatus,
   MissingDataset,
@@ -826,6 +827,32 @@ export const fakeSource: DataSource = {
     const src = dataset.startsWith("camara") ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;
     const refreshedAt = dataset.startsWith("camara") || dataset.startsWith("senado") ? "2026-11-01T06:10:00-03:00" : dataset.startsWith("ibge") ? "2026-01-15T03:00:00-03:00" : "2026-10-31T05:40:00-03:00";
     return { dataset, source: src.name, sourceUrl: src.url, refreshedAt };
+  },
+  async listSourceStatus() {
+    const mk = (slug: keyof typeof SOURCES, datasets: string[]) => {
+      const refreshedAt = slug === "ibge" ? "2026-01-15T03:00:00-03:00" : slug === "tse" ? "2026-10-31T05:40:00-03:00" : "2026-11-01T06:10:00-03:00";
+      return { slug, name: SOURCES[slug].name, url: SOURCES[slug].url, datasets: datasets.map((dataset) => ({ dataset, refreshedAt })), lastRefreshedAt: refreshedAt };
+    };
+    return [mk("camara", ["camara.deputados", "camara.votacoes.2026"]), mk("ibge", ["ibge.places"]), mk("senado", ["senado.senadores", "senado.votacoes.2026"]), mk("tse", ["tse.candidatos.2024"])];
+  },
+  async getCoverageMatrix() {
+    const keys = ["salario", "presenca", "votos", "propostas", "gastos_gabinete"] as const;
+    const rows = UF_ROWS.map((u) => ({ uf: u[1], name: u[2], cities: 0, cells: {} as Record<string, Partial<Record<CoverageStatus, number>>> })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    const byUf = new Map(rows.map((r) => [r.uf, r]));
+    const total = { cities: 0, cells: {} as Record<string, Partial<Record<CoverageStatus, number>>> };
+    for (const m of MUNICIPALITY_ROWS) {
+      const row = byUf.get(m[2]);
+      if (!row) continue;
+      row.cities++;
+      total.cities++;
+      const present = new Map(coverageFor(m[0]).map((c) => [c.dataset, c.status]));
+      for (const k of keys) {
+        const st: CoverageStatus = present.get(k) ?? "no_site";
+        row.cells[k] = { ...row.cells[k], [st]: (row.cells[k]?.[st] ?? 0) + 1 };
+        total.cells[k] = { ...total.cells[k], [st]: (total.cells[k]?.[st] ?? 0) + 1 };
+      }
+    }
+    return { datasets: keys.map((k) => ({ key: k, label: DATASET_LABEL[k] })), rows, total, checkedOn: "2026-11-01" };
   },
   async latestRefresh() {
     return "2026-11-01T06:10:00-03:00";

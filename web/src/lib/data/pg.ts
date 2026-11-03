@@ -19,6 +19,9 @@ import type {
   Proposal,
   RepresentativeGroup,
   Stamp,
+  SourceStatus,
+  CoverageMatrix,
+  CoverageStatus,
   VoteValue,
   VotingEventDetail,
   VotingEventSummary,
@@ -616,6 +619,50 @@ export const pgSource: DataSource = {
       order by (ds.dataset = ${dataset}) desc, ds.refreshed_at desc limit 1`;
     if (!r) return { dataset, source: "Fonte oficial", sourceUrl: "/sobre#fontes", refreshedAt: new Date(0).toISOString() } satisfies Stamp;
     return { dataset: String(r.dataset), source: String(r.name), sourceUrl: String(r.url), refreshedAt: isoTs(r.refreshed_at) };
+  },
+  async listSourceStatus() {
+    const rows = await sql`
+      select s.slug, s.name, s.url, ds.dataset, ds.refreshed_at
+      from sources s join dataset_stamps ds on ds.source_id = s.id
+      order by s.name collate pt_br, ds.dataset`;
+    const by = new Map<string, SourceStatus>();
+    for (const r of rows) {
+      const slug = String(r.slug);
+      const cur = by.get(slug) ?? { slug, name: String(r.name), url: String(r.url), datasets: [], lastRefreshedAt: null };
+      const at = isoTs(r.refreshed_at);
+      cur.datasets.push({ dataset: String(r.dataset), refreshedAt: at });
+      if (!cur.lastRefreshedAt || at > cur.lastRefreshedAt) cur.lastRefreshedAt = at;
+      by.set(slug, cur);
+    }
+    return [...by.values()];
+  },
+  async getCoverageMatrix() {
+    const rows = await sql`
+      select p.uf, dc.dataset, dc.status, count(*)::int as n, max(dc.checked_on) as checked
+      from data_coverage dc join places p on p.id = dc.place_id
+      where p.kind = 'municipio'
+      group by 1, 2, 3`;
+    const ufs = await sql`select p.uf, p.name, (select count(*)::int from places m where m.kind = 'municipio' and m.uf = p.uf) as cities from places p where p.kind = 'uf' order by p.name collate pt_br`;
+    const keys = [...new Set(rows.map((r) => String(r.dataset)))].sort((a, b) => Object.keys(DATASET_LABEL).indexOf(a) - Object.keys(DATASET_LABEL).indexOf(b));
+    const out: CoverageMatrix = {
+      datasets: keys.map((k) => ({ key: k, label: DATASET_LABEL[k] ?? k })),
+      rows: ufs.map((u) => ({ uf: String(u.uf), name: String(u.name), cities: Number(u.cities), cells: {} })),
+      total: { cities: 0, cells: {} },
+      checkedOn: null,
+    };
+    out.total.cities = out.rows.reduce((a, r) => a + r.cities, 0);
+    const byUf = new Map(out.rows.map((r) => [r.uf, r]));
+    for (const r of rows) {
+      const row = byUf.get(String(r.uf));
+      if (!row) continue;
+      const d = String(r.dataset), st = r.status as CoverageStatus, n = Number(r.n);
+      (row.cells[d] ??= {})[st] = n;
+      const t = (out.total.cells[d] ??= {});
+      t[st] = (t[st] ?? 0) + n;
+      const c = r.checked ? String(r.checked instanceof Date ? r.checked.toISOString() : r.checked).slice(0, 10) : null;
+      if (c && (!out.checkedOn || c > out.checkedOn)) out.checkedOn = c;
+    }
+    return out;
   },
   async latestRefresh() {
     const [r] = await sql`select max(refreshed_at) as at from dataset_stamps`;
