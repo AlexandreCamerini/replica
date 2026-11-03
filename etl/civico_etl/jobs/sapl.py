@@ -103,7 +103,14 @@ def pages(base: str, path: str, params: dict[str, Any] | None = None, *, stop=No
     q["page_size"] = PAGE
     for n in range(1, max_pages + 1):
         q["page"] = n
-        d = _get(f"{base}/api/{path}/?{urlencode(q)}")
+        try:
+            d = _get(f"{base}/api/{path}/?{urlencode(q)}")
+        except FileNotFoundError:
+            if n == 1:
+                raise
+            # a contagem mudou durante a varredura (registro apagado na fonte): a página anunciada sumiu = fim
+            log.warning("%s/%s: página %d sumiu durante a varredura; encerrando nela", base, path, n)
+            return
         res = d.get("results") or []
         yield from res
         if stop and stop(res):
