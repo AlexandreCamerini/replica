@@ -21,6 +21,7 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime
 
+import httpx
 import psycopg
 
 from ..db import SkipUnchanged, run, upsert
@@ -47,13 +48,16 @@ def _rows(path):
         yield from csv.DictReader(fh, delimiter=";")
 
 
-def exercise_intervals(dep_id: str, legs: set[int], parties: PartyResolver | None = None, obs: list | None = None) -> list[tuple[datetime, datetime | None]]:
+def exercise_intervals(dep_id: str, legs: set[int], parties: PartyResolver | None = None, obs: list | None = None) -> list[tuple[datetime, datetime | None]] | None:
     """Intervalos [início, fim) em que o deputado esteve 'Exercício' nas legislaturas pedidas, pelo /historico.
     Se `obs` vier, acrescenta (dep_id, party_id, data, chave) de cada registro com partido (todas as legislaturas)."""
     try:
         hist = fetch_json(f"{API}/deputados/{dep_id}/historico", max_age=WEEK)["dados"]
     except FileNotFoundError:
         return []
+    except httpx.HTTPError as e:
+        log.warning("deputado %s: /historico indisponível (%s); presença dele fica fora desta carga (não infla nem zera)", dep_id, e)
+        return None
     hist = sorted(hist, key=lambda h: h.get("dataHora") or "")
     if obs is not None and parties is not None:
         for h in hist:
@@ -123,6 +127,8 @@ def run_presenca(conn: psycopg.Connection, *, years: list[int], force: bool) -> 
                 deps = set().union(*present.values()) if present else set()
                 for leg in legs:
                     deps.update(roster(leg))
+                unknown = {d for d in deps if d not in ext}  # fora do diretório: sem crachá, não busca histórico nem grava
+                deps -= unknown
                 for d in deps:
                     if d not in intervals_cache:
                         intervals_cache[d] = exercise_intervals(d, set(LEG_START), parties, party_obs)
@@ -132,18 +138,16 @@ def run_presenca(conn: psycopg.Connection, *, years: list[int], force: bool) -> 
                                   [(body, "deliberativa", True, "encerrada", ts, f"https://www.camara.leg.br/evento-legislativo/{k}", k) for k, ts in sess.items()],
                                   ["body_id", "source_key"], update=["kind", "is_deliberative", "starts_at"], returning=["id", "source_key"]):
                     sess_id[row["source_key"]] = str(row["id"])
-                rows, unknown = [], set()
+                rows = []
                 for k, ts in sess.items():
                     for d in deps:
+                        if intervals_cache.get(d) is None:
+                            continue
                         here = d in present[k]
-                        in_ex = any(a <= ts and (b is None or ts < b) for a, b in intervals_cache.get(d, []))
+                        in_ex = any(a <= ts and (b is None or ts < b) for a, b in intervals_cache[d])
                         if not (here or in_ex):
                             continue
-                        pid = ext.get(d)
-                        if not pid:
-                            unknown.add(d)  # deputado de legislatura passada sem crachá no diretório: não cria pessoa
-                            continue
-                        rows.append((sess_id[k], pid, "presente" if here else "ausente"))
+                        rows.append((sess_id[k], ext[d], "presente" if here else "ausente"))
                 # substitui a presença do ano (a derivada de voto e a de runs anteriores) numa transação só
                 y0, y1 = datetime(year, 1, 1), datetime(year + 1, 1, 1)
                 conn.execute(

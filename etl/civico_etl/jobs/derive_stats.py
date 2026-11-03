@@ -71,6 +71,14 @@ props as (
   from proposal_authors pa join proposals p on p.id = pa.proposal_id
   group by 1, 2
 ),
+-- uma orientação por (votação, partido): rótulos diferentes do mesmo partido ('PODE' e 'Podemos', 'PR' e 'PL' em 2019)
+-- viram atores distintos e multiplicavam o voto no join (pego pelo check de carreira na carga 2019-2022)
+porient as (
+  select distinct on (po.voting_event_id, oa.party_id) po.voting_event_id, oa.party_id, po.orientation
+  from party_orientations po join orientation_actors oa on oa.id = po.actor_id
+  where oa.kind = 'partido' and oa.party_id is not null
+  order by po.voting_event_id, oa.party_id, po.orientation
+),
 vt as (
   select v.person_id, extract(year from e.occurred_at)::int as year,
          count(*) filter (where v.value <> 'nao_votou') registered,
@@ -78,8 +86,7 @@ vt as (
          count(*) filter (where v.value in ('sim','nao') and po.orientation in ('sim','nao')) alignment_total
   from votes v
   join voting_events e on e.id = v.voting_event_id
-  left join orientation_actors oa on oa.body_id = e.body_id and oa.kind = 'partido' and oa.party_id = v.party_id
-  left join party_orientations po on po.voting_event_id = e.id and po.actor_id = oa.id
+  left join porient po on po.voting_event_id = e.id and po.party_id = v.party_id
   group by 1, 2
 ),
 exp as (

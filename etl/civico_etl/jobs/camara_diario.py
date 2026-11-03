@@ -21,6 +21,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any
 
+import httpx
 import psycopg
 
 from ..db import Run, SkipUnchanged, run, upsert
@@ -44,7 +45,9 @@ VOTE = {"Sim": "sim", "Não": "nao", "Abstenção": "abstencao", "Obstrução": 
 ORIENT = {"Sim": "sim", "Não": "nao", "Liberado": "liberado", "Obstrução": "obstrucao", "Abstenção": "abstencao"}
 ACTOR_KIND = {"governo": "governo", "maioria": "maioria", "minoria": "minoria", "oposição": "oposicao", "oposicao": "oposicao"}
 LAW_TYPES = {"PL", "PLP", "PEC", "PDL", "MPV", "PLV"}
-KEEP_TYPES = LAW_TYPES | {"PRC", "REQ", "RIC", "INC", "PFC"}
+# D09: emendas entram como tipo próprio (EMC comissão, EMP plenário, EMR relator, ESB substitutiva); o original conta "pedidos e emendas"
+EMENDA_TYPES = {"EMC", "EMP", "EMR", "ESB"}
+KEEP_TYPES = LAW_TYPES | {"PRC", "REQ", "RIC", "INC", "PFC"} | EMENDA_TYPES
 
 
 def _legislature_for(d: date) -> int:
@@ -62,6 +65,8 @@ def run_camara(conn: psycopg.Connection, *, years: list[int], limit: int | None,
     leg = _legislature_for(date.today())
     ctx = _Ctx(conn)
     _deputies(conn, ctx, leg, limit, force)
+    for past in sorted({_legislature_for(date(y, 6, 1)) for y in years} - {leg}):
+        link_past_roster(conn, ctx, past)
     for y in years:
         _votes(conn, ctx, y, force)
         _proposals(conn, ctx, y, force)
@@ -83,18 +88,35 @@ class _Ctx:
             for k in r["keywords"]:
                 self.topic_by_theme[k] = str(r["id"])
         self.actors: dict[str, str] = {r["label"]: str(r["id"]) for r in conn.execute("select label, id from orientation_actors where body_id = %s", (self.body,))}
+        self.skip: set[str] = set()
+        # fatos (voto, proposta, cota) nunca criam pessoa: só _deputies cria, a partir da lista da legislatura atual (D34).
+        # Antes, voto de janeiro de 2023 (ainda legislatura 56) criava crachá para ex-deputado.
 
-    def person_for_deputy(self, dep_id: str) -> str | None:
+    def person_for_deputy(self, dep_id: str, create: bool = True) -> str | None:
+        """create=False: só casa com quem já está no diretório (id da Câmara ou ligação feita por link_past_roster); não cria crachá (D34)."""
         pid = self.people.by_external("camara", dep_id)
         if pid:
             return pid
+        if dep_id in self.skip:
+            return None
+        if not create:
+            return None  # legislatura passada: só o vínculo feito por link_past_roster (sem detalhe por deputado: a API dá 504 em ids antigos)
         try:
             d = fetch_json(f"{API}/deputados/{dep_id}", max_age=WEEK)["dados"]
         except FileNotFoundError:
             return None
-        return self.ensure(d)
+        except httpx.HTTPError as e:
+            # a API devolve 504 persistente para alguns ids antigos: sem detalhe não há como casar; pula e registra
+            log.warning("deputado %s sem detalhe na API (%s): fato ignorado nesta carga", dep_id, e)
+            self.skip.add(dep_id)
+            return None
+        try:
+            return self.ensure(d, create=create)
+        except LookupError:
+            self.skip.add(dep_id)
+            return None
 
-    def ensure(self, d: dict[str, Any]) -> str:
+    def ensure(self, d: dict[str, Any], create: bool = True) -> str | None:
         """Cria ou casa a pessoa a partir do detalhe /deputados/{id}. Devolve person_id."""
         dep_id = str(d["id"])
         st = d.get("ultimoStatus") or {}
@@ -115,12 +137,59 @@ class _Ctx:
                 (display, st.get("urlFoto"), m.person_id, display),
             )
             return m.person_id
+        if not create:
+            self.skip.add(dep_id)
+            return None
         return self.people.create(
             display_name=display, civil_name=civil, gender={"M": "m", "F": "f"}.get(d.get("sexo") or ""), birth_date=birth,
             birthplace_place_id=self.muni.get((birth_uf, fold(d.get("municipioNascimento")))) if birth_uf else None,
             education=d.get("escolaridade"), slug_hints=((st.get("siglaUf") or "").lower() or None, "deputado-federal"),
             source="camara", external_id=dep_id, photo_source_url=st.get("urlFoto"),
         )
+
+
+def link_past_roster(conn: psycopg.Connection, ctx: "_Ctx", leg: int) -> int:
+    """Liga ids da Câmara de uma legislatura passada a quem já está no diretório (D34), sem criar pessoa e sem chamar a API
+    por deputado (504 persistente em ids antigos). Fonte: arquivos/deputados/csv/deputados.csv (nome civil, nascimento,
+    legislaturas). 1º critério: nome civil + nascimento (PersonResolver, casamento único); 2º: nome eleitoral = nome de urna
+    de uma candidatura a deputado federal na eleição que formou a legislatura, só se único."""
+    f = fetch(f"{FILES}/deputados/csv/deputados.csv", max_age=WEEK)
+    start = LEGISLATURES[leg][0]
+    rows = conn.execute(
+        """select c.person_id, c.ballot_name, p.display_name from candidacies c join elections e on e.id = c.election_id
+           join contests ct on ct.id = c.contest_id join offices o on o.id = ct.office_id join people p on p.id = c.person_id
+           where o.slug = 'deputado_federal' and e.year = %s and e.kind = 'geral'""", (start.year - 1,)).fetchall()
+    key = lambda s_: re.sub(r"[^a-z0-9]", "", fold(s_))  # noqa: E731
+    by_ballot: dict[str, set[str]] = defaultdict(set)
+    for r_ in rows:
+        for n in (r_["ballot_name"], r_["display_name"]):
+            if n:
+                by_ballot[key(n)].add(str(r_["person_id"]))
+    n_birth = n_name = 0
+    with open(f.path, encoding="utf-8-sig", newline="") as fh:
+        for x in csv.DictReader(fh, delimiter=";"):
+            try:
+                lo, hi = int(x["idLegislaturaInicial"] or 0), int(x["idLegislaturaFinal"] or 0)
+            except ValueError:
+                continue
+            if not (lo <= leg <= hi):
+                continue
+            dep = x["uri"].rstrip("/").rsplit("/", 1)[-1]
+            if ctx.people.by_external("camara", dep):
+                continue
+            m = ctx.people.resolve(source="camara", external_id=dep, civil_name=titlecase_pt(x["nomeCivil"]), birth_date=parse_date(x["dataNascimento"]),
+                                   birth_uf=(x["ufNascimento"] or "").upper() or None, raw={"nome": x["nome"], "legislatura": leg})
+            if m.person_id:
+                n_birth += 1
+                continue
+            hits = by_ballot.get(key(x["nome"]), set())
+            if len(hits) == 1:
+                ctx.people.link(next(iter(hits)), "camara", dep, "name_birth_place", 0.9)
+                n_name += 1
+    ctx.people.flush()
+    conn.commit()
+    log.info("câmara legislatura %d: %d deputados ligados por nome civil + nascimento, %d por nome de urna", leg, n_birth, n_name)
+    return n_birth + n_name
 
 
 def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, force: bool) -> None:
@@ -284,7 +353,7 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
                     if not val:
                         r.reject(1, f"voto desconhecido: {v['voto']}")
                         continue
-                    pid = ctx.person_for_deputy(v["deputado_id"])
+                    pid = ctx.person_for_deputy(v["deputado_id"], create=False)
                     if not pid:
                         unknown.add(v["deputado_id"])
                         continue
@@ -413,7 +482,7 @@ def _proposals(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> N
                 if not pid:
                     continue
                 for dep, _name, order, proponente in authors[raw_id]:
-                    person = ctx.person_for_deputy(dep)
+                    person = ctx.person_for_deputy(dep, create=False)
                     if not person:
                         unknown.add(dep)
                         continue
@@ -460,7 +529,7 @@ def _expenses(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> No
                         dep = (x["ideCadastro"] or "").strip()
                         if not dep:
                             continue  # lideranças e órgãos: não são pessoa
-                        pid = ctx.person_for_deputy(dep)
+                        pid = ctx.person_for_deputy(dep, create=False)
                         if not pid:
                             unknown.add(dep)
                             continue
