@@ -67,6 +67,16 @@ COTA_REFERENCIA: dict[tuple[str, int], int] = {
     ("204534", 2024): 51_872_520, ("204534", 2025): 53_151_883,   # Tabata Amaral
     ("204536", 2024): 16_236_521, ("204536", 2025): 15_175_134,   # Kim Kataguiri
     ("209787", 2024): 41_202_602, ("209787", 2025): 46_343_464,   # Nikolas Ferreira
+    # BUG-030 / D200: deputados com "complementação do auxílio-moradia" (subcota 40), que a Câmara soma e o banco subtraía.
+    # Página camara.leg.br/deputados/{id}?ano=AAAA lida em 03/11/2026; entre parênteses, o banco antes da correção.
+    ("220616", 2024): 51_637_469,   # Luciano Vieira (PL-RJ): 516.374,69 (antes 449.993,86)
+    ("220645", 2025): 50_661_691,   # Erika Hilton (PSOL-SP): 506.616,91 (antes 444.871,49)
+    ("104552", 2024): 58_455_230,   # Socorro Neri (AC, Norte): 584.552,30 (antes 489.824,30)
+    ("180214", 2025): 62_110_520,   # Pastor Diniz (RR, Norte): 621.105,20 (antes 529.871,20)
+    ("141464", 2024): 56_585_432,   # José Airton Félix Cirilo (CE, Nordeste): 565.854,32 (antes 476.820,32)
+    ("204431", 2025): 57_080_589,   # Marcos Aurélio Sampaio (PI, Nordeste): 570.805,89 (antes 528.877,89)
+    # "passagem aérea - missão oficial" (subcota 996): mesmo sinal invertido, e a API repetia a linha sem documento
+    ("160541", 2025): 43_540_301,   # 435.403,01 (antes 249.604,71)
 }
 _COTA_VALUES = ", ".join(f"('{d}', {y}, {c})" for (d, y), c in sorted(COTA_REFERENCIA.items())) or "(null, null, null)"
 
@@ -155,6 +165,13 @@ CHECKS: list[tuple[str, str]] = [
                            and x.occurred_on >= make_date(r.year, 1, 1) and x.occurred_on < make_date(r.year + 1, 1, 1)) as banco
                  from ref r where r.dep is not null)
            select count(*) from d where abs(banco - cents) > abs(cents) * 0.005""",
+    ),
+    (
+        # BUG-030 / D200: lançamento administrativo sem documento fiscal (complementação do auxílio-moradia, missão oficial) é
+        # gasto: a Câmara publica o líquido com sinal trocado e a página soma. Estorno legítimo tem documento e outra subcota.
+        "cota: complementação do auxílio-moradia e passagem de missão oficial nunca negativas",
+        """select count(*) from expenses x join legislative_bodies b on b.id = x.body_id and b.kind = 'camara_deputados'
+           where x.amount_cents < 0 and (x.category ilike 'complementação do auxílio-moradia%' or x.category ilike 'passagem aérea - missão oficial%')""",
     ),
     (
         # BUG-020: chave por linha da fonte; o formato antigo (só ideDocumento) não pode voltar

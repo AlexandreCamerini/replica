@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from civico_etl.jobs.camara_diario import cota_api_extra, cota_keys, cota_occurred
+from civico_etl.jobs.camara_diario import cota_api_extra, cota_keys, cota_liquido, cota_occurred
 from civico_etl.jobs.checks import CHECKS, COTA_REFERENCIA
 
 # Adriana Ventura (204528), passagem SIGEPA 2025-08-27: emissão e estorno no mesmo documento
@@ -63,3 +63,48 @@ def test_amostra_de_cota_bate_com_a_camara(conn):
 
 def test_nenhuma_chave_antiga_de_cota(conn):
     assert list(conn.execute(_check("chave por linha da fonte")).fetchone().values())[0] == 0
+
+
+# BUG-030 / D200: sinal do valor líquido. Linhas reais do Ano-2024.csv.zip e do Ano-2020.csv.zip.
+def test_complementacao_do_auxilio_moradia_soma():
+    # Luciano Vieira (220616), subcota 40: vlrDocumento 4148.8, vlrGlosa vazio, vlrLiquido -4148.8
+    assert cota_liquido("4148.8", "", "-4148.8") == 414880
+    # passagem de missão oficial (subcota 996), mesmo padrão
+    assert cota_liquido("61932.8", "", "-61932.8") == 6193280
+
+
+def test_estorno_legitimo_continua_negativo():
+    # bilhete de compensação (subcota 998): documento negativo
+    assert cota_liquido("-44.48", "0", "-44.48") == -4448
+    assert cota_liquido("-3757.56", "0", "-3757.56") == -375756
+
+
+def test_liquido_publicado_vale_quando_nao_e_o_oposto_exato():
+    assert cota_liquido("6800", "3834", "-868") == -86800        # glosa maior que o líquido devido: fica como a fonte
+    assert cota_liquido("624.10", "0", "624.10") == 62410
+    assert cota_liquido("104.68", "104.68", "0") == 0            # telefonia coberta pela franquia
+    assert cota_liquido("10", "", "") is None                    # sem líquido: rejeitada como antes
+
+
+def test_api_sem_documento_casa_com_linha_do_arquivo_sem_documento():
+    # 160541/2025: o arquivo grava a missão oficial com doc "-" e +61932.80; a API traz codDocumento null e -61932.8
+    arquivo = [("-", 6193280)]
+    api = [{"codDocumento": None, "valorDocumento": 61932.8, "valorGlosa": None, "valorLiquido": -61932.8}]
+    assert cota_api_extra(arquivo, api) == []
+
+
+def test_referencia_tem_casos_com_complementacao():
+    assert COTA_REFERENCIA[("220616", 2024)] == 51_637_469  # Luciano Vieira: 516.374,69 na página da Câmara
+    for k in [("220616", 2024), ("104552", 2024), ("180214", 2025), ("141464", 2024), ("204431", 2025)]:
+        assert k in COTA_REFERENCIA
+
+
+def test_nenhuma_complementacao_negativa_no_banco(conn):
+    assert list(conn.execute(_check("nunca negativas")).fetchone().values())[0] == 0
+
+
+def test_luciano_vieira_2024_bate_com_a_pagina(conn):
+    row = conn.execute(
+        """select sum(x.amount_cents) as s from expenses x where x.source_key ~ '^cota(api)?2024:220616:'"""
+    ).fetchone()
+    assert abs(row["s"] - 51_637_469) <= 100  # R$ 1 de tolerância (hoje: -0,03)

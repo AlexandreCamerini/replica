@@ -551,6 +551,27 @@ def cota_occurred(dat_emissao: str | None, ano: str | int | None, mes: str | int
     return date(a, m, 1)
 
 
+def cota_liquido(vlr_documento: Any, vlr_glosa: Any, vlr_liquido: Any) -> int | None:
+    """Valor debitado da cota, em centavos (BUG-030 / D200).
+
+    O dicionário de dados da Câmara (dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html) define
+    `vlrLiquido = vlrDocumento - vlrGlosa`, e estorno legítimo (bilhete de compensação) vem com `vlrDocumento` negativo.
+    As linhas de lançamento administrativo sem documento fiscal ("COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA", subcota 40, e
+    "PASSAGEM AÉREA - MISSÃO OFICIAL", subcota 996) vêm com `vlrDocumento` positivo, sem glosa e `vlrLiquido` = -vlrDocumento:
+    o sinal contradiz a própria definição, e a página camara.leg.br/deputados/{id}?ano= soma o valor. Regra: quando o líquido
+    publicado é exatamente o oposto de (documento - glosa) e esse resultado é positivo, vale (documento - glosa). Estorno
+    (documento negativo) e líquido negativo por glosa maior que o documento ficam como a fonte publica.
+    """
+    liq = cents(vlr_liquido)
+    doc = cents(vlr_documento)
+    if liq is None or doc is None:
+        return liq
+    devido = doc - (cents(vlr_glosa) or 0)
+    if devido > 0 and liq == -devido:
+        return devido
+    return liq
+
+
 def cota_keys(rows: list[tuple[str, str, tuple]], prefix: str) -> list[str]:
     """(deputado, documento, campos) -> chave estável por linha: prefixo:dep:doc:hash[#n]. n conta só linhas idênticas nos campos."""
     seen: dict[str, int] = defaultdict(int)
@@ -563,15 +584,29 @@ def cota_keys(rows: list[tuple[str, str, tuple]], prefix: str) -> list[str]:
     return out
 
 
+def _cota_doc(doc: Any) -> str:
+    d = "" if doc is None else str(doc).strip()
+    return "" if d == "-" else d
+
+
+def cota_api_liquido(x: dict) -> int | None:
+    """Mesma regra de `cota_liquido` para um item da API /deputados/{id}/despesas."""
+    return cota_liquido(x.get("valorDocumento"), x.get("valorGlosa"), x.get("valorLiquido"))
+
+
 def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> list[dict]:
     """Linhas da API que o arquivo não tem: diferença de multiconjunto por (documento, valor líquido em centavos).
-    Linhas do arquivo que a API não tem (telefonia sem documento) ficam: o arquivo é a fonte principal."""
+    Linhas do arquivo que a API não tem (telefonia sem documento) ficam: o arquivo é a fonte principal.
+
+    Documento vazio: o arquivo traz `ideDocumento` vazio (gravado como "-" na chave) e a API traz `codDocumento` null; os dois
+    são o mesmo "sem documento" (BUG-030: a passagem de missão oficial entrava duas vezes). O valor da API passa pela mesma
+    regra de sinal do arquivo (`cota_liquido`)."""
     left: dict[tuple[str, int], int] = defaultdict(int)
     for doc, amount in file_rows:
-        left[(str(doc), amount)] += 1
+        left[(_cota_doc(doc), amount)] += 1
     extra = []
     for x in api_rows:
-        k = (str(x.get("codDocumento") or ""), cents(x.get("valorLiquido")) or 0)
+        k = (_cota_doc(x.get("codDocumento")), cota_api_liquido(x) or 0)
         if left.get(k, 0) > 0:
             left[k] -= 1
         else:
@@ -627,7 +662,7 @@ def _expenses(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> No
                         if not pid:
                             unknown.add(dep)
                             continue
-                        amount = cents(x["vlrLiquido"])
+                        amount = cota_liquido(x["vlrDocumento"], x["vlrGlosa"], x["vlrLiquido"])
                         occurred = cota_occurred(x["datEmissao"], x["numAno"], x["numMes"])
                         if amount is None or not occurred:
                             r.reject(1)
@@ -683,7 +718,7 @@ def _expenses_api(conn: psycopg.Connection, ctx: _Ctx, year: int) -> None:
                     log.warning("cota pela API: deputado %s %d sem resposta (%s)", dep, year, e)
                     continue
                 for x in cota_api_extra(file_rows.get(dep, []), items):
-                    amount = cents(x.get("valorLiquido"))
+                    amount = cota_api_liquido(x)
                     occurred = cota_occurred(x.get("dataDocumento"), x.get("ano"), x.get("mes"))
                     if amount is None or not occurred:
                         r.reject(1)
