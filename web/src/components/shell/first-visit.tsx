@@ -10,7 +10,7 @@ const ENTRY = /^\/(representantes)?$/;
 
 const seen = () => document.cookie.split("; ").some((c) => c === `${COOKIE}=1`);
 const remember = () => {
-  document.cookie = `${COOKIE}=1; Max-Age=31536000; Path=/; SameSite=Lax`;
+  document.cookie = `${COOKIE}=1; Max-Age=31536000; Path=/; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
 };
 
 /**
@@ -46,8 +46,18 @@ export function FirstVisit() {
         }
       }}
       onStart={() => {
-        if (path !== "/representantes") router.push("/representantes");
-        else requestAnimationFrame(() => document.querySelector<HTMLInputElement>("input[role=combobox]")?.focus());
+        // depois do close(): o modal devolve o foco ao que estava antes, e isso vence um foco dado cedo demais
+        const focusCity = () => document.querySelector<HTMLInputElement>("main input[role=combobox]")?.focus();
+        if (path !== "/representantes") {
+          router.push("/representantes");
+          const t = setInterval(() => {
+            if (document.querySelector("main input[role=combobox]")) {
+              clearInterval(t);
+              setTimeout(focusCity, 50);
+            }
+          }, 100);
+          setTimeout(() => clearInterval(t), 5000);
+        } else setTimeout(focusCity, 50);
       }}
     />
   );

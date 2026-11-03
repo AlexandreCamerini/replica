@@ -45,6 +45,8 @@ test.describe("W1a · onboarding na 1ª visita", () => {
     await dialog(page).getByRole("button", { name: "Achar minha cidade" }).click();
     await expect(page).toHaveURL(/\/representantes$/);
     await expect(dialog(page)).toBeHidden();
+    // o foco vai para o campo de cidade da página, não para a busca global do header
+    await expect(page.locator("main input[role=combobox]")).toBeFocused();
   });
 
   test("ONB-E1 link direto para um crachá não recebe o modal", async ({ page }) => {
