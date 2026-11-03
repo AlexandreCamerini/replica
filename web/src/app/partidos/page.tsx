@@ -7,7 +7,7 @@ import { count } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Partidos",
-  description: "Partidos em ordem alfabética, com número, cadeiras hoje na Câmara e no Senado e quanto votaram com a orientação do governo.",
+  description: "Partidos em ordem alfabética, com número, cadeiras hoje na Câmara e no Senado e em quantas votações a orientação do partido coincidiu com a do governo.",
 };
 export const dynamic = "force-dynamic";
 
@@ -28,12 +28,12 @@ export default async function Page() {
     <Container>
       <PageHeader
         title="Partidos"
-        lead="Os partidos que têm gente em mandato hoje, em ordem alfabética. Mostramos o número, as cadeiras na Câmara e no Senado e quantas vezes votaram como o governo pediu. Não ordenamos, não pontuamos e não classificamos em esquerda ou direita."
+        lead="Os partidos que têm gente em mandato hoje, em ordem alfabética. Mostramos o número, as cadeiras na Câmara e no Senado e, por governo, em quantas votações a orientação do partido foi igual à do governo. Isso descreve uma coincidência de orientações, não qualidade nem posição política. Não ordenamos, não pontuamos e não classificamos em esquerda ou direita."
       />
 
       <TableRegion label="Partidos em ordem alfabética">
         <table className="w-full min-w-[46rem] border-collapse text-left text-sm" data-testid="partidos">
-          <caption className="sr-only">Partidos com número, cadeiras e coincidência com a orientação do governo</caption>
+          <caption className="sr-only">Partidos com número, cadeiras e votações em que a orientação do partido coincidiu com a do governo (sem ordem e sem nota)</caption>
           <thead className="bg-surface-sunken text-xs text-muted">
             <tr>
               <th scope="col" className="px-3 py-2 font-semibold">Partido</th>
@@ -79,6 +79,9 @@ export default async function Page() {
           </tbody>
         </table>
       </TableRegion>
+      <p className="mt-2 text-xs text-muted" data-testid="criterio">
+        Colunas de governo: votações nominais da Câmara em que o governo e o partido orientaram “sim” ou “não”; mostramos em quantas a orientação foi a mesma. Só a partir de {MIN_VOTINGS} votações; antes disso, “—” com o motivo. A tabela é fixa em ordem alfabética e esta coluna não ordena nem pinta nada.
+      </p>
       <p className="mt-2 text-xs text-muted" data-testid="soma">
         Cadeiras somadas: {count(sumC)} de {count(camara.length)} deputados em exercício e {count(sumS)} de {count(senado.length)} senadores.
         {semC > 0 && ` ${count(semC)} ${semC === 1 ? "deputado sem partido vigente na fonte" : "deputados sem partido vigente na fonte"}.`}
@@ -86,10 +89,13 @@ export default async function Page() {
       </p>
 
       <section className="mt-8 grid gap-4 md:grid-cols-2">
-        <Notice title="Como lemos “votou com o governo”" id="alinhamento">
+        <Notice title="Como lemos “orientação igual à do governo”" id="alinhamento">
           <p>
             Pegamos as votações nominais da Câmara em que o governo e o partido deram orientação “sim” ou “não” (liberar, obstruir e ausência ficam de fora). Contamos
             em quantas as duas orientações foram iguais e dividimos pelo total. É o que o partido <em>orientou</em>, não como cada deputado votou.
+          </p>
+          <p>
+            Coincidir com o governo não diz se o partido está certo, na base ou na oposição: um partido pode concordar com um governo em muitas votações e discordar nas que mais importam. O número não é nota nem posição política, e a coluna não define a ordem da tabela.
           </p>
           <p>
             Os governos são separados pela data da votação (antes de 2023, Bolsonaro; de 2023 em diante, Lula) e nunca somados. A Câmara só traz orientação do governo
