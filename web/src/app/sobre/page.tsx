@@ -32,9 +32,9 @@ function Section({ id, title, children }: { id: string; title: string; children:
 }
 
 const OFFICIAL = [
-  { name: "Câmara dos Deputados · Dados Abertos", href: "https://dadosabertos.camara.leg.br/", brings: "deputados, votações nominais, orientações, proposições, cota parlamentar" },
-  { name: "Senado Federal · Dados Abertos", href: "https://www12.senado.leg.br/dados-abertos", brings: "senadores, votações abertas" },
-  { name: "TSE · Dados Abertos", href: "https://dadosabertos.tse.jus.br/", brings: "candidaturas e eleitos, bens declarados, votos, prestação de contas" },
+  { name: "Câmara dos Deputados · Dados Abertos", href: "https://dadosabertos.camara.leg.br/", brings: "deputados, lista de presença das sessões, votações nominais e orientações, proposições com autoria e tema, cota parlamentar, equipe de gabinete (nome e nível, sem salário)" },
+  { name: "Senado Federal · Dados Abertos", href: "https://www12.senado.leg.br/dados-abertos", brings: "senadores (em exercício e afastados) e votações nominais, abertas e secretas" },
+  { name: "TSE · Dados Abertos", href: "https://dadosabertos.tse.jus.br/", brings: "candidaturas e eleitos, bens declarados, votos por candidato e por município, receitas e despesas de campanha somadas por categoria (nunca o nome de quem doou)" },
   { name: "IBGE · Localidades e malhas", href: "https://servicodados.ibge.gov.br/api/docs/localidades", brings: "regiões, estados, municípios e seus contornos" },
 ];
 
@@ -52,7 +52,7 @@ export default function Page() {
         title="Metodologia e fontes"
         lead="O que este site mostra, de onde vem cada número, como ele é contado e o que fazemos quando alguém discorda."
       />
-      <div className="grid gap-8 lg:grid-cols-[14rem_1fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[14rem_1fr]">
         <nav aria-label="Neste texto" className="lg:sticky lg:top-32 lg:self-start">
           <ul className="flex flex-wrap gap-2 lg:flex-col lg:gap-1">
             {TOC.map((t) => (
@@ -127,32 +127,23 @@ export default function Page() {
 
           <Section id="presenca" title="Como contamos a presença">
             <p>
-              Nenhuma das duas casas publica uma “lista de chamada” pronta no formato aberto. Calculamos a presença a partir das
-              votações nominais do Plenário.
-            </p>
-            <ul className="ml-5 flex list-disc flex-col gap-1.5">
-              <li>
-                <strong>Sessão</strong> é cada evento do Plenário em que houve votação nominal.
-              </li>
-              <li>
-                <strong>Presente</strong> é quem registrou voto naquela votação, inclusive abstenção, obstrução e o artigo 17.
-              </li>
-              <li>
-                <strong>Ausente</strong> é quem tinha mandato em exercício e não registrou voto.
-              </li>
-              <li>
-                <strong>Fora do exercício</strong> é o período em que o mandato não estava em exercício (licença, por exemplo). As
-                casas não publicam o histórico completo de licenças, então este recorte é uma aproximação, e dizemos isso no bloco.
-              </li>
-            </ul>
-            <p>
-              Votação secreta ou sem registro nominal não entra na conta. No Senado, a API por senador marca como secretas muitas
-              votações que são abertas; por isso só contamos as que a casa publica como abertas, e a presença do Senado pode
-              aparecer como “—” com o motivo.
+              <strong>Câmara dos Deputados.</strong> Usamos a lista oficial de presença das sessões deliberativas do Plenário. Cada
+              sessão encerrada é uma sessão; quem estava em exercício na hora e consta da lista está presente; quem estava em
+              exercício e não consta está ausente. Os períodos de exercício vêm do histórico do próprio deputado, então licença e
+              suplência não viram falta.
             </p>
             <p>
-              Votar na linha da orientação do partido considera só votações em que o partido orientou “sim” ou “não”, na data do
-              voto.
+              A fonte aberta não diz o motivo da ausência. Por isso uma ausência justificada conta como ausência, e o bloco
+              avisa isso. É uma contagem de presença em sessão, não de produtividade.
+            </p>
+            <p>
+              <strong>Senado Federal.</strong> O Senado não publica lista de presença por senador em formato aberto. Nós não a
+              estimamos a partir dos votos: a presença do Senado aparece como “—”, com o motivo, até que a fonte exista. As
+              votações nominais, abertas ou secretas, vêm do Senado; nas secretas o evento aparece sem o voto de cada um.
+            </p>
+            <p>
+              <strong>Votos e orientação.</strong> “Votou com a orientação do partido” considera só as votações em que o partido
+              orientou “sim” ou “não”, na data do voto. Descreve o voto; não o avalia.
             </p>
           </Section>
 
@@ -213,9 +204,13 @@ export default function Page() {
                 conta e tudo que ela guarda em uma tela.
               </li>
               <li>
-                Mensagens enviadas em “Sugerir ou corrigir” guardam nome e e-mail apenas para responder, e esses dois campos são
-                apagados 12 meses depois que a mensagem é resolvida. Para limitar abuso, guardamos um resumo irreversível do seu
-                endereço de rede por algumas horas.
+                Mensagens enviadas em “Sugerir ou corrigir” e em “Direito de resposta” guardam nome, e-mail, texto, data e a página
+                a que se referem. O e-mail serve só para responder. A política é apagar nome e e-mail 12 meses depois que a
+                mensagem é resolvida; essa limpeza <em>ainda não é automática</em> e será ligada antes da publicação.
+              </li>
+              <li>
+                Para limitar abuso, cada envio guarda um resumo irreversível do endereço de rede (com sal diário). Ele serve para
+                contar quantos envios vieram do mesmo lugar na última hora e fica na linha da mensagem enquanto ela existir.
               </li>
               <li>
                 Usamos um cookie de sessão (quando você entra) e lembretes no seu navegador: tema claro ou escuro e se você já viu a

@@ -5,13 +5,13 @@ export type SourceMeta = { brings: string; cadence: string; maxAgeHours: number 
 
 export const SOURCE_META: Record<string, SourceMeta> = {
   camara: {
-    brings: "deputados federais e seus mandatos, votações nominais e orientações, proposições com autoria e tema, cota parlamentar, comissões, discursos",
+    brings: "deputados federais e seus mandatos, lista de presença das sessões, votações nominais e orientações, proposições com autoria e tema, cota parlamentar, comissões, discursos, equipe de gabinete (nome e nível)",
     cadence: "todo dia",
     maxAgeHours: 36,
   },
-  senado: { brings: "senadores (em exercício e afastados da legislatura) e votações abertas", cadence: "todo dia", maxAgeHours: 36 },
+  senado: { brings: "senadores (em exercício e afastados da legislatura) e votações nominais, abertas e secretas", cadence: "todo dia", maxAgeHours: 36 },
   tse: {
-    brings: "candidaturas e eleitos (2022, 2024, 2026), bens declarados, votos por candidato, receitas e despesas de campanha",
+    brings: "candidaturas e eleitos, bens declarados, votos por candidato e por município, receitas e despesas de campanha somadas por categoria (sem nome de doador)",
     cadence: "a cada divulgação do TSE; conferimos uma vez por mês",
     maxAgeHours: 60 * 24,
   },
