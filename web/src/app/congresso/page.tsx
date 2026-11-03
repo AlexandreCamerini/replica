@@ -18,7 +18,7 @@ const HOUSES: { id: Body; label: string; plenary: string }[] = [
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
   const body: Body = sp.casa === "senado" ? "senado" : "camara";
-  const tab = sp.aba === "leis" ? "leis" : "votacoes";
+  const tab = sp.aba === "leis" ? "leis" : sp.aba === "agenda" ? "agenda" : "votacoes";
   const house = HOUSES.find((h) => h.id === body)!;
   const shown = Math.min(Math.max(Number(sp.n) || STEP, STEP), 300);
   const result = sp.resultado === "aprovado" || sp.resultado === "rejeitado" ? sp.resultado : undefined;
@@ -54,6 +54,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             </LinkChip>
           </li>
           <li>
+            <LinkChip href={hrefWith(base, {}, { casa: body === "senado" ? "senado" : undefined, aba: "agenda" })} active={tab === "agenda"}>
+              Agenda
+            </LinkChip>
+          </li>
+          <li>
             <LinkChip href={hrefWith(base, {}, { casa: body === "senado" ? "senado" : undefined, aba: "leis" })} active={tab === "leis"}>
               O que virou lei
             </LinkChip>
@@ -65,7 +70,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         <ul className="flex gap-2">
           {HOUSES.map((h) => (
             <li key={h.id}>
-              <LinkChip href={hrefWith(base, {}, { casa: h.id === "senado" ? "senado" : undefined, aba: tab === "leis" ? "leis" : undefined })} active={h.id === body}>
+              <LinkChip href={hrefWith(base, {}, { casa: h.id === "senado" ? "senado" : undefined, aba: tab === "leis" ? "leis" : tab === "agenda" ? "agenda" : undefined })} active={h.id === body}>
                 {h.label}
               </LinkChip>
             </li>
@@ -88,6 +93,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 
         {tab === "leis" ? (
           <LawsPanel sp={sp} />
+        ) : tab === "agenda" ? (
+          <AgendaPanel sp={sp} body={body} />
         ) : (
         <section aria-labelledby="votacoes-h" className="rounded-md border border-border bg-surface p-4 md:p-6">
           <h2 id="votacoes-h" className="flex flex-wrap items-baseline gap-x-2 text-xl text-fg">
@@ -151,12 +158,113 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       <div className="mt-8">
         <MissingDataNote
           items={[
-            { what: "Agenda e pauta do plenário", why: "a carga da agenda da Câmara e do Senado entra na próxima fase" },
-            { what: "Sessão ao vivo", why: "depende da agenda; até lá, as votações aparecem quando a casa publica o resultado" },
+            { what: "Sessão ao vivo", why: "a agenda mostra o que está marcado, não o que está acontecendo; as votações aparecem quando a casa publica o resultado" },
           ]}
         />
       </div>
     </Container>
+  );
+}
+
+const BRT = "America/Sao_Paulo";
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: BRT });
+const dayKey = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: BRT });
+const dayLabel = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: BRT });
+const HOUSE_LABEL = { camara: "Câmara dos Deputados", senado: "Senado Federal", congresso: "Congresso Nacional" } as const;
+
+/** Aba "agenda": próximas sessões do Plenário e a pauta de cada uma. Fonte: `agenda_events`/`agenda_items` (D125), carimbo `agenda.<casa>`. */
+async function AgendaPanel({ sp, body }: { sp: Params; body: Body }) {
+  const shown = Math.min(Math.max(Number(sp.na) || 10, 10), 50);
+  const view = await data.getAgenda({ body, limit: shown });
+  const keep: Params = { aba: "agenda", casa: body === "senado" ? "senado" : undefined };
+  const days: { key: string; at: string; events: typeof view.events }[] = [];
+  for (const e of view.events) {
+    const k = dayKey(e.startsAt);
+    const last = days[days.length - 1];
+    if (last?.key === k) last.events.push(e);
+    else days.push({ key: k, at: e.startsAt, events: [e] });
+  }
+  return (
+    <section aria-labelledby="agenda-h" className="rounded-md border border-border bg-surface p-4 md:p-6" data-testid="agenda">
+      <h2 id="agenda-h" className="flex flex-wrap items-baseline gap-x-2 text-xl text-fg">
+        Próximas sessões
+        <span className="text-base font-normal tabular text-muted">{count(view.total)}</span>
+      </h2>
+      <p className="mt-1 mb-4 text-sm text-muted">
+        Sessões do Plenário {body === "senado" ? "do Senado Federal e do Congresso Nacional" : "da Câmara dos Deputados"} já marcadas, a partir de hoje, com a pauta que a casa publicou. Horário de Brasília. A pauta
+        pode mudar até a sessão e a situação é escrita como a casa informa.
+      </p>
+      {view.events.length === 0 ? (
+        <p className="rounded-sm bg-surface-sunken px-4 py-6 text-center text-sm text-muted" data-testid="agenda-vazia">
+          Nenhuma sessão marcada a partir de hoje nos dados carregados. Isso não quer dizer que a casa não terá sessão: a agenda só aparece depois que a casa a publica.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {days.map((d) => (
+            <div key={d.key}>
+              <h3 className="mb-2 text-sm font-semibold capitalize text-muted">{dayLabel(d.at)}</h3>
+              <ol className="flex flex-col divide-y divide-border">
+                {d.events.map((e) => (
+                  <li key={e.id} className="flex flex-col gap-2 py-3" data-testid="agenda-evento">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                      <time dateTime={e.startsAt} className="font-semibold tabular text-fg">{hhmm(e.startsAt)}</time>
+                      <span className="rounded-pill bg-surface-sunken px-2 py-0.5 font-semibold text-fg">{e.kind}</span>
+                      <span>{e.status}</span>
+                      {e.house === "congresso" && <span>{HOUSE_LABEL.congresso}</span>}
+                      {e.location && <span>{e.location}</span>}
+                    </div>
+                    {e.title && <p className="text-sm text-fg">{e.title}</p>}
+                    {e.items.length === 0 ? (
+                      <p className="text-sm text-muted">
+                        <span aria-hidden>—</span> <span>Pauta não publicada pela casa para esta sessão.</span>
+                      </p>
+                    ) : (
+                      <ol className="flex flex-col gap-2 rounded-sm bg-surface-sunken px-3 py-2" aria-label="Pauta">
+                        {e.items.map((i) => (
+                          <li key={i.position} className="text-sm text-fg">
+                            <span className="font-semibold">
+                              {i.position}. {i.label ?? i.title}
+                            </span>
+                            {i.summary ? `: ${i.summary.length > 220 ? `${i.summary.slice(0, 220)}…` : i.summary}` : i.label && i.title !== i.label ? `: ${i.title}` : ""}
+                            <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                              {i.regime && <span>{i.regime}</span>}
+                              {i.rapporteur && <span>Relator: {i.rapporteur}</span>}
+                              {i.outcome && <span>{i.outcome}</span>}
+                              {i.votingEventId && (
+                                <Link href={`/votacoes/${i.votingEventId}`} className="font-semibold text-accent-text underline underline-offset-2">
+                                  ver a votação
+                                </Link>
+                              )}
+                              {i.proposalUrl && (
+                                <a href={i.proposalUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent-text underline underline-offset-2">
+                                  proposta no site oficial<span className="sr-only"> (abre em nova aba)</span>
+                                </a>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                        {e.itemsTotal > e.items.length && <li className="text-xs text-muted">e mais {count(e.itemsTotal - e.items.length)} itens na pauta oficial.</li>}
+                      </ol>
+                    )}
+                    {e.officialUrl && (
+                      <a href={e.officialUrl} target="_blank" rel="noopener noreferrer" className="w-fit text-xs font-semibold text-accent-text underline underline-offset-2">
+                        sessão no site oficial<span className="sr-only"> (abre em nova aba)</span>
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+      )}
+      <MoreLink href={hrefWith("/congresso", keep, { na: String(shown + 10) }, "agenda-h")} remaining={view.total - view.events.length} />
+      {view.source ? (
+        <SourceFooter source={view.source.name} href={view.source.url} updatedAt={view.source.refreshedAt} />
+      ) : (
+        <p className="mt-4 text-xs text-muted">Fonte: dados abertos {body === "senado" ? "do Senado Federal" : "da Câmara dos Deputados"}. Data da última leitura: — (a agenda ainda não foi carregada).</p>
+      )}
+    </section>
   );
 }
 

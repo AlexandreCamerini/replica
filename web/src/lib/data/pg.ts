@@ -39,6 +39,9 @@ import type {
   CommitteeItem,
   ContactItem,
   LawItem,
+  AgendaEvent,
+  AgendaItem,
+  AgendaView,
   LawListItem,
   SpeechItem,
 } from "./types";
@@ -898,6 +901,64 @@ export const pgSource: DataSource = {
       where pa.person_id = ${personId}::uuid and pa.role in ('principal','coautoria')
       order by l.sanctioned_on desc`;
     return rows.map<LawItem>((r) => ({ number: String(r.number), sanctionedOn: iso(r.sanctioned_on), summary: String(r.summary), url: (r.url as string | null) ?? null, proposal: String(r.proposal), role: r.role === "principal" ? "autor" : "coautor" }));
+  },
+  async getAgenda(f) {
+    const limit = Math.min(f.limit ?? 10, 50);
+    const kind = f.body === "senado" ? "senado" : "camara_deputados";
+    const from = sql`from agenda_events e join legislative_bodies b on b.id = e.body_id and b.kind = ${kind}
+      where e.starts_at >= (date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo')`;
+    const [{ n }] = await sql`select count(*)::int as n ${from}`;
+    const evs = await sql`select e.id, e.house, e.starts_at, e.kind, e.title, e.status, e.location, e.official_url ${from} order by e.starts_at, e.id limit ${limit}`;
+    const ids = evs.map((e) => String(e.id));
+    const items = ids.length
+      ? await sql`
+          select i.agenda_event_id, i.position, i.proposal_type, i.proposal_number, i.proposal_year, i.title, i.summary, i.regime, i.rapporteur, i.outcome_text,
+                 pr.url as proposal_url,
+                 (select ve.id from voting_events ve where ve.proposal_id = i.proposal_id and ve.is_nominal order by ve.occurred_at desc limit 1) as voting_event_id
+          from agenda_items i left join proposals pr on pr.id = i.proposal_id
+          where i.agenda_event_id = any(${ids}::bigint[]) order by i.agenda_event_id, i.position`
+      : [];
+    const by = new Map<string, AgendaItem[]>();
+    for (const r of items) {
+      const arr = by.get(String(r.agenda_event_id)) ?? [];
+      const clean = (v: unknown) => {
+        const t = typeof v === "string" ? v.trim() : "";
+        return t && t !== "-" ? t : null;
+      };
+      arr.push({
+        position: Number(r.position),
+        label: r.proposal_type && r.proposal_number ? `${r.proposal_type} ${r.proposal_number}/${r.proposal_year}` : null,
+        title: String(r.title),
+        summary: clean(r.summary),
+        regime: clean(r.regime),
+        rapporteur: clean(r.rapporteur),
+        outcome: clean(r.outcome_text),
+        proposalUrl: typeof r.proposal_url === "string" && /^https?:\/\//.test(r.proposal_url) ? r.proposal_url : null,
+        votingEventId: r.voting_event_id ? String(r.voting_event_id) : null,
+      });
+      by.set(String(r.agenda_event_id), arr);
+    }
+    const events = evs.map<AgendaEvent>((e) => {
+      const all = by.get(String(e.id)) ?? [];
+      const url = typeof e.official_url === "string" && /^https?:\/\//.test(e.official_url) ? e.official_url : null;
+      return {
+        id: String(e.id),
+        house: e.house as AgendaEvent["house"],
+        startsAt: isoTs(e.starts_at),
+        kind: String(e.kind),
+        title: (e.title as string | null)?.trim() || null,
+        status: String(e.status),
+        location: (e.location as string | null)?.trim() || null,
+        officialUrl: url,
+        items: all.slice(0, 40),
+        itemsTotal: all.length,
+      };
+    });
+    const [st] = await sql`
+      select s.name, s.url, max(ds.refreshed_at) as at
+      from dataset_stamps ds join sources s on s.id = ds.source_id
+      where ds.dataset like ${(f.body === "senado" ? "agenda.senado" : "agenda.camara") + ".%"} group by s.name, s.url order by max(ds.refreshed_at) desc limit 1`;
+    return { events, total: Number(n), source: st ? { name: String(st.name), url: String(st.url), refreshedAt: isoTs(st.at) } : null } satisfies AgendaView;
   },
   async listLaws(f) {
     const limit = Math.min(f.limit ?? 30, 200);

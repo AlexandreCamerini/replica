@@ -216,6 +216,32 @@ export type ActivityItem = {
 
 export type LawItem = { number: string; sanctionedOn: string; summary: string; url: string | null; proposal: string; role: "autor" | "coautor" };
 /** S09 aba "virou lei": norma publicada + a proposta de origem e os autores principais que têm crachá. */
+/** S09 aba "agenda": sessões do Plenário já marcadas (`agenda_events`) e a pauta de cada uma (`agenda_items`). Texto de situação e regime como a fonte escreve. */
+export type AgendaItem = {
+  position: number;
+  label: string | null; // "PL 6461/2019"
+  title: string;
+  summary: string | null;
+  regime: string | null;
+  rapporteur: string | null;
+  outcome: string | null;
+  proposalUrl: string | null; // página oficial da proposta, só se a proposta está carregada
+  votingEventId: string | null; // votação nominal da mesma proposta, se houver
+};
+export type AgendaEvent = {
+  id: string;
+  house: "camara" | "senado" | "congresso";
+  startsAt: string; // ISO com fuso
+  kind: string;
+  title: string | null;
+  status: string;
+  location: string | null;
+  officialUrl: string | null;
+  items: AgendaItem[];
+  itemsTotal: number;
+};
+export type AgendaView = { events: AgendaEvent[]; total: number; source: { name: string; url: string; refreshedAt: string } | null };
+
 export type LawListItem = { number: string; sanctionedOn: string; summary: string; url: string | null; proposal: string | null; proposalUrl: string | null; authors: { slug: string; name: string }[]; moreAuthors: number };
 export type CommitteeItem = { acronym: string | null; name: string; role: string; from: string; to: string | null; body: Body };
 export type SpeechItem = { id: string; occurredAt: string; summary: string | null; url: string | null };
@@ -343,6 +369,8 @@ export interface DataSource extends DataSourceW4 {
   getLaws(personId: string): Promise<LawItem[]>;
   /** Leis federais por data de publicação (mais recente primeiro). */
   listLaws(f: { year?: number; cursor?: string; limit?: number }): Promise<Page<LawListItem> & { years: number[] }>;
+  /** Próximas sessões do Plenário (a partir de hoje, horário de Brasília) e a pauta. `casa` senado inclui o Congresso Nacional. */
+  getAgenda(f: { body: Body; limit?: number }): Promise<AgendaView>;
   getCommittees(personId: string): Promise<CommitteeItem[]>;
   listSpeeches(personId: string, f: { year?: number; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
   getContacts(personId: string): Promise<ContactItem[]>;
