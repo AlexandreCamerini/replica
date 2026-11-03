@@ -130,13 +130,14 @@ function mandate(r: Row): Mandate {
     startedOn: iso(r.started_on),
     endsOn: iso(r.ends_on),
     statusSource: String(r.status_source),
+    electedBy: (r.elected_by as string | null) ?? null,
   };
 }
 
 // partido mostrado = filiação atual (person_current_party) ou, na falta, o partido na posse
 const HOLDER_SELECT = sql`
   select p.id, p.slug, p.display_name, p.civil_name, p.gender, p.birth_date, p.education, b.ibge_code as birthplace_ibge,
-         m.id as mandate_id, o.slug as office, o.name_m, o.name_f, o.level, m.status, m.started_on, m.ends_on, m.status_source,
+         m.id as mandate_id, o.slug as office, o.name_m, o.name_f, o.level, m.status, m.started_on, m.ends_on, m.status_source, m.elected_by,
          pl.ibge_code as place_ibge, pl.name as place_name, pl.kind as place_kind, pl.uf as place_uf,
          coalesce(cp.party_id, m.party_id) as party_id, pa.acronym as party_acronym, pa.name as party_name
   from mandates m
@@ -281,7 +282,7 @@ export const pgSource: DataSource = {
   },
   async getMandates(personId) {
     const rows = await sql`${HOLDER_SELECT} where p.id = ${personId}::uuid
-      order by case m.status when 'em_exercicio' then 0 when 'eleito_aguardando_posse' then 1 when 'licenciado' then 2 else 3 end, m.started_on desc`;
+      order by case m.status when 'em_exercicio' then 0 when 'eleito_aguardando_posse' then 1 when 'licenciado' then 2 when 'afastado' then 2 else 3 end, m.started_on desc`;
     return rows.map((r) => ({ ...mandate(r), party: party(r), officeName: officeName(r), placeLabel: placeLabel(r) }));
   },
   async getCandidacies(personId) {

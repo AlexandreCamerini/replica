@@ -630,7 +630,7 @@ export const fakeSource: DataSource = {
   },
   async getMandates(personId) {
     const person = store().personById.get(personId)!;
-    const rank: Record<MandateStatus, number> = { em_exercicio: 0, eleito_aguardando_posse: 1, licenciado: 2, encerrado: 3 };
+    const rank: Record<MandateStatus, number> = { em_exercicio: 0, eleito_aguardando_posse: 1, licenciado: 2, afastado: 2, encerrado: 3, renunciou: 3, cassado: 3 };
     return (store().mandatesByPerson.get(personId) ?? [])
       .map((m) => ({ ...m, party: partyById[m.partyId], officeName: officeName(m.office, person.gender), placeLabel: placeLabel(m.placeIbge) }))
       .sort((a, b) => rank[a.status] - rank[b.status] || b.startedOn.localeCompare(a.startedOn));

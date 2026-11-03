@@ -101,6 +101,20 @@ export default async function Page({ params, searchParams }: Props) {
               </p>
             )}
             <h1 className="mt-1 font-display text-hero leading-none break-words text-fg">{person.displayName}</h1>
+            {main && main.status !== "em_exercicio" && main.status !== "eleito_aguardando_posse" && (
+              <p className="mt-2 text-sm text-fg" data-testid="fora-do-cargo">
+                {main.status === "renunciou"
+                  ? `Renunciou ao cargo em ${date(main.endsOn)}.`
+                  : main.status === "cassado"
+                    ? `Mandato cassado em ${date(main.endsOn)}, segundo o TSE.`
+                    : main.status === "encerrado"
+                      ? `Mandato encerrado em ${date(main.endsOn)}.`
+                      : main.status === "licenciado" || main.status === "afastado"
+                        ? `${f ? "Licenciada ou afastada" : "Licenciado ou afastado"} do cargo segundo a casa.`
+                        : null}{" "}
+                {(main.status === "renunciou" || main.status === "cassado" || main.status === "encerrado") && "Os números abaixo são do período em que exerceu."}
+              </p>
+            )}
             {wins.length > 0 && (
               <p className="mt-3 flex flex-wrap gap-2">
                 <span className="inline-flex h-7 items-center rounded-pill bg-surface-sunken px-3 text-xs font-semibold text-fg">
@@ -149,18 +163,27 @@ export default async function Page({ params, searchParams }: Props) {
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {mandates
             .filter((m) => m.status !== "encerrado")
-            .map((m) => (
-              <li key={m.id} className="flex flex-col gap-1 rounded-md border border-border bg-surface p-4">
-                <StatusBadge status={m.status} f={f} startedOn={m.startedOn} />
-                <span className="font-semibold text-fg">
-                  {m.officeName} · {m.placeLabel}
-                </span>
-                <span className="text-sm text-muted">
-                  {m.party.name} · de {date(m.startedOn)} a {date(m.endsOn)}
-                </span>
-                <span className="text-xs text-muted">situação segundo o {m.statusSource.toUpperCase()}</span>
-              </li>
-            ))}
+            .map((m) => {
+              const ended = m.status === "renunciou" || m.status === "cassado";
+              const succession = !!m.electedBy && m.electedBy.startsWith("sucessão");
+              return (
+                <li key={m.id} className="flex flex-col gap-1 rounded-md border border-border bg-surface p-4" data-status={m.status}>
+                  <StatusBadge status={m.status} f={f} startedOn={m.startedOn} endsOn={m.endsOn} />
+                  <span className="font-semibold text-fg">
+                    {m.officeName} · {m.placeLabel}
+                  </span>
+                  <span className="text-sm text-muted">
+                    {m.party.name} · {ended ? `de ${date(m.startedOn)} até ${date(m.endsOn)}` : `de ${date(m.startedOn)} a ${date(m.endsOn)}`}
+                  </span>
+                  {succession && (
+                    <span className="text-sm text-fg">
+                      Assumiu o cargo em {date(m.startedOn)} por sucessão: era {f ? "a vice" : "o vice"} e o titular renunciou para disputar outro cargo (Constituição, art. 14, § 6º).
+                    </span>
+                  )}
+                  <span className="text-xs text-muted">situação segundo o {m.statusSource.toUpperCase()}{m.status === "renunciou" && m.statusSource === "tse" ? ", com a renúncia deduzida pela regra da Constituição (candidatura a outro cargo ou posse em cargo incompatível)" : ""}</span>
+                </li>
+              );
+            })}
         </ul>
       </section>
 
@@ -370,12 +393,15 @@ function Fact({ term, value }: { term: string; value: string }) {
   );
 }
 
-function StatusBadge({ status, f, startedOn }: { status: MandateStatus; f: boolean; startedOn: string }) {
+function StatusBadge({ status, f, startedOn, endsOn }: { status: MandateStatus; f: boolean; startedOn: string; endsOn: string }) {
   const label: Record<MandateStatus, string> = {
     em_exercicio: "Em exercício",
     eleito_aguardando_posse: `${f ? "Eleita" : "Eleito"}, toma posse em ${date(startedOn)}`,
     licenciado: f ? "Licenciada" : "Licenciado",
+    afastado: f ? "Afastada" : "Afastado",
     encerrado: "Encerrado",
+    renunciou: `Renunciou em ${date(endsOn)}`,
+    cassado: `Mandato cassado em ${date(endsOn)}`,
   };
   return (
     <span

@@ -29,7 +29,7 @@ export type Place = {
 
 export type Party = { id: string; acronym: string; name: string };
 
-export type MandateStatus = "em_exercicio" | "eleito_aguardando_posse" | "licenciado" | "encerrado";
+export type MandateStatus = "em_exercicio" | "eleito_aguardando_posse" | "licenciado" | "afastado" | "encerrado" | "renunciou" | "cassado";
 export type Mandate = {
   id: string;
   personId: string;
@@ -40,6 +40,8 @@ export type Mandate = {
   startedOn: string; // ISO date
   endsOn: string;
   statusSource: string;
+  /** como chegou ao cargo: "TSE 2022", ou "sucessão: vice assumiu (…)" quando o vice virou titular. Opcional na demo. */
+  electedBy?: string | null;
 };
 
 export type ElectionResult = "eleito" | "eleito_qp" | "eleito_media" | "suplente" | "nao_eleito" | "segundo_turno" | "indeferido" | "renuncia";
