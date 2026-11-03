@@ -97,8 +97,28 @@ def _place_votes(conn: psycopg.Connection, r, year: int, by_place: dict) -> int:
     return n
 
 
+def _is_cassado_definitivo(situacao: str) -> bool:
+    """D90: só "CASSADO" puro é fato consumado. "CASSADO COM RECURSO" (e qualquer variante com recurso, sub judice,
+    anulado, revertido) não cassa: o eleito segue no cargo até o trânsito, e a vaga só fica comprovada com nova
+    totalização ou eleição suplementar (tratada em tse_candidatos, BUG-005)."""
+    return " ".join(situacao.upper().split()) == "CASSADO"
+
+
 def _mark_cassados(conn: psycopg.Connection, year: int, sqs: set[str]) -> None:
-    """D06: eleito com diploma/registro cassado (a votação publica a situação). Mandato em exercício vira 'cassado'."""
+    """D06/D90: eleito com cassação definitiva publicada na votação vira 'cassado'. Idempotente nos dois sentidos:
+    mandato que esta regra marcou e cuja candidatura deixou de constar como cassada (p.ex. regra antiga que aceitava
+    "com recurso", ou recurso provido) volta a 'em_exercicio' se o período ainda está correndo."""
+    cur = conn.execute(
+        """update mandates m set status = case when m.ends_on <= current_date then 'encerrado' else 'em_exercicio' end, updated_at = now()
+           from candidacies c join elections e on e.id = c.election_id
+           where m.candidacy_id = c.id and e.year = %s and not (c.tse_sequencial = any(%s))
+             and m.status = 'cassado' and m.status_source = 'tse' and m.started_on <= current_date""",
+        (year, list(sqs)),
+    )
+    if cur.rowcount:
+        log.info("tse %d: %d mandatos deixaram de constar como cassados (situação sem fato consumado)", year, cur.rowcount)
+    if not sqs:
+        return
     cur = conn.execute(
         """update mandates m set status = 'cassado', updated_at = now()
            from candidacies c join elections e on e.id = c.election_id
@@ -124,6 +144,7 @@ def run_votes(conn: psycopg.Connection, years: list[int], force: bool) -> None:
                 agg: dict[tuple[str, int], int] = defaultdict(int)
                 by_place: dict[tuple[str, int, str, str], int] = defaultdict(int)  # (sq, turno, UF, município) -> votos; D15
                 cassados: set[str] = set()
+                com_recurso: set[str] = set()  # D90: registrado, não aplicado
                 t0, n = time.monotonic(), 0
                 for m in members:
                     log.info("tse votos %d: lendo %s (%.0f MB comprimidos)", year, m.filename, m.compress_size / 1e6)
@@ -141,14 +162,15 @@ def run_votes(conn: psycopg.Connection, years: list[int], force: bool) -> None:
                         agg[(sq, t)] += v
                         if cargo.strip() not in MUNICIPAL_CARGOS and uf not in ("ZZ", "BR", "VT"):
                             by_place[(sq, t, uf, mun)] += v
-                        if cass and "CASSAD" in cass.upper() and "NÃO" not in cass.upper() and "SEM" not in cass.upper():
+                        if cass and _is_cassado_definitivo(cass):
                             cassados.add(sq)
+                        elif cass and "CASSAD" in cass.upper():
+                            com_recurso.add(sq)
                 log.info("tse votos %d: %d linhas em %.0fs, %d candidaturas com voto", year, n, time.monotonic() - t0, len(agg))
                 r.add(_apply(conn, year, "votes", agg, by_round=True))
                 r.add(_place_votes(conn, r, year, by_place))
-                if cassados:
-                    r.notes.append(f"{len(cassados)} candidaturas com situação de cassação na votação (DS_SITUACAO_CASSACAO)")
-                    _mark_cassados(conn, year, cassados)
+                r.notes.append(f"{len(cassados)} candidaturas com cassação definitiva e {len(com_recurso - cassados)} com recurso (não cassa) na votação (DS_SITUACAO_CASSACAO)")
+                _mark_cassados(conn, year, cassados)
         except SkipUnchanged:
             continue
 
