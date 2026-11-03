@@ -1,79 +1,118 @@
 # Parity: clone cívico × Politicômetro
 
-> **Atualização (build 2, 2026-11-02):** geral **58,7** (features **65,3**, layout 32,4). Must-haves **17 de 17**. Entraram: votos e dinheiro de campanha do TSE (2022/2024/2026), mapa com malhas do IBGE e drill-down até município, S09 Congresso (hemiciclo + votações nominais), S10 detalhe de votação, crachá com o nome como título e resumo do ano. Suíte e2e: 41 de 41 (1 S4 aberto: BUG-009). **Veredito agora: ainda não entregável pelo critério da skill** (feature score < 80), mas sem must-have faltando e sem S1/S2 aberto. O layout caiu um pouco: as capturas do original são JPEG de 400 px e o clone mudou de hierarquia no crachá; a nota de layout é ruído, não regressão de função. O texto abaixo é a rodada anterior, mantido como histórico.
+Rodada: diff detalhado contra o original ao vivo (politicometro.org, lido em 2026-11-02 ~22h). Build do clone: f03f5b6 (build 4). Rodadas anteriores estão no histórico do git deste arquivo.
 
-Build: a42f7d0 (+ esta rodada)  Date: 2026-11-02  Env: clone com dados reais em `localhost:3101`; capturas do original em `replica/screens/` (referência, fora do git).
-
-Paridade aqui é **fazer o mesmo trabalho**, não parecer igual. A cor e a marca mudam de propósito antes do lançamento.
+Premissas desta rodada:
+- O original foi lido pelo HTML servido (SSR) de 22 rotas + crachá real (`/p/adriana-ventura`), cidade (`/representantes?cidade=3509502`, Campinas) e comparar (`?p=adriana-ventura,baleia-rossi`). Nada foi raspado para dentro do clone; só a estrutura e a lista de funções.
+- O clone foi lido pelo código (`web/src/app`, `components`, `etl/civico_etl/jobs`). Não subi o clone nem o Postgres neste worktree, então **o layout não foi recapturado**: a nota de layout é a da rodada anterior (mesmas imagens). A nota de feature é a que decide e foi refeita.
 
 ## Placar
 
-| | nota | como foi medido |
-| --- | --- | --- |
-| **Geral** | **52,7 / 100** | `parity.py --visual` (features + layout) |
-| Features | 57,1 / 100 | 47 features pontuadas (must ×3, should ×2, could ×1; parcial vale metade; 5 `skip` fora) |
-| Must-haves | 15 de 17 | 2 parciais: tiles do crachá (votos e campanha ainda "—") e mapa (grade por UF, sem contorno nem nível cidade) |
-| Layout | 35,3 / 100 | 7 telas, mapa de bordas em grade, só células com conteúdo |
-
-**Veredito: não entregável.** Dois must-haves parciais. Nenhum S1 ou S2 aberto (`bugs.md`: 7 corrigidos, 1 S3 intermitente aberto). Feature score abaixo de 80.
-
-## Layout por tela
-
-Viewport: 800×600 (o original foi capturado no painel do navegador nessa largura, em JPEG de 400×300) e 390×844 no celular. Diffs em `replica/diffs/S*.png` (vermelho = região diferente, em pixels do original). As imagens de diff contêm a captura do original e ficam fora do git, como `replica/screens/`; só os `.json` com as notas entram.
-
-| tela | nota | veredito | por que difere (estrutura, não cor) |
+| | nota | antes | por que mudou |
 | --- | --- | --- | --- |
-| S01 home | 40,9 | diferente | original: contadores + mapa SVG do Brasil + abas de camada; clone: contador + busca + grade de UFs + A–Z. A hierarquia (contador em cima, mapa no meio, diretório embaixo) é a mesma; o mapa em grade ocupa outra área |
-| S05 crachá | 39,6 | diferente | original: nome gigante centralizado num cartão, badges de eleição abaixo; clone: avatar + nome à esquerda, fatos em linha. A ordem cabeçalho → mandatos → tiles é igual; a linha de 4 tiles bate |
-| S05 crachá celular escuro | 30,7 | diferente | mesma causa; no celular o original empilha o nome em 2 linhas e os tiles em 1 coluna, o clone em 2 colunas |
-| S06 busca de lugar | 31,8 | diferente | o original foi capturado com a lista aberta sobre a página escura e 2 opções; o clone com 10 opções (lista mais alta). Campo, rótulo e exemplos estão no mesmo lugar |
-| S07 representantes | 27,9 | diferente | a captura do original está rolada até "Comparar lado a lado" (meio da página); a do clone é o topo. Não comparável; refazer no mesmo scroll |
-| S08 comparar | 34,0 | diferente | original: campo de busca + "Na cidade · Campinas" com cartões; clone: campo + presets. Estrutura próxima, altura diferente |
-| S09 congresso | 42,4 | diferente | o clone é stub (R2). Nota alta por coincidência de cabeçalho; ignorar |
+| **Geral** | **56,4 / 100** | 58,7 | features caiu, layout igual |
+| Features | **62,4 / 100** | 73,5 | 13 features do original que não estavam na matriz entraram (todas `no` ou `partial`). O clone não regrediu: o alvo cresceu e o recon tinha pontos cegos |
+| Must-haves | 17 de 17 | 17 de 17 | — |
+| Layout | 32,4 / 100 | 32,4 | não recapturado (ver premissas) |
 
-Leitura honesta: as notas baixas vêm de três coisas. (1) O crachá do clone usa cabeçalho à esquerda com avatar; o original centraliza o nome como título de página. É a maior diferença de hierarquia e vale alinhar (o nome é o que o usuário procura). (2) As capturas do original são JPEG de 400 px; o mapa de bordas pega ruído de compressão. (3) Duas capturas estão em estados diferentes (S07 rolada, S06 com lista menor). Nada disso muda o veredito: a feature score é o que decide.
+Para chegar a 80 faltam **20,6 pontos** de feature (≈ 12 shoulds `no` → `yes`).
 
-## Faltando, em ordem de construção
+**Veredito: não entregável.** Nenhum must faltando e nenhum S1/S2 aberto, mas feature score 62,4 < 80.
 
-Must (fecham o "não entregável"):
-1. Crachá: votos recebidos e dinheiro de campanha ("—" hoje). ETL `tse.candidatos --votes` (550 MB por eleição) e prestação de contas do TSE.
-2. Mapa do Brasil com contorno IBGE e drill-down região → UF → cidade (hoje: grade por UF + lista).
+## O que o diff achou que o recon não tinha
 
-Should (R2), na ordem do `architecture.md`:
-3. Monitorar com login por código no e-mail (S20, S21, F05): Supabase Auth, Turnstile, Resend. Exige contas suas.
-4. Congresso: hemiciclo, agenda, pauta e votações (S09) + detalhe de votação com placar e orientação por partido (S10). Os dados já estão no banco (`voting_events`, `party_orientations`).
-5. Reportar erro e sugestão (S25, F08).
-6. Metodologia e fontes (S22) e matriz de quem publica dados (S23). `data_coverage` já existe.
-7. Busca global no header (S03): `/api/people/search` + `/api/places` já existem; falta a UI.
-8. Crachá: resumo do ano (temas e fidelidade já calculados em `person_period_stats`), leis que viraram projeto, emendas, campanhas, comissões/falas/viagens/equipe, custo e contato.
-9. Comparar: lista de divergências (hoje só o % por par).
-10. Card OG para compartilhar (S28).
+| achado no original | onde | clone hoje | peso |
+| --- | --- | --- | --- |
+| Dados de **deputados estaduais** de 29 Assembleias (presença, votos, propostas, verbas), semanal | `/atualizacoes` | só TSE | should |
+| Dados de **vereadores** de 937 Câmaras Municipais com SAPL, um site por vez, releitura a cada 7–14 dias | `/atualizacoes` | só TSE | should |
+| **Como atualizamos**: tabela fonte × o que traz × frequência × última carga, rotina com horários, "fora do prazo", "o que a rotina nunca faz" | `/atualizacoes` | stub | should |
+| **Direito de resposta** no fim de todo crachá, ao lado de "Reportar erro" | crachá | não existe | should |
+| **Presença em gráfico**, "2026 em números" e **ano a ano** (8 anos, da presença à cota) | crachá | não existe (dado está em `person_period_stats`) | should |
+| **Deputados mais votados na cidade** (federal e estadual, 2022) | `/representantes?cidade=` | não existe (votos por município já carregados) | should |
+| **Em que votaram diferente**, filtrado por tema (400 pautas, 16 temas), "Mostrar mais" | comparar | só % por par | should (já partial) |
+| **Equipe do gabinete** com nome e salário (14 pessoas · R$ 115 mil/mês) | crachá | "entra na próxima fase" | should (já partial) |
+| Campanha: **de onde veio** (fundo partidário, partido, PF, coletivo) e **com o que gastou**, por eleição | crachá | só totais | should (já partial) |
+| Salário acumulado "recebeu desde 02/2019 em 94 meses" | crachá tile | não | could |
+| "Como cobrar" + dados civis | crachá | escolaridade sim, "como cobrar" não | could |
+| Copiar link e WhatsApp no topo de toda página | header | só no crachá | could |
+| Onboarding de 3 passos | 1ª visita | `OnboardingDialog` existe, só usado em `/design` | could |
+| Sanções TCU/CGU; salários de prefeito/vereador via Tribunais de Contas; contas dos estados (Tesouro) | `/atualizacoes` | não | could |
+| Como ajudar (mandar dado da cidade, avisar erro, espalhar, apoiar) | `/ajudar` | stub | could |
 
-Could (R5): partidos, governos, planos, eleições, STF, impostos, educativo, mais vistos, MCP, camadas do mapa.
+Matriz atualizada em `features.csv` (linhas com "diff 2026-11-02" nas notas).
 
 ## Comportamento por fluxo
 
 | fluxo | original faz | clone faz | decisão |
 | --- | --- | --- | --- |
-| F01 achar quem me representa | 3 cliques prometidos: campo, cidade, pessoa. Homônimos com UF | 3 ações (digitar, Enter, Enter) com teclado; homônimos com UF; sem JS cai em `?q=` e lista as cidades; cidade grande primeiro na lista | manter; **fix no original que não existe**: funciona sem JavaScript |
-| F02 mapa | SVG com região → UF → cidade, Esc volta, camadas | grade de UFs (1 toque = estado), lista por região e A–Z de cidades | fix: contorno IBGE + nível cidade (must parcial) |
-| F03 ler o crachá | seletor de ano, filtros de propostas (ano/tema/tipo/autoria + busca), votos com tema, gastos por categoria e fornecedor | igual, com os filtros na URL (link compartilhável, funciona sem JS); "—" com motivo em vez de 0; fontes e data em todo bloco; presença com regra publicada | manter; fix: seções R2 do crachá |
-| F04 comparar | 2–5 pessoas, URL `?p=`, "votaram igual?" com divergências | 2–5 pessoas, URL `?p=`, bandeja persistente, "votaram igual?" só com % por par, "—" quando não se aplica | fix: lista de divergências; legenda separando "não publica" de "não se aplica" |
-| F05 monitorar | e-mail → código → volta → feed | link "Acompanhar" leva a stub `/entrar?volta=` (R2); `volta` já validado contra redirect aberto | fix: R2 |
-| F06 compartilhar | card de imagem + WhatsApp | copiar link / Web Share + WhatsApp com texto e URL | fix: imagem OG |
-| F07 congresso | hemiciclo, agenda, pauta, votações | stub | fix: R2 (dados prontos) |
-| F08 reportar erro | formulário com tipo, texto, nome, e-mail | link para stub `/sugestoes?tipo=erro&p=` | fix: R2 |
-| neutralidade | listas A–Z, sem nota; mas usa cor de partido no hemiciclo | listas A–Z (testado), badges Sim/Não com a mesma cor (testado), cadeiras neutras (testado), sem vocabulário de avaliação (testado) | manter; **fix no original**: hemiciclo sem cor de partido, coerente com a própria metodologia |
-| dado ausente | "—", "teto do salário", "faltam N dados · por quê" | igual, e com `null` garantido no banco (`check`) e por ano carregado | manter |
+| F01 achar quem me representa | campo → cidade → pessoa; cidade traz ações, mais votados na cidade e "nenhum destes dados de X está no site" | igual, sem JS funciona; falta "mais votados" | fix: mais votados (W1) |
+| F02 mapa | malha IBGE, região → UF → cidade, Esc volta, 6 camadas | igual sem as camadas | manter; camadas só em W4 |
+| F03 ler o crachá | ~25 blocos, cada um recolhível com resumo no título ("Como votou · 52 sim · 61 não") | ~15 blocos; filtros na URL; "—" com motivo | fix: presença/ano a ano, direito de resposta (W1); campanha detalhada e equipe (W2) |
+| F04 comparar | "Votaram igual?" + lista de divergências com filtro por tema | só % por par | fix (W1) |
+| F05 monitorar | e-mail → código → feed; "receber atualizações por e-mail ou WhatsApp" | e-mail → código → feed; sem envio do resumo | fix: Resend + descadastro (W3, precisa de conta sua) |
+| F06 compartilhar | card pronto para Instagram/WhatsApp; WhatsApp e copiar link no topo de toda página | Web Share + WhatsApp só no crachá; sem imagem | fix: OG (W2), topo (W1) |
+| F07 congresso | abas "sendo votado" / "virou lei", agenda com pauta das 16h, sessão ao vivo | hemiciclo + votações nominais + S10 | fix: aba "virou lei" sobre `laws` já carregado (W2); agenda exige ETL (W3) |
+| F08 reportar erro | Reportar erro + **Direito de resposta** no crachá; sugestão geral | Reportar erro → S25 | fix: direito de resposta (W1) |
+| frescor do dado | "Atualizado 02/11, 22:02" no topo + página com última carga por fonte e "fora do prazo" | barra global com data; página stub | fix: S24 (W1) |
+| neutralidade | hemiciclo **na cor do partido**; `/partidos` ordena por pesquisa de especialistas; `/mais-vistos` mostra "em alta" | cadeiras neutras, A–Z, testado | **manter o clone**: é a vantagem; se fizer partidos/mais vistos, sem ordem por popularidade nem por régua ideológica |
 
-Onde o clone já é melhor que o original: funciona sem JavaScript nos fluxos F01 e F03; todo filtro vive na URL; hemiciclo e badges sem cor que codifique partido ou juízo; regra de presença publicada; invariantes do dado checadas a cada carga.
+## Plano de complemento
+
+Ordem por pontos ganhos ÷ custo. Cada onda fecha com `parity.py` + suíte e2e verde. Estimativa de nota acumulada ao fim de cada onda.
+
+### W1 · dado já está no banco, só tela (+15,4 → 77,8)
+
+| # | item | ganho | critério de aceite |
+| --- | --- | --- | --- |
+| 1 | S22 Metodologia e fontes (`/sobre`) | +1,7 | texto próprio com âncoras: neutralidade, regra de presença, "—" vs 0, identidade entre fontes, privacidade (`#s-priv`), direito de resposta; links de todo rodapé resolvem |
+| 2 | S24 Como atualizamos (`/atualizacoes`) | +1,7 | tabela por fonte lida de `data_coverage`/proveniência: o que traz, frequência, última carga; "fora do prazo" calculado (última carga > frequência); teste com fonte atrasada artificial |
+| 3 | S23 Quem publica (`/dados-abertos`) | +1,7 | matriz UF × tipo de dado com % de cidades; busca de cidade; CTA para S25 `tipo=dado`; números batem com `data_coverage` (teste) |
+| 4 | Direito de resposta no crachá | +1,7 | link no fim de todo crachá → S25 com `tipo=resposta&p=slug`; mensagem guardada com pessoa e data; política de resposta descrita em S22 |
+| 5 | Presença em gráfico + "ano em números" + ano a ano | +1,7 | um gráfico de presença por mês do ano selecionado; tabela ano × (presença, propostas, votos, cota); Senado mostra "—" na presença com motivo; acessível (tabela por trás do gráfico) |
+| 6 | Mais votados na cidade (S07) | +1,7 | top 5 federal e top 5 estadual da última eleição geral, votos no município, ligando ao crachá; cidade sem dado → "—" com motivo |
+| 7 | Busca global no header (S03) | +1,7 | combobox único "político, cidade, estado ou cargo" com grupos; sem JS cai em `/quem?nome=` ; teclado completo; usa `/api/people/search` + `/api/places` |
+| 8 | Comparar: em que votaram diferente | +0,9 | lista das votações em que o par divergiu, com filtro por tema e "mostrar mais"; filtro na URL; 2–5 pessoas = divergência por par escolhido |
+| 9 | Copiar link + WhatsApp no topo | +0,9 | em toda página, com a URL canônica (sem parâmetros de rastreio) |
+| 10 | Salário acumulado no crachá | +0,9 | soma do valor pago desde a posse, meses no cargo; "—" se a casa não publica valor pago |
+| 11 | Onboarding ligado + "Como cobrar" | +0,8 | `OnboardingDialog` na 1ª visita (cookie, sem storage obrigatório, "Pular"); "Como cobrar" = contato oficial + ouvidoria da casa |
+
+### W2 · parciais que viram `yes` (+4,3 → 82,1, entregável; simulado com `features.csv`, sem contar o item 15)
+
+| # | item | ganho | critério de aceite |
+| --- | --- | --- | --- |
+| 12 | Card OG do crachá (S28) | +0,9 | `opengraph-image` por slug, 1200×630, nome, cargo, partido, 4 números com fonte; sem foto não licenciada |
+| 13 | Campanha: origem e gastos | +0,9 | por eleição, receitas por origem e despesas por categoria (TSE prestação de contas, já baixada); nunca nome de pessoa física doadora |
+| 14 | Equipe do gabinete + viagens | +0,9 | Câmara (secretários parlamentares) e Senado (missões); se a casa não publica, "—" com motivo |
+| 15 | Congresso: aba "o que virou lei" | 0 (continua partial até a agenda da W3) | leis por data a partir de `laws`; a agenda fica para W3 |
+| 16 | Entenda os cargos (S18) e Dicionário (S19) | +1,8 | texto próprio, cada item com artigo da Constituição ou fonte oficial |
+
+### W3 · dado novo ou conta sua (+8,4)
+
+| # | item | bloqueio |
+| --- | --- | --- |
+| 17 | ETL Assembleias Legislativas (deputados estaduais) | 27 fontes heterogêneas; começar por SP, MG, RJ, RS (maioria da população) e as que usam SAPL |
+| 18 | ETL SAPL das Câmaras Municipais | crawler educado (1 site por vez, respeitar intervalo), descoberta das 900+ instâncias; maior custo do plano |
+| 19 | Emendas parlamentares | chave do Portal da Transparência (sua) |
+| 20 | Resumo por e-mail + descadastro (F05) | Resend + domínio (seus) |
+| 21 | Agenda/pauta do Congresso e sessão ao vivo | ETL de pauta (16h) |
+| 22 | Sanções TCU/CGU; salários via Tribunais de Contas | fontes novas |
+
+### W4 · could de área inteira (só depois de entregável)
+
+Partidos (com critério de espectro público e citável, ou sem espectro), Governos, Planos de governo, Eleições, STF, Impostômetro, Mais vistos, MCP, camadas do mapa, Como ajudar. MCP é o melhor candidato a diferencial: o original ainda diz "em breve".
+
+## Riscos
+
+- **W3 é o fosso do original.** As 937 câmaras SAPL + 29 Assembleias são o que ele tem de mais difícil de copiar. Sem isso o clone é bom em federal e raso em municipal, que é justamente onde o usuário mora. Chegar a 80 com W1+W2 é possível sem tocar nisso; o veredito "entregável" fica tecnicamente correto e estrategicamente fraco.
+- Layout desta rodada não foi medido. Recapturar no mesmo viewport e estado (1440×900 e 390×844, PNG, não JPEG de 400 px) com o clone em `localhost:3101` antes do próximo diff.
+- `features.csv` agora tem 60 linhas pontuadas; o original continua crescendo (changelog diário). Refazer este diff a cada onda, não só no fim.
 
 ## Próximos cinco
 
-1. ETL de votos por candidato e prestação de contas do TSE (fecha o must do crachá).
-2. Mapa com contorno IBGE e nível cidade (fecha o must da home).
-3. Congresso S09 + S10 sobre os dados já carregados (should de maior valor com menor custo).
-4. Crachá: cabeçalho com o nome como título de página (maior diferença de hierarquia) e seção "resumo do ano" com os temas e a fidelidade já calculados.
-5. Monitorar (S20/S21) assim que houver projeto Supabase e Resend seus.
+1. S24 Como atualizamos + S22 Metodologia (dado e texto prontos; fecham a área `confianca`).
+2. Presença/ano a ano + salário acumulado no crachá (`person_period_stats`).
+3. Mais votados na cidade (votos por município já carregados).
+4. Busca global no header.
+5. Direito de resposta + divergências no Comparar.
 
-Depois: `/replica-build` para os itens 1–4; `/replica-entrepreneur` só quando a feature score passar de 80.
+Depois: `/replica-build` com W1 inteira; rerodar `/replica-diff` com layout recapturado.

@@ -17,18 +17,18 @@ Comparar 2 a 5 pessoas lado a lado via URL,comparar,must,yes,yes,S08 F04; build:
 ETL das fontes oficiais TSE Câmara Senado,dados,must,yes,yes,"base de tudo; não raspar o original; backend: IBGE + TSE 2022/2024/2026 (eleitos) + Câmara 2025–26 + Senado 2025–26; idempotente, com proveniência; faltam votos por candidato (--votes) e prestação de contas"
 Neutralidade: sem ranking nota enquete ou recomendação de voto,confianca,must,yes,yes,"Res. TSE 23.610/2019; regra de produto; build: aplicada nas telas; teste automatizado pendente (replica-test); test: NEU-1..4 automatizados (ordem A–Z, cores iguais para Sim/Não e cadeiras, sem vocabulário de avaliação)"
 Compartilhar card do crachá (imagem OG + WhatsApp),compartilhar,should,yes,partial,S28 F06; build: Web Share/copiar + WhatsApp; falta imagem OG
-Comparar: votaram igual e onde divergiram,comparar,should,yes,partial,S08; build: % de concordância por par; falta a lista de divergências
+Comparar: votaram igual e onde divergiram,comparar,should,yes,partial,"S08; build: % de concordância por par; falta a lista de divergências; diff 2026-11-02: original lista 'Em que votaram diferente' com filtro por tema (400 pautas, 16 temas) e 'Mostrar mais'"
 Crachá: resumo do ano com temas mais tratados e fidelidade ao partido,cracha,should,yes,yes,"S05; backend: person_period_stats já calcula temas e fidelidade; falta a seção na tela; build2: temas (top 3) e votos iguais à orientação do partido, por período"
 Crachá: leis que vieram de projetos da pessoa,cracha,should,yes,yes,S05; build4: 31 leis 2023–2026 com número e data do DOU; link do Planalto para lei ordinária
 Crachá: emendas parlamentares por destino área e tipo,cracha,should,yes,no,S05; Portal da Transparência
 Crachá: dinheiro das campanhas origem e gastos,cracha,should,yes,partial,S05; TSE prestação de contas; build2: totais arrecadado/gasto por eleição; falta origem por fonte e lista de despesas
 Crachá: presença em sessões deliberativas com regra publicada,cracha,should,yes,yes,"S05; senado não publica presença; backend: regra derivada de votação nominal, publicada em backend.md; vale para Câmara e Senado"
-Crachá: comissões falas viagens equipe do gabinete,cracha,should,yes,partial,S05; build4: comissões (com histórico) e discursos (resumo + link) de Câmara e Senado; faltam viagens e equipe
+Crachá: comissões falas viagens equipe do gabinete,cracha,should,yes,partial,S05; build4: comissões (com histórico) e discursos (resumo + link) de Câmara e Senado; faltam viagens e equipe; diff 2026-11-02: original mostra equipe com nome e salário (14 pessoas · R$ 115 mil/mês)
 Crachá: custo do mandato e contato,cracha,should,yes,yes,"S05; build4: contato oficial da casa; custo = salário (aproximado, explicado) + cota"
 Busca global no header (político cidade estado cargo),busca,should,yes,no,S03
 Monitorar político com login por código no e-mail,conta,should,yes,partial,"S20 S21 F05; build3: S20/S21: código por e-mail (Supabase OTP em produção; login local em dev), acompanhar/deixar, feed de votos/propostas/gastos, preferência de resumo, apagar conta; falta enviar o resumo por e-mail (Resend) e o descadastro por link"
 Reportar erro e mandar sugestão,feedback,should,yes,yes,"S25 F08; build3: S25 com tipo, mensagem, nome, e-mail, cidade; pessoa preenchida pelo crachá; anti-robô, honeypot, 5/h por IP"
-Congresso: hemiciclo agenda pauta e votações do plenário,congresso,should,yes,partial,S09 F07; build2: hemiciclo neutro + votações nominais com filtros; falta agenda/pauta/ao vivo (ETL de agenda)
+Congresso: hemiciclo agenda pauta e votações do plenário,congresso,should,yes,partial,S09 F07; build2: hemiciclo neutro + votações nominais com filtros; falta agenda/pauta/ao vivo (ETL de agenda); diff 2026-11-02: original tem abas 'sendo votado' / 'o que virou lei' e agenda com pauta das 16h
 Detalhe de votação com placar e voto por partido,congresso,should,yes,yes,"S10 (rota não vista); build2: S10: placar, orientações, votos por partido A–Z, voto de cada pessoa"
 Metodologia e fontes públicas,confianca,should,yes,no,S22; texto próprio
 Matriz de quem publica dados por estado e cidade,confianca,should,yes,no,S23
@@ -51,3 +51,16 @@ Marca nome e perfis sociais,marca,skip,yes,skip,propriedade do original
 Audiência e tráfego existentes,rede,skip,yes,skip,não se clona
 Curadoria manual de portais municipais sem dado aberto,operacao,skip,yes,skip,processo humano; fica como fila de sugestões
 Fotos sem licença de reuso,dados,skip,yes,skip,usar só fotos oficiais com licença
+Dados de deputados estaduais: presença votos propostas e verbas das Assembleias,dados,should,yes,no,diff 2026-11-02: original lê 29 fontes de Assembleias (semanal); clone só tem TSE para estaduais
+Dados de vereadores: presença votos e propostas via SAPL das Câmaras Municipais,dados,should,yes,no,"diff 2026-11-02: original lê 937 câmaras com SAPL aberto, 1 site por vez, releitura a cada 7–14 dias; clone mostra só TSE para vereador"
+Salário de prefeitos e vereadores pelos Tribunais de Contas,dados,could,yes,no,diff 2026-11-02: carga mensal no dia 5; clone usa teto
+Como atualizamos: frequência e última carga por fonte com aviso de fora do prazo,confianca,should,yes,no,S24 /atualizacoes; diff 2026-11-02: tabela fonte × o que traz × frequência × última atualização + rotina + o que nunca faz; clone: stub; data_coverage e proveniência já existem no banco
+Crachá: direito de resposta,confianca,should,yes,no,diff 2026-11-02: botão no fim de todo crachá ao lado de Reportar erro; exigência de site sobre pessoa pública
+Crachá: presença em gráfico e tabela ano a ano da presença à cota,cracha,should,yes,no,diff 2026-11-02: 'Presença em 2026' + '2026 em números' + 'Ano a ano · 8 anos'; dados já estão em person_period_stats
+Crachá: salário acumulado recebido desde a posse,cracha,could,yes,no,diff 2026-11-02: tile 'recebeu de salário desde 02/2019 em 94 meses'
+Crachá: dados civis e como cobrar,cracha,could,yes,partial,"diff 2026-11-02: nome civil nascimento escolaridade + bloco 'Como cobrar'; clone tem escolaridade, falta 'Como cobrar'"
+Representantes: deputados mais votados na cidade,representantes,should,yes,no,S07; diff 2026-11-02: 'Os deputados mais votados em <cidade> (2022)' federal e estadual; votos por município já carregados (votacao_candidato_munzona)
+Onboarding de 3 passos na primeira visita,shell,could,yes,partial,S02; OnboardingDialog existe em components/ui/misc.tsx mas só é usado em /design
+Copiar link e mandar pelo WhatsApp em toda página (topo),compartilhar,could,yes,no,diff 2026-11-02: header do original tem 'Copiar o link desta página' e WhatsApp; clone só no crachá
+Sanções do TCU e da CGU,dados,could,yes,no,diff 2026-11-02: carga diária citada em /atualizacoes; não apareceu no crachá testado (só quando existe)
+Como ajudar: canais para mandar dados da cidade e apoiar o site,feedback,could,yes,no,S26 /ajudar; clone: stub. Pix do original é dele (skip); o clone define o próprio meio de apoio
