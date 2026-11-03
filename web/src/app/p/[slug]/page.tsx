@@ -8,7 +8,7 @@ import { currentUser } from "@/lib/auth";
 import { isFollowing } from "@/lib/follows";
 import { Avatar } from "@/components/people/holder-card";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
-import { Assets, Committees, Contact, Elections, Expenses, HowToReach, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Votes } from "@/components/profile/sections";
+import { Assets, CampaignMoney, Committees, Contact, Elections, Expenses, HowToReach, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Votes } from "@/components/profile/sections";
 import { LinkChip, hrefWith, type Params } from "@/components/profile/ui";
 import { YearByYear } from "@/components/profile/yearly";
 import { CompareToggle } from "@/components/shell/compare";
@@ -333,6 +333,7 @@ export default async function Page({ params, searchParams }: Props) {
         )}
         <Assets candidacies={candidacies} />
         <Elections candidacies={candidacies} f={f} />
+        <CampaignMoney personId={person.id} />
         {main && main.status === "em_exercicio" && <Contact personId={person.id} />}
         {main && main.status === "em_exercicio" && <HowToReach office={main.office} hasContact={(await data.getContacts(person.id)).length > 0} f={f} />}
         {full && (

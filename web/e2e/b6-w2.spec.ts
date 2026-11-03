@@ -19,4 +19,17 @@ test.describe("B6-W2", () => {
     // crachá inexistente não quebra a imagem
     expect((await request.get("/p/ninguem-com-este-nome-xyz/opengraph-image")).status()).toBeLessThan(500);
   });
+
+  test("B6-W13 campanha: de onde veio e com o que gastou, por eleição, sem nome de doador", async ({ page, axe }) => {
+    await page.goto("/p/tarcisio");
+    const sec = page.locator("#campanha");
+    await expect(sec.getByTestId("campanha-2026")).toHaveAttribute("open", "");
+    await expect(sec.getByTestId("campanha-2022")).toContainText("entrou R$ 38.608.189");
+    await expect(sec.getByTestId("campanha-2026").getByRole("table", { name: "De onde veio" })).toContainText("Recursos de pessoas físicas");
+    await expect(sec.getByTestId("campanha-2026").getByRole("table", { name: "Com o que gastou" })).toBeVisible();
+    // 2026 + 2022 = soma por ano do cartão (o 2º turno de 2022 não repete)
+    await expect(sec.locator("details")).toHaveCount(2);
+    await expect(sec.getByText(/^Fonte:/)).toBeVisible();
+    await axe();
+  });
 });

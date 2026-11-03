@@ -619,3 +619,46 @@ export function HowToReach({ office, hasContact, f }: { office: OfficeSlug; hasC
     </Section>
   );
 }
+
+/** W2 item 13: de onde veio e com o que gastou, por eleição. Categorias oficiais do TSE; nenhum nome de doador. */
+export async function CampaignMoney({ personId }: { personId: string }) {
+  const [rows, stamp, loaded] = await Promise.all([data.getCampaignFinance(personId), data.getStamp("tse.contas"), data.listStampYears("tse.contas")]);
+  const sum = (xs: { cents: number }[]) => xs.reduce((s, x) => s + x.cents, 0);
+  return (
+    <Section
+      id="campanha"
+      title="Dinheiro das campanhas"
+      count={rows.length ? `${rows.length} ${rows.length === 1 ? "eleição" : "eleições"}` : undefined}
+      intro="De onde veio e com o que foi gasto, por eleição, nas categorias da prestação de contas ao TSE. Despesa = valor pago. Doações de pessoas aparecem só somadas, sem nome."
+    >
+      {rows.length === 0 ? (
+        loaded.length ? (
+          <Empty>
+            Nenhuma prestação de contas encontrada no TSE nas eleições de {loaded[0]} a {loaded[loaded.length - 1]} (as que já carregamos).
+          </Empty>
+        ) : (
+          <NotLoaded reason="a prestação de contas do TSE ainda não foi carregada" />
+        )
+      ) : (
+        <div className="flex flex-col gap-3">
+          {rows.map((c, i) => (
+            <details key={c.year} open={i === 0} className="group rounded-sm border border-border p-3" data-testid={`campanha-${c.year}`}>
+              <summary className="cursor-pointer text-sm font-semibold text-fg">
+                {c.year} · {c.officeName} · {c.placeLabel}
+                <span className="ml-2 font-normal tabular text-muted">
+                  entrou {money(sum(c.income))} · saiu {money(sum(c.spending))}
+                </span>
+              </summary>
+              <div className="mt-3 grid grid-cols-1 gap-6 md:grid-cols-2">
+                {c.income.length ? <BarBreakdown caption="De onde veio" rows={c.income} /> : <Empty>Nenhuma receita publicada.</Empty>}
+                {c.spending.length ? <BarBreakdown caption="Com o que gastou" rows={c.spending.slice(0, 10)} /> : <Empty>Nenhuma despesa publicada.</Empty>}
+              </div>
+              {c.spending.length > 10 && <p className="mt-2 text-xs text-muted">Mais {c.spending.length - 10} categorias menores somam {money(sum(c.spending.slice(10)))}.</p>}
+            </details>
+          ))}
+        </div>
+      )}
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+    </Section>
+  );
+}

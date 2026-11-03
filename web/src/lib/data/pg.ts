@@ -15,6 +15,7 @@ import type {
   Party,
   PeriodStats,
   PlaceTopVoted,
+  CampaignFinance,
   SalaryAccrued,
   YearStats,
   Person,
@@ -471,6 +472,33 @@ export const pgSource: DataSource = {
                          and s.valid_from <= ms.mo and not s.is_ceiling order by s.place_id nulls last, s.valid_from desc limit 1) sa on true`;
     if (!r || !r.covered) return null;
     return { cents: Number(r.cents), months: Number(r.months), coveredMonths: Number(r.covered), firstMonth: iso(r.first), coveredFrom: r.covered_from ? iso(r.covered_from) : null } satisfies SalaryAccrued;
+  },
+  async getCampaignFinance(personId) {
+    // uma candidatura por ano (a que tem lançamentos; o 2º turno não repete a conta: D44); categorias com soma 0 saem (ex.: "#NULO")
+    const rows = await sql`
+      with per as (
+        select c.id, e.year, o.slug as office, p.gender, o.name_m, o.name_f, pl.name as place_name, pl.kind as place_kind, pl.uf as place_uf,
+               (select count(*) from campaign_finance_entries f where f.candidacy_id = c.id) as n
+        from candidacies c join elections e on e.id = c.election_id join contests ct on ct.id = c.contest_id
+        join offices o on o.id = ct.office_id join places pl on pl.id = ct.place_id join people p on p.id = c.person_id
+        where c.person_id = ${personId}::uuid
+      ), pick as (
+        select distinct on (year) * from per where n > 0 order by year, n desc
+      )
+      select pick.year, pick.office, pick.gender, pick.name_m, pick.name_f, pick.place_name, pick.place_kind, pick.place_uf,
+             f.direction, f.category, sum(f.amount_cents)::bigint as cents
+      from pick join campaign_finance_entries f on f.candidacy_id = pick.id
+      group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+      having sum(f.amount_cents) <> 0
+      order by pick.year desc, f.direction, cents desc, f.category`;
+    const by = new Map<number, CampaignFinance>();
+    for (const r of rows) {
+      const y = Number(r.year);
+      const cur = by.get(y) ?? { year: y, officeName: officeName(r), placeLabel: placeLabel(r), income: [], spending: [] };
+      (r.direction === "receita" ? cur.income : cur.spending).push({ label: String(r.category), cents: Number(r.cents) });
+      by.set(y, cur);
+    }
+    return [...by.values()].sort((a, b) => b.year - a.year);
   },
   async countSecretVotes(personId, year) {
     const [r] = await sql`

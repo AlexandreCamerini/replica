@@ -705,6 +705,9 @@ export const fakeSource: DataSource = {
   async getSalaryAccrued() {
     return null; // a demo não guarda a série histórica do subsídio
   },
+  async getCampaignFinance() {
+    return []; // a demo não simula a prestação de contas por categoria
+  },
   async countSecretVotes() {
     return 0; // a demo não simula votação secreta
   },
