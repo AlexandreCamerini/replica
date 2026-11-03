@@ -27,6 +27,8 @@ const FULL_DATA = new Set(["deputado_federal", "senador"]);
 const STATE_LEG = new Set(["deputado_estadual", "deputado_distrital"]);
 const LEGISLATIVE = new Set(["senador", "deputado_federal", "deputado_estadual", "deputado_distrital", "vereador"]);
 const EXECUTIVE = new Set(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
+// D197: origem que não é sigla de casa ou tribunal ganha nome por extenso
+const STATUS_SOURCE_LABEL: Record<string, string> = { "governo-am": "o site do Governo do Amazonas (Governadoria)" };
 
 async function load(slug: string) {
   if (!/^[a-z0-9-]{1,120}$/.test(slug)) return null;
@@ -230,7 +232,7 @@ export default async function Page({ params, searchParams }: Props) {
                       Assumiu o cargo em {date(m.startedOn)} por sucessão: era {f ? "a vice" : "o vice"} e o titular renunciou para disputar outro cargo (Constituição, art. 14, § 6º).
                     </span>
                   )}
-                  <span className="text-xs text-muted">situação segundo o {m.statusSource.toUpperCase()}{m.status === "renunciou" && m.statusSource === "tse" ? ", com a renúncia deduzida pela regra da Constituição (candidatura a outro cargo ou posse em cargo incompatível)" : ""}</span>
+                  <span className="text-xs text-muted">situação segundo {STATUS_SOURCE_LABEL[m.statusSource] ?? `o ${m.statusSource.toUpperCase()}`}{m.status === "renunciou" && m.statusSource === "tse" ? ", com a renúncia deduzida pela regra da Constituição (candidatura a outro cargo ou posse em cargo incompatível)" : ""}</span>
                 </li>
               );
             })}

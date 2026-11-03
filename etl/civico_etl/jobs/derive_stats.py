@@ -276,9 +276,11 @@ MANDATE_RULES = [
 EXECUTIVO_FORA_DO_TSE: list[dict[str, str]] = [
     {
         "slug": "roberto-cidade", "civil": "Roberto Maia Cidade Filho", "office": "governador", "uf": "AM",
-        "started_on": "2026-05-04", "ends_on": "2027-01-06", "status_source": "aleam",
+        "started_on": "2026-05-04", "ends_on": "2027-01-06", "status_source": "governo-am",
         "elected_by": "eleição indireta na Assembleia Legislativa do Amazonas em 04/05/2026 (mandato-tampão após a renúncia do governador e do vice)",
-        "fonte": "https://agenciabrasil.ebc.com.br/justica/noticia/2026-05/roberto-cidade-e-eleito-governador-do-amazonas-em-eleicao-indireta",
+        # D197: oficial = Governadoria do AM (nomeia o governador, página de 08/05/2026); a ALEAM não publicou a eleição em página localizável.
+        # Contexto da eleição indireta: Agência Brasil, https://agenciabrasil.ebc.com.br/justica/noticia/2026-05/roberto-cidade-e-eleito-governador-do-amazonas-em-eleicao-indireta
+        "fonte": "https://www.amazonas.am.gov.br/orgaos_entidades/governadoria/",
     },
 ]
 
