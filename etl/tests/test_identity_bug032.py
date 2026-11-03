@@ -16,14 +16,15 @@ DINELCI = Src("99887766554", "dinelci de souza", date(1970, 5, 5), "DINELCI", "F
 
 
 def test_chave_tse_tem_o_ano():
-    assert tse_key(2012, "40000001600") == "2012:40000001600"
-    assert tse_key(2016, "40000001600") != tse_key(2012, "40000001600")
+    assert tse_key(2016, "40000001600") == "2016:40000001600"
+    assert tse_key(2012, "40000001600", "02550") == "2012:02550:40000001600"  # 2012 leva a UE (BUG-035)
+    assert tse_key(2016, "40000001600") != tse_key(2012, "40000001600", "02550")
 
 
 def test_loader_usa_a_chave_com_ano():
     src = inspect.getsource(tse_candidatos._load_year)
     assert 'external_id=sq' not in src
-    assert src.count("external_id=tse_key(year, sq)") == 2  # resolve e create
+    assert src.count('external_id=tse_key(year, sq, x["SG_UE"])') == 2  # resolve e create
 
 
 def test_mesmo_sq_outra_pessoa_nao_casa():

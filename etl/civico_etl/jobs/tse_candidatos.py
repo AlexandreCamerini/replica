@@ -61,7 +61,28 @@ TSE_TO_IBGE = {
     ("MG", "sao thome das letras"): "sao tome das letras",
     ("RN", "boa saude"): "januario cicco",
     ("MG", "barao de monte alto"): "barao do monte alto",
+    # grafias do consulta_cand_2012 que o IBGE mudou depois (BUG-036, D226): sem isto a linha era rejeitada sem lugar
+    ("RO", "machadinho do oeste"): "machadinho d'oeste",
+    ("RO", "alta floresta do oeste"): "alta floresta d'oeste",
+    ("RO", "nova brasilandia do oeste"): "nova brasilandia d'oeste",
+    ("RO", "santa luzia do oeste"): "santa luzia d'oeste",
+    ("RO", "sao felipe do oeste"): "sao felipe d'oeste",
+    ("CE", "itapage"): "itapaje",
+    ("RJ", "trajano de morais"): "trajano de moraes",
+    ("TO", "couto de magalhaes"): "couto magalhaes",
+    ("TO", "sao valerio da natividade"): "sao valerio",
+    ("TO", "fortaleza do tabocao"): "tabocao",
+    ("PE", "belem de sao francisco"): "belem do sao francisco",
+    ("PE", "iguaraci"): "iguaracy",
+    ("SC", "luis alves"): "luiz alves",
+    ("SC", "presidente castelo branco"): "presidente castello branco",
+    ("RN", "ares"): "arez",
+    ("BA", "quinjingue"): "quijingue",
+    ("PB", "sao domingos de pombal"): "sao domingos",
 }
+# Anos em que o SQ_CANDIDATO NÃO é único na eleição do arquivo: em 2012, 91 SQ aparecem numa linha da eleição ordinária e
+# noutra de uma suplementar (2013-2015) de outro município, de pessoas diferentes (BUG-035, D224). Neles a chave leva a UE.
+SQ_COM_UE = {2012}
 COLS = [
     "ANO_ELEICAO", "NM_TIPO_ELEICAO", "NR_TURNO", "DT_ELEICAO", "SG_UF", "SG_UE", "NM_UE", "CD_CARGO",
     "SQ_CANDIDATO", "NR_CANDIDATO", "NM_CANDIDATO", "NM_URNA_CANDIDATO", "NR_PARTIDO", "SG_PARTIDO", "NM_PARTIDO",
@@ -70,11 +91,29 @@ COLS = [
 ]
 
 
-def tse_key(year: int, sq: str) -> str:
+def tse_key(year: int, sq: str, ue: str | None = None) -> str:
     """Chave da pessoa no TSE em person_external_ids: (ano da eleição, SQ_CANDIDATO). O SQ só é único dentro da eleição e o TSE
     reaproveita os números entre anos (BUG-032: o "Dinelci" de Fonte Boa 2012 tem o mesmo SQ do Roberto Cidade em Manaus 2016).
-    Candidaturas de anos diferentes só se ligam à mesma pessoa pelo título de eleitor ou por nome civil + nascimento (D210)."""
+    Candidaturas de anos diferentes só se ligam à mesma pessoa pelo título de eleitor ou por nome civil + nascimento (D210).
+    Em 2012 o SQ se repete entre a eleição ordinária e as suplementares do mesmo arquivo: a chave é ANO:UE:SQ (D224)."""
+    if int(year) in SQ_COM_UE:
+        if not (ue or "").strip():
+            raise ValueError(f"chave do TSE de {year} exige a UE (SQ {sq})")
+        return f"{int(year)}:{ue.strip()}:{sq.strip()}"
     return f"{int(year)}:{sq.strip()}"
+
+
+def muni_index(conn: psycopg.Connection):
+    """(UF, nome do município no TSE) -> place_id, com as grafias do TSE que o IBGE escreve diferente."""
+    muni = {(row["uf"], fold(row["name"])): str(row["id"]) for row in conn.execute("select uf, name, id from places where kind = 'municipio'")}
+    # 2º critério: só letras e dígitos (hífen e apóstrofo variam: "Olhos-d'Água" x "OLHOS D'ÁGUA"); 3º: grafias que o TSE e o IBGE escrevem diferente
+    muni_alnum = {(uf, re.sub(r"[^a-z0-9]", "", name)): pid for (uf, name), pid in muni.items()}
+
+    def muni_lookup(uf: str, name: str | None) -> str | None:
+        f = fold(name)
+        return muni.get((uf, f)) or muni_alnum.get((uf, re.sub(r"[^a-z0-9]", "", f))) or muni.get((uf, TSE_TO_IBGE.get((uf, f), "")))
+
+    return muni_lookup
 
 
 def term_dates(office: str, year: int) -> tuple[date, date]:
@@ -166,13 +205,7 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
     offices = {o["slug"]: str(o["id"]) for o in conn.execute("select slug, id from offices")}
     places = {row["ibge_code"]: str(row["id"]) for row in conn.execute("select ibge_code, id from places")}
     by_uf = {row["uf"]: str(row["id"]) for row in conn.execute("select uf, id from places where kind = 'uf'")}
-    muni = {(row["uf"], fold(row["name"])): str(row["id"]) for row in conn.execute("select uf, name, id from places where kind = 'municipio'")}
-    # 2º critério: só letras e dígitos (hífen e apóstrofo variam: "Olhos-d'Água" x "OLHOS D'ÁGUA"); 3º: grafias que o TSE e o IBGE escrevem diferente
-    muni_alnum = {(uf, re.sub(r"[^a-z0-9]", "", name)): pid for (uf, name), pid in muni.items()}
-
-    def muni_lookup(uf: str, name: str | None) -> str | None:
-        f = fold(name)
-        return muni.get((uf, f)) or muni_alnum.get((uf, re.sub(r"[^a-z0-9]", "", f))) or muni.get((uf, TSE_TO_IBGE.get((uf, f), "")))
+    muni_lookup = muni_index(conn)
 
     bodies = {(row["kind"], str(row["place_id"])): str(row["id"]) for row in conn.execute("select kind, place_id, id from legislative_bodies")}
     today = date.today()
@@ -233,12 +266,13 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
     seen_person_election: set[tuple[str, str]] = set()
     mandate_rows: list[tuple] = []
     supplementary: list[tuple[str, str, date]] = []  # (office_slug, place_id, data da eleição suplementar)
-    sq_round1: dict[str, tuple[str, str]] = {}  # SQ -> (contest_id, person_id) do 1º turno, para bens
+    sq_round1: dict[tuple[str, str], tuple[str, str]] = {}  # (SQ, UE) -> (contest_id, person_id) do 1º turno, para bens (SQ repete em 2012)
     not_in_dir = 0
     # mesma pessoa com duas candidaturas na mesma eleição (registro substituído, renúncia e novo registro): fica a que já está no
     # banco ou, no lote, a eleita primeiro
-    db_person_election = {(str(r_["person_id"]), str(r_["election_id"])): str(r_["contest_id"]) for r_ in conn.execute(
-        "select person_id, election_id, contest_id from candidacies where election_id = any(%s::uuid[])", (list(elections.values()),))}
+    # (a chave inclui o SQ: na mesma disputa, o registro substituído e o novo têm SQ diferentes; BUG-036, D226)
+    db_person_election = {(str(r_["person_id"]), str(r_["election_id"])): (str(r_["contest_id"]), r_["tse_sequencial"]) for r_ in conn.execute(
+        "select person_id, election_id, contest_id, tse_sequencial from candidacies where election_id = any(%s::uuid[])", (list(elections.values()),))}
     parsed.sort(key=lambda x: (x["DS_SIT_TOT_TURNO"] or "").upper() not in ("ELEITO", "ELEITO POR QP", "ELEITO POR MÉDIA", "2º TURNO"))
     for x in parsed:
         sq = nz(x["SQ_CANDIDATO"])
@@ -260,7 +294,7 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
         if x["kind"] == "suplementar":
             s0 = x["held"]
         may_create = result in ELECTED and e0 > today
-        m = people.resolve(source="tse", external_id=tse_key(year, sq), civil_name=civil, birth_date=birth, birth_uf=birth_uf, titulo=titulo,
+        m = people.resolve(source="tse", external_id=tse_key(year, sq, x["SG_UE"]), civil_name=civil, birth_date=birth, birth_uf=birth_uf, titulo=titulo,
                            raw={"ano": year, "nome": civil, "urna": urna, "cargo": x["office"], "uf": x["SG_UF"]})
         if m.method == "queued":
             r.reject(1)
@@ -273,11 +307,11 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             birthplace_place_id=muni_lookup(birth_uf, x["NM_MUNICIPIO_NASCIMENTO"]) if birth_uf else None,
             education=(lambda e: e[0].upper() + e[1:].lower() if e else None)(nz(x["DS_GRAU_INSTRUCAO"]) or ""),
             slug_hints=((x["SG_UF"] or "").lower() or None, x["office"].replace("_", "-")),
-            source="tse", external_id=tse_key(year, sq), titulo=titulo,
+            source="tse", external_id=tse_key(year, sq, x["SG_UE"]), titulo=titulo,
         )
         el_id = elections[(x["kind"], year, x["turno"], x["held"])]
         contest_id = contests[(el_id, offices[x["office"]], x["place"])]
-        if db_person_election.get((pid, el_id), contest_id) != contest_id:
+        if db_person_election.get((pid, el_id), (contest_id, sq)) != (contest_id, sq):
             r.reject(1, f"outra candidatura da mesma pessoa na eleição: {civil} ({sq})")
             continue
         if (pid, el_id) in seen_person_election:
@@ -289,7 +323,7 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
         cand_rows.append((contest_id, el_id, pid, party_id, sq, urna, int(x["NR_CANDIDATO"]) if (x["NR_CANDIDATO"] or "").isdigit() else None,
                           nz(x["NM_COLIGACAO"]), result, "BRL"))
         if x["turno"] == 1:
-            sq_round1[sq] = (contest_id, pid)
+            sq_round1[(sq, (x["SG_UE"] or "").strip())] = (contest_id, pid)
         if result in ELECTED:
             start, end = term_dates(x["office"], year)
             if x["kind"] == "suplementar":
@@ -363,15 +397,16 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
 
     # 5) bens declarados (soma por candidatura do 1º turno)
     if bens_zip:
-        brows = _read(_extract(bens_zip, year, ufs, "bem_candidato"), ["SQ_CANDIDATO", "VR_BEM_CANDIDATO"])
-        total: dict[str, int] = defaultdict(int)
+        brows = _read(_extract(bens_zip, year, ufs, "bem_candidato"), ["SQ_CANDIDATO", "SG_UE", "VR_BEM_CANDIDATO"])
+        total: dict[tuple[str, str], int] = defaultdict(int)
         for b in brows:
             v = cents(b["VR_BEM_CANDIDATO"])
-            if b["SQ_CANDIDATO"] in sq_round1 and v is not None:
-                total[b["SQ_CANDIDATO"]] += v
+            k = (b["SQ_CANDIDATO"], (b["SG_UE"] or "").strip())
+            if k in sq_round1 and v is not None:
+                total[k] += v
         decl = []
-        for sq, tot in total.items():
-            contest_id, pid = sq_round1[sq]
+        for (sq, _ue), tot in total.items():
+            contest_id, pid = sq_round1[(sq, _ue)]
             cid = cand_id.get((sq, contest_id))
             if cid:
                 decl.append((pid, cid, year, tot, "BRL"))

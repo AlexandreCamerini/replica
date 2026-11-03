@@ -147,8 +147,8 @@ def classify_all(conn: psycopg.Connection, years: list[int] | None) -> tuple[lis
     """Uma entrada por candidatura do banco: verdict ok | religar | remover | sem_fonte."""
     people, by_titulo, by_name_birth = _load_people(conn)
     cands = conn.execute(
-        """select c.id, e.year, c.tse_sequencial sq, c.person_id, c.election_id, c.contest_id, c.ballot_name
-           from candidacies c join elections e on e.id = c.election_id
+        """select c.id, e.year, c.tse_sequencial sq, c.person_id, c.election_id, c.contest_id, c.ballot_name, ct.place_id::text, e.kind
+           from candidacies c join elections e on e.id = c.election_id join contests ct on ct.id = c.contest_id
            where %s::int[] is null or e.year = any(%s::int[])""", (years, years)).fetchall()
     by_year: dict[int, set[str]] = defaultdict(set)
     for c in cands:
@@ -159,11 +159,20 @@ def classify_all(conn: psycopg.Connection, years: list[int] | None) -> tuple[lis
         log.info("fonte %d: %d de %d SQ do banco achados no consulta_cand", y, len(got), len(sqs))
         src.update({(y, sq): s for sq, s in got.items()})
 
+    # BUG-035: em 2012 o SQ se repete entre a eleição ordinária e as suplementares do arquivo; a linha é a do município da disputa
+    from .tse_bug035 import load_rows, pick_row
+    from .tse_candidatos import SQ_COM_UE
+
+    rows_ue = {y: load_rows(conn, y) for y in by_year if y in SQ_COM_UE}
     out: list[dict[str, Any]] = []
     stats: Counter = Counter()
     for c in cands:
         pid = str(c["person_id"])
-        s = src.get((c["year"], c["sq"]))
+        if c["year"] in rows_ue:
+            r = pick_row(rows_ue[c["year"]].get(c["sq"], []), c["place_id"], c["kind"])
+            s = r.src if r else None
+        else:
+            s = src.get((c["year"], c["sq"]))
         item = dict(id=str(c["id"]), year=c["year"], sq=c["sq"], person_id=pid, election_id=str(c["election_id"]),
                     contest_id=str(c["contest_id"]), ballot_name=c["ballot_name"], src=s, target=None, basis=None, reason=None)
         if s is None:
@@ -309,6 +318,8 @@ def apply_fix(conn: psycopg.Connection, items: list[dict[str, Any]]) -> Counter:
 def rekey_external_ids(conn: psycopg.Connection, items: list[dict[str, Any]]) -> tuple[int, int]:
     """`tse:SQ` -> `tse:ANO:SQ`, a partir das candidaturas (já reparadas). Vínculo sem candidatura (registro rejeitado) sai:
     sem o ano não dá para saber de que eleição era, e a próxima carga casa de novo pelo título."""
+    from .tse_candidatos import SQ_COM_UE
+
     how = {it["id"]: it["basis"] for it in items if it["verdict"] == "religar"}
     cur = conn.cursor()
     cur.execute("create temp table tmp_basis (candidacy_id uuid, basis text) on commit drop")
@@ -323,10 +334,11 @@ def rekey_external_ids(conn: psycopg.Connection, items: list[dict[str, Any]]) ->
            from candidacies c join elections e on e.id = c.election_id cross join sources s
            left join tmp_basis b on b.candidacy_id = c.id
            left join person_external_ids o on o.source_id = s.id and o.external_id = c.tse_sequencial and o.person_id = c.person_id
-           where s.slug = 'tse'
+           where s.slug = 'tse' and e.year <> all(%s::int[])  -- 2012: chave ANO:UE:SQ, gravada pelo tse.fix035 (BUG-035)
            order by e.year, c.tse_sequencial, e.round
            on conflict (source_id, external_id) do update set person_id = excluded.person_id, match_method = excluded.match_method,
-             match_confidence = excluded.match_confidence where person_external_ids.person_id <> excluded.person_id""").rowcount
+             match_confidence = excluded.match_confidence where person_external_ids.person_id <> excluded.person_id""",
+        (sorted(SQ_COM_UE),)).rowcount
     dele = cur.execute(
         """delete from person_external_ids e using sources s
            where s.id = e.source_id and s.slug = 'tse' and e.external_id !~ '^[0-9]{4}:'""").rowcount
