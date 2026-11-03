@@ -119,7 +119,9 @@ def _fill(tipo: str, ano: int, out: dict[tuple[str, int], dict], excess: int) ->
     ini, fim = date(ano, 1, 1), min(date(ano, 12, 31), date.today())
 
     def one(num: int) -> bool:
-        r = _search(tipo, ano, ini, fim, f"&num={num}")
+        # sem janela de datas: proposição sem data de publicação também volta
+        r = polite_json(f"{API}/proposicoes/pesquisa/direcionada?tipo={tipo}&ano={ano}&num={num}&formato=json",
+                        max_age=30 * DAY if fim < date.today() - timedelta(days=60) else 6 * 3600)
         rr = r[next(iter(r))] if isinstance(r, dict) and r else {}
         hit = False
         for x in _list(rr):
@@ -214,7 +216,11 @@ def run_almg(conn: psycopg.Connection, *, years: list[int], expense_years: list[
             for t in TYPES:
                 over: list[int] = []
                 _window(t, y, date(y, 1, 1), min(date(y, 12, 31), date.today()), found, over)
-                left = _fill(t, y, found, sum(over))
+                # o total do ano (sem janela) pega também proposição sem data de publicação, que nenhuma janela de datas devolve
+                dt = polite_json(f"{API}/proposicoes/pesquisa/direcionada?tipo={t}&ano={y}&formato=json", max_age=6 * 3600)
+                total = int((dt[next(iter(dt))] if isinstance(dt, dict) and dt else {}).get("noOcorrencias") or 0)
+                have = sum(1 for (tt, _n) in found if tt == t)
+                left = _fill(t, y, found, max(sum(over), total - have))
                 if left:
                     log.warning("ALMG %s %d: %d proposições não recuperadas sem paginar", t, y, left)
                     notes.append(f"ALMG {t} {y}: {left} proposições não recuperadas sem paginar (robots.txt)")
