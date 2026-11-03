@@ -688,6 +688,17 @@ export const fakeSource: DataSource = {
   async getActiveYears(personId) {
     return mandateYears(personId);
   },
+  async getPresenceByMonth(personId, year) {
+    const out: { month: number; present: number; total: number }[] = [];
+    for (const v of votesOf(personId)) {
+      if (yearOf(v.event.occurredAt) !== year) continue;
+      const m = Number(v.event.occurredAt.slice(5, 7));
+      const row = out.find((x) => x.month === m) ?? (out.push({ month: m, present: 0, total: 0 }), out[out.length - 1]);
+      row.total++;
+      if (v.value !== "nao_votou") row.present++;
+    }
+    return out.sort((a, b) => a.month - b.month);
+  },
   async countSecretVotes() {
     return 0; // a demo não simula votação secreta
   },

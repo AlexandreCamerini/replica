@@ -10,6 +10,7 @@ import { Avatar } from "@/components/people/holder-card";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
 import { Assets, Committees, Contact, Elections, Expenses, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Votes } from "@/components/profile/sections";
 import { LinkChip, hrefWith, type Params } from "@/components/profile/ui";
+import { YearByYear } from "@/components/profile/yearly";
 import { CompareToggle } from "@/components/shell/compare";
 import { MissingDataNote, StatTile } from "@/components/ui/data";
 import { ListenButton } from "@/components/ui/misc";
@@ -302,6 +303,9 @@ export default async function Page({ params, searchParams }: Props) {
       {full && <YearSummary stats={stats} periodLabel={periodLabel} f={f} senado={main.office === "senador"} />}
 
       <div className="mt-8 flex flex-col gap-6">
+        {full && (
+          <YearByYear personId={person.id} yearly={yearly} year={yearParam} base={base} sp={sp} senado={main.office === "senador"} presenceReason={missingOf("presenca")?.reason} />
+        )}
         {full && (
           <>
             <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("propostas")?.reason} />

@@ -49,9 +49,10 @@ export const fieldCls =
 
 export function SelectField({ label, name, value, options }: { label: string; name: string; value?: string; options: { value: string; label: string }[] }) {
   return (
-    <label className="flex flex-col gap-1 text-xs font-semibold text-fg">
+    <label className="flex min-w-0 max-w-full flex-col gap-1 text-xs font-semibold text-fg">
       {label}
-      <select name={name} defaultValue={value ?? ""} className={fieldCls}>
+      {/* max-w-full: a opção mais longa (categoria da cota) não pode alargar a página no celular */}
+      <select name={name} defaultValue={value ?? ""} className={`${fieldCls} max-w-full`}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

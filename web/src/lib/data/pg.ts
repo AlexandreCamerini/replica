@@ -399,6 +399,17 @@ export const pgSource: DataSource = {
       expensesCents: missing(r, "gastos_gabinete") ? null : num(r.expenses_cents),
     }));
   },
+  async getPresenceByMonth(personId, year) {
+    const rows = await sql`
+      select extract(month from s.starts_at at time zone 'America/Sao_Paulo')::int as m,
+             count(*) filter (where a.status = 'presente')::int as present,
+             count(*) filter (where a.status in ('presente', 'ausente', 'ausencia_justificada'))::int as total
+      from attendance a join sessions s on s.id = a.session_id
+      where a.person_id = ${personId}::uuid and s.is_deliberative
+        and s.starts_at >= make_timestamptz(${year}, 1, 1, 0, 0, 0, 'America/Sao_Paulo') and s.starts_at < make_timestamptz(${year + 1}, 1, 1, 0, 0, 0, 'America/Sao_Paulo')
+      group by 1 having count(*) filter (where a.status in ('presente', 'ausente', 'ausencia_justificada')) > 0 order by 1`;
+    return rows.map((r) => ({ month: Number(r.m), present: Number(r.present), total: Number(r.total) }));
+  },
   async countSecretVotes(personId, year) {
     const [r] = await sql`
       select count(*)::int as n

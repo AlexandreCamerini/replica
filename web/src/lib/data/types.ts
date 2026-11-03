@@ -252,6 +252,8 @@ export interface DataSource {
   getYearlyStats(personId: string): Promise<YearStats[]>;
   /** Votações secretas do Senado no período de exercício (sem voto individual publicado). */
   countSecretVotes(personId: string, year?: number): Promise<number>;
+  /** Presença por mês num ano (sessões deliberativas da Câmara; fora do exercício não conta). Só meses com sessão. */
+  getPresenceByMonth(personId: string, year: number): Promise<{ month: number; present: number; total: number }[]>;
   listProposals(personId: string, f: ProposalFilter): Promise<Page<Proposal>>;
   listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote>>;
   listExpenses(personId: string, f: ExpenseFilter): Promise<Page<Expense> & { byCategory: { label: string; cents: number }[] }>;

@@ -57,7 +57,8 @@ export function StatTile({
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-sm border border-border bg-surface p-4">
       <div className="flex items-start justify-between gap-2">
-        <span className="font-display text-xl tabular text-fg">
+        {/* text-lg no celular: valor de 9 dígitos + botão de ajuda cabem na meia coluna de 390 px */}
+        <span className="min-w-0 font-display text-lg tabular text-fg md:text-xl">
           {ceiling && value !== null && <span className="mr-1 text-sm font-semibold text-muted">até</span>}
           {formatValue(value, kind)}
         </span>
