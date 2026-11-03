@@ -28,7 +28,22 @@ const STATE_LEG = new Set(["deputado_estadual", "deputado_distrital"]);
 const LEGISLATIVE = new Set(["senador", "deputado_federal", "deputado_estadual", "deputado_distrital", "vereador"]);
 const EXECUTIVE = new Set(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
 // D197: origem que não é sigla de casa ou tribunal ganha nome por extenso
-const STATUS_SOURCE_LABEL: Record<string, string> = { "governo-am": "o site do Governo do Amazonas (Governadoria)" };
+// D202: origens da lista curada do executivo (BUG-031)
+const STATUS_SOURCE_LABEL: Record<string, string> = {
+  "governo-am": "o site do Governo do Amazonas (Governadoria)",
+  "governo-ac": "a Agência de Notícias do Governo do Acre",
+  "governo-es": "o site do Governo do Espírito Santo",
+  "governo-go": "o site do Governo de Goiás",
+  "governo-mg": "a Agência Minas, do Governo de Minas Gerais",
+  "governo-pb": "o jornal A União, do Governo da Paraíba",
+  almt: "a Assembleia Legislativa de Mato Grosso",
+  alepa: "a Assembleia Legislativa do Pará",
+  cldf: "a Câmara Legislativa do DF",
+  alerj: "a Assembleia Legislativa do RJ",
+  "ale-rr": "a Assembleia Legislativa de Roraima",
+  stf: "o STF",
+  imprensa: "a imprensa (o ato não foi localizado em fonte oficial)",
+};
 
 async function load(slug: string) {
   if (!/^[a-z0-9-]{1,120}$/.test(slug)) return null;

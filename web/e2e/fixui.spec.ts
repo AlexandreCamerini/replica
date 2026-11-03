@@ -18,12 +18,13 @@ test.describe("fixui · correções da verificação final", () => {
     await expect(page.getByTestId("criterio")).toContainText("não ordena nem pinta");
   });
 
-  // D184/D197: o AM voltou a ter governador (eleição indireta, fora do TSE); o vice segue vago e é ele que exercita a lacuna
-  test("FX-024 home conta 27 governos do estado depois do mandato fora do TSE", async ({ page }) => {
+  // D184/D197 e BUG-031 (D202/D203): o AM tem governador fora do TSE; RJ e RR não têm ninguém do diretório em exercício
+  // (interino do TJ-RJ e da ALE-RR), então a home conta 25 de 27 e diz quais UFs
+  test("FX-024 home conta 25 de 27 governos do estado e nomeia RJ e RR", async ({ page }) => {
     test.skip(!PG, "números reais");
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /Governo do estado 27\b/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Governo do estado 26 de 27/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Governo do estado 25 de 27/ })).toBeVisible();
+    await expect(page.getByText(/RJ, RR sem governador em exercício/)).toBeVisible();
   });
 
   test("FX-024 Manaus mostra o governador e o vice vago como “—” com o motivo", async ({ page, axe }) => {
@@ -33,6 +34,32 @@ test.describe("fixui · correções da verificação final", () => {
     const gap = page.getByTestId("lacuna").filter({ hasText: /Vice-gov/ });
     await expect(gap).toContainText("—");
     await axe();
+  });
+
+  test("FX-031 Brasília mostra Celina Leão governadora e não Ibaneis; vice “—” com motivo", async ({ page }) => {
+    test.skip(!PG, "números reais");
+    await page.goto("/representantes?cidade=5300108");
+    await expect(page.getByText("Celina Leão").first()).toBeVisible();
+    await expect(page.getByText("Ibaneis Rocha")).toHaveCount(0);
+    await expect(page.getByTestId("lacuna").filter({ hasText: /Vice-gov/ })).toContainText("quem era vice assumiu o governo");
+  });
+
+  test("FX-031 Rio e Boa Vista: governo “—” com o interino de outro Poder, sem Castro nem Denarium", async ({ page, axe }) => {
+    test.skip(!PG, "números reais");
+    await page.goto("/representantes?cidade=3304557");
+    await expect(page.getByText("Cláudio Castro")).toHaveCount(0);
+    await expect(page.getByTestId("lacuna").filter({ hasText: /Governo do estado/ })).toContainText("presidente do TJ-RJ");
+    await axe();
+    await page.goto("/representantes?cidade=1400100");
+    await expect(page.getByText("Antonio Denarium")).toHaveCount(0);
+    await expect(page.getByTestId("lacuna").filter({ hasText: /Governo do estado/ })).toContainText("sub judice");
+  });
+
+  test("FX-030 cota de Luciano Vieira 2024 soma a complementação do auxílio-moradia (Câmara: 516.374,69)", async ({ page }) => {
+    test.skip(!PG, "números reais");
+    await page.goto("/p/luciano-vieira?ano=2024");
+    await expect(page.getByTestId("ano-em-numeros")).toContainText("R$ 516.375");
+    await expect(page.getByText("R$ 449.994")).toHaveCount(0);
   });
 
   test("FX-025 Campinas diz “N de M cadeiras carregadas” nos deputados estaduais", async ({ page }) => {

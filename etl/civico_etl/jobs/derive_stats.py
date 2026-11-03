@@ -280,40 +280,157 @@ MANDATE_RULES = [
     ),
 ]
 
-# BUG-024 / D184: titular do executivo que o TSE não publica (eleição indireta pela Assembleia depois de dupla vacância nos
-# dois últimos anos do mandato). Lista curta, curada, com fonte oficial; cada linha vira mandato com status_source da casa
-# que elegeu. Idempotente (upsert pela chave natural). Sai da lista quando o mandato acaba (ends_on no passado não pesa).
+# BUG-024 / D184 e BUG-031 / D202: executivo estadual que o TSE não publica. Lista curta, curada, cada linha com a fonte que a
+# sustenta (oficial sempre que achada; quando só a imprensa publica, a linha diz isso e a tela mostra "—" com o motivo).
+# Ações (idempotentes, aplicadas antes das regras D06; uma saída com status_source <> 'tse' tira o mandato das regras):
+#   posse  -> mandato novo (upsert pela chave natural): eleição indireta, sucessão fora da regra D06, sucessor depois cassado.
+#   saida  -> fecha um mandato existente (chave: pessoa, cargo, UF, início) com status, data e origem da fonte.
+#   inicio -> corrige a data de início do mandato de sucessor criado pela regra D06 (que usa o prazo de 04/04, não a posse).
+# `vacancy_note` vai para a tela no lugar do motivo genérico quando o cargo fica sem ninguém do diretório em exercício
+# (interino de outro Poder, vaga, fonte oficial que não confirma). Saída de status_source <> 'tse' tira o mandato das regras D06.
+_FIM = "2027-01-06"  # EC 111/2021: posse dos governadores eleitos em 2026
+
+
+def _sucessao(uf: str, titular: str, vice: str, d: str, src: str, fonte: str, dmy: str) -> list[dict[str, str]]:
+    """Vice que assumiu: a regra D06 já cria o sucessor; aqui só entram as datas da fonte oficial e o motivo da vaga de vice."""
+    return [
+        {"acao": "saida", "slug": titular, "office": "governador", "uf": uf, "started_on": "2023-01-01", "status": "renunciou", "ends_on": d,
+         "status_source": src, "fonte": fonte},
+        {"acao": "saida", "slug": vice, "office": "vice_governador", "uf": uf, "started_on": "2023-01-01", "status": "encerrado", "ends_on": d,
+         "status_source": src, "fonte": fonte, "vacancy_note": f"cargo vago desde {dmy}: quem era vice assumiu o governo, e não houve eleição de novo vice"},
+        # o sucessor que a regra D06 criou com início em 04/04 passa para a data da posse; num banco novo (a saída acima tira o
+        # titular das regras) a posse cria o mandato. Com o "inicio" antes, a posse não sobrepõe o mandato que já existe.
+        {"acao": "inicio", "slug": vice, "office": "governador", "uf": uf, "started_on": d, "ends_on": _FIM, "status_source": src, "fonte": fonte},
+        {"acao": "posse", "slug": vice, "civil": None, "office": "governador", "uf": uf, "started_on": d, "ends_on": _FIM, "status": "em_exercicio",
+         "status_source": src, "elected_by": "sucessão: vice assumiu (titular renunciou para concorrer)", "fonte": fonte},
+    ]
+
+
 EXECUTIVO_FORA_DO_TSE: list[dict[str, str]] = [
     {
-        "slug": "roberto-cidade", "civil": "Roberto Maia Cidade Filho", "office": "governador", "uf": "AM",
-        "started_on": "2026-05-04", "ends_on": "2027-01-06", "status_source": "governo-am",
+        "acao": "posse", "slug": "roberto-cidade", "civil": "Roberto Maia Cidade Filho", "office": "governador", "uf": "AM",
+        "started_on": "2026-05-04", "ends_on": _FIM, "status": "em_exercicio", "status_source": "governo-am",
         "elected_by": "eleição indireta na Assembleia Legislativa do Amazonas em 04/05/2026 (mandato-tampão após a renúncia do governador e do vice)",
-        # D197: oficial = Governadoria do AM (nomeia o governador, página de 08/05/2026); a ALEAM não publicou a eleição em página localizável.
-        # Contexto da eleição indireta: Agência Brasil, https://agenciabrasil.ebc.com.br/justica/noticia/2026-05/roberto-cidade-e-eleito-governador-do-amazonas-em-eleicao-indireta
+        # D197: oficial = Governadoria do AM (nomeia o governador, página de 08/05/2026). DOE-AM e ALEAM procurados de novo em
+        # 03/11/2026 (D202): nenhuma página localizável com a eleição indireta ou a posse; a data de 04/05 segue da Agência Brasil:
+        # https://agenciabrasil.ebc.com.br/justica/noticia/2026-05/roberto-cidade-e-eleito-governador-do-amazonas-em-eleicao-indireta
         "fonte": "https://www.amazonas.am.gov.br/orgaos_entidades/governadoria/",
     },
+    {
+        "acao": "saida", "slug": "tadeu-de-souza", "office": "vice_governador", "uf": "AM", "started_on": "2023-01-01",
+        "vacancy_note": "a Assembleia Legislativa elegeu Serafim Corrêa vice-governador em 04/05/2026, segundo a imprensa; não achamos o ato "
+                        "em fonte oficial e ele ainda não está no diretório",
+        "fonte": "https://agenciabrasil.ebc.com.br/justica/noticia/2026-05/roberto-cidade-e-eleito-governador-do-amazonas-em-eleicao-indireta",
+    },
+    # DF: Ibaneis renunciou em 28/03/2026 (data da imprensa: Jornal de Brasília, Poder360) sem candidatura no TSE, então a regra D06
+    # não dispara. A CLDF deu posse a Celina Leão em 30/03/2026.
+    {"acao": "saida", "slug": "ibaneis-rocha", "office": "governador", "uf": "DF", "started_on": "2023-01-01", "status": "renunciou",
+     "ends_on": "2026-03-28", "status_source": "cldf", "fonte": "https://www.cl.df.gov.br/-/celina-leao-toma-posse-como-governadora-do-distrito-federal"},
+    {"acao": "saida", "slug": "celina-leao", "office": "vice_governador", "uf": "DF", "started_on": "2023-01-01", "status": "encerrado",
+     "ends_on": "2026-03-30", "status_source": "cldf", "vacancy_note": "cargo vago desde 30/03/2026: quem era vice assumiu o governo, e não houve eleição de novo vice",
+     "fonte": "https://www.cl.df.gov.br/-/celina-leao-toma-posse-como-governadora-do-distrito-federal"},
+    {"acao": "posse", "slug": "celina-leao", "civil": None, "office": "governador", "uf": "DF", "started_on": "2026-03-30", "ends_on": _FIM,
+     "status": "em_exercicio", "status_source": "cldf",
+     "elected_by": "sucessão: a vice assumiu (o governador renunciou em 28/03/2026); posse na Câmara Legislativa do DF em 30/03/2026",
+     "fonte": "https://www.cl.df.gov.br/-/celina-leao-toma-posse-como-governadora-do-distrito-federal"},
+    # RJ: Castro renunciou em 23/03/2026 (Agência Brasil); o RJ não tinha vice (Pampolha renunciou em 21/05/2025 ao ser aprovado
+    # para o TCE-RJ, Alerj). O presidente do TJ-RJ governa como interino; o STF (Rcl 92644) o manteve "até nova deliberação".
+    # O interino não é pessoa do diretório e o modelo não tem papel de interino: a tela mostra "—" com o motivo.
+    {"acao": "saida", "slug": "claudio-castro", "office": "governador", "uf": "RJ", "started_on": "2023-01-01", "status": "renunciou",
+     "ends_on": "2026-03-23", "status_source": "stf",
+     "vacancy_note": "exercício interino pelo presidente do TJ-RJ, desembargador Ricardo Couto, desde 23/03/2026; o STF o manteve no cargo "
+                     "até decidir o mandato-tampão (Rcl 92644, 24/04/2026)",
+     "fonte": "https://noticias.stf.jus.br/postsnoticias/stf-decide-que-presidente-do-tj-deve-ser-mantido-como-governador-do-rio-de-janeiro/"},
+    {"acao": "saida", "slug": "thiago-pampolha", "office": "vice_governador", "uf": "RJ", "started_on": "2023-01-01", "status": "renunciou",
+     "ends_on": "2025-05-21", "status_source": "alerj",
+     "vacancy_note": "cargo vago desde 21/05/2025: o vice renunciou ao ser aprovado para conselheiro do TCE-RJ",
+     "fonte": "https://www.alerj.rj.gov.br/Visualizar/Noticia/76016"},
+    # RR: Denarium renunciou e Edilson Damião tomou posse na ALE-RR em 27/03/2026; o TSE cassou a chapa de 2022 e, em 30/04/2026,
+    # a ALE-RR deu o governo, interino, ao seu presidente (Soldado Sampaio). A suplementar de 21/06/2026 ficou sub judice e nenhuma
+    # fonte oficial lida depois de 23/06/2026 confirma quem governa hoje: "—" com o motivo.
+    {"acao": "saida", "slug": "antonio-denarium", "office": "governador", "uf": "RR", "started_on": "2023-01-01", "status": "renunciou",
+     "ends_on": "2026-03-27", "status_source": "ale-rr",
+     "fonte": "https://al.rr.leg.br/2026/04/30/apos-decisao-do-tse-alerr-oficializa-troca-de-comando-interina-nos-poderes-executivo-e-legislativo/"},
+    {"acao": "saida", "slug": "edilson-damiao", "office": "vice_governador", "uf": "RR", "started_on": "2023-01-01", "status": "encerrado",
+     "ends_on": "2026-03-27", "status_source": "ale-rr",
+     "vacancy_note": "cargo vago desde 27/03/2026: quem era vice assumiu o governo, e a chapa eleita em 2022 foi cassada pelo TSE",
+     "fonte": "https://al.rr.leg.br/2026/04/30/apos-decisao-do-tse-alerr-oficializa-troca-de-comando-interina-nos-poderes-executivo-e-legislativo/"},
+    {"acao": "posse", "slug": "edilson-damiao", "civil": None, "office": "governador", "uf": "RR", "started_on": "2026-03-27", "ends_on": "2026-04-30",
+     "status": "cassado", "status_source": "ale-rr",
+     "elected_by": "sucessão: o vice assumiu (o governador renunciou em 27/03/2026); cassado com a chapa de 2022 pelo TSE",
+     "vacancy_note": "exercício interino pelo presidente da Assembleia Legislativa de Roraima (Soldado Sampaio) desde 30/04/2026; a eleição "
+                     "suplementar de 21/06/2026 ficou sub judice e nenhuma fonte oficial que lemos confirma quem governa hoje",
+     "fonte": "https://al.rr.leg.br/2026/04/30/apos-decisao-do-tse-alerr-oficializa-troca-de-comando-interina-nos-poderes-executivo-e-legislativo/"},
+    # AL: a renúncia do vice em 09/10/2026 só está na imprensa (TNH1, Congresso em Foco, citando nota do governo); o DOE-AL não foi
+    # localizado e a página oficial do governo ainda o lista. Não afirmamos nem um nem outro: "—" com o motivo.
+    {"acao": "saida", "slug": "ronaldo-lessa", "office": "vice_governador", "uf": "AL", "started_on": "2023-01-01", "status": "renunciou",
+     "ends_on": "2026-10-09", "status_source": "imprensa",
+     "vacancy_note": "a imprensa noticiou a renúncia do vice Ronaldo Lessa em 09/10/2026, citando nota do Governo de Alagoas; não achamos o "
+                     "ato no Diário Oficial e a página do governo ainda o lista",
+     "fonte": "https://www.tnh1.com.br/noticia/nid/ronaldo-lessa-renuncia-ao-mandato-de-vice-governador-do-estado-de-alagoas/"},
+    # Sucessões que a regra D06 já faz, com a data de posse da fonte oficial (a regra usa o prazo de desincompatibilização, 04/04).
+    *_sucessao("AC", "gladson-cameli", "mailza", "2026-04-02", "governo-ac", "https://agencia.ac.gov.br/gladson-cameli-transmite-governo-do-acre-para-mailza-assis-que-define-saude-emprego-e-seguranca-como-prioridades-um-tempo-de-trabalho-uniao-e-avanco/", "02/04/2026"),
+    *_sucessao("ES", "renato-casagrande", "ricardo-ferraco", "2026-04-02", "governo-es", "https://www.es.gov.br/Noticia/ricardo-ferraco-toma-posse-como-governador-do-espirito-santo", "02/04/2026"),
+    *_sucessao("GO", "ronaldo-caiado", "daniel-vilela", "2026-03-31", "governo-go", "https://goias.gov.br/abc/daniel-vilela-toma-posse-como-governador-de-goias/", "31/03/2026"),
+    *_sucessao("MG", "zema", "professor-mateus", "2026-03-22", "governo-mg", "https://www.agenciaminas.mg.gov.br/noticia/mateus-simoes-e-empossado-governador-e-reforca-projeto-de-desenvolvimento-de-minas-gerais-129430", "22/03/2026"),
+    *_sucessao("MT", "mauro-mendes", "otaviano-pivetta", "2026-03-31", "almt", "https://www.al.mt.gov.br/midia/texto/almt-da-posse-a-otaviano-pivetta-como-governador-apos-renuncia-de-mauro-mendes/visualizar", "31/03/2026"),
+    *_sucessao("PA", "helder", "hana", "2026-04-02", "alepa", "https://www.alepa.pa.gov.br/Comunicacao/Noticia/11627/mensagem-de-renuncia-de-helder-e-entregue-ao-legislativo-e-marca-transicao-no-governo-do-para", "02/04/2026"),
+    *_sucessao("PB", "joao", "lucas-ribeiro", "2026-04-02", "governo-pb", "https://auniao.pb.gov.br/noticias/caderno_politicas/lucas-ribeiro-assume-governo-da-pb", "02/04/2026"),
 ]
+
+_KEY = """from people p, offices o, places pl
+          where p.slug = %(slug)s and (%(civil)s::text is null or p.civil_name = %(civil)s) and o.slug = %(office)s and pl.kind = 'uf' and pl.uf = %(uf)s"""
 
 
 def apply_executivo_fora_do_tse(conn: psycopg.Connection) -> int:
     n = 0
-    for x in EXECUTIVO_FORA_DO_TSE:
-        row = conn.execute(
-            """insert into mandates (person_id, office_id, place_id, body_id, party_id, role, status, started_on, ends_on, elected_by, status_source)
-               select p.id, o.id, pl.id, null, null, 'titular', 'em_exercicio', %(started_on)s, %(ends_on)s, %(elected_by)s, %(status_source)s
-               from people p, offices o, places pl
-               where p.slug = %(slug)s and p.civil_name = %(civil)s and o.slug = %(office)s and pl.kind = 'uf' and pl.uf = %(uf)s
-               on conflict (person_id, office_id, place_id, started_on) do update
-                 set ends_on = excluded.ends_on, elected_by = excluded.elected_by, status_source = excluded.status_source, status = excluded.status, updated_at = now()
-                 where (mandates.ends_on, mandates.elected_by, mandates.status_source, mandates.status)
-                       is distinct from (excluded.ends_on, excluded.elected_by, excluded.status_source, excluded.status)
-               returning id""",
-            x,
-        ).fetchone()
+    for raw in EXECUTIVO_FORA_DO_TSE:
+        x = {"civil": None, "status": None, "ends_on": None, "status_source": None, "vacancy_note": None, "elected_by": None, **raw}
+        if x["acao"] == "posse":
+            row = conn.execute(
+                f"""insert into mandates (person_id, office_id, place_id, body_id, party_id, role, status, started_on, ends_on, elected_by, status_source, vacancy_note)
+                   select p.id, o.id, pl.id, null, null, 'titular', %(status)s, %(started_on)s, %(ends_on)s, %(elected_by)s, %(status_source)s, %(vacancy_note)s
+                   {_KEY}
+                   on conflict (person_id, office_id, place_id, started_on) do update
+                     set ends_on = excluded.ends_on, elected_by = excluded.elected_by, status_source = excluded.status_source, status = excluded.status,
+                         vacancy_note = excluded.vacancy_note, updated_at = now()
+                     where (mandates.ends_on, mandates.elected_by, mandates.status_source, mandates.status, mandates.vacancy_note)
+                           is distinct from (excluded.ends_on, excluded.elected_by, excluded.status_source, excluded.status, excluded.vacancy_note)
+                   returning id""",
+                x,
+            ).fetchone()
+            found = row or conn.execute(f"select m.id from mandates m, ({'select p.id pid, o.id oid, pl.id plid ' + _KEY}) k "
+                                        "where m.person_id = k.pid and m.office_id = k.oid and m.place_id = k.plid and m.started_on = %(started_on)s", x).fetchone()
+        elif x["acao"] == "saida":
+            row = conn.execute(
+                f"""update mandates m set status = coalesce(%(status)s, m.status), ends_on = coalesce(%(ends_on)s::date, m.ends_on),
+                          status_source = coalesce(%(status_source)s, m.status_source), vacancy_note = %(vacancy_note)s, updated_at = now()
+                   from ({'select p.id pid, o.id oid, pl.id plid ' + _KEY}) k
+                   where m.person_id = k.pid and m.office_id = k.oid and m.place_id = k.plid and m.started_on = %(started_on)s
+                     and (m.status, m.ends_on, m.status_source, m.vacancy_note) is distinct from
+                         (coalesce(%(status)s, m.status), coalesce(%(ends_on)s::date, m.ends_on), coalesce(%(status_source)s, m.status_source), %(vacancy_note)s)
+                   returning m.id""",
+                x,
+            ).fetchone()
+            found = row or conn.execute(f"select m.id from mandates m, ({'select p.id pid, o.id oid, pl.id plid ' + _KEY}) k "
+                                        "where m.person_id = k.pid and m.office_id = k.oid and m.place_id = k.plid and m.started_on = %(started_on)s", x).fetchone()
+        elif x["acao"] == "inicio":
+            # mandato de sucessor (regra D06) que termina em ends_on: a data de início passa a ser a da posse na fonte
+            row = conn.execute(
+                f"""update mandates m set started_on = %(started_on)s, status_source = %(status_source)s, updated_at = now()
+                   from ({'select p.id pid, o.id oid, pl.id plid ' + _KEY}) k
+                   where m.person_id = k.pid and m.office_id = k.oid and m.place_id = k.plid and m.ends_on = %(ends_on)s
+                     and m.elected_by like 'sucessão%%' and (m.started_on, m.status_source) is distinct from (%(started_on)s::date, %(status_source)s)
+                   returning m.id""",
+                x,
+            ).fetchone()
+            found = True  # num banco novo o sucessor ainda não existe: a "posse" seguinte cria
+        else:
+            raise ValueError(f"EXECUTIVO_FORA_DO_TSE: ação desconhecida {x['acao']!r}")
         if row:
             n += 1
-        elif not conn.execute("select 1 from people where slug = %(slug)s and civil_name = %(civil)s", x).fetchone():
-            log.warning("executivo fora do TSE: pessoa %s não encontrada (lista EXECUTIVO_FORA_DO_TSE)", x["slug"])
+        if not found:
+            log.warning("executivo fora do TSE: %s de %s (%s/%s) não encontrado", x["acao"], x["slug"], x["office"], x["uf"])
     return n
 
 
@@ -348,12 +465,12 @@ on conflict (place_id, dataset) do nothing
 def run_derive(conn: psycopg.Connection) -> None:
     cur = conn.cursor()
     k = apply_executivo_fora_do_tse(conn)
-    if k:
-        log.info("executivo fora do TSE: %d mandato(s) gravado(s)", k)
     for name, q in MANDATE_RULES:
         cur.execute(q)
         if cur.rowcount:
             log.info("vacância: %s -> %d", name, cur.rowcount)
+    if k:
+        log.info("executivo fora do TSE: %d mandato(s) gravado(s)", k)
     # party_memberships é derivada: reconstrói inteira na mesma transação (o app lê person_current_party)
     cur.execute(f"create temp table tmp_pm on commit drop as {PARTY_SQL}")
     cur.execute("delete from party_memberships")

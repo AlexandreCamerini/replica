@@ -100,7 +100,7 @@ const dmy = (d: string) => d.split("-").reverse().join("/");
 /** Governador e vice de uma UF sem mandato em exercício: o cargo aparece como “—”, com o motivo tirado do último mandato (BUG-024). */
 async function executiveGaps(uf: string): Promise<{ office: OfficeSlug; what: string; why: string }[]> {
   const rows = await sql`
-    select o.slug as office, m.status, m.started_on, m.ends_on
+    select o.slug as office, m.status, m.started_on, m.ends_on, m.vacancy_note
     from mandates m join offices o on o.id = m.office_id join places pl on pl.id = m.place_id
     where pl.kind = 'uf' and pl.uf = ${uf} and o.slug in ('governador', 'vice_governador')
     order by m.started_on desc`;
@@ -113,7 +113,8 @@ async function executiveGaps(uf: string): Promise<{ office: OfficeSlug; what: st
     const bits: string[] = [];
     if (last) bits.push(`o último ${office === "governador" ? "titular" : "vice"} ${GAP_STATUS[String(last.status)] ?? "deixou o cargo"}${last.ends_on ? ` em ${dmy(iso(last.ends_on))}` : ""}`);
     if (waiting) bits.push(`há eleito aguardando posse${waiting.started_on ? ` em ${dmy(iso(waiting.started_on))}` : ""}`);
-    bits.push("a fonte (TSE) não publica quem exerce o cargo agora");
+    // D202: motivo conferido na fonte (interino de outro Poder, vaga), no lugar do genérico
+    bits.push(last?.vacancy_note ? String(last.vacancy_note) : "a fonte (TSE) não publica quem exerce o cargo agora");
     out.push({ office, what: OFFICE_LABEL[office], why: bits.join("; ") });
   }
   return out;

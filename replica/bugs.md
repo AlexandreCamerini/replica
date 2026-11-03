@@ -495,6 +495,14 @@ Actual e fontes (imprensa; o portal oficial de cada UF não foi conferido):
 - RR: Denarium renunciou, e Edilson Damião assumiu em 27/03/2026. O TSE cassou a chapa de 2022 em 30/04/2026, e a eleição suplementar foi em 21/06/2026, com resultado sub judice até 01/07 (CNN Brasil, InfoMoney, Congresso em Foco). Quem governa hoje não foi confirmado.
 Cause: a regra D06 só marca renúncia quando há candidatura a outro cargo no TSE. Renúncia sem candidatura (DF, RJ), cassação (RR) e interinidade de outro Poder ficam fora. O `check` D185 conta "exatamente 1 titular em exercício por UF" e não confere quem é.
 Fix sugerido: estender `EXECUTIVO_FORA_DO_TSE` (DF: Celina Leão desde 30/03/2026; RJ e RR: "—" com motivo até haver fonte oficial) e criar um check de identidade do governador por UF contra uma lista curada com fonte e data. Rever as outras 24 UFs contra o portal de cada governo.
+Status: fixed (replica-backend, D202/D203). Antes e depois:
+- DF: Ibaneis em exercício → Celina Leão governadora desde 30/03/2026 (CLDF), vice "—" vaga.
+- RJ: Castro e Pampolha → "—" nos dois cargos. Governo: "exercício interino pelo presidente do TJ-RJ, desembargador Ricardo Couto, desde 23/03/2026" (STF, Rcl 92644). Vice: vaga desde 21/05/2025 (Alerj).
+- RR: Denarium e Damião → "—" nos dois cargos. Damião aparece como governador de 27/03 a 30/04/2026, cassado. Interino: o presidente da ALE-RR. A suplementar está sub judice, e a fonte oficial não confirma quem governa hoje.
+- AL: o vice Lessa virou "—" com o motivo (renúncia só na imprensa).
+- Sete sucessões ficaram com a data de posse da fonte oficial em vez de 04/04.
+
+As 27 UFs foram conferidas em fonte oficial e estão em `GOVERNO_POR_UF`. O `check` agora confere a pessoa, e não a contagem: antes da correção acusava 21 divergências, depois 0. Teste em `etl/tests/test_governadores.py`. e2e FX-024 (home 25 de 27, RJ e RR nomeados) e FX-031 (Brasília, Rio e Boa Vista) verdes no 3101. O BUG-024 está fechado junto.
 
 ### BUG-032: o casamento de identidade pelo `SQ_CANDIDATO` sem o ano liga candidaturas de 2012 e 2014 a outras pessoas (15.769 pessoas, 3.406 mandatos)
 

@@ -49,15 +49,59 @@ PRESIDENTE_TSE: dict[tuple[int, int], tuple[int, int]] = {
 _PRES_VALUES = ", ".join(f"({y}, {t}, {v}, {a})" for (y, t), (v, a) in sorted(PRESIDENTE_TSE.items()))
 _PRES_TETO = int(max(a for _, a in PRESIDENTE_TSE.values()) * 1.1)
 
-# BUG-024 / D185: UF sem governador titular em exercício só com motivo conferido na fonte. Vazia hoje: o AM (dupla vacância
-# de 04/2026) tem o governador eleito pela Assembleia em EXECUTIVO_FORA_DO_TSE (derive_stats).
-GOVERNADOR_EXCECOES: dict[str, str] = {}
+# BUG-024 / D185 e BUG-031 / D203: UF sem governador titular em exercício só com motivo conferido na fonte.
+GOVERNADOR_EXCECOES: dict[str, str] = {
+    "RJ": "exercício interino pelo presidente do TJ-RJ desde 23/03/2026 (STF, Rcl 92644); o interino não é pessoa do diretório",
+    "RR": "exercício interino pelo presidente da ALE-RR desde 30/04/2026 (chapa de 2022 cassada); suplementar de 21/06/2026 sub judice",
+}
 _GOV_EXC = ", ".join(f"'{k}'" for k in sorted(GOVERNADOR_EXCECOES)) or "''"
 _GOVERNADORES_POR_UF = """
     select pl.uf, (select count(*) from mandates m join offices o on o.id = m.office_id
                    where m.place_id = pl.id and o.slug = 'governador' and m.role = 'titular' and m.status = 'em_exercicio'
                      and m.started_on <= current_date and m.ends_on > current_date) as n
     from places pl where pl.kind = 'uf'"""
+
+# BUG-031 / D203: quem exerce hoje governo e vice em cada UF, conferido em fonte oficial em 03/11/2026 (portal do governo, diário
+# oficial, Assembleia, tribunal ou TSE). O check exige que o banco tenha exatamente estas pessoas em exercício. None = ninguém do
+# diretório em exercício (interino de outro Poder, cargo vago ou fonte oficial que não confirma), e o último mandato que deixou o
+# cargo tem de trazer o motivo (`vacancy_note`) para a tela mostrar "—" com ele. Mudou na fonte: atualizar aqui e na lista
+# EXECUTIVO_FORA_DO_TSE (derive_stats). (UF) -> (governador, vice, fonte do governador)
+GOVERNO_POR_UF: dict[str, tuple[str | None, str | None, str]] = {
+    "AC": ("mailza", None, "https://agencia.ac.gov.br/gladson-cameli-transmite-governo-do-acre-para-mailza-assis-que-define-saude-emprego-e-seguranca-como-prioridades-um-tempo-de-trabalho-uniao-e-avanco/"),
+    "AL": ("paulo-dantas", None, "https://alagoas.al.gov.br/governo/governador-de-alagoas"),
+    "AM": ("roberto-cidade", None, "https://www.amazonas.am.gov.br/orgaos_entidades/governadoria/"),
+    "AP": ("clecio", "teles-jr", "https://diofe.portal.ap.gov.br/portal/edicoes/download/10141"),
+    "BA": ("jeronimo", "geraldo-junior", "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/jeronimo-rodrigues-pt-e-reeleito-governador-da-bahia-no-1o-turno"),
+    "CE": ("elmano-de-freitas", "jade-romero", "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/elmano-de-freitas-e-reeleito-governador-do-ceara"),
+    "DF": ("celina-leao", None, "https://www.cl.df.gov.br/-/celina-leao-toma-posse-como-governadora-do-distrito-federal"),
+    "ES": ("ricardo-ferraco", None, "https://www.es.gov.br/Noticia/ricardo-ferraco-toma-posse-como-governador-do-espirito-santo"),
+    "GO": ("daniel-vilela", None, "https://goias.gov.br/abc/daniel-vilela-toma-posse-como-governador-de-goias/"),
+    "MA": ("carlos-brandao", "felipe-camarao", "https://egma.ma.gov.br/noticias/brandao-recebe-novo-presidente-da-famem-no-palacio-dos-leoes-e-celebra-a-unidade-entre-os-prefeitos-maranhenses"),
+    "MG": ("professor-mateus", None, "https://www.mg.gov.br/governador/mateus-simoes-de-almeida"),
+    "MS": ("eduardo-riedel", "barbosinha", "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/eduardo-riedel-pp-e-eleito-governador-de-mato-grosso-do-sul"),
+    "MT": ("otaviano-pivetta", None, "https://www.al.mt.gov.br/midia/texto/almt-da-posse-a-otaviano-pivetta-como-governador-apos-renuncia-de-mauro-mendes/visualizar"),
+    "PA": ("hana", None, "https://www.seplad.pa.gov.br/2026/04/07/governadora-do-para-hana-ghassan-destaca-avancos-e-projeto-proximos-passos-do-estado/"),
+    "PB": ("lucas-ribeiro", None, "https://auniao.pb.gov.br/noticias/caderno_politicas/lucas-ribeiro-assume-governo-da-pb"),
+    "PE": ("raquel-lyra", "priscila-krause", "https://portal.tjpe.jus.br/-/presidente-do-tjpe-retransmite-governo-do-estado-a-raquel-lyra"),
+    "PI": ("rafael-fonteles", "themistocles-filho", "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/rafael-fonteles-pt-e-reeleito-governador-do-piaui"),
+    "PR": ("carlos-massa-ratinho-junior", "darci-piana", "https://www.parana.pr.gov.br/aen/Noticia/Ratinho-Junior-assina-decreto-que-estabelece-regras-da-transicao-para-governador-eleito"),
+    "RJ": (None, None, "https://noticias.stf.jus.br/postsnoticias/stf-decide-que-presidente-do-tj-deve-ser-mantido-como-governador-do-rio-de-janeiro/"),
+    "RN": ("fatima-bezerra", "walter-alves", "https://webdisk.diariooficial.rn.gov.br/Jornal/12026-10-30.pdf"),
+    "RO": ("coronel-marcos-rocha", "sergio-goncalves", "https://rondonia.ro.gov.br/encontro-de-catadores-de-materiais-reciclaveis-de-rondonia-aponta-a-consolidacao-da-politica-publica-de-reciclagem/"),
+    "RR": (None, None, "https://al.rr.leg.br/2026/04/30/apos-decisao-do-tse-alerr-oficializa-troca-de-comando-interina-nos-poderes-executivo-e-legislativo/"),
+    "RS": ("eduardo-leite", "gabriel-souza", "https://www.estado.rs.gov.br/vice-governador"),
+    "SC": ("jorginho-mello", "delegada-marilisa", "https://portal.doe.sea.sc.gov.br/repositorio/2026/20261016/Jornal/22862.pdf"),
+    "SE": ("fabio", "zezinho", "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/em-sergipe-fabio-mitidieri-psd-e-reeleito-governador-do-estado"),
+    "SP": ("tarcisio", "felicio-ramuth", "https://www.sp.gov.br/sp/institucional/estrutura/governador"),
+    "TO": ("wanderlei-barbosa", "laurez-moreira", "https://www.to.gov.br/secom/noticias/governador-wanderlei-barbosa-entrega-veiculos-e-fortalece-a-rede-de-assistencia-social-em-17-municipios/74pk0974rl81"),
+}
+def _sql_slug(x: str | None) -> str:
+    return f"'{x}'" if x else "null"
+
+
+_GOV_VALUES = ", ".join(
+    f"('{uf}', 'governador', {_sql_slug(g)}), ('{uf}', 'vice_governador', {_sql_slug(v)})" for uf, (g, v, _) in sorted(GOVERNO_POR_UF.items())
+)
 
 # BUG-020 / D183: cota parlamentar de uma amostra fixa contra o total da Câmara (arquivo Ano-AAAA.csv.zip + linhas que só a API
 # tem, D181), conferido em 03/11/2026 na API /deputados/{id}/despesas e na página camara.leg.br/deputados/{id}?ano=AAAA.
@@ -200,6 +244,39 @@ CHECKS: list[tuple[str, str]] = [
     (
         "UF: exatamente 1 governador titular em exercício (salvo exceção listada com motivo)",
         f"select count(*) from ({_GOVERNADORES_POR_UF}) x where x.n <> 1 and x.uf not in ({_GOV_EXC})",
+    ),
+    (
+        # BUG-031 / D203: contar linhas não basta (DF, RJ e RR passavam com quem já tinha saído). Cada UF: a pessoa em exercício
+        # é a da lista conferida na fonte (GOVERNO_POR_UF), para governador e para vice; sem ninguém, o último mandato que deixou
+        # o cargo explica a vaga (vacancy_note), e a UF sem governador tem de estar em GOVERNADOR_EXCECOES.
+        "UF: governador e vice em exercício = lista conferida na fonte oficial (GOVERNO_POR_UF), e vaga com motivo",
+        f"""with ref (uf, cargo, slug) as (values {_GOV_VALUES}),
+           ex as (select pl.uf, o.slug as cargo, string_agg(p.slug, ',' order by p.slug) as slugs
+                  from mandates m join offices o on o.id = m.office_id join places pl on pl.id = m.place_id join people p on p.id = m.person_id
+                  where pl.kind = 'uf' and o.slug in ('governador', 'vice_governador') and m.status = 'em_exercicio'
+                    and m.started_on <= current_date and m.ends_on > current_date
+                  group by 1, 2),
+           ult as (select distinct on (pl.uf, o.slug) pl.uf, o.slug as cargo, m.vacancy_note
+                   from mandates m join offices o on o.id = m.office_id join places pl on pl.id = m.place_id
+                   where pl.kind = 'uf' and o.slug in ('governador', 'vice_governador') and m.status not in ('em_exercicio', 'eleito_aguardando_posse')
+                   order by pl.uf, o.slug, m.started_on desc)
+           select (select count(*) from ref r left join ex e using (uf, cargo) where e.slugs is distinct from r.slug)
+                + (select count(*) from ref r left join ult u using (uf, cargo) where r.slug is null and u.vacancy_note is null)
+                + (select count(*) from ref r where r.cargo = 'governador' and r.slug is null and r.uf not in ({_GOV_EXC}))
+                + (select count(*) from (select distinct uf from ref) u where u.uf not in (select uf from places where kind = 'uf'))
+                + abs((select count(*) from places where kind = 'uf') - (select count(distinct uf) from ref))""",
+    ),
+    (
+        # BUG-031 / D203: quem renunciou, foi cassado ou encerrou não segue no cargo: mandato fechado acaba até hoje, e a mesma
+        # pessoa não fica em exercício no mesmo cargo e lugar depois da própria saída
+        "executivo: mandato com renúncia/cassação/encerramento termina até hoje e a pessoa não segue em exercício no mesmo cargo",
+        """select (select count(*) from mandates m join offices o on o.id = m.office_id
+                   where o.slug in ('presidente','vice_presidente','governador','vice_governador','prefeito','vice_prefeito')
+                     and m.status in ('renunciou','cassado','encerrado') and m.ends_on > current_date)
+                + (select count(*) from mandates a join mandates b on b.person_id = a.person_id and b.office_id = a.office_id and b.place_id = a.place_id
+                   join offices o on o.id = a.office_id
+                   where o.slug in ('governador','vice_governador') and a.status in ('renunciou','cassado')
+                     and b.status = 'em_exercicio' and b.started_on >= a.ends_on and b.started_on <= current_date and b.ends_on > current_date)""",
     ),
     (
         "executivo: um titular em exercício por lugar e cargo",
