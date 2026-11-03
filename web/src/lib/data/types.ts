@@ -111,6 +111,9 @@ export type SalaryAccrued = { cents: number; months: number; coveredMonths: numb
 /** Prestação de contas de uma campanha, somada por categoria oficial do TSE. Nunca nome de doador (D36). */
 export type CampaignFinance = { year: number; officeName: string; placeLabel: string; income: { label: string; cents: number }[]; spending: { label: string; cents: number }[] };
 
+/** Equipe do gabinete (W2 item 14). Salário null = a fonte lida não traz (vira "—" com motivo). */
+export type StaffMember = { name: string; role: string | null; monthlySalaryCents: number | null; asOf: string };
+
 export type Dataset =
   | "salario"
   | "presenca"
@@ -272,6 +275,8 @@ export interface DataSource {
   countSecretVotes(personId: string, year?: number): Promise<number>;
   /** Uma entrada por ano de eleição (o 2º turno não repete), mais recente primeiro. */
   getCampaignFinance(personId: string): Promise<CampaignFinance[]>;
+  /** Equipe do gabinete, A–Z por nome. */
+  listStaff(personId: string): Promise<StaffMember[]>;
   /** null = cargo sem valor pago publicado (teto ou nada). */
   getSalaryAccrued(personId: string, year?: number): Promise<SalaryAccrued | null>;
   /** Presença por mês num ano (sessões deliberativas da Câmara; fora do exercício não conta). Só meses com sessão. */

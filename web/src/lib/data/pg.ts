@@ -16,6 +16,7 @@ import type {
   PeriodStats,
   PlaceTopVoted,
   CampaignFinance,
+  StaffMember,
   SalaryAccrued,
   YearStats,
   Person,
@@ -499,6 +500,10 @@ export const pgSource: DataSource = {
       by.set(y, cur);
     }
     return [...by.values()].sort((a, b) => b.year - a.year);
+  },
+  async listStaff(personId) {
+    const rows = await sql`select name, role, monthly_salary_cents, as_of from staff_members where person_id = ${personId}::uuid order by name collate pt_br`;
+    return rows.map<StaffMember>((r) => ({ name: String(r.name), role: (r.role as string | null) ?? null, monthlySalaryCents: num(r.monthly_salary_cents), asOf: iso(r.as_of) }));
   },
   async countSecretVotes(personId, year) {
     const [r] = await sql`

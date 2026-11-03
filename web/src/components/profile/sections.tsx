@@ -662,3 +662,49 @@ export async function CampaignMoney({ personId }: { personId: string }) {
     </Section>
   );
 }
+
+/** W2 item 14: equipe do gabinete. Câmara: secretários parlamentares (nome e nível). Senado: "—" com motivo. A–Z. */
+export async function Staff({ personId, body }: { personId: string; body: "camara" | "senado" }) {
+  if (body === "senado")
+    return (
+      <Section id="equipe" title="Equipe do gabinete">
+        <NotLoaded reason="o Senado publica a lotação dos comissionados sem um vínculo estável com cada senador; ainda não ligamos as duas coisas" />
+      </Section>
+    );
+  const [rows, stamp] = await Promise.all([data.listStaff(personId), data.getStamp("camara.equipe")]);
+  const paid = rows.filter((r) => r.monthlySalaryCents !== null);
+  return (
+    <Section
+      id="equipe"
+      title="Equipe do gabinete"
+      count={rows.length ? `${count(rows.length)} ${rows.length === 1 ? "pessoa" : "pessoas"}` : undefined}
+      intro="Secretários parlamentares lotados no gabinete, como a Câmara publica. O nível (SP01 a SP25) define a faixa salarial do cargo."
+    >
+      {rows.length === 0 ? (
+        <Empty>A Câmara não lista ninguém no gabinete deste mandato na data da última carga.</Empty>
+      ) : (
+        <>
+          <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2" data-testid="equipe">
+            {rows.map((r, i) => (
+              <li key={`${r.name}-${i}`} className="flex min-w-0 items-baseline justify-between gap-3 border-b border-border py-1.5 text-sm">
+                <span className="min-w-0 break-words text-fg">{r.name}</span>
+                <span className="shrink-0 text-xs text-muted">{r.role?.replace(/^Secretário parlamentar /, "") ?? "—"}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-sm text-muted" data-testid="equipe-salario">
+            {paid.length ? (
+              `Salários somados: ${money(paid.reduce((s, r) => s + r.monthlySalaryCents!, 0))} por mês.`
+            ) : (
+              <>
+                Salário de cada pessoa: <span aria-label="não carregado">—</span> o arquivo de lotação não traz remuneração; a folha mensal da Câmara é outra
+                fonte, que ainda não carregamos. Lista de {date(rows[0].asOf)}.
+              </>
+            )}
+          </p>
+        </>
+      )}
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+    </Section>
+  );
+}

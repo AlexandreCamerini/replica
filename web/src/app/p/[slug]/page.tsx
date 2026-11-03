@@ -8,7 +8,7 @@ import { currentUser } from "@/lib/auth";
 import { isFollowing } from "@/lib/follows";
 import { Avatar } from "@/components/people/holder-card";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
-import { Assets, CampaignMoney, Committees, Contact, Elections, Expenses, HowToReach, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Votes } from "@/components/profile/sections";
+import { Assets, CampaignMoney, Committees, Contact, Elections, Expenses, HowToReach, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Staff, Votes } from "@/components/profile/sections";
 import { LinkChip, hrefWith, type Params } from "@/components/profile/ui";
 import { YearByYear } from "@/components/profile/yearly";
 import { CompareToggle } from "@/components/shell/compare";
@@ -328,6 +328,7 @@ export default async function Page({ params, searchParams }: Props) {
             <Expenses personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("gastos_gabinete")?.reason} />
             <Laws personId={person.id} f={f} />
             <Committees personId={person.id} />
+            <Staff personId={person.id} body={main.office === "senador" ? "senado" : "camara"} />
             <Speeches personId={person.id} base={base} sp={sp} year={yearParam} />
           </>
         )}
@@ -349,8 +350,7 @@ export default async function Page({ params, searchParams }: Props) {
           <NotLoadedYet
             items={[
               { what: "Emendas parlamentares", why: "vêm do Portal da Transparência, que exige chave de acesso cadastrada; entra quando a chave for configurada" },
-              { what: "Viagens oficiais", why: "a casa publica por missão, em formato que ainda não carregamos" },
-              { what: "Equipe do gabinete", why: "nomes e salários dos assessores entram na próxima fase" },
+              { what: "Viagens oficiais", why: "— a casa publica por missão, em formato que ainda não carregamos; nenhuma viagem está no site" },
             ]}
           />
         )}

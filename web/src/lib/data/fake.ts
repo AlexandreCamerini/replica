@@ -708,6 +708,9 @@ export const fakeSource: DataSource = {
   async getCampaignFinance() {
     return []; // a demo não simula a prestação de contas por categoria
   },
+  async listStaff() {
+    return []; // a demo não inventa nome de servidor
+  },
   async countSecretVotes() {
     return 0; // a demo não simula votação secreta
   },

@@ -32,4 +32,18 @@ test.describe("B6-W2", () => {
     await expect(sec.getByText(/^Fonte:/)).toBeVisible();
     await axe();
   });
+
+  test("B6-W14 equipe do gabinete: Câmara com nomes A–Z e salário \"—\" com motivo; Senado \"—\"; viagens \"—\"", async ({ page, axe }) => {
+    await page.goto("/p/adriana-ventura");
+    const sec = page.locator("#equipe");
+    await expect(sec.getByRole("heading", { level: 2 })).toContainText("14 pessoas");
+    const names = await sec.getByTestId("equipe").locator("li > span:first-child").allInnerTexts();
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    await expect(sec.getByTestId("equipe-salario")).toContainText("folha mensal");
+    await expect(page.locator("#pendentes-h + ul")).toContainText("Viagens oficiais");
+    await expect(page.locator("#pendentes-h + ul")).not.toContainText("Equipe do gabinete");
+    await axe();
+    await page.goto("/p/randolfe-rodrigues");
+    await expect(page.locator("#equipe")).toContainText("Ainda não carregado");
+  });
 });
