@@ -12,6 +12,34 @@ import psycopg
 
 log = logging.getLogger("etl.check")
 
+# D92: municípios sem prefeito titular em exercício com motivo conferido na fonte (consulta_cand_2024 do TSE, 03/11/2026).
+# Exceção sai da lista quando a fonte resolver (o check avisa quando uma exceção já tem prefeito: exceção vencida).
+SEM_ELEITO_2024 = "TSE: eleição de 2024 sem eleito válido (totalização #NULO/NÃO ELEITO após cassação ou anulação); interino (presidente da Câmara) não está em fonte aberta"
+PREFEITO_EXCECOES: dict[str, str] = {
+    "5300108": "Brasília: o DF não tem município nem prefeito (CF art. 32)",
+    "2605459": "Fernando de Noronha: distrito estadual administrado por PE, sem prefeito eleito",
+    "5200852": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "5210208": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "2100709": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "2104909": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "2110237": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "3141603": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "2403400": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "2800605": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "2801603": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "2804805": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "3551207": SEM_ELEITO_2024 + "; suplementar ainda não publicada",
+    "1508100": SEM_ELEITO_2024 + "; suplementar de 03/08/2025 publicada sem totalização (#NULO)",
+    "3532207": SEM_ELEITO_2024 + "; suplementar de 25/10/2026 ainda sem eleito totalizado",
+    "2412559": SEM_ELEITO_2024 + "; suplementar marcada para 06/12/2026",
+}
+_EXC = ", ".join(f"'{k}'" for k in sorted(PREFEITO_EXCECOES))
+_PREFEITOS_POR_MUNICIPIO = f"""
+    select pl.ibge_code, (select count(*) from mandates m join offices o on o.id = m.office_id
+                          where m.place_id = pl.id and o.slug = 'prefeito' and m.role = 'titular' and m.status = 'em_exercicio'
+                            and m.started_on <= current_date and m.ends_on > current_date) as n
+    from places pl where pl.kind = 'municipio'"""
+
 CHECKS: list[tuple[str, str]] = [
     (
         # BUG-001: carreira multiplicada pelo join com os anos. Compara com a contagem direta na fonte (não com a soma das linhas
@@ -55,6 +83,11 @@ CHECKS: list[tuple[str, str]] = [
              group by 1, 2 having count(*) > 1) d""",
     ),
     (
+        # D92 / BUG-014: a regressão de cassação "com recurso" tirou o prefeito de 7 cidades e nenhum check pegou
+        "município: exatamente 1 prefeito titular em exercício (salvo exceção listada com motivo)",
+        f"select count(*) from ({_PREFEITOS_POR_MUNICIPIO}) x where x.n <> 1 and x.ibge_code not in ({_EXC})",
+    ),
+    (
         "mesma pessoa com dois mandatos sobrepostos no mesmo cargo (deveria ser impossível pela exclusão)",
         """select count(*) from mandates a join mandates b on b.person_id = a.person_id and b.office_id = a.office_id and b.id > a.id
            and daterange(a.started_on, a.ends_on, '[)') && daterange(b.started_on, b.ends_on, '[)')""",
@@ -93,6 +126,10 @@ def run_checks(conn: psycopg.Connection) -> int:
             log.error("FALHOU: %s (%s)", name, n)
         else:
             log.info("ok: %s", name)
+    stale = [r["ibge_code"] for r in conn.execute(f"select ibge_code from ({_PREFEITOS_POR_MUNICIPIO}) x where x.n = 1 and x.ibge_code in ({_EXC})")]
+    if stale:
+        log.warning("exceção vencida (o município já tem prefeito; tirar de PREFEITO_EXCECOES): %s", ", ".join(sorted(stale)))
+    log.info("prefeito: %d município(s) em exceção listada (PREFEITO_EXCECOES, com motivo)", len(PREFEITO_EXCECOES))
     if failed:
         log.error("%d invariante(s) quebrada(s)", failed)
     return failed

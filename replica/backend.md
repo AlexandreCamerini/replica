@@ -51,7 +51,7 @@ Resultado (R0): 71.017 pessoas no cargo, 1.682 aguardando posse. 513 deputados e
 
 ## Invariantes (`civico-etl check`, exit 1 se quebrar)
 
-carreira = total direto da fonte e ≥ soma dos anos; nenhum zero em ano sem carga da fonte; ≤ 513 deputados e ≤ 81 senadores em exercício; um titular de Executivo por lugar; nenhuma sobreposição de mandato; nenhuma duplicata TSE × casa na mesma cadeira; voto só em evento nominal; presença ≤ total; stamp da Câmara/Senado com menos de 48 h e do TSE com menos de 60 dias. Roda ao fim de `all` e no `replica-test`.
+carreira = total direto da fonte e ≥ soma dos anos; nenhum zero em ano sem carga da fonte; ≤ 513 deputados e ≤ 81 senadores em exercício; um titular de Executivo por lugar; exatamente 1 prefeito titular em exercício por município, salvo `PREFEITO_EXCECOES` com motivo (D92); nenhuma sobreposição de mandato; nenhuma duplicata TSE × casa na mesma cadeira; voto só em evento nominal; presença ≤ total; stamp da Câmara/Senado com menos de 48 h e do TSE com menos de 60 dias. Roda ao fim de `all` e no `replica-test`.
 
 ## Contrato de job (todos)
 
