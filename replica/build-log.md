@@ -156,3 +156,25 @@ Pendências (front/ETL): (1) semear o subsídio federal anterior a 02/2023 em `s
 Verificação: `pytest` do ETL 27 passed; `civico-etl check` verde nos invariantes novos (salário desde 2015, secreta do Senado, agenda na mesma casa, sanção com método, vereador SAPL no município). Na última rodada o check de carreira acusou 2 deputados de MG (Cleitinho, Rosângela Reis) por carga da ALMG da W3-A em andamento sem `derive.stats`; não é desta onda. Backup `pg_dump` de `salaries`/`sources` antes do DELETE de datas erradas. Migrações aplicadas uma a uma (sem `migrate.sh`, para não aplicar as da faixa 0020–0029 de outro agente).
 
 Achado para outro dono: `sessions.starts_at` da Câmara (camara.presenca) gravado com hora local como UTC (D125).
+
+## 2026-11-03 · W3-A (Assembleias Legislativas: ETL + crachá estadual; depois, pedidos do orquestrador: secreta pela fonte e SAPL no crachá de vereador)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| ALESP (SP) | 2026-11-03 | done | presença/votos de plenário (não publicados em dado aberto, D102); suplentes sem mandato no TSE (D107) | autoria sem ordem de assinatura (D103); nomes de urna diferentes da casa ("Fabiana B.", "Dalben") |
+| ALMG (MG) | 2026-11-03 | done | verba antes de 2023 (só legislatura atual); 1 PL de 2025 não recuperado sem paginar | robots.txt proíbe paginar e os CSVs (D104); proposição sem data de publicação some das janelas de data |
+| ALERJ (RJ) | 2026-11-03 | não lida | catálogo aberto; DOCIGP bloqueia robôs (D105) | — |
+| ALRS (RS) | 2026-11-03 | não lida | catálogo aberto não localizado (D105) | — |
+| crachá estadual | 2026-11-03 | done | bloco de comissões (presença/votação em comissão) | — |
+| secreta pela fonte (D124) | 2026-11-03 | done | MCP ainda deduz | — |
+| SAPL no crachá de vereador | 2026-11-03 | done | `data_coverage` das 6 cidades diz "ainda sem tela" (ETL W3-B) | — |
+
+Carga (banco local, 03/11/2026):
+- SP: 90 de 90 deputados em exercício casados com o TSE (216 vínculos: 105 `spl:` + 111 `mat:`, 111 pessoas; 5 na fila). Proposituras 2019–2026: 7.932 projetos com autor no diretório, 17.704 autorias de 105 pessoas. Verba de gabinete 2019–2026: 129.800 lançamentos, R$ 182,2 mi, 111 pessoas. Conferido: Agente Federal Danilo Balas 2025 = R$ 520.992,47 no banco e na fonte.
+- MG: 74 de 74 em exercício casados (84 vínculos, 60 por nome civil + nascimento; 1 na fila: Zé Reis). Proposições 2019–2026: 8.837 projetos, 12.038 autorias de 84 pessoas (2025: 1.743 de 1.744 da API). Verba indenizatória 2023–2026: 91.954 itens, R$ 94,7 mi, 77 pessoas. Conferido: Beatriz Cerqueira 2025 = R$ 272.835,39 no banco e na fonte (12 meses).
+- RJ, RS e as outras 23 casas: "—" com o motivo; `data_coverage` reescrito só onde estava o texto padrão.
+- Idempotência: segunda rodada de `ale.mg` pulou a verba por checksum; `ale.sp --force` regravou sem duplicar.
+
+Verificação: `civico-etl check` 21/21 verdes (4 novos de Assembleia; o de carreira de MG que a W3-B viu vermelho fechou com `derive.stats` após a carga); `pytest tests/test_assembleias.py` 5/5 (inclui quebrar o check com vínculo fora da UF); `tsc` e `eslint` limpos; `next build` com `NEXT_DIST_DIR=.next-e2e-w3a`. E2E contra `next start` local (porta 3202, banco real; o dev server 3101 estava devolvendo 500 de manifesto corrompido por recompilação concorrente): f03, b6-etl-front, b6-w1, b6-w2, f07, w1a-dados-abertos, w1a-atualizacoes, neutralidade, `w3a-assembleias` (7) e `w3a-sapl-secretas` (4): 48 passed, 1 skipped, 0 flaky. B6-W10 ajustado ao subsídio de 2015 (D120); S24-H1 voltou a passar com o metadado das fontes novas (D113). Capturas `replica/clone-screens/png/w3a-*` (crachá SP, MG e BA em 1440 e 390, escuro; vereador SAPL; votação aberta sem votos; /dados-abertos); `scrollWidth` = 390 em todas as de celular. Backup antes da carga: `/private/tmp/claude-501/w3a-backup-1208.dump`. Decisões D100–D115.
+
+Pendências: (1) presença e votação de comissão (ALESP e ALMG publicam) como bloco próprio; (2) suplente em exercício sem mandato no TSE (D107: mandato vindo da casa é decisão do dono); (3) RJ e RS: pedir à casa um catálogo aberto ou permissão no robots do DOCIGP; (4) as outras 23 Assembleias; (5) MCP lendo `is_secret`; (6) `data_coverage` das 6 cidades SAPL ("ainda sem tela") e metadado editorial definitivo das fontes da W3-B; (7) agendamento semanal de `ale.todas` (ALMG leva ~1 h na primeira carga, minutos depois com cache).
