@@ -319,10 +319,16 @@ EXECUTIVO_FORA_DO_TSE: list[dict[str, str]] = [
     },
     {
         "acao": "saida", "slug": "tadeu-de-souza", "office": "vice_governador", "uf": "AM", "started_on": "2023-01-01",
-        # D231: a ALEAM (14/10/2026) chama Serafim Corrêa de vice-governador do Amazonas; a eleição indireta foi em 04/05/2026,
-        # junto com a do governador (Agência Brasil). Ele não está no diretório, e criar a pessoa é trabalho de identidade.
-        "vacancy_note": "Serafim Corrêa é o vice-governador desde 04/05/2026, eleito pela Assembleia Legislativa com o governador "
-                        "(a Assembleia o chama de vice-governador em 14/10/2026); ele ainda não está no diretório do site",
+        # D231: o vice de 2023 saiu; quem exerce a vice é Serafim Corrêa (posse abaixo). Sem nota de vaga: o cargo está ocupado.
+        "fonte": "https://www.aleam.gov.br/presidente-da-aleam-adjuto-afonso-acompanha-balanco-das-acoes-estaduais-de-combate-as-queimadas-no-amazonas/",
+    },
+    {
+        # D228: a ALEAM (14/10/2026) chama Serafim Corrêa de vice-governador do Amazonas; a eleição indireta foi em 04/05/2026,
+        # junto com a do governador (Agência Brasil, D197). Pessoa criada pelo TSE 2026 (vice na chapa de Roberto Cidade, SQ
+        # 40002541740, título e nascimento da fonte).
+        "acao": "posse", "slug": "serafim-correa", "civil": "Serafim Fernandes Corrêa", "office": "vice_governador", "uf": "AM",
+        "started_on": "2026-05-04", "ends_on": _FIM, "status": "em_exercicio", "status_source": "aleam",
+        "elected_by": "eleição indireta na Assembleia Legislativa do Amazonas em 04/05/2026 (mandato-tampão após a renúncia do governador e do vice)",
         "fonte": "https://www.aleam.gov.br/presidente-da-aleam-adjuto-afonso-acompanha-balanco-das-acoes-estaduais-de-combate-as-queimadas-no-amazonas/",
     },
     # DF: Ibaneis renunciou em 28/03/2026 (data da imprensa: Jornal de Brasília, Poder360) sem candidatura no TSE, então a regra D06

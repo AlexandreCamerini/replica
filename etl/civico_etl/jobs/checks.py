@@ -69,7 +69,7 @@ _GOVERNADORES_POR_UF = """
 GOVERNO_POR_UF: dict[str, tuple[str | None, str | None, str]] = {
     "AC": ("mailza", None, "https://agencia.ac.gov.br/gladson-cameli-transmite-governo-do-acre-para-mailza-assis-que-define-saude-emprego-e-seguranca-como-prioridades-um-tempo-de-trabalho-uniao-e-avanco/"),
     "AL": ("paulo-dantas", None, "https://alagoas.al.gov.br/governo/governador-de-alagoas"),
-    "AM": ("roberto-cidade", None, "https://www.amazonas.am.gov.br/orgaos_entidades/governadoria/"),
+    "AM": ("roberto-cidade", "serafim-correa", "https://www.amazonas.am.gov.br/orgaos_entidades/governadoria/"),  # vice: ALEAM 14/10/2026 (D228)
     "AP": ("clecio", "teles-jr", "https://diofe.portal.ap.gov.br/portal/edicoes/download/10141"),
     "BA": ("jeronimo", "geraldo-junior", "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/jeronimo-rodrigues-pt-e-reeleito-governador-da-bahia-no-1o-turno"),
     "CE": ("elmano-de-freitas", "jade-romero", "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/elmano-de-freitas-e-reeleito-governador-do-ceara"),
