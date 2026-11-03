@@ -316,15 +316,15 @@ def match_vereadores(conn: psycopg.Connection, house: dict[str, Any], leg: dict[
 
 
 def set_coverage(conn: psycopg.Connection, house: dict[str, Any], stats: dict[str, int]) -> None:
-    """data_coverage da cidade (D129): 'carregando' = lido pelo ETL e guardado, ainda sem tela. Sem linha na fonte não vira
+    """data_coverage da cidade (D129): 'carregando' = lido pelo ETL e guardado; aparece no crachá de vereador (D115). Sem linha na fonte não vira
     'nao_publica' (a câmara pode publicar fora do SAPL): fica 'desconhecido' com o motivo."""
     url = house["base_url"]
     today = date.today()
     sets = {
-        "propostas": ("carregando", f"projetos da legislatura atual lidos do SAPL da Câmara Municipal ({stats.get('materias', 0)}); ainda sem tela", f"{url}/materia/pesquisar-materia"),
-        "presenca": (("carregando", f"presença em sessão plenária lida do SAPL ({stats.get('presencas', 0)} registros); ainda sem tela") if stats.get("presencas")
+        "propostas": ("carregando", f"projetos da legislatura atual lidos do SAPL da Câmara Municipal ({stats.get('materias', 0)}); aparece no crachá de vereador (bloco da Câmara Municipal)", f"{url}/materia/pesquisar-materia"),
+        "presenca": (("carregando", f"presença em sessão plenária lida do SAPL ({stats.get('presencas', 0)} registros); aparece no crachá de vereador (bloco da Câmara Municipal)") if stats.get("presencas")
                      else ("desconhecido", "o SAPL da Câmara Municipal não tem presença registrada nesta legislatura")) + (f"{url}/sessao/pesquisar-sessao",),
-        "votos": (("carregando", f"votos nominais lidos do SAPL ({stats.get('votos', 0)}); ainda sem tela") if stats.get("votos")
+        "votos": (("carregando", f"votos nominais lidos do SAPL ({stats.get('votos', 0)}); aparece no crachá de vereador (bloco da Câmara Municipal)") if stats.get("votos")
                   else ("desconhecido", "o SAPL da Câmara Municipal não tem voto nominal registrado nesta legislatura")) + (f"{url}/sessao/pesquisar-sessao",),
     }
     upsert(conn, "data_coverage", ["place_id", "dataset", "status", "reason", "evidence_url", "checked_on"],

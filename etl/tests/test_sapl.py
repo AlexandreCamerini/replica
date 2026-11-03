@@ -60,3 +60,25 @@ def test_parada_da_varredura_decrescente():
 def test_vinculo_sapl_so_casado(conn):
     r = conn.execute("select count(*) as n from sapl_parlamentares where person_id is not null and match_status <> 'casado'").fetchone()
     assert r["n"] == 0
+
+
+def test_cobertura_nao_diz_mais_ainda_sem_tela(monkeypatch):
+    """D115: o crachá de vereador já mostra o SAPL; o texto da cobertura não pode dizer o contrário."""
+    from civico_etl.jobs import sapl
+
+    capturado = {}
+
+    class _Conn:
+        def commit(self):
+            pass
+
+    def fake_upsert(conn, table, cols, rows, conflict):
+        capturado["rows"] = rows
+
+    monkeypatch.setattr(sapl, "upsert", fake_upsert)
+    sapl.set_coverage(_Conn(), {"place_id": "p", "base_url": "https://sapl.exemplo.leg.br"}, {"materias": 3, "presencas": 5, "votos": 7})
+    textos = {r[1]: r[3] for r in capturado["rows"]}
+    assert set(textos) == {"propostas", "presenca", "votos"}
+    for t in textos.values():
+        assert "ainda sem tela" not in t
+        assert "crachá de vereador" in t
