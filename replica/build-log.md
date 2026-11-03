@@ -101,3 +101,17 @@ Tempo de carga (relógio, rede de casa, cache HTTP do checkout principal):
 | derive.stats / check | — | 25 s / 3 s |
 
 Revalidação: `REVALIDATE_URL` não está no ambiente do ETL; o app pega o dado novo no próximo ISR.
+
+## 2026-11-03 · build 5 · W1a (itens 1, 2, 3, 4, 7, 9 e 11a do parity.md)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| S22 `/sobre` | 2026-11-03 | done | lista de provedores de dado pessoal (quando houver endereço público) | escrever a política de resposta sem prometer o que não existe: a nota da própria pessoa publicada junto ao dado ainda não foi construída e o texto diz isso |
+| S24 `/atualizacoes` | 2026-11-03 | done | agendamento diário; status de falha de carga (`ingest_runs` não é público) | "fora do prazo" é honesto e vai aparecer amanhã: sem agendador, Câmara e Senado passam de 36 h; o teste do prazo é de função pura + coerência da tabela, porque forçar um carimbo velho no banco compartilhado seria invasivo |
+| S23 `/dados-abertos` | 2026-11-03 | partial | dados: nenhuma cidade foi conferida (só `desconhecido`), então a matriz real é toda "—" | decidir entre "0%" e "—" (D15); o `sr-only` dentro da tabela estourou a largura da página no celular (BUG-011) |
+| direito de resposta + S25 | 2026-11-03 | done | publicar a nota da pessoa junto ao dado | CHECK de `kind` precisou de migração (0005); "exige pessoa" no app para não quebrar o `SET NULL` |
+| S03 busca global | 2026-11-03 | done | — | o ComboBox engole o Enter com a lista aberta (precisou de handler); axe com lista aberta acusa 4 regras que são artefato do `aria-hidden` do React Aria (desligadas só nessa checagem); colisão de nomes acessíveis com 6 testes antigos |
+| copiar link + WhatsApp | 2026-11-03 | done | — | decidir onde não aparece (D13) |
+| S02 onboarding | 2026-11-03 | done | "Como cobrar" (metade do item 11, fica para o próximo lote) | cookie injetado por `storageState` para os 50+ testes antigos não serem bloqueados pelo modal |
+
+Entregas: 7 commits `build5 W1a`, 1 migração (`0005`), 8 specs novos `web/e2e/w1a-*.spec.ts`. Capturas em `replica/clone-screens/` (S22, S23, S24, S03, S02, S05-direito-resposta; 1440 e 390 px, claro e escuro). Nota de feature: 62,4 → 71,4 (`tools/parity.py`).

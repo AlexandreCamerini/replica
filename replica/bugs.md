@@ -201,9 +201,44 @@ Expected: votos e propostas de 2019–2022 ligados a quem está no diretório.
 Actual: `/deputados/{id}` com 504 por ~20 s a cada tentativa para ids da legislatura 56.
 Status: worked around: legislatura passada não consulta detalhe; os ids são ligados pela lista da legislatura (nome eleitoral + UF = candidatura a deputado federal na eleição que formou a legislatura, casamento único). Falha de `/historico` deixa a presença daquele deputado fora da carga (nem infla nem zera).
 
+### BUG-010: crachá avisa "duas crianças com a mesma chave" em "Eleições disputadas"
+
+- Severity: S4 (aviso de console; a tabela renderiza, mas React pode duplicar ou omitir linha)
+- Flow / case: F03, F06 / testes que abrem o 1º vereador de Campinas (F05-E1, F06-H1, F06-H2)
+- Screen: S05
+- Build: 5c0e1e3 (build 4) · dados reais, dev server 3101
+
+Steps
+1. Abrir um crachá cuja pessoa tem duas candidaturas ao mesmo cargo no mesmo ano (ex.: vice-prefeito 2020, duas vezes).
+
+Expected: nenhum aviso de console.
+Actual: `Encountered two children with the same key ... 2020-vice_prefeito` (duas vezes por carga) e a suíte e2e falha pela regra "falha em erro de console".
+Evidence: `e2e/f05-f08-stubs.spec.ts` contra `localhost:3101`.
+Suspected cause: chave `${year}-${office}` em `Elections` (`components/profile/sections.tsx`); a dado real tem candidaturas repetidas (eleição suplementar ou duas zonas).
+Status: fixed no build 5 (chave inclui lugar e posição).
+
+### BUG-011: página de 390 px rola na horizontal por causa de texto `sr-only` dentro de tabela com rolagem própria
+
+- Severity: S3 (rolagem horizontal da página inteira no celular; regra de produto)
+- Flow / case: novo, W1a (S23, S24)
+- Screen: S23, S24
+- Build: build 5, antes da correção · Chromium 390 px
+
+Steps
+1. Abrir /atualizacoes ou /dados-abertos em 390 px (viewport simples, sem emulação de toque).
+2. Ler `document.documentElement.scrollWidth`.
+
+Expected: 390.
+Actual: 515 (S24) e 673 (S23). Nenhum elemento visível passa da borda: os culpados são `<span class="sr-only">` (position: absolute) dentro das células; sem um ancestral posicionado, eles escapam do `overflow-x-auto` da região da tabela.
+Evidence: sonda de `getBoundingClientRect` por elemento; os testes `@mobile` do projeto Pixel 7 passavam porque comparavam `scrollWidth` com `innerWidth`, e na emulação de celular o viewport se alarga junto com o conteúdo.
+Suspected cause: `sr-only` absoluto fora do contêiner de rolagem.
+Status: fixed (região da tabela é `relative`). Os specs `w1a-*` comparam `scrollWidth` com 390 fixo. Os specs antigos (`shell-directory` SH-E2, `f01-core-loop` F01-E6) ainda comparam com `innerWidth` e podem deixar passar o mesmo defeito: dívida de teste, não corrigida neste lote.
+
 ## A conferir (não reproduzido como bug)
 
 - Flaky sob carga (passam na repetição, 3/3 ok isoladamente em <1 s): F02-H1, F02-E1 (clique em link da home não navega em 15 s com 2 workers contra um único `next start`) e F01-E6 mobile. Config: `workers: 2`, `retries: 1`.
 
 - "Carreira" maior que a soma dos anos é esperado quando há fato fora dos anos de mandato no banco (matérias do senador antes de 2019, nota da cota com data fora do mandato). O `check` agora compara a carreira com o total direto da fonte (BUG-001 continua coberto).
 - ~~Senado: a API por senador marca 77 de 93 votações de 2025 como secretas.~~ Resolvido (D39): `/votacao` traz 128 votações em 2025 (abertas e secretas).
+- F01-E1 esperava exatamente 4 homônimos "Bom Jesus"; com os dados reais há 5 exatos (PI, PB, RN, RS, SC) mais "Bom Jesus da…". O teste passou a exigir pelo menos 4 e as 4 UFs; ajuste de teste, não de produto.
+- Hidratação (React #418 / "Hydration failed") apareceu de novo em crachá e em /representantes?cidade= no dev server 3101, em 3 de ~25 cargas dos specs de F04/F05/F06. Mesmo padrão do BUG-008; não relacionado às mudanças do build 5 (o diff aponta `Container`/`PageHeader` da lista de cidade). Segue aberto.

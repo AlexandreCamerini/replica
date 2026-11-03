@@ -936,7 +936,7 @@ create table digest_deliveries (            -- idempotÃªncia: um digest por usuÃ
 
 create table suggestions (                  -- /sugestoes e "Reportar erro"
   id uuid primary key default gen_random_uuid(),
-  kind text not null check (kind in ('ideia','informacao_faltando','algo_errado','fonte_de_dados','outro')),
+  kind text not null check (kind in ('ideia','informacao_faltando','algo_errado','fonte_de_dados','outro','direito_resposta')),
   body text not null check (length(body) between 5 and 5000),
   name text not null,
   email text not null check (email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
