@@ -348,16 +348,36 @@ _OLD_DEFAULTS = (
 )
 
 
+# W3-A (03/11/2026): RJ e RS foram conferidas e ficaram sem adaptador; o motivo diz o que vimos (D105).
+_RJ = ("a ALERJ não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa", "https://www.alerj.rj.gov.br/")
+_RS = ("a Assembleia do RS não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa", "https://ww4.al.rs.gov.br/")
+VERIFIED_UNREAD: dict[str, dict[str, tuple[str, str, str]]] = {
+    "RJ": {"presenca": ("desconhecido", *_RJ), "votos": ("desconhecido", *_RJ), "propostas": ("desconhecido", *_RJ),
+           "gastos_gabinete": ("so_portal", "a ALERJ publica os gastos de gabinete no sistema DOCIGP, cujo robots.txt proíbe leitura automática",
+                               "https://docigp.alerj.rj.gov.br/robots.txt")},
+    "RS": {d: ("desconhecido", *_RS) for d in ("presenca", "votos", "propostas", "gastos_gabinete")},
+}
+
+
 def reword_unread_coverage(conn: psycopg.Connection) -> int:
     n = 0
     for r in conn.execute(
-        """select dc.id, p.uf from data_coverage dc join places p on p.id = dc.place_id
+        """select dc.id, dc.dataset, dc.reason, p.uf from data_coverage dc join places p on p.id = dc.place_id
            join legislative_bodies b on b.place_id = p.id and b.kind in ('assembleia', 'camara_legislativa_df')
-           where p.kind = 'uf' and b.adapter <> 'ale_custom' and dc.dataset in ('presenca','votos','propostas','gastos_gabinete')
-             and dc.reason = any(%s)""",
-        (list(_OLD_DEFAULTS),),
+           where p.kind = 'uf' and b.adapter <> 'ale_custom' and dc.dataset in ('presenca','votos','propostas','gastos_gabinete')""",
     ).fetchall():
-        conn.execute("update data_coverage set reason = %s, checked_on = current_date where id = %s", (not_read_reason(r["uf"]), r["id"]))
+        v = VERIFIED_UNREAD.get(r["uf"], {}).get(r["dataset"])
+        ours = {not_read_reason(r["uf"])} | {x[1] for d in VERIFIED_UNREAD.values() for x in d.values()}
+        if r["reason"] not in _OLD_DEFAULTS and r["reason"] not in ours:
+            continue  # linha conferida à mão: não mexe
+        if v:
+            if r["reason"] == v[1]:
+                continue
+            conn.execute("update data_coverage set status = %s, reason = %s, evidence_url = %s, checked_on = current_date where id = %s", (v[0], v[1], v[2], r["id"]))
+        elif r["reason"] != not_read_reason(r["uf"]):
+            conn.execute("update data_coverage set reason = %s, checked_on = current_date where id = %s", (not_read_reason(r["uf"]), r["id"]))
+        else:
+            continue
         n += 1
     conn.commit()
     return n
