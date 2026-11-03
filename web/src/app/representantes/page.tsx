@@ -6,8 +6,8 @@ import { Container, PageHeader } from "@/components/page/page-header";
 import { HolderGrid } from "@/components/people/holder-card";
 import { PlaceSearch } from "@/components/people/place-search";
 import { MissingDataNote, SourceFooter } from "@/components/ui/data";
-import { data, type Place } from "@/lib/data";
-import { count } from "@/lib/format";
+import { data, type Place, type PlaceTopVoted, type Stamp } from "@/lib/data";
+import { count, date } from "@/lib/format";
 
 type SP = Promise<{ cidade?: string; uf?: string; q?: string }>;
 
@@ -117,11 +117,14 @@ async function PickPlace({ q }: { q?: string }) {
 const VISIBLE = 12;
 
 async function PlaceRepresentatives({ place }: { place: Place }) {
-  const [groups, missing, stamp, munis] = await Promise.all([
+  const [groups, missing, stamp, munis, top, votesStamp, popStamp] = await Promise.all([
     data.getRepresentatives(place),
     data.getCoverage(place),
     data.getStamp("tse.candidatos"),
     place.kind === "uf" ? data.listMunicipalities(place.uf!) : Promise.resolve([]),
+    place.kind === "municipio" ? data.getTopVotedInPlace(place.ibge, 5) : Promise.resolve(null),
+    data.getStamp("tse.votos"),
+    data.getStamp("ibge.populacao"),
   ]);
   const total = groups.reduce((s, g) => s + g.people.length, 0);
   const isCity = place.kind === "municipio";
@@ -138,6 +141,11 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
           <>
             <strong className="text-fg">{count(total)} pessoas</strong> no cargo respondem por quem mora {isCity ? "nesta cidade" : "neste estado"}
             {isCity ? ", do vereador ao presidente." : ", do deputado estadual ao presidente."}
+            {isCity && place.population != null && (
+              <span className="mt-1 block text-sm" data-testid="populacao">
+                {count(place.population)} moradores, segundo a estimativa do IBGE (carregada em {date(popStamp.refreshedAt)}).
+              </span>
+            )}
           </>
         }
       >
@@ -201,6 +209,8 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
         })}
       </div>
 
+      {isCity && <TopVoted place={place} top={top} stamp={votesStamp} />}
+
       {munis.length > 0 && (
         <section aria-labelledby="cidades" className="mt-10">
           <h2 id="cidades" className="mb-3 text-xl text-fg">
@@ -218,6 +228,59 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
 
       <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
     </Container>
+  );
+}
+
+const ELECTED = new Set(["eleito", "eleito_qp", "eleito_media"]);
+
+/** W1 item 6: mais votados no município. Ordem = votos na urna (é o dado pedido), nunca nota ou adjetivo. */
+function TopVoted({ place, top, stamp }: { place: Place; top: PlaceTopVoted | null; stamp: Stamp }) {
+  return (
+    <section aria-labelledby="mais-votados-h" id="mais-votados" className="mt-10 scroll-mt-28 rounded-md border border-border bg-surface p-4 md:p-6">
+      <h2 id="mais-votados-h" className="text-xl text-fg">
+        Mais votados em {place.name}
+        {top ? ` · eleição de ${top.year}` : ""}
+      </h2>
+      {!top ? (
+        <p className="mt-2 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-muted">
+          <span aria-label="não carregado">—</span> Os votos por cidade desta eleição ainda não foram carregados para {place.name}.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-muted">
+            Votos que cada candidatura recebeu dentro da cidade no 1º turno, entre quem tem crachá no site (quem tem ou já teve mandato). Candidaturas sem
+            crachá ainda não entram, por isso a lista pode pular alguém bem votado aqui.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {top.groups.map((g) => (
+              <div key={g.office}>
+                <h3 className="mb-2 text-base font-semibold text-fg">{g.label}</h3>
+                <ol className="flex flex-col divide-y divide-border" data-testid={`mais-votados-${g.office}`}>
+                  {g.items.map((it, i) => (
+                    <li key={it.slug} className="flex items-center justify-between gap-3 py-2 text-sm">
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <span className="w-4 shrink-0 text-right tabular text-muted">{i + 1}</span>
+                        <span className="min-w-0">
+                          <Link href={`/p/${it.slug}`} className="font-semibold text-fg underline-offset-2 hover:underline">
+                            {it.name}
+                          </Link>{" "}
+                          <span className="text-xs text-muted">
+                            {it.party}
+                            {it.result && ELECTED.has(it.result) ? ` · ${it.gender === "f" ? "eleita" : "eleito"}` : it.result === "suplente" ? " · suplente" : ""}
+                          </span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 tabular text-fg">{count(it.votes)} votos</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+    </section>
   );
 }
 

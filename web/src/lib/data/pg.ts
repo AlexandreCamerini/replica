@@ -13,6 +13,7 @@ import type {
   Page,
   Party,
   PeriodStats,
+  PlaceTopVoted,
   YearStats,
   Person,
   PersonVote,
@@ -108,7 +109,15 @@ const isoTs = (d: unknown) => (d instanceof Date ? d.toISOString() : String(d ??
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
 function place(r: Row): Place {
-  return { ibge: String(r.ibge_code), kind: r.kind as Place["kind"], name: String(r.name), slug: String(r.slug), uf: (r.uf as string | null) ?? null, region: (r.region as string | null) ?? null };
+  return {
+    ibge: String(r.ibge_code),
+    kind: r.kind as Place["kind"],
+    name: String(r.name),
+    slug: String(r.slug),
+    uf: (r.uf as string | null) ?? null,
+    region: (r.region as string | null) ?? null,
+    population: r.population === undefined ? undefined : num(r.population),
+  };
 }
 function person(r: Row): Person {
   return {
@@ -207,7 +216,7 @@ export const pgSource: DataSource = {
     return rows.map(place);
   },
   async getPlace(ibge) {
-    const [r] = await sql`select ibge_code, kind, name, slug, uf, null as region from places where ibge_code = ${ibge}`;
+    const [r] = await sql`select ibge_code, kind, name, slug, uf, null as region, population from places where ibge_code = ${ibge}`;
     return r ? place(r) : null;
   },
   async getPlaceByUf(uf) {
@@ -244,6 +253,38 @@ export const pgSource: DataSource = {
   async getCoverage(pl) {
     const rows = await sql`select dataset, status, reason from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = ${pl.ibge} and dc.status <> 'no_site' order by dataset`;
     return rows.map((r) => ({ dataset: toDataset(String(r.dataset)), label: DATASET_LABEL[String(r.dataset)] ?? String(r.dataset), status: r.status as MissingDataset["status"], reason: String(r.reason) }));
+  },
+  async getTopVotedInPlace(ibge, limit = 5) {
+    const [pl] = await sql`select id, uf from places where ibge_code = ${ibge} and kind = 'municipio'`;
+    if (!pl) return null;
+    // última eleição geral com voto por município carregado para esta cidade (1º turno: é onde deputado se elege)
+    const [y] = await sql`
+      select max(e.year)::int as year from candidacy_place_votes cpv
+      join candidacies c on c.id = cpv.candidacy_id join elections e on e.id = c.election_id
+      where cpv.place_id = ${pl.id as string}::uuid and e.kind = 'geral' and e.round = 1`;
+    if (!y?.year) return null;
+    const offices: OfficeSlug[] = ["deputado_federal", pl.uf === "DF" ? "deputado_distrital" : "deputado_estadual"];
+    const out: PlaceTopVoted = { year: Number(y.year), groups: [] };
+    for (const office of offices) {
+      // ordem por votos é o próprio dado pedido (resultado da urna), com desempate A–Z; a tela diz que é "entre quem tem crachá" (D35)
+      const rows = await sql`
+        select p.slug, p.display_name, p.gender, coalesce(pa.acronym, '—') as party, cpv.votes, c.result
+        from candidacy_place_votes cpv
+        join candidacies c on c.id = cpv.candidacy_id
+        join elections e on e.id = c.election_id and e.kind = 'geral' and e.round = 1 and e.year = ${out.year}
+        join contests ct on ct.id = c.contest_id join offices o on o.id = ct.office_id and o.slug = ${office}
+        join people p on p.id = c.person_id
+        left join parties pa on pa.id = c.party_id
+        where cpv.place_id = ${pl.id as string}::uuid
+        order by cpv.votes desc, p.display_name collate pt_br limit ${Math.min(limit, 20)}`;
+      if (rows.length)
+        out.groups.push({
+          office,
+          label: PLURAL[office],
+          items: rows.map((r) => ({ slug: String(r.slug), name: String(r.display_name), gender: r.gender === "f" ? "f" : "m", party: String(r.party), votes: Number(r.votes), result: (r.result as Candidacy["result"] | null) ?? null })),
+        });
+    }
+    return out.groups.length ? out : null;
   },
   async getCounters() {
     const rows = await sql`select o.slug, o.level, count(*)::int as n from mandates m join offices o on o.id = m.office_id where m.status = 'em_exercicio' group by 1, 2 order by min(o.slug)`;

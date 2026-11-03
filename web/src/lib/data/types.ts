@@ -25,6 +25,14 @@ export type Place = {
   slug: string;
   uf: string | null;
   region: string | null;
+  /** moradores (IBGE, estimativa do ano em populationYear); null/ausente = não carregado */
+  population?: number | null;
+};
+
+/** Votos de uma candidatura num município (S07 "mais votados na cidade"). */
+export type PlaceTopVoted = {
+  year: number;
+  groups: { office: OfficeSlug; label: string; items: { slug: string; name: string; gender: "f" | "m"; party: string; votes: number; result: ElectionResult | null }[] }[];
 };
 
 export type Party = { id: string; acronym: string; name: string };
@@ -238,6 +246,8 @@ export interface DataSource {
   listMunicipalities(uf?: string): Promise<Place[]>;
   getRepresentatives(place: Place): Promise<RepresentativeGroup[]>;
   getCoverage(place: Place): Promise<MissingDataset[]>;
+  /** Mais votados no município na última eleição geral com votos por município carregados (deputados federais e estaduais). null = sem dado. */
+  getTopVotedInPlace(ibge: string, limit?: number): Promise<PlaceTopVoted | null>;
   getCounters(): Promise<{ total: number; byLevel: Record<Level, number>; byOffice: { office: OfficeSlug; label: string; count: number }[] }>;
   listParties(): Promise<Party[]>;
   listOffices(): Promise<Office[]>;

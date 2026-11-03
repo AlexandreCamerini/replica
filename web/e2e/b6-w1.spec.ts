@@ -30,4 +30,22 @@ test.describe("B6-W1", () => {
     await expect(page.locator("#ano-a-ano")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
+
+  test("B6-W6 mais votados na cidade: federal e estadual, votos em ordem, rótulo de cobertura", async ({ page, axe }) => {
+    await page.goto("/representantes?cidade=3509502");
+    const sec = page.locator("#mais-votados");
+    await expect(sec.getByRole("heading", { level: 2 })).toHaveText(/Mais votados em Campinas · eleição de \d{4}/);
+    await expect(sec).toContainText("entre quem tem crachá");
+    for (const o of ["deputado_federal", "deputado_estadual"]) {
+      const items = sec.getByTestId(`mais-votados-${o}`).locator("li");
+      await expect(items).toHaveCount(5);
+      const votes = (await items.allInnerTexts()).map((t) => Number(t.match(/([\d.]+) votos/)![1].replace(/\./g, "")));
+      expect(votes, "ordem por votos").toEqual([...votes].sort((a, b) => b - a));
+    }
+    await expect(sec.getByText(/^Fonte:/)).toBeVisible();
+    await expect(page.getByTestId("populacao")).toContainText("1.189.761");
+    await axe();
+    await sec.getByRole("link").first().click();
+    await expect(page).toHaveURL(/\/p\//);
+  });
 });

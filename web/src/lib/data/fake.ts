@@ -573,6 +573,9 @@ export const fakeSource: DataSource = {
   async getCoverage(place) {
     return coverageFor(place.ibge);
   },
+  async getTopVotedInPlace() {
+    return null; // a demo não simula votos por município
+  },
   async getCounters() {
     const byLevel: Record<Level, number> = { federal: 0, estadual: 0, municipal: 0 };
     const byOffice = new Map<OfficeSlug, number>();
