@@ -28,6 +28,6 @@ test.describe("W1a · S22 Metodologia e fontes", () => {
 
   test("S22-E1 sem rolagem horizontal em 390 px @mobile", async ({ page }) => {
     await page.goto("/sobre");
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
 });

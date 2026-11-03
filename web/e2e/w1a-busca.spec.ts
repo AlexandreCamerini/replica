@@ -87,7 +87,7 @@ test.describe("W1a · S03 busca global", () => {
 
   test("S03-M1 cabe em 390 px sem rolagem horizontal e alvo ≥ 40 px @mobile", async ({ page }) => {
     await page.goto("/");
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     const b = await box(page).boundingBox();
     expect(b!.height).toBeGreaterThanOrEqual(40);
     expect(b!.width).toBeGreaterThan(300);

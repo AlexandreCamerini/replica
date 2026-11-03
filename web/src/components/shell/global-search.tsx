@@ -47,7 +47,6 @@ export function GlobalSearch({ offices }: { offices: OfficeOption[] }) {
         const places: { ibge: string; name: string; uf: string; kind: "municipio" | "uf" }[] = pl.ok ? await pl.json() : pl.status === 400 ? [] : Promise.reject(new Error("places"));
         const f = fold(q);
         const next: Group[] = [
-          { id: "pessoas", title: "Políticos", items: people.map((p) => ({ id: `p:${p.slug}`, label: p.name, hint: `${p.office} · ${p.place} · ${p.party}`, href: `/p/${p.slug}`, kind: "pessoa" as const })) },
           {
             id: "cidades",
             title: "Cidades",
@@ -58,6 +57,7 @@ export function GlobalSearch({ offices }: { offices: OfficeOption[] }) {
             title: "Estados",
             items: places.filter((p) => p.kind === "uf").map((p) => ({ id: `u:${p.uf}`, label: p.name, hint: "estado inteiro", href: `/representantes?uf=${p.uf}`, kind: "estado" as const })),
           },
+          { id: "pessoas", title: "Políticos", items: people.map((p) => ({ id: `p:${p.slug}`, label: p.name, hint: `${p.office} · ${p.place} · ${p.party}`, href: `/p/${p.slug}`, kind: "pessoa" as const })) },
           {
             id: "cargos",
             title: "Cargos",

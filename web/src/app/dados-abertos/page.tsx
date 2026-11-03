@@ -100,7 +100,7 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
           {m.checkedOn && <>Última conferência: <time dateTime={m.checkedOn}>{date(m.checkedOn)}</time>. </>}
           Fonte: nossa conferência de cada órgão, com o link de evidência em cada cidade.
         </p>
-        <div role="region" aria-label="Matriz de cobertura por estado" tabIndex={0} className="overflow-x-auto rounded-md border border-border outline-none focus-visible:outline-2 focus-visible:outline-focus">
+        <div role="region" aria-label="Matriz de cobertura por estado" tabIndex={0} className="relative overflow-x-auto rounded-md border border-border outline-none focus-visible:outline-2 focus-visible:outline-focus">
           <table className="w-full min-w-[40rem] border-collapse text-left text-sm" data-testid="matriz">
             <caption className="sr-only">Porcentagem de cidades com o dado no site, por estado e tipo de dado</caption>
             <thead className="bg-surface-sunken text-xs text-muted">

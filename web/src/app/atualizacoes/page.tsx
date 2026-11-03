@@ -34,7 +34,7 @@ export default async function Page() {
         {late === 0 ? "Todas as fontes carregadas estão dentro do prazo esperado." : `${late} de ${rows.length} fontes estão fora do prazo esperado.`}
       </p>
 
-      <div role="region" aria-label="Fontes e última carga" tabIndex={0} className="overflow-x-auto rounded-md border border-border outline-none focus-visible:outline-2 focus-visible:outline-focus">
+      <div role="region" aria-label="Fontes e última carga" tabIndex={0} className="relative overflow-x-auto rounded-md border border-border outline-none focus-visible:outline-2 focus-visible:outline-focus">
         <table className="w-full min-w-[44rem] border-collapse text-left text-sm" data-testid="tabela-fontes">
           <caption className="sr-only">Fontes oficiais, o que trazem, frequência esperada, última carga e situação</caption>
           <thead className="bg-surface-sunken text-xs text-muted">

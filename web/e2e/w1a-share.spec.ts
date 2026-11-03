@@ -42,6 +42,6 @@ test.describe("W1a · copiar link e WhatsApp no topo", () => {
   test("SHARE-M1 cabe em 390 px sem rolagem horizontal @mobile", async ({ page }) => {
     await page.goto("/sobre");
     await expect(page.getByTestId("page-share")).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
 });

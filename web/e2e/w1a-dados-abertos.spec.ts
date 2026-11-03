@@ -32,7 +32,7 @@ test.describe("W1a · S23 Quem publica dados", () => {
 
   test("S23-E2 sem rolagem horizontal da página em 390 px @mobile", async ({ page }) => {
     await page.goto("/dados-abertos");
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
 
   test("S23-D1 números da matriz batem com data_coverage", async ({ page }) => {

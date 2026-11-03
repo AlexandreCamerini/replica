@@ -9,7 +9,7 @@ test.describe("W1a · direito de resposta", () => {
     const href = await page.locator("#vereadores a[href^='/p/']").first().getAttribute("href");
     const slug = href!.split("/").pop()!;
     await page.goto(href!);
-    const footer = page.locator("main footer");
+    const footer = page.locator("footer[aria-labelledby=resposta-h]");
     const link = footer.getByRole("link", { name: "Direito de resposta", exact: true });
     await expect(link).toHaveAttribute("href", `/sugestoes?tipo=resposta&p=${slug}`);
     await expect(footer.locator('a[href="/sobre#s-resposta"]')).toHaveCount(1);

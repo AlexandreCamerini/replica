@@ -73,7 +73,7 @@ test.describe("W1a · onboarding na 1ª visita", () => {
     await expect(dialog(page)).toBeVisible();
     const b = await dialog(page).getByRole("button", { name: "Pular" }).boundingBox();
     expect(b!.height).toBeGreaterThanOrEqual(40);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     const box = await dialog(page).boundingBox();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(390);

@@ -40,7 +40,7 @@ test.describe("W1a · S24 Como atualizamos", () => {
 
   test("S24-E1 sem rolagem horizontal da página em 390 px @mobile", async ({ page }) => {
     await page.goto("/atualizacoes");
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await page.locator("[role=region][aria-label='Fontes e última carga']").focus();
   });
 });
