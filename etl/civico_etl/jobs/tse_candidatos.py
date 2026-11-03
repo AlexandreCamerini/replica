@@ -227,6 +227,12 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
     mandate_rows: list[tuple] = []
     supplementary: list[tuple[str, str, date]] = []  # (office_slug, place_id, data da eleição suplementar)
     sq_round1: dict[str, tuple[str, str]] = {}  # SQ -> (contest_id, person_id) do 1º turno, para bens
+    not_in_dir = 0
+    # mesma pessoa com duas candidaturas na mesma eleição (registro substituído, renúncia e novo registro): fica a que já está no
+    # banco ou, no lote, a eleita primeiro
+    db_person_election = {(str(r_["person_id"]), str(r_["election_id"])): str(r_["contest_id"]) for r_ in conn.execute(
+        "select person_id, election_id, contest_id from candidacies where election_id = any(%s::uuid[])", (list(elections.values()),))}
+    parsed.sort(key=lambda x: (x["DS_SIT_TOT_TURNO"] or "").upper() not in ("ELEITO", "ELEITO POR QP", "ELEITO POR MÉDIA", "2º TURNO"))
     for x in parsed:
         sq = nz(x["SQ_CANDIDATO"])
         if not sq:
@@ -237,10 +243,23 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
         birth = parse_date(x["DT_NASCIMENTO"])
         birth_uf = (nz(x["SG_UF_NASCIMENTO"]) or "").upper() or None
         titulo = nz(x["NR_TITULO_ELEITORAL_CANDIDATO"])
+        result = RESULT.get((x["DS_SIT_TOT_TURNO"] or "").strip().upper())
+        detail = (x["DS_DETALHE_SITUACAO_CAND"] or "").upper()
+        if result is None:
+            result = "indeferido" if "INDEFERIDO" in detail else "renuncia" if "RENÚNCIA" in detail or "RENUNCIA" in detail else None
+        # D07: só cria pessoa nova no diretório quem tem mandato atual ou a tomar posse; o resto (derrotados, eleições antigas)
+        # só se liga a quem já está no diretório (histórico, patrimônio, campanhas). O diretório não vira lista de candidatos.
+        s0, e0 = term_dates(x["office"], year)
+        if x["kind"] == "suplementar":
+            s0 = x["held"]
+        may_create = result in ELECTED and e0 > today
         m = people.resolve(source="tse", external_id=sq, civil_name=civil, birth_date=birth, birth_uf=birth_uf, titulo=titulo,
                            raw={"ano": year, "nome": civil, "urna": urna, "cargo": x["office"], "uf": x["SG_UF"]})
         if m.method == "queued":
             r.reject(1)
+            continue
+        if m.person_id is None and not may_create:
+            not_in_dir += 1
             continue
         pid = m.person_id or people.create(
             display_name=urna, civil_name=civil, gender=GENDER.get((x["CD_GENERO"] or "").strip()), birth_date=birth,
@@ -250,16 +269,16 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             source="tse", external_id=sq, titulo=titulo,
         )
         el_id = elections[(x["kind"], year, x["turno"], x["held"])]
+        contest_id = contests[(el_id, offices[x["office"]], x["place"])]
+        if db_person_election.get((pid, el_id), contest_id) != contest_id:
+            r.reject(1, f"outra candidatura da mesma pessoa na eleição: {civil} ({sq})")
+            continue
         if (pid, el_id) in seen_person_election:
             r.reject(1, f"pessoa duplicada na mesma eleição: {civil} ({sq})")
             continue
         seen_person_election.add((pid, el_id))
         contest_id = contests[(el_id, offices[x["office"]], x["place"])]
         party_id = parties.get(x["SG_PARTIDO"], x["NM_PARTIDO"], x["NR_PARTIDO"])
-        result = RESULT.get((x["DS_SIT_TOT_TURNO"] or "").strip().upper())
-        detail = (x["DS_DETALHE_SITUACAO_CAND"] or "").upper()
-        if result is None:
-            result = "indeferido" if "INDEFERIDO" in detail else "renuncia" if "RENÚNCIA" in detail or "RENUNCIA" in detail else None
         cand_rows.append((contest_id, el_id, pid, party_id, sq, urna, int(x["NR_CANDIDATO"]) if (x["NR_CANDIDATO"] or "").isdigit() else None,
                           nz(x["NM_COLIGACAO"]), result, "BRL"))
         if x["turno"] == 1:
@@ -274,6 +293,9 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             body = bodies.get((BODY_KIND[x["office"]], x["place"])) if x["office"] in BODY_KIND else None
             mandate_rows.append((pid, offices[x["office"]], x["place"], body, party_id, "titular", status, start, end, f"TSE {year}", "tse", sq, contest_id))
     people.flush()
+    if not_in_dir:
+        r.notes.append(f"{not_in_dir} candidaturas de quem não está no diretório (sem mandato atual): não criam pessoa")
+        log.info("tse %d: %d candidaturas sem pessoa no diretório, ignoradas", year, not_in_dir)
     upserted = upsert(
         conn, "candidacies",
         ["contest_id", "election_id", "person_id", "party_id", "tse_sequencial", "ballot_name", "ballot_number", "coalition_name", "result", "currency"],

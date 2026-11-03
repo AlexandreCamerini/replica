@@ -6,8 +6,8 @@ Fontes (dadosabertos.camara.leg.br, CC0):
                                                                   -> sessions, voting_events, votes, party_orientations
   arquivos/proposicoes|proposicoesAutores|proposicoesTemas/csv/*-{ano}.csv -> proposals, proposal_authors, proposal_topics
   www.camara.leg.br/cotas/Ano-{ano}.csv.zip                       -> expenses
-Presença é DERIVADA: por sessão com votação nominal, presente = registrou voto (inclusive abstenção, obstrução e art. 17).
-Regra publicada em replica/backend.md.
+Presença NÃO sai daqui: vem da lista oficial de presença em sessões deliberativas (jobs/camara_presenca.py).
+Sessões criadas a partir das votações nascem is_deliberative = false; o job de presença marca as deliberativas.
 """
 
 from __future__ import annotations
@@ -169,7 +169,9 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
                             break
                 mandates.append((pid, ctx.office, place, ctx.body, party, "titular" if titular else "suplente_em_exercicio", status, started, end, f"TSE {start.year - 1}", "camara"))
                 if party:
-                    memberships.append((pid, party, start))
+                    # observação de partido (D05): mesma chave do /historico, que o job de presença também grava
+                    seen = parse_date(st.get("data")) or start
+                    memberships.append((pid, party, seen, "camara", f"camara:{d['id']}:{st.get('data') or start.isoformat()}"))
             # mandato: a Câmara é dona do status; não mexe em party_id (partido na posse vem do TSE)
             n = len(upsert(
                 conn, "mandates",
@@ -177,8 +179,8 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
                 mandates, ["person_id", "office_id", "place_id", "started_on"],
                 update=["body_id", "role", "status", "status_source"], returning=["id"],
             ))
-            # partido atual segundo a casa: uma filiação aberta por pessoa (from_on = início da legislatura, aproximação registrada)
-            upsert(conn, "party_memberships", ["person_id", "party_id", "from_on"], memberships, ["person_id", "from_on"], update=["party_id"])
+            # partido: observação datada; party_memberships é reconstruída no derive.stats (linha do tempo de todas as fontes)
+            upsert(conn, "party_observations", ["person_id", "party_id", "observed_on", "source", "source_key"], memberships, ["source", "source_key"], update=["person_id", "party_id", "observed_on"])
             ctx.people.flush()
             if not limit:
                 # eleito pelo TSE que a Câmara não lista na legislatura: não tomou posse (renúncia antes da posse, outro cargo)
@@ -242,7 +244,7 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
                 k = ev["idEvento"] or f"dia:{ev['data']}"
                 cur = sess_rows.get(k)
                 if cur is None or ts < cur[4]:
-                    sess_rows[k] = (ctx.body, "plenario", True, "encerrada", ts, f"https://www.camara.leg.br/evento-legislativo/{ev['idEvento']}" if ev["idEvento"] else None, k)
+                    sess_rows[k] = (ctx.body, "plenario", False, "encerrada", ts, f"https://www.camara.leg.br/evento-legislativo/{ev['idEvento']}" if ev["idEvento"] else None, k)
             sess_id: dict[str, str] = {}
             for row in upsert(conn, "sessions", ["body_id", "kind", "is_deliberative", "status", "starts_at", "official_url", "source_key"], list(sess_rows.values()),
                               ["body_id", "source_key"], update=["starts_at"], returning=["id", "source_key"]):
@@ -321,8 +323,6 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
                     ctx.actors[row["label"]] = str(row["id"])
             upsert(conn, "party_orientations", ["voting_event_id", "actor_id", "orientation"], [(e, ctx.actors[l], o) for e, l, o in orient_rows if l in ctx.actors], ["voting_event_id", "actor_id"])
 
-            # presença derivada por sessão
-            _derive_attendance(conn, ctx.body, ctx.office, [sid for sid in sess_id.values()])
     except SkipUnchanged:
         return
 
@@ -330,29 +330,6 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
 def party_key_like(label: str) -> bool:
     """Siglas de partido são curtas e sem minúsculas no meio ('PT', 'PCdoB', 'UNIÃO'); blocos vêm em CamelCase ('PpPodeAvante')."""
     return bool(re.fullmatch(r"[A-ZÀ-Ü0-9]{2,15}|PCdoB|PTdoB|Podemos|Avante|Patriota|Cidadania|Republicanos|Novo|Rede|Solidariedade|Progressistas", label))
-
-
-def _derive_attendance(conn: psycopg.Connection, body_id: str, office_id: str, session_ids: list[str]) -> None:
-    """presente = registrou voto em alguma votação nominal da sessão; ausente = tinha mandato e não votou;
-    fora_do_exercicio = mandato não está 'em_exercicio' hoje (aproximação: a fonte não publica o histórico de licenças)."""
-    if not session_ids:
-        return
-    conn.execute(
-        """insert into attendance (session_id, person_id, status)
-           select s.id, m.person_id,
-                  case when v.person_id is not null then 'presente'
-                       when m.status <> 'em_exercicio' then 'fora_do_exercicio'
-                       else 'ausente' end
-           from sessions s
-           join mandates m on m.office_id = %s and m.started_on <= s.starts_at::date and m.ends_on > s.starts_at::date
-                           and m.status in ('em_exercicio','licenciado','afastado','encerrado')
-           left join lateral (
-             select 1 as person_id from votes v join voting_events e on e.id = v.voting_event_id
-             where e.session_id = s.id and v.person_id = m.person_id limit 1) v on true
-           where s.id = any(%s::uuid[])
-           on conflict (session_id, person_id) do update set status = excluded.status, updated_at = now()""",
-        (office_id, session_ids),
-    )
 
 
 # só o despacho de transformação traz o número da norma; "projeto de lei 123/2023 sancionado" NÃO é o número da lei

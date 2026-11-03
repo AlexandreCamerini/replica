@@ -4,7 +4,8 @@ Fonte: https://legis.senado.leg.br/dadosabertos (JSON).
   /senador/lista/atual            -> 81 em exercício (titulares e suplentes convocados)
   /senador/{cod}                  -> nascimento, naturalidade
   /senador/{cod}/votacoes?ano=    -> votações nominais com o voto da pessoa (secretas são puladas)
-Presença: derivada por sessão com votação nominal, mesma regra da Câmara.
+Presença: o Senado não publica lista de presença por senador em dado aberto -> nenhuma presença é gravada (null, tela mostra "—").
+A presença derivada de voto que existia foi apagada (D01): votar ou não numa votação nominal não é presença.
 """
 
 from __future__ import annotations
@@ -21,7 +22,6 @@ from ..http import fetch_json
 from ..identity import PersonResolver
 from ..parties import PartyResolver
 from ..util import fold, nz, parse_date, titlecase_pt
-from .camara_diario import _derive_attendance
 
 log = logging.getLogger("etl.senado")
 API = "https://legis.senado.leg.br/dadosabertos"
@@ -59,7 +59,7 @@ def _vote_value(s: str | None) -> str | None:
     return "nao_votou"  # LP, AP, MIS, NCom, LS, REP, NA...
 
 
-def run_senado(conn: psycopg.Connection, *, years: list[int], limit: int | None, force: bool) -> None:
+def run_senado(conn: psycopg.Connection, *, years: list[int], limit: int | None, force: bool, ceaps_years: list[int] | None = None) -> None:
     people = PersonResolver(conn)
     parties = PartyResolver(conn)
     office = str(conn.execute("select id from offices where slug = 'senador'").fetchone()["id"])
@@ -148,7 +148,7 @@ def run_senado(conn: psycopg.Connection, *, years: list[int], limit: int | None,
             people.flush()
             r.add(len(upsert(conn, "mandates", ["person_id", "office_id", "place_id", "body_id", "party_id", "role", "status", "started_on", "ends_on", "elected_by", "status_source"],
                              mandates, ["person_id", "office_id", "place_id", "started_on"], update=["body_id", "role", "status", "status_source"], returning=["id"])))
-            upsert(conn, "party_memberships", ["person_id", "party_id", "from_on"], memberships, ["person_id", "from_on"], update=["party_id"])
+            # partido: vem das filiações datadas (senado_extras.filiacoes) -> party_observations -> derive.stats
     except SkipUnchanged:
         pass
 
@@ -159,42 +159,55 @@ def run_senado(conn: psycopg.Connection, *, years: list[int], limit: int | None,
         except SkipUnchanged:
             continue
 
+    from . import senado_extras as sx
+
+    sx.drop_derived_attendance(conn, body)
+    if senators and not limit:
+        sx.filiacoes(conn, senators, parties)
+        sx.autorias(conn, senators, body, force)
+    sx.ceaps(conn, ceaps_years or years, body, force)
+
 
 def _votes_year(conn: psycopg.Connection, r, year: int, senators: list[tuple[str, str, str | None]], body: str, office: str) -> None:
+    """Votações do Plenário do ano pelo endpoint /votacao (todas as nominais, abertas e secretas; D10).
+    A API por senador (/senador/{cod}/votacoes) omitia boa parte das abertas (8 × 22 em 2026). Secreta: entra o evento, sem voto
+    individual (a fonte só diz "Votou"). Senador fora do diretório (mandato encerrado antes da carga): voto não gravado."""
     prop_rows, sess_rows, ev_rows, vote_rows = {}, {}, {}, []
-    for cod, pid, party in senators:
-        try:
-            d = fetch_json(f"{API}/senador/{cod}/votacoes.json?ano={year}", max_age=86400)
-        except FileNotFoundError:
+    by_cod = {cod: (pid, party) for cod, pid, party in senators}
+    src = str(conn.execute("select id from sources where slug = 'senado'").fetchone()["id"])
+    for row in conn.execute("select external_id, person_id from person_external_ids where source_id = %s", (src,)):
+        by_cod.setdefault(row["external_id"], (str(row["person_id"]), None))
+    end = min(date(year, 12, 31), date.today())
+    try:
+        lst = fetch_json(f"{API}/votacao?dataInicio={year}-01-01&dataFim={end.isoformat()}", max_age=86400)
+    except FileNotFoundError:
+        lst = []
+    for v in _list(lst):
+        key = str(v.get("codigoSessaoVotacao") or "")
+        day = parse_date(v.get("dataSessao"))
+        if not key or not day or (v.get("casaSessao") or "SF") != "SF":
             continue
-        for v in _list(((d.get("VotacaoParlamentar") or {}).get("Parlamentar") or {}).get("Votacoes", {}).get("Votacao")):
-            if (v.get("IndicadorVotacaoSecreta") or "Não") == "Sim":
-                continue
-            sess, mat = v.get("SessaoPlenaria") or {}, v.get("Materia") or {}
-            key = str(v.get("CodigoSessaoVotacao") or "")
-            if not key:
-                continue
-            day = parse_date(sess.get("DataSessao"))
-            if not day:
-                continue
-            ts = datetime.combine(day, datetime.strptime(sess.get("HoraInicioSessao") or "00:00:00", "%H:%M:%S").time())
-            skey = str(sess.get("CodigoSessao") or f"dia:{day}")
-            sess_rows.setdefault(skey, (body, (sess.get("SiglaTipoSessao") or "plenario").lower(), True, "encerrada", ts, None, skey))
-            pkey = None
-            if mat.get("Sigla") and str(mat.get("Numero") or "").isdigit():
-                pkey = (body, mat["Sigla"], int(mat["Numero"]), int(mat.get("Ano") or year))
-                prop_rows.setdefault(pkey, (*pkey, (mat.get("Ementa") or mat.get("DescricaoIdentificacao") or "(sem ementa)")[:4000],
-                                            mat["Sigla"] in {"PL", "PLP", "PEC", "PLV", "MPV", "PDL", "PLS", "PLC"},
-                                            f"https://www25.senado.leg.br/web/atividade/materias/-/materia/{mat.get('Codigo')}" if mat.get("Codigo") else None))
-            desc = (v.get("DescricaoVotacao") or mat.get("DescricaoIdentificacao") or "votação").strip()
-            low = desc.lower()
-            kind = "urgencia" if "urgência" in low else "destaque" if "destaque" in low else "requerimento" if "requerimento" in low else "texto"
-            res = (v.get("DescricaoResultado") or "").lower()
-            result = "aprovado" if res.startswith("aprovad") else "rejeitado" if res.startswith("rejeitad") else None
-            ev_rows.setdefault(key, (body, skey, pkey, ts, kind, True, desc[:4000], result, key))
-            val = _vote_value(v.get("SiglaDescricaoVoto"))
-            if val:
-                vote_rows.append((key, pid, party, val))
+        ts = datetime.combine(day, datetime.min.time())
+        skey = str(v.get("codigoSessao") or f"dia:{day}")
+        sess_rows.setdefault(skey, (body, (v.get("siglaTipoSessao") or "plenario").lower(), False, "encerrada", ts, None, skey))
+        pkey = None
+        if v.get("sigla") and str(v.get("numero") or "").isdigit() and str(v.get("ano") or "").isdigit():
+            pkey = (body, v["sigla"], int(v["numero"]), int(v["ano"]))
+            prop_rows.setdefault(pkey, (*pkey, (v.get("ementa") or v.get("identificacao") or "(sem ementa)")[:4000],
+                                        v["sigla"] in {"PL", "PLP", "PEC", "PLV", "MPV", "PDL", "PLS", "PLC"},
+                                        f"https://www25.senado.leg.br/web/atividade/materias/-/materia/{v.get('codigoMateria')}" if v.get("codigoMateria") else None))
+        desc = (v.get("descricaoVotacao") or v.get("identificacao") or "votação").strip()
+        low = desc.lower()
+        kind = "urgencia" if "urgência" in low else "destaque" if "destaque" in low else "requerimento" if "requerimento" in low else "texto"
+        result = {"A": "aprovado", "R": "rejeitado"}.get(v.get("resultadoVotacao") or "")
+        ev_rows.setdefault(key, (body, skey, pkey, ts, kind, True, desc[:4000], result, key))
+        if (v.get("votacaoSecreta") or "N") == "S":
+            continue
+        for vv in _list(v.get("votos")):
+            who = by_cod.get(str(vv.get("codigoParlamentar")))
+            val = _vote_value(vv.get("siglaVotoParlamentar"))
+            if who and val:
+                vote_rows.append((key, who[0], who[1], val))
     log.info("senado %d: %d votações nominais, %d votos", year, len(ev_rows), len(vote_rows))
     prop_id: dict[tuple, str] = {}
     for row in upsert(conn, "proposals", ["body_id", "type", "number", "year", "summary_official", "can_become_law", "url"], list(prop_rows.values()),
@@ -221,4 +234,3 @@ def _votes_year(conn: psycopg.Connection, r, year: int, senators: list[tuple[str
              from votes where voting_event_id = any(%s::uuid[]) group by 1) c where c.voting_event_id = e.id""",
         (list(ev_id.values()),),
     )
-    _derive_attendance(conn, body, office, list(sess_id.values()))

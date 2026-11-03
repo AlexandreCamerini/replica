@@ -14,14 +14,23 @@ log = logging.getLogger("etl.check")
 
 CHECKS: list[tuple[str, str]] = [
     (
-        "carreira = soma dos anos (propostas, votos, gastos)",
-        """select count(*) from person_period_stats c
-           where c.period = 'career' and exists (
-             select 1 from person_period_stats y where y.person_id = c.person_id and y.period <> 'career'
-             having coalesce(c.proposals_principal, 0) < coalesce(sum(y.proposals_principal), 0)
-                 or coalesce(c.votes_registered, 0) < coalesce(sum(y.votes_registered), 0)
-                 or coalesce(c.expenses_cents, 0) < coalesce(sum(y.expenses_cents), 0)
-                 or coalesce(c.proposals_principal, 0) > 3 * greatest(coalesce(sum(y.proposals_principal), 0), 1) + 50)""",
+        # BUG-001: carreira multiplicada pelo join com os anos. Compara com a contagem direta na fonte (não com a soma das linhas
+        # de ano: a carreira inclui anos sem mandato no banco, p.ex. matérias de senador antes de 2019, e lançamentos com data fora do mandato)
+        "carreira = total direto da fonte (propostas, votos, gastos) e nunca menor que a soma dos anos",
+        """with d as (
+             select c.person_id, c.proposals_principal, c.votes_registered, c.expenses_cents,
+                    (select count(*) from proposal_authors pa where pa.person_id = c.person_id and pa.role = 'principal') as p_direct,
+                    (select count(*) from votes v where v.person_id = c.person_id and v.value <> 'nao_votou') as v_direct,
+                    (select sum(amount_cents) from expenses e where e.person_id = c.person_id) as e_direct,
+                    (select sum(y.proposals_principal) from person_period_stats y where y.person_id = c.person_id and y.period <> 'career') as p_years,
+                    (select sum(y.votes_registered) from person_period_stats y where y.person_id = c.person_id and y.period <> 'career') as v_years
+             from person_period_stats c where c.period = 'career')
+           select count(*) from d
+           where (proposals_principal is not null and proposals_principal <> p_direct)
+              or (votes_registered is not null and votes_registered <> v_direct)
+              or (expenses_cents is not null and expenses_cents <> coalesce(e_direct, 0))
+              or coalesce(proposals_principal, 0) < coalesce(p_years, 0)
+              or coalesce(votes_registered, 0) < coalesce(v_years, 0)""",
     ),
     (
         "nenhum zero em ano sem carga da fonte",
