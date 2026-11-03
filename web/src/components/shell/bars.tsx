@@ -1,6 +1,7 @@
 import { FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { data } from "@/lib/data";
+import { PageShare } from "./page-share";
 import { date } from "@/lib/format";
 
 export async function DataFreshnessBar() {
@@ -15,6 +16,7 @@ export async function DataFreshnessBar() {
         <Link href="/atualizacoes" className="font-semibold text-fg underline underline-offset-2">
           Como atualizamos
         </Link>
+        <PageShare />
       </p>
     </aside>
   );
