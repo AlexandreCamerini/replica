@@ -1,6 +1,6 @@
 # Arquitetura de integração
 
-Estado em 2026-11-02. Complementa [`architecture.md`](architecture.md) (stack, schema, rotas) e [`backend.md`](backend.md) (o que foi carregado).
+Estado em 2026-11-02; disponibilidade das fontes sondada em 2026-11-03 (§2.4). Complementa [`architecture.md`](architecture.md) (stack, schema, rotas) e [`backend.md`](backend.md) (o que foi carregado).
 Escopo deste documento: tudo que cruza a fronteira do repositório. São três grupos: fontes oficiais que entram, serviços de plataforma de que o app depende e superfícies que o app expõe a terceiros.
 
 Premissas declaradas:
@@ -89,6 +89,40 @@ Legenda de estado: **ok** = código no repo e carga verificada; **parcial** = ex
 | `/api/beacon`, `/api/live`, `/api/trending` | o próprio front | 204 / JSON `s-maxage=30` | WAF 60/min, descarte de hash com mais de 30 entidades por hora | R5 |
 | `/descadastrar` | cliente de e-mail | RFC 8058: o POST descadastra, o GET só mostra o botão | token HMAC | R2 |
 | `/dados-abertos` | público | lê `data_coverage` + `dataset_stamps` | — | R2 |
+
+### 2.4 Sondagem de disponibilidade (2026-11-03)
+
+Método: um GET por endpoint, com os mesmos caminhos dos jobs. Nos arquivos grandes, `Range: bytes=0-0`, que devolve o tamanho total sem baixar. Conferido: a fonte responde, publica o ano esperado e aceita Range onde o job depende disso. Não conferido: a carga em si. Saída via proxy do sandbox, então "sem resposta" pode ser host errado ou DNS.
+
+| fonte | endpoint sondado | HTTP | o que voltou | veredito |
+| --- | --- | --- | --- | --- |
+| IBGE localidades | `/api/v1/localidades/{estados,municipios}` | 200 | JSON; municípios 2,4 MB | disponível |
+| IBGE malhas v3 | `/api/v3/malhas/paises/BR?intrarregiao=UF` | 200 | GeoJSON 98 KB | disponível |
+| TSE candidaturas e bens 2026 | `consulta_cand_2026.zip`, `bem_candidato_2026.zip` | 206 | 3,3 MB e 3,8 MB; 30 membros, 23,9 MB de CSV por UF | disponível |
+| TSE votos por município 2026 | `votacao_candidato_munzona_2026.zip` | 206 | 446 MB, Range aceito | disponível |
+| TSE prestação de contas 2026 | `prestacao_de_contas_eleitorais_candidatos_2026.zip` | 206 | 362 MB; eleição de outubro, ainda em consolidação | disponível |
+| TSE arquivos 2024 | `consulta_cand`, `munzona`, `prestacao` | 206 | 65 MB, 48 MB, 1,3 GB | disponível |
+| Câmara API v2 | `/deputados`, `/deputados/{id}/discursos` | 200 | JSON paginado | disponível |
+| Câmara arquivos 2026 | `votacoesVotos-2026.csv`, `proposicoes-2026.csv`, `cotas/Ano-2026.csv.zip` | 206 | 17,6 MB, 41,3 MB, 4,5 MB; cabeçalho do CSV de votos igual ao esperado | disponível |
+| Câmara agenda | `/api/v2/eventos` | 200 | JSON | disponível para o R2 |
+| Senado | `/senador/lista/atual.json`, `/senador/{cod}/votacoes.json` | 200 | JSON; votações por senador leva 1,5 s | disponível |
+| Senado agenda | `/plenario/agenda/mes/{AAAAMMDD}.json` | 200 | JSON 39 KB | disponível para o R2 |
+| Portal da Transparência | `/api-de-dados/emendas` | 401 | API ativa; recusa sem `chave-api-dados` | precisa de chave (cadastro gov.br) |
+| SIDRA, BCB SGS | `apisidra /t/1737`, `bcdata.sgs.433` | 200 | JSON | disponível para o R5 |
+| Receita | página do conjunto em dados.gov.br | 200 | HTML; arquivo não baixado | não conferido |
+| TSE divulgação | `resultados.tse.jus.br/oficial/comum/config/ele-c.json` | 200 | índice com 2026 federal e estadual, 1º e 2º turnos (6257–6260) | disponível para o R5 |
+| STF | `transparencia.stf.jus.br`, Corte Aberta | 403 / 200 | raiz recusa mesmo com UA de navegador; Corte Aberta é painel HTML | sem API; bloqueio de §8 mantido |
+| ALEs | ALMG `/ws/deputados/em_exercicio`, ALESP `/dados-abertos` | 200 | ALMG JSON; ALESP página de downloads | heterogêneo, adapter por UF |
+| SAPL | `/api/` em 6 câmaras | 2× 200, 503, 3× sem resposta | Campinas e Acre devolvem JSON | 2 de 6; cobertura do adapter genérico será parcial |
+| Fotos oficiais | Câmara `bandep/{id}.jpg`, Senado `fotos-oficiais` | 200 | 48 KB e 233 KB | disponível; a do Senado passa de 200 KB |
+
+Achados que mudam o ETL:
+- **O TSE regrava os zips todo dia.** O `Last-Modified` é de hoje até nos arquivos de 2024, e o `ETag` é do tipo tamanho-mtime (`"3db6430-65f587ae1d637"`), então muda junto. O GET condicional de `http.py` não evita download nenhum no TSE.
+  - `tse.votos` e `tse.contas` leem por Range e usam o CRC32 do membro como checksum: não baixam o zip e só reprocessam se o conteúdo mudou. Critério certo.
+  - `tse.candidatos` baixa o zip inteiro por `http.py` e usa o sha256 do corpo. Custa 65 MB por ano por run, e reprocessa à toa se a regravação mudar bytes sem mudar dado (não verificado). Corrigir: passar para `remotezip` + CRC32 dos membros, como os outros dois.
+- **Os dados de 2026 já estão publicados.** `tse.candidatos` e `tse.votos` podem carregar 2026 agora; prestação de contas deve ser recarregada semanalmente até a consolidação.
+- **Foto do Senado acima do teto.** O espelho no Storage (R2) precisa redimensionar, não só copiar.
+- **Transparência:** o cadastro da chave é o pré-requisito do passo 6 de §11.
 
 ## 3. Contrato de integração por fonte
 
