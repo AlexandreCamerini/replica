@@ -1,118 +1,106 @@
 # Parity: clone cívico × Politicômetro
 
-Rodada: diff detalhado contra o original ao vivo (politicometro.org, lido em 2026-11-02 ~22h). Build do clone: f03f5b6 (build 4). Rodadas anteriores estão no histórico do git deste arquivo.
-
-Premissas desta rodada:
-- O original foi lido pelo HTML servido (SSR) de 22 rotas + crachá real (`/p/adriana-ventura`), cidade (`/representantes?cidade=3509502`, Campinas) e comparar (`?p=adriana-ventura,baleia-rossi`). Nada foi raspado para dentro do clone; só a estrutura e a lista de funções.
-- O clone foi lido pelo código (`web/src/app`, `components`, `etl/civico_etl/jobs`). Não subi o clone nem o Postgres neste worktree, então **o layout não foi recapturado**: a nota de layout é a da rodada anterior (mesmas imagens). A nota de feature é a que decide e foi refeita.
+Rodada final da noite de 2026-11-02 → 03. O diff full stack partiu de f03f5b6 (build 4, nota 62,4) e terminou em b272615. O plano anterior está no histórico do git deste arquivo. A verificação independente está em `replica/verify-final.md`, as decisões em `replica/decisions.md` (D10–D197) e os bugs em `replica/bugs.md` (até o BUG-029).
 
 ## Placar
 
-| | nota | antes | por que mudou |
+| | agora | início da noite | observação |
 | --- | --- | --- | --- |
-| **Geral** | **56,4 / 100** | 58,7 | features caiu, layout igual |
-| Features | **62,4 / 100** | 73,5 | 13 features do original que não estavam na matriz entraram (todas `no` ou `partial`). O clone não regrediu: o alvo cresceu e o recon tinha pontos cegos |
+| Features | **86,8 / 100** | 62,4 | 60 linhas pontuadas, matriz com as 13 linhas do diff |
 | Must-haves | 17 de 17 | 17 de 17 | — |
-| Layout | 32,4 / 100 | 32,4 | não recapturado (ver premissas) |
+| Layout | 32,2 / 100 | 32,4 (não recapturado) | recapturado: 12 telas, 1440×900 e 390×844 PNG, original × clone no mesmo estado |
+| Geral (feature + layout) | 75,9 | 56,4 | o layout pesa contra por desenho: o clone tem identidade própria (ver abaixo) |
 
-Para chegar a 80 faltam **20,6 pontos** de feature (≈ 12 shoulds `no` → `yes`).
+**Veredito: entregável.** Os 17 must estão feitos, a nota de feature é 86,8 (acima de 80) e não há S1 nem S2 abertos. O BUG-019 (voto e dinheiro de presidente em dobro) e o BUG-020 (cota subcontada em ~9–14% para todos os deputados federais) foram corrigidos e conferidos contra a fonte.
 
-**Veredito: não entregável.** Nenhum must faltando e nenhum S1/S2 aberto, mas feature score 62,4 < 80.
+Ainda não é "melhor que o original". O clone ganha em neutralidade, MCP, "—" com motivo, votação secreta do Senado vinda da fonte, agenda com pauta e cota conferida contra a página da Câmara. Perde no fosso municipal e estadual: o original lê 937 câmaras e 29 Assembleias; o clone lê 6 câmaras e 2 Assembleias.
 
-## O que o diff achou que o recon não tinha
+### Layout por tela (imgdiff, modo estrutural, cor ignorada)
 
-| achado no original | onde | clone hoje | peso |
-| --- | --- | --- | --- |
-| Dados de **deputados estaduais** de 29 Assembleias (presença, votos, propostas, verbas), semanal | `/atualizacoes` | só TSE | should |
-| Dados de **vereadores** de 937 Câmaras Municipais com SAPL, um site por vez, releitura a cada 7–14 dias | `/atualizacoes` | só TSE | should |
-| **Como atualizamos**: tabela fonte × o que traz × frequência × última carga, rotina com horários, "fora do prazo", "o que a rotina nunca faz" | `/atualizacoes` | stub | should |
-| **Direito de resposta** no fim de todo crachá, ao lado de "Reportar erro" | crachá | não existe | should |
-| **Presença em gráfico**, "2026 em números" e **ano a ano** (8 anos, da presença à cota) | crachá | não existe (dado está em `person_period_stats`) | should |
-| **Deputados mais votados na cidade** (federal e estadual, 2022) | `/representantes?cidade=` | não existe (votos por município já carregados) | should |
-| **Em que votaram diferente**, filtrado por tema (400 pautas, 16 temas), "Mostrar mais" | comparar | só % por par | should (já partial) |
-| **Equipe do gabinete** com nome e salário (14 pessoas · R$ 115 mil/mês) | crachá | "entra na próxima fase" | should (já partial) |
-| Campanha: **de onde veio** (fundo partidário, partido, PF, coletivo) e **com o que gastou**, por eleição | crachá | só totais | should (já partial) |
-| Salário acumulado "recebeu desde 02/2019 em 94 meses" | crachá tile | não | could |
-| "Como cobrar" + dados civis | crachá | escolaridade sim, "como cobrar" não | could |
-| Copiar link e WhatsApp no topo de toda página | header | só no crachá | could |
-| Onboarding de 3 passos | 1ª visita | `OnboardingDialog` existe, só usado em `/design` | could |
-| Sanções TCU/CGU; salários de prefeito/vereador via Tribunais de Contas; contas dos estados (Tesouro) | `/atualizacoes` | não | could |
-| Como ajudar (mandar dado da cidade, avisar erro, espalhar, apoiar) | `/ajudar` | stub | could |
+| tela | 1440 | 390 |
+| --- | --- | --- |
+| home | 28,9 | 36,8 |
+| crachá (`/p/adriana-ventura`) | 28,6 | 28,6 |
+| representantes (Campinas) | 30,9 | 37,2 |
+| comparar | 30,2 | 28,0 |
+| congresso | 34,3 | 31,7 |
+| sobre | 33,0 | 38,4 |
 
-Matriz atualizada em `features.csv` (linhas com "diff 2026-11-02" nas notas).
+A nota baixa é esperada. O clone não copia a trade dress do original (ver replica-diff: "do not chase pixel parity"), e a informação está nos mesmos lugares por fluxo (tabela de fluxos abaixo). Não vale perseguir essa nota.
+
+## Verificação
+
+| item | resultado |
+| --- | --- |
+| pytest do ETL | 55/55 |
+| `civico-etl check` | 26 invariantes ok, exit 0. Novos nesta noite: 1 prefeito por município, 1 governador por UF, cota contra referência da Câmara (10 pares), partido vigente = casa, 513/81 cadeiras, voto de presidente ≤ TSE, Assembleias |
+| MCP | 33/33, 0 falha |
+| tsc / eslint (web) | 0 / 0 |
+| e2e contra :3101 (Postgres real) | 170 passed, 1 flaky (SH-E2, 390 px no dev), 1 skipped. As 2 falhas da 1ª passada (FX-024) eram teste preso ao dado antigo do AM; teste reescrito, 2/2 |
+| dado contra fonte (verificador) | 16 números conferidos, 11 batiam. Os 4 que não batiam viraram BUG-020/022/023/028 e estão corrigidos (cota da Adriana em 2025 = R$ 104.693,75, igual à página da Câmara; Senado 81/81; desemprego 2024 = 6,6; presença rotulada) |
+
+O que **não** foi reverificado por um agente independente depois das correções: os bugs 020 a 029 foram conferidos pelos próprios agentes que os corrigiram, mais o meu check e a suíte. O invariante da cota compara com a página oficial, o que reduz o risco, mas não substitui um segundo olhar.
+
+## O que entrou nesta noite
+
+| onda | itens |
+| --- | --- |
+| W1a | /sobre, /atualizacoes, /dados-abertos, direito de resposta, busca global, copiar link no topo, onboarding |
+| W1b/W2 | presença em gráfico e ano a ano, mais votados na cidade, divergências no comparar, salário acumulado, "Como cobrar", card OG, campanha por origem e gasto, equipe da Câmara, "o que virou lei" |
+| Educativo/API | /cargos, /dicionario (122/213), servidor MCP (6 ferramentas, só leitura) e /mcp, /ajudar |
+| W3-A | Assembleias SP e MG (propostas e verba), casadas com o TSE; vereadores SAPL no crachá |
+| W3-B | subsídio federal desde 2015, `is_secret` do Senado (557 secretas, igual à fonte), agenda/pauta do Congresso, SAPL em 6 capitais, 847 inabilitados do TCU |
+| W4 | /eleicoes, /governos, /impostos, /partidos (A–Z, sem espectro) |
+| Correções de dado | prefeitos cassados "com recurso" (BUG-014), fuso das sessões (BUG-017), presidente em dobro (BUG-019), cota (BUG-020), partido dos senadores (BUG-022), governador do AM fora do TSE (D184/D197) |
+| Acabamento | agenda em /congresso, MCP lê `is_secret`, um só dono para `sessions.starts_at`, fonte e data no comparar e no bloco "Números" |
 
 ## Comportamento por fluxo
 
-| fluxo | original faz | clone faz | decisão |
+| fluxo | original | clone | decisão |
 | --- | --- | --- | --- |
-| F01 achar quem me representa | campo → cidade → pessoa; cidade traz ações, mais votados na cidade e "nenhum destes dados de X está no site" | igual, sem JS funciona; falta "mais votados" | fix: mais votados (W1) |
-| F02 mapa | malha IBGE, região → UF → cidade, Esc volta, 6 camadas | igual sem as camadas | manter; camadas só em W4 |
-| F03 ler o crachá | ~25 blocos, cada um recolhível com resumo no título ("Como votou · 52 sim · 61 não") | ~15 blocos; filtros na URL; "—" com motivo | fix: presença/ano a ano, direito de resposta (W1); campanha detalhada e equipe (W2) |
-| F04 comparar | "Votaram igual?" + lista de divergências com filtro por tema | só % por par | fix (W1) |
-| F05 monitorar | e-mail → código → feed; "receber atualizações por e-mail ou WhatsApp" | e-mail → código → feed; sem envio do resumo | fix: Resend + descadastro (W3, precisa de conta sua) |
-| F06 compartilhar | card pronto para Instagram/WhatsApp; WhatsApp e copiar link no topo de toda página | Web Share + WhatsApp só no crachá; sem imagem | fix: OG (W2), topo (W1) |
-| F07 congresso | abas "sendo votado" / "virou lei", agenda com pauta das 16h, sessão ao vivo | hemiciclo + votações nominais + S10 | fix: aba "virou lei" sobre `laws` já carregado (W2); agenda exige ETL (W3) |
-| F08 reportar erro | Reportar erro + **Direito de resposta** no crachá; sugestão geral | Reportar erro → S25 | fix: direito de resposta (W1) |
-| frescor do dado | "Atualizado 02/11, 22:02" no topo + página com última carga por fonte e "fora do prazo" | barra global com data; página stub | fix: S24 (W1) |
-| neutralidade | hemiciclo **na cor do partido**; `/partidos` ordena por pesquisa de especialistas; `/mais-vistos` mostra "em alta" | cadeiras neutras, A–Z, testado | **manter o clone**: é a vantagem; se fizer partidos/mais vistos, sem ordem por popularidade nem por régua ideológica |
+| F01 quem me representa | campo → cidade → pessoa; mais votados | igual, sem JS funciona; mais votados; "N de M cadeiras" com motivo | manter |
+| F03 crachá | ~25 blocos recolhíveis | presença/ano a ano, campanha, equipe, como cobrar, direito de resposta, Assembleia/SAPL; fonte e data por número | manter; viagens "—" |
+| F04 comparar | votaram igual + divergências por tema | igual, filtro na URL; conta votações, não pautas (D59) | manter, revisar D59 |
+| F05 monitorar | e-mail ou WhatsApp | e-mail → código → feed; sem envio do resumo | bloqueado: Resend + domínio (conta do dono) |
+| F06 compartilhar | card + WhatsApp no topo | OG 1200×630 sem foto + topo | manter; `SITE_URL` na publicação (D62) |
+| F07 congresso | sendo votado, virou lei, agenda, ao vivo | hemiciclo neutro, votações, virou lei, agenda com pauta | ao vivo fica fora |
+| neutralidade | hemiciclo na cor do partido; partidos por espectro; "em alta" | cadeiras neutras, A–Z, sem espectro; coluna "orientação igual à do governo" sem ordenar nem colorir (D192) | manter; revisar D192 |
 
-## Plano de complemento
+## Faltando, em ordem de construção
 
-Ordem por pontos ganhos ÷ custo. Cada onda fecha com `parity.py` + suíte e2e verde. Estimativa de nota acumulada ao fim de cada onda.
+1. **Emendas parlamentares** (should): falta a chave do Portal da Transparência, que é do dono.
+2. **Resumo por e-mail + descadastro** (should, F05): falta Resend + domínio, também do dono.
+3. **Assembleias além de SP e MG** (should, partial): RJ não tem dado aberto e o DOCIGP proíbe robôs; RS sem catálogo; outras 23 UFs a mapear. Presença e votos de plenário: SP e MG não publicam em dado aberto (só comissão, D102).
+4. **SAPL em escala** (should, partial): 6 de 937 câmaras, ~20 min por câmara. Precisa de carga incremental (maior id visto) e agendamento.
+5. **Matriz de quem publica** (should, partial): preenche à medida que 3 e 4 crescem.
+6. Equipe do Senado e viagens (should, partial); folha mensal da Câmara para o salário da equipe.
+7. Could: STF, Planos de governo, camadas do mapa, salário de prefeito/vereador pelos Tribunais de Contas, sanções no crachá (0 casados por regra estrita), CGU (bloqueada por verificação humana, D130), dicionário completo (213), apuração ao vivo, mais vistos.
 
-### W1 · dado já está no banco, só tela (+15,4 → 77,8)
+## Decisões que o dono deve revisar
 
-| # | item | ganho | critério de aceite |
-| --- | --- | --- | --- |
-| 1 | S22 Metodologia e fontes (`/sobre`) | +1,7 | texto próprio com âncoras: neutralidade, regra de presença, "—" vs 0, identidade entre fontes, privacidade (`#s-priv`), direito de resposta; links de todo rodapé resolvem |
-| 2 | S24 Como atualizamos (`/atualizacoes`) | +1,7 | tabela por fonte lida de `data_coverage`/proveniência: o que traz, frequência, última carga; "fora do prazo" calculado (última carga > frequência); teste com fonte atrasada artificial |
-| 3 | S23 Quem publica (`/dados-abertos`) | +1,7 | matriz UF × tipo de dado com % de cidades; busca de cidade; CTA para S25 `tipo=dado`; números batem com `data_coverage` (teste) |
-| 4 | Direito de resposta no crachá | +1,7 | link no fim de todo crachá → S25 com `tipo=resposta&p=slug`; mensagem guardada com pessoa e data; política de resposta descrita em S22 |
-| 5 | Presença em gráfico + "ano em números" + ano a ano | +1,7 | um gráfico de presença por mês do ano selecionado; tabela ano × (presença, propostas, votos, cota); Senado mostra "—" na presença com motivo; acessível (tabela por trás do gráfico) |
-| 6 | Mais votados na cidade (S07) | +1,7 | top 5 federal e top 5 estadual da última eleição geral, votos no município, ligando ao crachá; cidade sem dado → "—" com motivo |
-| 7 | Busca global no header (S03) | +1,7 | combobox único "político, cidade, estado ou cargo" com grupos; sem JS cai em `/quem?nome=` ; teclado completo; usa `/api/people/search` + `/api/places` |
-| 8 | Comparar: em que votaram diferente | +0,9 | lista das votações em que o par divergiu, com filtro por tema e "mostrar mais"; filtro na URL; 2–5 pessoas = divergência por par escolhido |
-| 9 | Copiar link + WhatsApp no topo | +0,9 | em toda página, com a URL canônica (sem parâmetros de rastreio) |
-| 10 | Salário acumulado no crachá | +0,9 | soma do valor pago desde a posse, meses no cargo; "—" se a casa não publica valor pago |
-| 11 | Onboarding ligado + "Como cobrar" | +0,8 | `OnboardingDialog` na 1ª visita (cookie, sem storage obrigatório, "Pular"); "Como cobrar" = contato oficial + ouvidoria da casa |
-
-### W2 · parciais que viram `yes` (+4,3 → 82,1, entregável; simulado com `features.csv`, sem contar o item 15)
-
-| # | item | ganho | critério de aceite |
-| --- | --- | --- | --- |
-| 12 | Card OG do crachá (S28) | +0,9 | `opengraph-image` por slug, 1200×630, nome, cargo, partido, 4 números com fonte; sem foto não licenciada |
-| 13 | Campanha: origem e gastos | +0,9 | por eleição, receitas por origem e despesas por categoria (TSE prestação de contas, já baixada); nunca nome de pessoa física doadora |
-| 14 | Equipe do gabinete + viagens | +0,9 | Câmara (secretários parlamentares) e Senado (missões); se a casa não publica, "—" com motivo |
-| 15 | Congresso: aba "o que virou lei" | 0 (continua partial até a agenda da W3) | leis por data a partir de `laws`; a agenda fica para W3 |
-| 16 | Entenda os cargos (S18) e Dicionário (S19) | +1,8 | texto próprio, cada item com artigo da Constituição ou fonte oficial |
-
-### W3 · dado novo ou conta sua (+8,4)
-
-| # | item | bloqueio |
-| --- | --- | --- |
-| 17 | ETL Assembleias Legislativas (deputados estaduais) | 27 fontes heterogêneas; começar por SP, MG, RJ, RS (maioria da população) e as que usam SAPL |
-| 18 | ETL SAPL das Câmaras Municipais | crawler educado (1 site por vez, respeitar intervalo), descoberta das 900+ instâncias; maior custo do plano |
-| 19 | Emendas parlamentares | chave do Portal da Transparência (sua) |
-| 20 | Resumo por e-mail + descadastro (F05) | Resend + domínio (seus) |
-| 21 | Agenda/pauta do Congresso e sessão ao vivo | ETL de pauta (16h) |
-| 22 | Sanções TCU/CGU; salários via Tribunais de Contas | fontes novas |
-
-### W4 · could de área inteira (só depois de entregável)
-
-Partidos (com critério de espectro público e citável, ou sem espectro), Governos, Planos de governo, Eleições, STF, Impostômetro, Mais vistos, MCP, camadas do mapa, Como ajudar. MCP é o melhor candidato a diferencial: o original ainda diz "em breve".
+- **D55 → D114**: a votação secreta agora vem da fonte; a regra deduzida saiu.
+- **D58**: "mais votados" usa a eleição de 2026, não a de 2022 como o original.
+- **D59**: divergências contam votações (760), não pautas (400 no original).
+- **D101**: proposta estadual = só projeto; no federal, requerimentos contam.
+- **D107**: criar mandato de suplente a partir da Assembleia é decisão de produto.
+- **D121**: o seed de salários apaga datas que não estão nos decretos.
+- **D131/D132**: TCU sem CPF; casamento só por nome civil + UF único.
+- **D148**: as datas dos mandatos presidenciais foram cruzadas com fonte secundária (o Planalto estava fora do ar). Conferir em `web/src/lib/governos.ts`.
+- **D184/D197**: governador do AM por eleição indireta, fonte = página da Governadoria do AM; a ALEAM não publicou página localizável.
+- **D192**: coluna "orientação igual à do governo" em /partidos; ainda pode ser lida como índice de governismo.
+- **D195**: presença por sessão deliberativa, contra "por dia" da Câmara (108 × 110 na Adriana em 2025).
 
 ## Riscos
 
-- **W3 é o fosso do original.** As 937 câmaras SAPL + 29 Assembleias são o que ele tem de mais difícil de copiar. Sem isso o clone é bom em federal e raso em municipal, que é justamente onde o usuário mora. Chegar a 80 com W1+W2 é possível sem tocar nisso; o veredito "entregável" fica tecnicamente correto e estrategicamente fraco.
-- Layout desta rodada não foi medido. Recapturar no mesmo viewport e estado (1440×900 e 390×844, PNG, não JPEG de 400 px) com o clone em `localhost:3101` antes do próximo diff.
-- `features.csv` agora tem 60 linhas pontuadas; o original continua crescendo (changelog diário). Refazer este diff a cada onda, não só no fim.
+- O fosso continua sendo o dado municipal e estadual. Entregável não quer dizer competitivo onde o usuário mora.
+- Nenhum ETL está agendado. A primeira carga da ALMG leva ~2 h, o SAPL ~20 min por câmara e o complemento da cota pela API ~8 min por ano. Sem rotina, "fora do prazo" em /atualizacoes vira regra.
+- Achado sem investigar: Roberto Cidade tem uma candidatura a vereador de 2012 com nome de urna "Dinelci", que parece casamento de identidade errado.
+- O dev server :3101 teve 500 intermitente por recompilação concorrente (vários agentes); em produção, `next start`, não reproduz.
 
 ## Próximos cinco
 
-1. S24 Como atualizamos + S22 Metodologia (dado e texto prontos; fecham a área `confianca`).
-2. Presença/ano a ano + salário acumulado no crachá (`person_period_stats`).
-3. Mais votados na cidade (votos por município já carregados).
-4. Busca global no header.
-5. Direito de resposta + divergências no Comparar.
-
-Depois: `/replica-build` com W1 inteira; rerodar `/replica-diff` com layout recapturado.
+1. Agendar o ETL (rotina diária e semanal por fonte) e ligar o "fora do prazo" a alerta.
+2. SAPL incremental e expansão para as ~900 câmaras, em lotes.
+3. Assembleias: as próximas UFs com dado aberto, e presença/votação de comissão como bloco próprio em SP e MG.
+4. As duas contas do dono: chave do Portal da Transparência (emendas, CGU) e Resend + domínio (resumo por e-mail).
+5. Reverificação independente dos BUG-020 a 029 e investigação do casamento "Dinelci".
