@@ -43,6 +43,11 @@ export const fakeW4: DataSourceW4 = {
       : [{ office: "prefeito", label: "Prefeito", round: 1, contests: 5569, candidacies: 9000, elected: 5477 }];
   },
   async listElectionContests(f) {
+    if (f.office === "presidente") {
+      const c = { ...contest("BR", "Brasil"), office: "presidente" as const, label: "Presidente", placeIbge: "BR", uf: null };
+      c.candidates = c.candidates.map((x) => ({ ...x, votes: null }));
+      return { items: [c], total: 1 };
+    }
     if (f.office !== "governador") return { items: [], total: 0 };
     const all = [contest("MG", "Minas Gerais"), contest("SP", "São Paulo")];
     const items = f.uf ? all.filter((c) => c.uf === f.uf) : all;
