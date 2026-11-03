@@ -364,7 +364,7 @@ Steps
 2. Abrir /p/kim-kataguiri -> cabeçalho "MISSÃO"; API da Câmara `deputados?siglaPartido=MISSÃO` -> Kim Kataguiri.
 Expected: linha MISSÃO com 1 cadeira; total 513.
 Cause: `pg-w4.ts::listPartyRows` lista partidos com `exists mandates.party_id = pa.id`, mas conta cadeiras por `coalesce(person_current_party, mandates.party_id)`. Quem trocou para um partido que não está em nenhum `mandates.party_id` some da tabela. features.csv já registrava "512/513" como se fosse aceitável.
-Status: fixed (fixui, D191). A causa era do front: `listPartyRows` filtrava partidos por `mandates.party_id`, mas as cadeiras usam `person_current_party`. O filtro agora aceita as duas origens; MISSÃO volta com 1 cadeira e a soma é 513 de 513. Se algum mandato ficar sem partido, a nota sob a tabela diz "N deputado(s) sem partido vigente na fonte".
+Status: fixed (fixui, D191). A causa era do front: `listPartyRows` filtrava partidos por `mandates.party_id`, mas as cadeiras usam `person_current_party`. O filtro agora aceita as duas origens; MISSÃO volta com 1 cadeira e a soma é 513 de 513. Se algum mandato ficar sem partido, a nota sob a tabela diz "N deputado(s) sem partido vigente na fonte". Lado do dado (fix ETL, D187): não havia defeito. O banco tem 513 em exercício, todos com partido vigente, e MISSÃO em `parties`; batem com a Câmara partido a partido. O `check` passou a exigir exatamente 513, todos com partido vigente.
 
 ### BUG-022: bancada do Senado em /partidos diverge do Senado (PT 10 / PSD 13 / PL 16 contra 9 / 14 / 15)
 

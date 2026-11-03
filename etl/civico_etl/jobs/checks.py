@@ -58,18 +58,6 @@ COTA_REFERENCIA: dict[tuple[str, int], int] = {
 }
 _COTA_VALUES = ", ".join(f"('{d}', {y}, {c})" for (d, y), c in sorted(COTA_REFERENCIA.items())) or "(null, null, null)"
 
-# BUG-020 / D183: cota parlamentar de uma amostra fixa contra o total da Câmara (arquivo Ano-AAAA.csv.zip + linhas que só a API
-# tem, D181), conferido em 03/11/2026 na API /deputados/{id}/despesas e na página camara.leg.br/deputados/{id}?ano=AAAA.
-# (id da Câmara, ano) -> centavos. Tolerância de 0,5% para republicação da fonte; o defeito do BUG-020 era -9% a -14%.
-COTA_REFERENCIA: dict[tuple[str, int], int] = {
-    ("204528", 2024): 6_712_529, ("204528", 2025): 10_469_375,    # Adriana Ventura (2025: 104.693,75; antes da correção 89.595,04)
-    ("178975", 2024): 31_139_916, ("178975", 2025): 37_720_507,   # Baleia Rossi (2025 antes: 343.601,05)
-    ("204534", 2024): 51_872_520, ("204534", 2025): 53_151_883,   # Tabata Amaral
-    ("204536", 2024): 16_236_521, ("204536", 2025): 15_175_134,   # Kim Kataguiri
-    ("209787", 2024): 41_202_602, ("209787", 2025): 46_343_464,   # Nikolas Ferreira
-}
-_COTA_VALUES = ", ".join(f"('{d}', {y}, {c})" for (d, y), c in sorted(COTA_REFERENCIA.items())) or "(null, null, null)"
-
 _PREFEITOS_POR_MUNICIPIO = f"""
     select pl.ibge_code, (select count(*) from mandates m join offices o on o.id = m.office_id
                           where m.place_id = pl.id and o.slug = 'prefeito' and m.role = 'titular' and m.status = 'em_exercicio'
@@ -119,8 +107,10 @@ CHECKS: list[tuple[str, str]] = [
            where s.period <> 'career' and 'propostas' = any (s.missing_datasets) and s.proposals_principal is not null""",
     ),
     (
-        "câmara: no máximo 513 em exercício",
-        """select greatest(count(*) - 513, 0) from mandates m join offices o on o.id = m.office_id
+        # BUG-021: /partidos somava 512; o banco tem de ter as 513 cadeiras (e cada uma com partido vigente)
+        "câmara: exatamente 513 em exercício, todos com partido vigente",
+        """select abs(count(*) - 513) + count(*) filter (where cp.party_id is null)
+           from mandates m join offices o on o.id = m.office_id left join person_current_party cp on cp.person_id = m.person_id
            where o.slug = 'deputado_federal' and m.status = 'em_exercicio'""",
     ),
     (
