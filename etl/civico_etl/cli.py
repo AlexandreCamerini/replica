@@ -27,7 +27,7 @@ log = logging.getLogger("etl")
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -100,6 +100,15 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.derive_stats import run_derive
 
             run_derive(conn)
+        # W4: fora do "all" (fontes novas, independentes das legislativas)
+        if a.job == "governos.indicadores":
+            from .jobs.governos_indicadores import run_governos
+
+            run_governos(conn, force=a.force)
+        if a.job == "receita.arrecadacao":
+            from .jobs.receita_arrecadacao import run_arrecadacao
+
+            run_arrecadacao(conn, force=a.force)
         if a.job in ("check", "all"):
             from .jobs.checks import run_checks
 
