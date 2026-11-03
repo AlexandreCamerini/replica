@@ -702,6 +702,9 @@ export const fakeSource: DataSource = {
     }
     return out.sort((a, b) => a.month - b.month);
   },
+  async getSalaryAccrued() {
+    return null; // a demo não guarda a série histórica do subsídio
+  },
   async countSecretVotes() {
     return 0; // a demo não simula votação secreta
   },

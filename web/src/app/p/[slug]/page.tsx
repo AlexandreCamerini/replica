@@ -81,6 +81,8 @@ export default async function Page({ params, searchParams }: Props) {
       return acc + Math.max(0, (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth() + 1);
     }, 0);
   const camp = campaignTotals(candidacies);
+  const accrued = await data.getSalaryAccrued(person.id, yearParam ?? undefined);
+  const mmYYYY = (d: string) => `${d.slice(5, 7)}/${d.slice(0, 4)}`;
   const financeYears = await data.listStampYears("tse.contas");
   const wins = [...new Set(candidacies.filter((c) => c.result.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
   const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
@@ -234,6 +236,19 @@ export default async function Page({ params, searchParams }: Props) {
                 : "Subsídio bruto mensal, antes de descontos, conforme o órgão publica."
             }
           />
+          {accrued && (
+            <StatTile
+              value={accrued.cents}
+              kind="money"
+              label={yearParam ? `salário recebido em ${yearParam}` : `salário recebido desde ${mmYYYY(accrued.coveredFrom ?? accrued.firstMonth)}`}
+              sub={
+                accrued.coveredMonths === accrued.months
+                  ? `${count(accrued.months)} ${accrued.months === 1 ? "mês" : "meses"} no cargo${yearParam ? "" : ` desde ${mmYYYY(accrued.firstMonth)}`}`
+                  : `${count(accrued.coveredMonths)} de ${count(accrued.months)} meses no cargo (desde ${mmYYYY(accrued.firstMonth)}); antes de ${mmYYYY(accrued.coveredFrom!)} o valor do subsídio ainda não está carregado`
+              }
+              help="Soma do subsídio bruto de cada mês no cargo, com o valor vigente naquele mês, como a lei publica. É antes de descontos; não inclui 13º nem auxílios."
+            />
+          )}
           <StatTile
             value={withAssets?.assetsCents ?? null}
             kind="money"
@@ -322,6 +337,7 @@ export default async function Page({ params, searchParams }: Props) {
         {full && (
           <MandateCost
             salaryMonthlyCents={stats.salaryIsCeiling ? null : stats.salaryMonthlyCents}
+            accrued={accrued}
             months={months}
             expensesCents={stats.expensesCents}
             periodLabel={periodLabel}

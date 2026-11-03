@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { BarBreakdown, NotPublished, SourceFooter, TopicTag, VoteBadge } from "@/components/ui/data";
-import { data, type Candidacy, type ElectionResult, type Party, type VoteValue } from "@/lib/data";
+import { data, type Candidacy, type ElectionResult, type Party, type SalaryAccrued, type VoteValue } from "@/lib/data";
 import { count, date, money, monthYear } from "@/lib/format";
 import { Empty, MoreLink, SelectField, Section, fieldCls, hrefWith, type Params } from "./ui";
 
@@ -489,11 +489,27 @@ export async function Contact({ personId }: { personId: string }) {
 }
 
 /** Custo do mandato: só o que é publicado e somável. Nada estimado vira número. */
-export function MandateCost({ salaryMonthlyCents, months, expensesCents, periodLabel }: { salaryMonthlyCents: number | null; months: number; expensesCents: number | null; periodLabel: string }) {
-  const salary = salaryMonthlyCents !== null ? salaryMonthlyCents * months : null;
+export function MandateCost({
+  salaryMonthlyCents,
+  accrued,
+  months,
+  expensesCents,
+  periodLabel,
+}: {
+  salaryMonthlyCents: number | null;
+  accrued?: SalaryAccrued | null;
+  months: number;
+  expensesCents: number | null;
+  periodLabel: string;
+}) {
+  // com a série do subsídio carregada, soma mês a mês com o valor de cada época; sem ela, a aproximação antiga (valor de hoje × meses)
+  const salary = accrued ? accrued.cents : salaryMonthlyCents !== null ? salaryMonthlyCents * months : null;
+  const salaryNote = accrued
+    ? `${accrued.coveredMonths} ${accrued.coveredMonths === 1 ? "mês" : "meses"} com o valor de cada época${accrued.coveredMonths < accrued.months ? `; ${accrued.months - accrued.coveredMonths} meses anteriores sem valor carregado não entram` : ""}`
+    : `${months} ${months === 1 ? "mês" : "meses"} × o valor mensal de hoje; reajustes anteriores eram menores`;
   const total = salary !== null && expensesCents !== null ? salary + expensesCents : null;
   const rows: [string, number | null, string][] = [
-    ["Salário bruto (aproximado)", salary, `${months} ${months === 1 ? "mês" : "meses"} × o valor mensal de hoje; reajustes anteriores eram menores`],
+    [accrued ? "Salário bruto" : "Salário bruto (aproximado)", salary, salaryNote],
     ["Cota para exercício do mandato", expensesCents, "gastos reembolsados, como a casa publica"],
   ];
   return (

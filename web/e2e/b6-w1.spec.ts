@@ -76,4 +76,16 @@ test.describe("B6-W1", () => {
     await expect(sec.locator("[aria-current='true']")).toContainText("Adriana Ventura × Randolfe Rodrigues");
     await expect(sec).toContainText(/Nenhuma votação em comum/);
   });
+
+  test("B6-W10 salário acumulado desde a posse, com os meses e o que falta carregar", async ({ page }) => {
+    await page.goto("/p/adriana-ventura");
+    const tile = page.locator("section[aria-labelledby='numeros-h'] > div > div").filter({ hasText: /salário recebido desde/ });
+    await expect(tile).toContainText(/R\$\s[\d.]+/);
+    await expect(tile).toContainText(/de 94 meses no cargo \(desde 02\/2019\)/);
+    await page.goto("/p/adriana-ventura?ano=2025");
+    await expect(page.locator("section[aria-labelledby='numeros-h']")).toContainText(/salário recebido em 2025\s*12 meses no cargo/);
+    // teto (vereador) não vira "recebido"
+    await page.goto("/p/rubinho-nunes");
+    await expect(page.locator("section[aria-labelledby='numeros-h']")).not.toContainText("salário recebido");
+  });
 });

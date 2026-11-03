@@ -15,6 +15,7 @@ import type {
   Party,
   PeriodStats,
   PlaceTopVoted,
+  SalaryAccrued,
   YearStats,
   Person,
   PersonVote,
@@ -451,6 +452,25 @@ export const pgSource: DataSource = {
         and s.starts_at >= make_timestamptz(${year}, 1, 1, 0, 0, 0, 'America/Sao_Paulo') and s.starts_at < make_timestamptz(${year + 1}, 1, 1, 0, 0, 0, 'America/Sao_Paulo')
       group by 1 having count(*) filter (where a.status in ('presente', 'ausente', 'ausencia_justificada')) > 0 order by 1`;
     return rows.map((r) => ({ month: Number(r.m), present: Number(r.present), total: Number(r.total) }));
+  },
+  async getSalaryAccrued(personId, year) {
+    // mês a mês, em todos os mandatos já exercidos; o valor de cada mês é o subsídio vigente no 1º dia dele.
+    // Mês sem valor carregado (antes do primeiro valid_from) conta no tempo de cargo, não na soma.
+    const [r] = await sql`
+      with ms as (
+        select m.office_id, m.place_id, gs::date as mo
+        from mandates m,
+             generate_series(date_trunc('month', m.started_on), date_trunc('month', least(m.ends_on - 1, current_date)), interval '1 month') gs
+        where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
+          ${year ? sql`and extract(year from gs) = ${year}` : sql``}
+      )
+      select count(*)::int as months, count(sa.amount_cents)::int as covered, sum(sa.amount_cents)::bigint as cents,
+             min(mo) as first, min(mo) filter (where sa.amount_cents is not null) as covered_from
+      from ms
+      left join lateral (select amount_cents from salaries s where s.office_id = ms.office_id and (s.place_id = ms.place_id or s.place_id is null)
+                         and s.valid_from <= ms.mo and not s.is_ceiling order by s.place_id nulls last, s.valid_from desc limit 1) sa on true`;
+    if (!r || !r.covered) return null;
+    return { cents: Number(r.cents), months: Number(r.months), coveredMonths: Number(r.covered), firstMonth: iso(r.first), coveredFrom: r.covered_from ? iso(r.covered_from) : null } satisfies SalaryAccrued;
   },
   async countSecretVotes(personId, year) {
     const [r] = await sql`

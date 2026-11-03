@@ -105,6 +105,9 @@ export type YearStats = {
   expensesCents: number | null;
 };
 
+/** Subsídio bruto somado mês a mês desde a posse (W1 item 10). Só com valor pago publicado (teto não entra). */
+export type SalaryAccrued = { cents: number; months: number; coveredMonths: number; firstMonth: string; coveredFrom: string | null };
+
 export type Dataset =
   | "salario"
   | "presenca"
@@ -264,6 +267,8 @@ export interface DataSource {
   getYearlyStats(personId: string): Promise<YearStats[]>;
   /** Votações secretas do Senado no período de exercício (sem voto individual publicado). */
   countSecretVotes(personId: string, year?: number): Promise<number>;
+  /** null = cargo sem valor pago publicado (teto ou nada). */
+  getSalaryAccrued(personId: string, year?: number): Promise<SalaryAccrued | null>;
   /** Presença por mês num ano (sessões deliberativas da Câmara; fora do exercício não conta). Só meses com sessão. */
   getPresenceByMonth(personId: string, year: number): Promise<{ month: number; present: number; total: number }[]>;
   listProposals(personId: string, f: ProposalFilter): Promise<Page<Proposal>>;
