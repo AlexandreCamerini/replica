@@ -40,6 +40,8 @@ import type {
   ActivityItem,
 } from "./types";
 
+import { houseName } from "./assembleias";
+
 // Camada de dados de DEMONSTRAÇÃO. Pessoas, partidos e números são fictícios e determinísticos (mesma seed, mesmo resultado).
 // Lugares e tamanhos de bancada são reais. Trocar por pg.ts não muda nenhuma tela: o contrato é DataSource.
 
@@ -575,6 +577,23 @@ export const fakeSource: DataSource = {
   },
   async getTopVotedInPlace() {
     return null; // a demo não simula votos por município
+  },
+  async getAssembly(uf) {
+    // a demo não simula Assembleias: toda casa aparece como não lida, com o motivo (nunca número inventado)
+    const u = uf.toUpperCase();
+    if (!UF_ROWS.some((r) => r[1] === u)) return null;
+    const why = "dados de demonstração: Assembleias não são simuladas";
+    const items = (["presenca", "votos", "propostas", "gastos_gabinete"] as const).map((d) => ({
+      dataset: d,
+      label: { presenca: "Presença no plenário", votos: "Votos no plenário", propostas: "Propostas apresentadas", gastos_gabinete: "Verba de gabinete" }[d],
+      status: "desconhecido" as const,
+      reason: why,
+      evidenceUrl: null,
+      checkedOn: null,
+      refreshedAt: null,
+      stampDataset: null,
+    }));
+    return { uf: u, houseName: houseName(u), read: false, source: null, items };
   },
   async getCounters() {
     const byLevel: Record<Level, number> = { federal: 0, estadual: 0, municipal: 0 };

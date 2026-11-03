@@ -17,10 +17,12 @@ import { ListenButton } from "@/components/ui/misc";
 import { data, type MandateStatus, type PeriodStats, type YearStats } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
 import { campaignTotals, joinYears } from "@/lib/campaign";
+import { Assembly, stampOf } from "./assembleia";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Params> };
 
 const FULL_DATA = new Set(["deputado_federal", "senador"]);
+const STATE_LEG = new Set(["deputado_estadual", "deputado_distrital"]);
 const LEGISLATIVE = new Set(["senador", "deputado_federal", "deputado_estadual", "deputado_distrital", "vereador"]);
 const EXECUTIVE = new Set(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
 
@@ -86,6 +88,8 @@ export default async function Page({ params, searchParams }: Props) {
   const financeYears = await data.listStampYears("tse.contas");
   const wins = [...new Set(candidacies.filter((c) => c.result.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
   const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
+  // W3-A: deputado estadual/distrital lê a Assembleia da UF (o que é lido, com fonte e data, e o motivo de cada "—")
+  const assembly = main && STATE_LEG.has(main.office) && placeUf ? await data.getAssembly(placeUf) : null;
   const user = await currentUser();
   const following = user ? await isFollowing(user.id, person.id).catch(() => false) : false;
 
@@ -295,7 +299,7 @@ export default async function Page({ params, searchParams }: Props) {
                 value={stats.expensesCents}
                 kind="money"
                 label={`gastos do gabinete ${labelOf("expensesCents")}`}
-                sub={stats.expensesCents === null ? missingOf("gastos_gabinete")?.reason : "cota para exercício do mandato"}
+                sub={stats.expensesCents === null ? missingOf("gastos_gabinete")?.reason : main && STATE_LEG.has(main.office) ? "verba de gabinete da Assembleia" : "cota para exercício do mandato"}
               />
             </>
           )}
@@ -330,6 +334,26 @@ export default async function Page({ params, searchParams }: Props) {
             <Committees personId={person.id} />
             <Staff personId={person.id} body={main.office === "senador" ? "senado" : "camara"} />
             <Speeches personId={person.id} base={base} sp={sp} year={yearParam} />
+          </>
+        )}
+        {assembly && placeUf && (
+          <>
+            <Assembly uf={placeUf} stats={stats} periodLabel={periodLabel} f={f} />
+            {stampOf(assembly.items, "propostas") && (
+              <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} stamp={stampOf(assembly.items, "propostas")!} onlyBills />
+            )}
+            {stampOf(assembly.items, "gastos_gabinete") && (
+              <Expenses
+                personId={person.id}
+                base={base}
+                sp={sp}
+                year={yearParam}
+                body="camara"
+                stamp={stampOf(assembly.items, "gastos_gabinete")!}
+                title="Verba de gabinete"
+                intro={`Verba da ${assembly.houseName} para despesas do mandato, como a casa publica`}
+              />
+            )}
           </>
         )}
         <Assets candidacies={candidacies} />

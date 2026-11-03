@@ -127,6 +127,29 @@ export type MissingDataset = { dataset: Dataset; label: string; status: Coverage
 
 export type Topic = { slug: string; name: string };
 
+/** W3-A: o que o site lê da Assembleia de uma UF. Cada item tem status e motivo; "no_site" vem com a data da carga. */
+export type AssemblyDataset = "presenca" | "votos" | "propostas" | "gastos_gabinete";
+export type AssemblyItem = {
+  dataset: AssemblyDataset;
+  label: string;
+  status: CoverageStatus;
+  reason: string;
+  evidenceUrl: string | null;
+  checkedOn: string | null;
+  /** carimbo da última carga deste conjunto (null = nunca carregado) */
+  refreshedAt: string | null;
+  /** prefixo do carimbo (ex.: "alesp.proposicoes"), para getStamp */
+  stampDataset: string | null;
+};
+export type AssemblyInfo = {
+  uf: string;
+  houseName: string;
+  /** a casa tem adaptador de dados abertos ligado */
+  read: boolean;
+  source: { name: string; url: string } | null;
+  items: AssemblyItem[];
+};
+
 export type Proposal = {
   id: string;
   type: string;
@@ -259,6 +282,8 @@ export interface DataSource {
   listMunicipalities(uf?: string): Promise<Place[]>;
   getRepresentatives(place: Place): Promise<RepresentativeGroup[]>;
   getCoverage(place: Place): Promise<MissingDataset[]>;
+  /** W3-A: Assembleia Legislativa da UF (ou Câmara Legislativa do DF): fonte, o que é lido e o motivo de cada "—". null = UF inexistente. */
+  getAssembly(uf: string): Promise<AssemblyInfo | null>;
   /** Mais votados no município na última eleição geral com votos por município carregados (deputados federais e estaduais). null = sem dado. */
   getTopVotedInPlace(ibge: string, limit?: number): Promise<PlaceTopVoted | null>;
   getCounters(): Promise<{ total: number; byLevel: Record<Level, number>; byOffice: { office: OfficeSlug; label: string; count: number }[] }>;

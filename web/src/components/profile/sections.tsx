@@ -31,7 +31,8 @@ function HiddenKeep({ sp, keep }: { sp: Params; keep: string[] }) {
 const FILTER_BTN =
   "h-10 self-end rounded-pill bg-surface-inverse px-4 text-sm font-semibold text-on-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
 
-export async function Proposals({ personId, base, sp, year, f, body = "camara", notLoaded }: Common & { f: boolean; body?: "camara" | "senado" }) {
+/** stamp: carimbo de outra casa (W3-A, ex.: "alesp.proposicoes"); onlyBills: a casa só tem projetos carregados (sem pedidos nem emendas). */
+export async function Proposals({ personId, base, sp, year, f, body = "camara", notLoaded, stamp: stampDataset, onlyBills = false }: Common & { f: boolean; body?: "camara" | "senado"; stamp?: string; onlyBills?: boolean }) {
   if (notLoaded)
     return (
       <Section id="propostas" title="Propostas">
@@ -44,7 +45,7 @@ export async function Proposals({ personId, base, sp, year, f, body = "camara", 
   const [page, topics, stamp] = await Promise.all([
     data.listProposals(personId, { year: year ?? undefined, topic: sp.tema || undefined, type, role, q: sp.busca?.slice(0, 80) || undefined, limit }),
     data.listTopics(),
-    data.getStamp(body === "senado" ? "senado.autorias" : "camara.proposicoes"),
+    data.getStamp(stampDataset ?? (body === "senado" ? "senado.autorias" : "camara.proposicoes")),
   ]);
   const topicName = Object.fromEntries(topics.map((t) => [t.slug, t.name]));
   const filtered = !!(sp.tema || type || role || sp.busca);
@@ -53,7 +54,16 @@ export async function Proposals({ personId, base, sp, year, f, body = "camara", 
       <form action={`${base}#propostas`} className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_1fr_2fr_auto]">
         <HiddenKeep sp={sp} keep={["ano", "voto", "vtema", "gcat"]} />
         <SelectField label="Tema" name="tema" value={sp.tema} options={[{ value: "", label: "Todos" }, ...topics.map((t) => ({ value: t.slug, label: t.name }))]} />
-        <SelectField label="Tipo" name="tipo" value={type} options={[{ value: "", label: "Todos" }, { value: "lei", label: "Pode virar lei" }, { value: "pedido", label: "Pedidos e requerimentos" }, { value: "emenda", label: "Emendas" }]} />
+        <SelectField
+          label="Tipo"
+          name="tipo"
+          value={type}
+          options={
+            onlyBills
+              ? [{ value: "", label: "Todos" }, { value: "lei", label: "Pode virar lei" }, { value: "pedido", label: "Resolução e decreto legislativo" }]
+              : [{ value: "", label: "Todos" }, { value: "lei", label: "Pode virar lei" }, { value: "pedido", label: "Pedidos e requerimentos" }, { value: "emenda", label: "Emendas" }]
+          }
+        />
         <SelectField label="Autoria" name="autoria" value={role} options={[{ value: "", label: "Todas" }, { value: "autor", label: f ? "Autora principal" : "Autor principal" }, { value: "coautor", label: f ? "Coautora" : "Coautor" }]} />
         <label className="col-span-2 flex flex-col gap-1 text-xs font-semibold text-fg md:col-span-1">
           Buscar no resumo
@@ -185,21 +195,22 @@ export async function Votes({ personId, base, sp, year, body, notLoaded }: Commo
   );
 }
 
-export async function Expenses({ personId, base, sp, year, body, notLoaded }: Common & { body: "camara" | "senado" }) {
+/** stamp/intro: carimbo e texto de outra casa (W3-A: verba de gabinete ou indenizatória da Assembleia). */
+export async function Expenses({ personId, base, sp, year, body, notLoaded, stamp: stampDataset, title = "Gastos do gabinete", intro: introText }: Common & { body: "camara" | "senado"; stamp?: string; title?: string; intro?: string }) {
   if (notLoaded)
     return (
-      <Section id="gastos" title="Gastos do gabinete">
+      <Section id="gastos" title={title}>
         <NotLoaded reason={notLoaded} />
       </Section>
     );
   const limit = shown(sp.ng);
   const [page, stamp] = await Promise.all([
     data.listExpenses(personId, { year: year ?? undefined, category: sp.gcat || undefined, limit }),
-    data.getStamp(`${body}.despesas`),
+    data.getStamp(stampDataset ?? `${body}.despesas`),
   ]);
   const total = page.byCategory.reduce((s, c) => s + c.cents, 0);
   return (
-    <Section id="gastos" title="Gastos do gabinete" count={money(total)} intro={`Cota para exercício do mandato${year ? ` em ${year}` : ", toda a carreira"}. Valores negativos são estornos publicados pela fonte.`}>
+    <Section id="gastos" title={title} count={money(total)} intro={`${introText ?? "Cota para exercício do mandato"}${year ? ` em ${year}` : ", toda a carreira"}. Valores negativos são estornos publicados pela fonte.`}>
       {page.byCategory.length === 0 ? (
         <Empty>Nenhum gasto registrado{year ? ` em ${year}` : ""}.</Empty>
       ) : (

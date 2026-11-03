@@ -16,11 +16,26 @@ export const SOURCE_META: Record<string, SourceMeta> = {
     maxAgeHours: 60 * 24,
   },
   ibge: { brings: "regiões, estados, municípios, códigos e contornos", cadence: "uma vez por ano", maxAgeHours: 400 * 24 },
+  // W3-A: Assembleias com adaptador. A casa atualiza todo dia; nossa leitura ainda é disparada à mão (meta: semanal)
+  alesp: {
+    brings: "deputados estaduais de SP: verba de gabinete por mês e proposituras (projetos de lei, de lei complementar, de resolução, de decreto legislativo e PECs) com autoria. Presença e votos em plenário não são publicados em dado aberto",
+    cadence: "uma vez por semana",
+    maxAgeHours: 8 * 24,
+  },
+  alemg: {
+    brings: "deputados estaduais de MG: verba indenizatória por mês (valor reembolsado) e proposições (projetos de lei, de lei complementar, de resolução e PECs) com autoria. Presença e votos em plenário não são publicados em dado aberto",
+    cadence: "uma vez por semana",
+    maxAgeHours: 8 * 24,
+  },
 };
 
 /** Fontes que o produto ainda não lê. Aparecem na tabela com “—” e o motivo, nunca como se existissem. */
 export const NOT_YET: { name: string; brings: string; why: string }[] = [
-  { name: "Assembleias Legislativas (27)", brings: "deputados estaduais: presença, votos, propostas, verbas", why: "cada casa publica de um jeito; a leitura começa pelas maiores" },
+  {
+    name: "Assembleias Legislativas (25 de 27)",
+    brings: "deputados estaduais: presença, votos, propostas, verbas",
+    why: "cada casa publica de um jeito; já lemos São Paulo e Minas Gerais. Rio de Janeiro e Rio Grande do Sul: não localizamos catálogo de dados abertos que permita leitura automática",
+  },
   { name: "Câmaras Municipais", brings: "vereadores: presença, votos, propostas", why: "mais de 900 sites diferentes, a lê-los um de cada vez" },
   { name: "Portal da Transparência (federal)", brings: "emendas parlamentares", why: "depende de chave de acesso que ainda não foi criada" },
   { name: "Tribunais de Contas", brings: "salário pago a prefeitos e vereadores", why: "fonte ainda não mapeada" },

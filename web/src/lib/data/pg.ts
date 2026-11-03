@@ -1,6 +1,9 @@
 import "server-only";
 import postgres from "postgres";
+import { houseName, notReadReason } from "./assembleias";
 import type {
+  AssemblyDataset,
+  AssemblyInfo,
   Agreement,
   Disagreement,
   Candidacy,
@@ -258,6 +261,48 @@ export const pgSource: DataSource = {
   async getCoverage(pl) {
     const rows = await sql`select dataset, status, reason from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = ${pl.ibge} and dc.status <> 'no_site' order by dataset`;
     return rows.map((r) => ({ dataset: toDataset(String(r.dataset)), label: DATASET_LABEL[String(r.dataset)] ?? String(r.dataset), status: r.status as MissingDataset["status"], reason: String(r.reason) }));
+  },
+  async getAssembly(uf) {
+    const [b] = await sql`
+      select b.adapter, b.place_id, s.slug, s.name as source_name, s.url as source_url
+      from legislative_bodies b join places p on p.id = b.place_id
+      left join sources s on b.adapter = 'ale_custom' and s.url = b.open_data_url
+      where p.kind = 'uf' and p.uf = ${uf.toUpperCase()} and b.kind in ('assembleia', 'camara_legislativa_df') limit 1`;
+    if (!b) return null;
+    const read = b.adapter === "ale_custom" && !!b.slug;
+    const cov = await sql`select dataset, status, reason, evidence_url, checked_on from data_coverage where place_id = ${b.place_id as string}::uuid and dataset in ('presenca', 'votos', 'propostas', 'gastos_gabinete')`;
+    const STAMP: Partial<Record<AssemblyDataset, string>> = { propostas: "proposicoes", gastos_gabinete: "despesas", presenca: "presenca", votos: "votacoes" };
+    const stamps = read
+      ? await sql`select split_part(dataset, '.', 2) as kind, max(refreshed_at) as at from dataset_stamps where dataset like ${String(b.slug) + ".%"} group by 1`
+      : [];
+    const at = new Map(stamps.map((r) => [String(r.kind), isoTs(r.at)]));
+    const byDs = new Map(cov.map((c) => [String(c.dataset), c]));
+    const order: AssemblyDataset[] = ["presenca", "votos", "propostas", "gastos_gabinete"];
+    const LABEL: Record<AssemblyDataset, string> = { presenca: "Presença no plenário", votos: "Votos no plenário", propostas: "Propostas apresentadas", gastos_gabinete: "Verba de gabinete" };
+    const u = uf.toUpperCase();
+    return {
+      uf: u,
+      houseName: houseName(u),
+      read,
+      source: read ? { name: String(b.source_name), url: String(b.source_url) } : null,
+      items: order.map((d) => {
+        const c = byDs.get(d);
+        const kind = STAMP[d]!;
+        const refreshedAt = read ? (at.get(kind) ?? null) : null;
+        // só conta como lido o que tem carimbo; sem carga, "no_site" não vale (o motivo explica)
+        const status = (c?.status as AssemblyInfo["items"][number]["status"]) ?? "desconhecido";
+        return {
+          dataset: d,
+          label: LABEL[d],
+          status: status === "no_site" && !refreshedAt ? "carregando" : status,
+          reason: c ? String(c.reason) : notReadReason(u),
+          evidenceUrl: (c?.evidence_url as string | null) ?? null,
+          checkedOn: c?.checked_on ? iso(c.checked_on) : null,
+          refreshedAt,
+          stampDataset: read && refreshedAt ? `${String(b.slug)}.${kind}` : null,
+        };
+      }),
+    } satisfies AssemblyInfo;
   },
   async getTopVotedInPlace(ibge, limit = 5) {
     const [pl] = await sql`select id, uf from places where ibge_code = ${ibge} and kind = 'municipio'`;
@@ -551,7 +596,8 @@ export const pgSource: DataSource = {
         topics: (r.topics as string[]) ?? [],
         role: r.role === "principal" ? "autor" : "coautor",
         canBecomeLaw: Boolean(r.can_become_law),
-        status: String(r.status ?? "Em tramitação"),
+        // sem situação na fonte lida (ALESP, parte da Câmara e do Senado): não presume "em tramitação"
+        status: r.status ? String(r.status) : "situação não carregada",
         presentedOn: r.presented_on ? iso(r.presented_on) : `${r.year}-01-01`,
         url: String(r.url ?? ""),
       })),

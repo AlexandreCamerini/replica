@@ -32,7 +32,13 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   }
   const q = sp.q?.trim().slice(0, 60);
   const results = !city && q && q.length >= 2 ? (await data.searchPlaces(q, 20)).filter((p) => p.kind === "municipio") : null;
-  const [m, cityCoverage] = await Promise.all([data.getCoverageMatrix(), city ? data.getCoverage(city) : Promise.resolve([])]);
+  const [m, cityCoverage, ufs] = await Promise.all([data.getCoverageMatrix(), city ? data.getCoverage(city) : Promise.resolve([]), data.listUfs()]);
+  // W3-A: Assembleias Legislativas (nível estadual), A–Z pelo nome do estado
+  const assemblies = (await Promise.all(ufs.filter((u) => u.uf).map((u) => data.getAssembly(u.uf!)))).filter((a) => a !== null);
+  const ufName = new Map(ufs.map((u) => [u.uf, u.name]));
+  const byName = (a: { uf: string }, b: { uf: string }) => (ufName.get(a.uf) ?? a.uf).localeCompare(ufName.get(b.uf) ?? b.uf, "pt-BR");
+  const readAss = assemblies.filter((a) => a.read).sort(byName);
+  const unreadAss = assemblies.filter((a) => !a.read).sort(byName);
 
   return (
     <Container>
@@ -139,6 +145,48 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section aria-labelledby="ale-h" className="mt-10" data-testid="assembleias">
+        <h2 id="ale-h" className="mb-1 font-display text-2xl text-fg">Assembleias Legislativas</h2>
+        <p className="mb-3 max-w-[68ch] text-sm text-muted">
+          Deputados estaduais: o que cada Assembleia publica em dado aberto e o que o site já lê. {count(readAss.length)} de {count(assemblies.length)} casas lidas.
+        </p>
+        <ul className="grid gap-3 md:grid-cols-2">
+          {readAss.map((a) => (
+            <li key={a.uf} data-uf={a.uf} className="rounded-md border border-border bg-surface p-4">
+              <h3 className="text-base font-semibold text-fg">{a.houseName}</h3>
+              <ul className="mt-2 flex flex-col gap-1.5 text-sm text-fg">
+                {a.items.map((it) => (
+                  <li key={it.dataset} data-dataset={it.dataset} data-status={it.status}>
+                    <span className="font-semibold">{it.label}:</span>{" "}
+                    {it.status === "no_site" ? (
+                      <>no site{it.refreshedAt && <span className="text-muted"> · carga de {date(it.refreshedAt)}</span>}</>
+                    ) : (
+                      <>
+                        <span aria-hidden>—</span> {it.reason}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {a.source && (
+                <p className="mt-2 font-mono text-xs text-muted">
+                  Fonte:{" "}
+                  <a href={a.source.url} className="underline underline-offset-2 hover:text-fg">
+                    {a.source.name}
+                  </a>
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+        {unreadAss.length > 0 && (
+          <p className="mt-3 max-w-[68ch] text-sm text-fg" data-testid="assembleias-nao-lidas">
+            <span className="font-semibold">Ainda não lidas ({count(unreadAss.length)}):</span> {unreadAss.map((a) => ufName.get(a.uf) ?? a.uf).join(", ")}. Nos
+            crachás dos deputados destes estados, presença, votos, propostas e verbas aparecem como “—”, com o motivo.
+          </p>
+        )}
       </section>
 
       <section aria-labelledby="cta-h" className="mt-8 flex max-w-[68ch] flex-col items-start gap-2 rounded-md bg-accent-soft p-5">
