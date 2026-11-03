@@ -22,6 +22,12 @@ export const SOURCE_META: Record<string, SourceMeta> = {
     cadence: "uma vez por semana",
     maxAgeHours: 8 * 24,
   },
+  // W3-B (outro agente) criou estas fontes sem metadado; a cadência abaixo é meta editorial provisória (D113), ajustar se a rotina for outra
+  sapl: { brings: "vereadores de 6 capitais pelo SAPL: projetos com autoria, presença em sessão (sem porcentagem) e votos nominais", cadence: "uma vez por semana", maxAgeHours: 8 * 24 },
+  "bcb-sgs": { brings: "séries do Banco Central usadas em Governos (indicadores econômicos)", cadence: "uma vez por mês", maxAgeHours: 35 * 24 },
+  "ibge-sidra": { brings: "Contas Nacionais, IPCA e PNAD Contínua usados em Governos", cadence: "a cada divulgação do IBGE; conferimos uma vez por mês", maxAgeHours: 100 * 24 },
+  "receita-federal": { brings: "arrecadação das receitas federais (Impostos)", cadence: "uma vez por mês", maxAgeHours: 40 * 24 },
+  tcu: { brings: "lista de inabilitados para função pública (sem CPF no site)", cadence: "uma vez por mês", maxAgeHours: 35 * 24 },
   alemg: {
     brings: "deputados estaduais de MG: verba indenizatória por mês (valor reembolsado) e proposições (projetos de lei, de lei complementar, de resolução e PECs) com autoria. Presença e votos em plenário não são publicados em dado aberto",
     cadence: "uma vez por semana",
@@ -36,7 +42,7 @@ export const NOT_YET: { name: string; brings: string; why: string }[] = [
     brings: "deputados estaduais: presença, votos, propostas, verbas",
     why: "cada casa publica de um jeito; já lemos São Paulo e Minas Gerais. Rio de Janeiro e Rio Grande do Sul: não localizamos catálogo de dados abertos que permita leitura automática",
   },
-  { name: "Câmaras Municipais", brings: "vereadores: presença, votos, propostas", why: "mais de 900 sites diferentes, a lê-los um de cada vez" },
+  { name: "Câmaras Municipais (fora as 6 capitais lidas pelo SAPL)", brings: "vereadores: presença, votos, propostas", why: "mais de 900 sites diferentes, a lê-los um de cada vez" },
   { name: "Portal da Transparência (federal)", brings: "emendas parlamentares", why: "depende de chave de acesso que ainda não foi criada" },
   { name: "Tribunais de Contas", brings: "salário pago a prefeitos e vereadores", why: "fonte ainda não mapeada" },
 ];

@@ -9,7 +9,8 @@ import { count, date, money } from "@/lib/format";
 
 const sentence = (t: string) => `${t.charAt(0).toUpperCase()}${t.slice(1)}${t.endsWith(".") ? "" : "."}`;
 
-export async function Assembly({ uf, stats, periodLabel, f }: { uf: string; stats: PeriodStats; periodLabel: string; f: boolean }) {
+/** since: rótulo do período de cada número ("desde 2023", "em 2025"): cada casa começa a carga num ano diferente. */
+export async function Assembly({ uf, stats, periodLabel, f, since }: { uf: string; stats: PeriodStats; periodLabel: string; f: boolean; since?: Partial<Record<AssemblyItem["dataset"], string>> }) {
   const info = await data.getAssembly(uf);
   if (!info) return null;
   const value = (it: AssemblyItem): string | null => {
@@ -27,7 +28,7 @@ export async function Assembly({ uf, stats, periodLabel, f }: { uf: string; stat
       title={`Na ${info.houseName}`}
       intro={
         info.read
-          ? `O que a casa publica em dado aberto sobre o mandato, ${periodLabel}. Onde aparece “—”, o motivo está ao lado.`
+          ? `O que a casa publica em dado aberto sobre o mandato. Onde aparece “—”, o motivo está ao lado.`
           : `O site ainda não lê os dados abertos desta casa. Nada abaixo é zero: é dado que não carregamos.`
       }
     >
@@ -37,7 +38,10 @@ export async function Assembly({ uf, stats, periodLabel, f }: { uf: string; stat
           return (
             <li key={it.dataset} className="flex flex-col gap-1 py-3" data-dataset={it.dataset} data-status={it.status}>
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h3 className="text-sm font-semibold text-fg">{it.label}</h3>
+                <h3 className="text-sm font-semibold text-fg">
+                  {it.label}
+                  {v && since?.[it.dataset] && <span className="ml-1 font-normal text-muted">{since[it.dataset]}</span>}
+                </h3>
                 <p className="text-base tabular text-fg" data-testid="assembleia-valor">
                   {v ?? (
                     <span aria-label="não carregado" title={it.reason}>

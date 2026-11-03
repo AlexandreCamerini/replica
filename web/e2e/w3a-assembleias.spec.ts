@@ -65,6 +65,19 @@ test.describe("W3-A · Assembleias no crachá", () => {
     await axe();
   });
 
+  test("W3A-H5 estadual de MG: proposições e verba indenizatória da ALMG com fonte e data", async ({ page, axe }) => {
+    await page.goto("/p/beatriz-cerqueira");
+    const sec = page.locator("#assembleia");
+    await expect(sec.getByRole("heading", { level: 2 })).toHaveText("Na Assembleia Legislativa de Minas Gerais");
+    await expect(sec.locator("li[data-dataset=propostas] [data-testid=assembleia-valor]")).toHaveText(/^\d[\d.]* como autora · \d[\d.]* como coautora$/);
+    await expect(sec.locator("li[data-dataset=gastos_gabinete] [data-testid=assembleia-valor]")).toHaveText(/^R\$\s?[\d.]+$/);
+    await expect(sec.locator("li[data-dataset=gastos_gabinete]").getByText("Fonte:").locator("..")).toContainText("ALMG");
+    await expect(sec.locator("li[data-dataset=votos]")).toContainText("A ALMG não publica em dado aberto");
+    await page.goto("/p/beatriz-cerqueira?ano=2025");
+    await expect(page.locator("#gastos").getByRole("heading", { level: 2 })).toContainText("R$ 272.835");
+    await axe();
+  });
+
   test("W3A-H3 tema escuro sem violação do axe", async ({ page, axe }) => {
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto(SP);
@@ -75,12 +88,17 @@ test.describe("W3-A · Assembleias no crachá", () => {
   test("W3A-H4 /dados-abertos e /atualizacoes mostram a ALESP como lida", async ({ page, axe }) => {
     await page.goto("/dados-abertos");
     const sec = page.getByTestId("assembleias");
-    await expect(sec.locator("li[data-uf=SP] li[data-dataset=propostas]")).toHaveAttribute("data-status", "no_site");
+    for (const uf of ["SP", "MG"]) {
+      await expect(sec.locator(`li[data-uf=${uf}] li[data-dataset=propostas]`)).toHaveAttribute("data-status", "no_site");
+      await expect(sec.locator(`li[data-uf=${uf}] li[data-dataset=gastos_gabinete]`)).toHaveAttribute("data-status", "no_site");
+      await expect(sec.locator(`li[data-uf=${uf}] li[data-dataset=presenca]`)).toHaveAttribute("data-status", "nao_publica");
+    }
     await expect(sec.getByTestId("assembleias-nao-lidas")).toContainText("Bahia");
     await expect(sec.getByTestId("assembleias-nao-lidas")).not.toContainText("São Paulo");
     await axe();
     await page.goto("/atualizacoes");
     await expect(page.locator("tr[data-source=alesp]")).toContainText("ALESP");
+    await expect(page.locator("tr[data-source=alemg]")).toContainText("ALMG");
   });
 
   test("W3A-E1 390 px sem rolagem horizontal no crachá estadual @mobile", async ({ page }) => {

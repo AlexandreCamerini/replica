@@ -346,7 +346,7 @@ export default async function Page({ params, searchParams }: Props) {
         {council && <CityCouncil info={council} f={f} />}
         {assembly && placeUf && (
           <>
-            <Assembly uf={placeUf} stats={stats} periodLabel={periodLabel} f={f} />
+            <Assembly uf={placeUf} stats={stats} periodLabel={periodLabel} f={f} since={{ propostas: labelOf("proposalsPrincipal"), gastos_gabinete: labelOf("expensesCents") }} />
             {stampOf(assembly.items, "propostas") && (
               <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} stamp={stampOf(assembly.items, "propostas")!} onlyBills />
             )}
