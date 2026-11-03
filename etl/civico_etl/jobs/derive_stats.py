@@ -181,6 +181,15 @@ on conflict (person_id, period) do update set
 # BUG-022 / D182: quem está em exercício na Câmara ou no Senado tem o partido que a casa publica hoje. Candidatura do TSE
 # posterior à última observação da casa não vence enquanto o mandato está em exercício (Eliziane Gama: PT na candidatura de
 # 2026, PSD no Senado). Ao sair da casa, a candidatura volta a contar. "S/Partido" do Senado é observação (Romário, 2026).
+# D201: desempate determinístico entre observações de partido do mesmo dia. A Câmara registra a posse e a troca de partido no
+# mesmo dia (Bebeto, 01/02/2023: posse PTB 12:05, "Alteração de partido" PP 13:22), e a chave guarda a hora do /historico
+# (`camara:{id}:{dataHora}`). Vale o último evento do dia; a chave só com data (`ultimoStatus`, o estado atual da pessoa)
+# conta como fim do dia. Depois, o maior id. O `check` usa a mesma expressão (checks.py importa daqui).
+def party_obs_tiebreak(alias: str) -> str:
+    return (f"coalesce(substring({alias}.source_key from 'T([0-9:]+)$'), "
+            f"case when {alias}.source_key ~ '[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$' then '99' else '' end) collate \"C\" desc, {alias}.id desc")
+
+
 PARTY_SQL = r"""
 with house as (
   select po.person_id, max(po.observed_on) as last_house
@@ -191,17 +200,18 @@ with house as (
   group by 1
 ),
 obs as (
-  select person_id, party_id, observed_on, 1 as prio from party_observations
+  select po.person_id, po.party_id, po.observed_on, 1 as prio, row_number() over (partition by po.person_id, po.observed_on order by __TB__) as rk
+  from party_observations po
   union all
-  select c.person_id, c.party_id, e.held_on, 0 from candidacies c join elections e on e.id = c.election_id
+  select c.person_id, c.party_id, e.held_on, 0, 1 from candidacies c join elections e on e.id = c.election_id
   where c.party_id is not null and e.held_on <= current_date
     and not exists (select 1 from house h where h.person_id = c.person_id and e.held_on > h.last_house)
 ),
-d as (select distinct on (person_id, observed_on) person_id, party_id, observed_on from obs where observed_on <= current_date order by person_id, observed_on, prio desc),
+d as (select distinct on (person_id, observed_on) person_id, party_id, observed_on from obs where observed_on <= current_date order by person_id, observed_on, prio desc, rk, party_id),
 r as (select *, lag(party_id) over (partition by person_id order by observed_on) as prev from d),
 s as (select person_id, party_id, observed_on as from_on from r where prev is distinct from party_id)
 select person_id, party_id, from_on, lead(from_on) over (partition by person_id order by from_on) as to_on from s
-"""
+""".replace("__TB__", party_obs_tiebreak("po"))
 
 # D06: vacância que o TSE não publica como status, derivada de regra constitucional. Só mexe em mandato cujo status é do TSE
 # (status_source = 'tse'); Câmara e Senado continuam donos do status dos seus. Idempotente.

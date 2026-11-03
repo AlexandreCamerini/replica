@@ -11,6 +11,7 @@ import logging
 import psycopg
 
 from .checks_identity import run_identity_checks  # BUG-032 (D212)
+from .derive_stats import party_obs_tiebreak  # D201: mesmo desempate do PARTY_SQL
 
 log = logging.getLogger("etl.check")
 
@@ -150,7 +151,7 @@ CHECKS: list[tuple[str, str]] = [
              join party_observations po on po.person_id = m.person_id and po.observed_on <= current_date
                   and po.source = case b.kind when 'camara_deputados' then 'camara' else 'senado' end
              where m.status = 'em_exercicio' and m.started_on <= current_date and m.ends_on > current_date
-             order by m.person_id, po.observed_on desc, po.id desc)
+             order by m.person_id, po.observed_on desc, """ + party_obs_tiebreak("po") + """)
            select count(*) from h left join person_current_party cp on cp.person_id = h.person_id
            where cp.party_id is distinct from h.party_id""",
     ),
