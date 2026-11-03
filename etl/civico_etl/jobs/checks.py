@@ -119,6 +119,12 @@ CHECKS: list[tuple[str, str]] = [
                              and s.valid_from <= gs::date)""",
     ),
     (
+        # D123: secreta vem da fonte (votacaoSecreta); secreta nunca tem voto individual gravado
+        "senado: votação sem is_secret da fonte, ou secreta com voto individual",
+        """select count(*) from voting_events e join legislative_bodies b on b.id = e.body_id and b.kind = 'senado'
+           where e.is_secret is null or (e.is_secret and exists (select 1 from votes v where v.voting_event_id = e.id))""",
+    ),
+    (
         "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias",
         """select count(*) from dataset_stamps ds join sources s on s.id = ds.source_id
            where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')

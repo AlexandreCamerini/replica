@@ -59,6 +59,45 @@ def _vote_value(s: str | None) -> str | None:
     return "nao_votou"  # LP, AP, MIS, NCom, LS, REP, NA...
 
 
+def _is_secret(v: dict[str, Any]) -> bool | None:
+    """D123: `votacaoSecreta` do /votacao ('S'/'N'). Ausente ou outro valor -> None (fonte não informa), nunca deduzido dos votos."""
+    return {"S": True, "N": False}.get((v.get("votacaoSecreta") or "").strip().upper())
+
+
+def run_secretas(conn: psycopg.Connection, *, years: list[int], force: bool) -> None:
+    """etl senado.secretas: marca voting_events.is_secret pela fonte sem regravar votos (backfill e conferência da D123).
+
+    Lê o mesmo /votacao do senado.diario e só faz UPDATE por source_key; evento ausente do banco vira rejeição anotada.
+    """
+    body = str(conn.execute("select id from legislative_bodies where kind = 'senado'").fetchone()["id"])
+    for year in years:
+        end = min(date(year, 12, 31), date.today())
+        try:
+            lst = _list(fetch_json(f"{API}/votacao?dataInicio={year}-01-01&dataFim={end.isoformat()}", max_age=86400))
+        except FileNotFoundError:
+            lst = []
+        try:
+            with run(conn, f"senado.secretas.{year}", "senado", force=force) as r:
+                pairs = [(str(v["codigoSessaoVotacao"]), _is_secret(v)) for v in lst
+                         if v.get("codigoSessaoVotacao") and (v.get("casaSessao") or "SF") == "SF"]
+                cur = conn.execute(
+                    """update voting_events e set is_secret = x.s, updated_at = now()
+                       from unnest(%s::text[], %s::boolean[]) as x(k, s)
+                       where e.body_id = %s and e.source_key = x.k and e.is_secret is distinct from x.s""",
+                    ([k for k, _ in pairs], [s for _, s in pairs], body),
+                )
+                r.add(cur.rowcount)
+                known = {row["source_key"] for row in conn.execute(
+                    "select source_key from voting_events where body_id = %s and source_key = any(%s)", (body, [k for k, _ in pairs]))}
+                for k, _ in pairs:
+                    if k not in known:
+                        r.reject(1, f"votação {k} da fonte não está no banco (rodar senado.diario --year {year})")
+                n_s = sum(1 for _, s in pairs if s)
+                log.info("senado %d: %d votações na fonte, %d secretas, %d atualizadas", year, len(pairs), n_s, cur.rowcount)
+        except SkipUnchanged:
+            continue
+
+
 def run_senado(conn: psycopg.Connection, *, years: list[int], limit: int | None, force: bool, ceaps_years: list[int] | None = None) -> None:
     people = PersonResolver(conn)
     parties = PartyResolver(conn)
@@ -206,8 +245,9 @@ def _votes_year(conn: psycopg.Connection, r, year: int, senators: list[tuple[str
         low = desc.lower()
         kind = "urgencia" if "urgência" in low else "destaque" if "destaque" in low else "requerimento" if "requerimento" in low else "texto"
         result = {"A": "aprovado", "R": "rejeitado"}.get(v.get("resultadoVotacao") or "")
-        ev_rows.setdefault(key, (body, skey, pkey, ts, kind, True, desc[:4000], result, key))
-        if (v.get("votacaoSecreta") or "N") == "S":
+        secret = _is_secret(v)
+        ev_rows.setdefault(key, (body, skey, pkey, ts, kind, True, desc[:4000], result, key, secret))
+        if secret:
             continue
         for vv in _list(v.get("votos")):
             who = by_cod.get(str(vv.get("codigoParlamentar")))
@@ -227,8 +267,8 @@ def _votes_year(conn: psycopg.Connection, r, year: int, senators: list[tuple[str
                       ["body_id", "source_key"], update=["starts_at"], returning=["id", "source_key"]):
         sess_id[row["source_key"]] = str(row["id"])
     ev_id: dict[str, str] = {}
-    rows = [(b, sess_id.get(sk), prop_id.get(pk) if pk else None, ts, k, nominal, d, res, key) for (b, sk, pk, ts, k, nominal, d, res, key) in ev_rows.values()]
-    for row in upsert(conn, "voting_events", ["body_id", "session_id", "proposal_id", "occurred_at", "kind", "is_nominal", "description", "result", "source_key"], rows,
+    rows = [(b, sess_id.get(sk), prop_id.get(pk) if pk else None, ts, k, nominal, d, res, key, sec) for (b, sk, pk, ts, k, nominal, d, res, key, sec) in ev_rows.values()]
+    for row in upsert(conn, "voting_events", ["body_id", "session_id", "proposal_id", "occurred_at", "kind", "is_nominal", "description", "result", "source_key", "is_secret"], rows,
                       ["body_id", "source_key"], returning=["id", "source_key"]):
         ev_id[row["source_key"]] = str(row["id"])
     r.add(len(ev_id))
