@@ -212,3 +212,146 @@ Sinal nos 8 arquivos:
 - A causa dos 1.002 sem 2012 (BUG-036). O backup anterior ao `fix032` não foi restaurado.
 - Os vínculos `name_birth_place` de Átila Lira (74459) e João Carlos Bacelar (74131), mesma classe do BUG-033.
 - Vice-governadores de BA, CE, MS, PI e TO: só há resultado eleitoral ou imprensa de 2026, sem ato oficial de exercício. Nada indica saída.
+
+# Reverificação 3: BUG-033 a BUG-037 e a reconstrução das pessoas separadas (D221–D234), 2026-11-03
+
+Branch `claude/replica-skill-diff-3e9942` em cf1dcde. O verificador não escreveu as correções (d328278, d6780ec, 9a2192c, 9b0c90b e cf1dcde).
+
+Ambiente:
+- Banco `civico` local. A única escrita foi `derive.stats`, 2 vezes.
+- Dev server em 3101.
+- Fontes:
+  - API da Câmara (`/deputados/{id}`) e página `camara.leg.br/deputados/{id}?ano=`, lidas por curl em 03/11.
+  - Do cache do ETL (`etl/.cache`): `deputados.csv`, `votacoesVotos`, `eventosPresencaDeputados` e `Ano-AAAA.csv.zip` da Câmara, e `consulta_cand` 2012–2026 do TSE.
+- Base de comparação: as tabelas do pg_dump `.local/backup-pre-bug033-036_20261103_195050.dump`, lidas com `pg_restore -f` (sem restaurar). O dump é de 19:50, logo depois da Reverificação 2, que não registrou totais globais.
+
+Nenhum código e nenhum dado foram corrigidos.
+
+## Veredito: não entregável
+
+Há 1 S2 novo (BUG-038) e 2 S3 (BUG-039 e BUG-040). Nenhum S1.
+
+| # | Sev. | Resumo |
+|---|---|---|
+| BUG-038 | S2 | Fusão por nome civil + nascimento no TSE. 7 pessoas têm o título de quem concorreu na mesma eleição em outro município, e 4 mostram a candidatura do outro (repolhinho, joaozao, malufao, claudia-do-severino). Mais 4 prováveis. |
+| BUG-039 | S3 | Divino/PA ficou com o registro INAPTO de 2012 e perdeu a candidatura eleita e o mandato 2013–2016. O "0 de 13.652" do BUG-036 é, na verdade, 1. |
+| BUG-040 | S3 | e2e vermelho: FX-024 e B034-3 não acompanharam o D228 (Serafim criado). |
+
+## Bug × veredito
+
+| Bug | Veredito | Evidência |
+|---|---|---|
+| BUG-033 | confirmado | 6 ids contra a API: nome civil, nascimento e foto certos nos 5 crachás. Cota de 1 ano cada contra a página: 4 iguais (Geninho, +0,03); Eli 2019 difere só pela 55ª. Os 731 ids com cota estão cada um numa pessoa só. 6.939 votos e 2.882 presenças conferidos pelo id no arquivo, sem nenhum de outro id. A classe de fusão continua aberta no TSE: BUG-038. |
+| BUG-034 | confirmado | 5 deputado-ano novos com glosa (Bia Kicis 2019, Orlando Silva 2019, Amaro Neto 2022, Hélio Leite 2023 e Murillo Gouvea 2024): meses da página = arquivo + regra. A regra não é ajuste de curva: a assinatura é exata e rara (12 linhas). Ressalva: a exceção do rateio tem n=1. |
+| BUG-035 | confirmado | As 7 restaurações e o Mané batem com o CSV pelo título. A auditoria das 91 duplas foi reproduzida: 13 / 166 / 3 / 0. |
+| BUG-036 | parcial | 10 de 10 na amostra. Recarga sem duplicata. Falta Divino (BUG-039). |
+| BUG-037 | parcial (não é do clone) | 6 de 7 eram a tabela "Verba de gabinete" lida como cota. O único real, Isnaldo 03/2023, tem a assinatura 2 × (doc − líquido) sem glosa no arquivo. |
+
+## BUG-033: os 5 crachás
+
+| Crachá | Id | Nome civil e nascimento (API = banco) | Mandatos | Cota: página × banco |
+|---|---|---|---|---|
+| geninho-sp | 204527 | Eugenio José Zuliani, 13/01/1976 | prefeito 2013, dep. fed. 2019–2023, prefeito 2025 | 2022: 425.427,63 × 425.427,60 |
+| eli-correa-filho | 160532 | Adriano Eli Corrêa, 13/01/1976 | dep. fed. 2015–2019 e 2019–2023 | 2019: 424.744,93 (só a 56ª) × 447.053,33. A diferença de 22.308,40 é janeiro da 55ª, com a complementação. |
+| atila | 123086 | Átila de Melo Lira, 01/04/1980 | dep. fed. 2023–2027 | 2024: 580.149,83 = |
+| atila-lira | 74459 | Átila Freitas Lira, 07/04/1947 | dep. fed. 2015–2019 e 2019–2023 | 2020: 309.626,32 = |
+| joao-carlos-bacelar | 141458 | João Carlos Paolilo Bacelar Filho, 08/10/1972 | 2015 a 2027, e eleito para 2027 | 2020: 451.998,34 = |
+
+- Votos de cada crachá × `votacoesVotos` pelo id: 0 fora do id. O banco tem menos votos que o arquivo porque não carrega votação de comissão: as que faltam têm de 36 a 55 votantes.
+- Presença × `eventosPresencaDeputados`: todo "presente" está no arquivo, e nenhum "ausente" está. São 498 registros do Eli e 532 do Átila pai, como no D227.
+- Os vínculos de 2014/2018 do TSE para Eli e Átila pai batem pelo título.
+
+### Outras fusões, por critério fraco
+
+- Câmara, todos os 752 vínculos contra `deputados.csv`: nenhum nome civil sem token em comum. Há 2 nascimentos divergentes (zezinho-barbary, 1964 × 1966, e andreia-siqueira, 1991 × 1992). Os dois são vínculos `exact_id`, e o TSE traz as duas datas para a mesma pessoa: é erro de cadastro, não fusão.
+- TSE, pessoas com 2 ou mais nascimentos nas linhas ligadas: 1.319. Todas, salvo ze-galinha, têm o mesmo título, então são erro de digitação no TSE, e não fusão.
+- TSE, pessoas com 2 ou mais títulos: 31. Em 7, os dois títulos concorrem na mesma eleição em municípios diferentes (fusão provada). 4 são prováveis. Os outros são a mesma pessoa, com título reemitido no mesmo município. Detalhes no BUG-038.
+- Não auditei os 216 vínculos `name_birth_place` da ALESP nem os 24 da ALEMG (`assembleias.py`, nome de urna + partido, aniversário ou mandato, só entre quem tem mandato na UF). O fix033 também não os cobriu.
+
+### `camara_diario.link_past_roster`
+
+- Hoje há 104 vínculos da Câmara de ex-deputados (`idLegislaturaFinal` < 57): 91 `name_birth` e 11 `exact_id` de 02/11, e mais 2 `exact_id` de 03/11 (Eli e Átila pai, pelo `devolver`).
+- O ramo por nome de urna grava `name_birth_place`, e não resta nenhum vínculo da Câmara com esse método: os 3 que havia eram as fusões do BUG-033, já separadas. O único log achado da rodada (02/11 23:37) diz "64 por nome civil + nascimento, 0 por nome de urna". O caminho por nome de urna continua no código e sem a trava do id único.
+- Amostra de 10 dos 91 `name_birth`, com semente 33, contra a API (geninho-sp, magno-malta, rafafa, beto-faro, margarida-salomao, paula-belmonte, lucas-follador, haroldo-cathedral, wladimir-garotinho e laercio): nome civil e nascimento iguais em 10 de 10.
+
+## BUG-034: glosa
+
+| Deputado-ano | Linha com glosa | Página | Banco | Meses |
+|---|---|---|---|---|
+| Bia Kicis 2019 | 10/2019 rateio 993,90/72/849,90 (exceção) | 192.000,95 (sem dezembro) | 216.041,23 | fev–nov iguais. Dezembro (24.040,28) não aparece na página, como no Pastor Eurico. |
+| Orlando Silva 2019 | 2/2019 8920/1035,20/8841,80 (outro padrão, fica como está) | 396.242,21 (56ª) | 426.989,42 (ano) | os 11 da 56ª iguais |
+| Amaro Neto 2022 | 10/2022 30000/11998/11179,70 (outro padrão) | 448.341,54 | 448.341,55 | todos iguais |
+| Hélio Leite 2023 | 12/2023 8500/3116,66/1842,66 (outro padrão) | 241.334,58 (57ª) | 284.479,15 (ano) | os 11 da 57ª iguais |
+| Murillo Gouvea 2024 | 12/2024 16000/12287/2382,08 (outro padrão) | 493.442,93 | 493.442,92 | todos iguais |
+| Liziane Bayer 2019 (fora do diretório) | 06/2019 d−2g 3266,67/1353,67/559,33 | 353.625,64 (sem dezembro) | — | jan–nov = arquivo + regra |
+
+A regra se sustenta:
+- A assinatura `líquido = documento − 2·glosa` é uma igualdade exata.
+- Ela aparece em 12 das ~86 mil linhas com glosa de 2019–2026, e 11 batem com a página. A 12ª é o rateio.
+- As linhas com glosa e outro padrão (~400/ano) não são tocadas, e a página concorda com elas nas 3 conferidas.
+
+O que é ajuste:
+- A exceção do rateio (n=1).
+- O mecanismo da página é mais largo que a regra. Ela também soma 2 × um valor que não está em `vlrGlosa`: Isnaldo 03/2023 (2 × 9.257,00) e Félix 07/2024 (2 × 1.522,00). Nesses casos a regra não tem como agir.
+
+Totais contra o backup: só 7 deputado-ano mudaram, cada um em exatamente 2 × glosa:
+
+| Deputado | Diferença (R$) |
+|---|---|
+| Da Vitoria | +931,18 |
+| Eduardo Bolsonaro | +7.668,00 |
+| Eduardo da Fonte | +26.774,00 |
+| Trzeciak | +2.431,62 |
+| André Ferreira | +84,00 |
+| Félix | +3.044,00 |
+| Lafayette | +1.056,98 |
+
+## BUG-035 e BUG-036: 2012
+
+- Amostra de 10 entre os 13.652, com semente 20261103: 10 de 10 batem com o CSV em nome de urna, resultado, número, cargo, município e mandato de 2013. Lista no bugs.md.
+- Divino: ver BUG-039.
+- Duplicatas: 0 pessoas com duas candidaturas na mesma disputa em 2012.
+- Duplicatas de outros anos, anteriores a esta correção e só observadas: 20 pessoas têm duas candidaturas na mesma suplementar de 2016–2024, uma delas com resultado vazio (dr-elio-da-mata, claudemir-borges, sabrina-do-bel e outras). Parece que o banco junta numa só eleição "suplementar" do ano duas suplementares distintas. Não abri bug.
+- Também não há mandato em dobro por candidatura antes de 2017.
+
+## BUG-037
+
+Recorte certo da página (cota até "Verba de gabinete"):
+
+| Caso | Cota na página | Arquivo | Verba de gabinete (o número do bug) |
+|---|---|---|---|
+| Santini 01/2021 | 30.620,57 | 30.620,57 | 86.467,45 |
+| Marcelo Brum 03/2022 | 42.196,88 | 42.196,88 | 107.946,34 |
+| Bia Cavassa 03/2022 | 35.719,58 | 35.719,58 | 105.904,67 |
+| Pedro Dalua 03/2022 | 53.449,11 | 53.449,11 | 111.628,21 |
+| Jhonatan de Jesus 02/2023 | 81.743,13 | 81.743,13 | 118.115,79 |
+| Prof. Paulo Fernando 01/2024 | 3.671,33 | 3.671,33 | 11.060,25 |
+| Isnaldo Bulhões Jr. 03/2023 | 44.926,63 | 26.412,63 | 117.714,21 |
+
+Só o de Isnaldo é real: +18.514,00 = 2 × (10.985 − 1.728), na locação 10985/0/1728, sem glosa no arquivo, e a API não traz o mês. É divergência da fonte e da página, não do clone.
+
+## Regressão
+
+- `pytest` do ETL: 97 de 97.
+- `civico-etl check`: 36 de 36 ok, nas 2 rodadas, cada uma depois de um `derive.stats` (20–24 s cada).
+- `party_memberships`: md5 do conteúdo (pessoa, partido, de, até) 8856a6b4b17017127d72f7e40ecc91e9 nas 2 rodadas, com 139.143 linhas. Contra o backup (138.734), há +410 em pessoas que ganharam candidatura e −1 noutra.
+- e2e completo contra o 3101, em 5,9 min (`--output test-results-reverify3`): 182 passed, 2 failed, 1 flaky (SH-H1, que passou no retry) e 1 skipped. As 2 falhas são o BUG-040.
+
+### Números globais, backup × agora
+
+| Medida | Backup 19:50 | Agora | Δ | Explicação |
+|---|---|---|---|---|
+| Pessoas | 71.599 | 71.602 | +3 | eli-correa-filho, atila-lira, serafim-correa |
+| Mandatos em exercício | 70.833 | 70.834 | +1 | Serafim, vice-governador do AM |
+| Mandatos encerrados | 70.018 | 71.051 | +1.033 | 1.027 de 2013 (recarga de 2012 e restaurações), 1 de 2014 (Professor Wander), 3 de 2015 (2 de Eli e Átila pai, e Alcir Costa), 2 de 2019 (Eli e Átila pai) |
+| Candidaturas | 181.984 | 183.028 | +1.044 | 2012: +1.040; 2014 e 2018: +2 cada (Eli e Átila pai). Nenhuma removida; 1 movida (Mané) |
+| Expenses por ano, linhas | iguais nos 8 anos | | 0 | 1.944 linhas mudaram de pessoa (atila → atila-lira 1.025, geninho-sp → eli-correa-filho 919) |
+| Expenses por ano, valor | | | | 2019 +931,18; 2020 +7.668,00; 2021 +26.774,00; 2022 +2.515,62; 2024 +3.044,00; 2025 +1.056,98; 2023 e 2026: 0. É a regra do D230, linha a linha. |
+
+## O que não conferi e por quê
+
+- Autorias de Eli e Átila pai (174 + 321) contra `proposicoesAutores`. Votos e presença foram conferidos.
+- Os vínculos `name_birth_place` da ALESP (216) e da ALEMG (24). É a mesma família de critério fraco, mas restrita à bancada da UF.
+- A regra do D230 em 2026: o ano corrente muda todo mês.
+- Se a página da Câmara corrige de fato o Isnaldo 03/2023: a consulta `cota-parlamentar/sumarizado` não foi aberta.
+- O pai do Bacelar (74131) segue sem crachá, pela D34. Não conferi se alguma página do clone ainda o cita.
