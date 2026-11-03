@@ -306,7 +306,7 @@ async function Divergences({ people, year, since, sp }: { people: Person[]; year
       </p>
       {page.items.length === 0 ? (
         <p className="rounded-sm bg-surface-sunken px-4 py-6 text-center text-sm text-muted">
-          {tema ? "Nenhuma votação com votos diferentes neste tema." : "Nenhuma votação em comum com votos diferentes (casas ou períodos diferentes, ou votaram sempre igual)."}
+          {tema ? "Nenhuma votação com votos diferentes neste tema." : "Sem votação com votos diferentes entre os dois (casas ou períodos diferentes, ou votaram sempre igual)."}
         </p>
       ) : (
         <ol className="flex flex-col divide-y divide-border rounded-md border border-border bg-surface px-4" data-testid="divergencias">

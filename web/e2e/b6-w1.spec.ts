@@ -74,7 +74,7 @@ test.describe("B6-W1", () => {
     const sec = page.locator("#diferente");
     await expect(sec.getByRole("navigation", { name: "Escolher o par" }).getByRole("link")).toHaveCount(3);
     await expect(sec.locator("[aria-current='true']")).toContainText("Adriana Ventura × Randolfe Rodrigues");
-    await expect(sec).toContainText(/Nenhuma votação em comum/);
+    await expect(sec).toContainText(/Sem votação com votos diferentes/);
   });
 
   test("B6-W10 salário acumulado desde a posse, com os meses e o que falta carregar", async ({ page }) => {
