@@ -428,6 +428,8 @@ Cause provável: corrida entre a hidratação do combobox e o `focus()` disparad
 Status: fixed (fixui, D196). Era bug real: o intervalo de foco parava no primeiro acerto e só esperava 3 s; no dev a rota /representantes compila em mais tempo e o modal devolve o foco depois do primeiro acerto. `first-visit.tsx` agora só age em /representantes, espera até 10 s, refaz o foco se ficar solto e para depois de 500 ms estável. ONB-H2 passou 5 de 5 com `--repeat-each 5` no dev.
 Reverificação 2026-11-03: não conferido. O `playwright test -g ONB-H2` não abriu o navegador: falta o chromium-headless-shell 1248 no cache, e baixar o binário ficou fora do escopo. O código de `first-visit.tsx` não foi lido a fundo.
 
+Reverificação 2026-11-03 (orquestrador, o verificador não tinha o navegador do Playwright): confirmado. ONB-H2 passou 8 de 8 com `--repeat-each 8` contra o dev server :3101.
+
 ### BUG-028: presença do crachá não bate com a da Câmara (2025: 108 de 120 contra 110 + 11 justificadas)
 
 - Severity: S4 · Screen: S05 · Build: anterior
