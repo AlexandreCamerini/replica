@@ -131,6 +131,11 @@ CHECKS: list[tuple[str, str]] = [
            where p.body_id <> a.body_id""",
     ),
     (
+        # D132: sanção só aponta para pessoa com método e confiança registrados
+        "sanções: vínculo com pessoa sem método de casamento",
+        "select count(*) from sanctions where person_id is not null and (match_method is null or match_confidence is null)",
+    ),
+    (
         "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias",
         """select count(*) from dataset_stamps ds join sources s on s.id = ds.source_id
            where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')
