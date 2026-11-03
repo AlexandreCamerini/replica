@@ -295,6 +295,10 @@ export type RepresentativeGroup = {
   level: Level;
   where: string;
   people: Officeholder[];
+  /** Cargo do grupo sem ninguém em exercício na fonte: aparece como “—” com o motivo, nunca some (BUG-024). */
+  gaps?: { what: string; why: string }[];
+  /** Cadeiras da casa legislativa: carregadas contra as previstas na Constituição (BUG-025). */
+  seats?: { loaded: number; total: number; why: string };
 };
 
 export type PeopleFilter = {
@@ -331,7 +335,7 @@ export interface DataSource extends DataSourceW4 {
   getCityCouncil(personId: string): Promise<CityCouncilInfo | null>;
   /** Mais votados no município na última eleição geral com votos por município carregados (deputados federais e estaduais). null = sem dado. */
   getTopVotedInPlace(ibge: string, limit?: number): Promise<PlaceTopVoted | null>;
-  getCounters(): Promise<{ total: number; byLevel: Record<Level, number>; byOffice: { office: OfficeSlug; label: string; count: number }[] }>;
+  getCounters(): Promise<{ total: number; byLevel: Record<Level, number>; byOffice: { office: OfficeSlug; label: string; count: number; expected?: number; why?: string }[] }>;
   listParties(): Promise<Party[]>;
   listOffices(): Promise<Office[]>;
   listPeople(f: PeopleFilter): Promise<Page<Officeholder>>;

@@ -1,6 +1,7 @@
 import "server-only";
 import postgres from "postgres";
 import { houseName, notReadReason } from "./assembleias";
+import { UF_ROWS, stateSeats } from "./reference";
 import type {
   AssemblyDataset,
   AssemblyInfo,
@@ -82,6 +83,41 @@ const GROUPS: { key: string; offices: OfficeSlug[]; level: Level; title: (uf: st
   { key: "camara", offices: ["deputado_federal"], level: "federal", title: () => PLURAL.deputado_federal },
   { key: "presidencia", offices: ["presidente", "vice_presidente"], level: "federal", title: () => PLURAL.presidente },
 ];
+/** Cadeiras da Assembleia (CF art. 27: 3 × federais até 12; acima, 36 + excedente). DF: a Câmara Legislativa tem 24. */
+function stateSeatsOf(uf: string): number | null {
+  const row = UF_ROWS.find((r) => r[1] === uf);
+  return row ? stateSeats(row[4]) : null;
+}
+const SEATS_WHY = "a fonte oficial traz quem está em exercício; suplentes que assumiram vagas ainda não estão todos carregados";
+const GAP_STATUS: Record<string, string> = {
+  renunciou: "renunciou",
+  cassado: "foi cassado",
+  falecido: "faleceu",
+  afastado: "está afastado",
+};
+const OFFICE_LABEL: Record<string, string> = { governador: "Governo do estado", vice_governador: "Vice-governo" };
+const dmy = (d: string) => d.split("-").reverse().join("/");
+/** Governador e vice de uma UF sem mandato em exercício: o cargo aparece como “—”, com o motivo tirado do último mandato (BUG-024). */
+async function executiveGaps(uf: string): Promise<{ office: OfficeSlug; what: string; why: string }[]> {
+  const rows = await sql`
+    select o.slug as office, m.status, m.started_on, m.ends_on
+    from mandates m join offices o on o.id = m.office_id join places pl on pl.id = m.place_id
+    where pl.kind = 'uf' and pl.uf = ${uf} and o.slug in ('governador', 'vice_governador')
+    order by m.started_on desc`;
+  const out: { office: OfficeSlug; what: string; why: string }[] = [];
+  for (const office of ["governador", "vice_governador"] as OfficeSlug[]) {
+    const mine = rows.filter((r) => r.office === office);
+    if (mine.some((r) => r.status === "em_exercicio")) continue;
+    const last = mine.find((r) => r.status !== "eleito_aguardando_posse" && r.status !== "em_exercicio");
+    const waiting = mine.find((r) => r.status === "eleito_aguardando_posse");
+    const bits: string[] = [];
+    if (last) bits.push(`o último ${office === "governador" ? "titular" : "vice"} ${GAP_STATUS[String(last.status)] ?? "deixou o cargo"}${last.ends_on ? ` em ${dmy(iso(last.ends_on))}` : ""}`);
+    if (waiting) bits.push(`há eleito aguardando posse${waiting.started_on ? ` em ${dmy(iso(waiting.started_on))}` : ""}`);
+    bits.push("a fonte (TSE) não publica quem exerce o cargo agora");
+    out.push({ office, what: OFFICE_LABEL[office], why: bits.join("; ") });
+  }
+  return out;
+}
 const DATASET_LABEL: Record<string, string> = {
   salario: "Salário pago",
   salario_prefeito: "Salário do prefeito",
@@ -256,13 +292,19 @@ export const pgSource: DataSource = {
         ${pl.kind === "municipio" ? sql`or pl.ibge_code = ${pl.ibge}` : sql``})
       order by p.display_name collate pt_br`;
     const groups: RepresentativeGroup[] = [];
+    const missingExec = pl.uf ? await executiveGaps(pl.uf) : [];
     for (const g of GROUPS) {
       if (g.level === "municipal" && pl.kind !== "municipio") continue;
       const people = rows
         .filter((r) => g.offices.includes(r.office as OfficeSlug) && (g.level === "federal" && g.key === "presidencia" ? r.place_ibge === "BR" : g.level === "municipal" ? r.place_ibge === pl.ibge : r.place_kind === "uf"))
         .sort((a, b) => g.offices.indexOf(a.office as OfficeSlug) - g.offices.indexOf(b.office as OfficeSlug))
         .map(holder);
-      if (people.length) groups.push({ key: g.key, title: g.title(pl.uf), level: g.level, where: people[0].placeLabel, people });
+      const gaps = g.key === "governo" ? missingExec.filter((x) => g.offices.includes(x.office)).map(({ what, why }) => ({ what, why })) : undefined;
+      const total = g.key === "assembleia" && pl.uf ? stateSeatsOf(pl.uf) : null;
+      const seats = total != null && people.length < total ? { loaded: people.length, total, why: SEATS_WHY } : undefined;
+      if (people.length || gaps?.length || seats) {
+        groups.push({ key: g.key, title: g.title(pl.uf), level: g.level, where: people[0]?.placeLabel ?? pl.uf ?? "", people, ...(gaps?.length ? { gaps } : {}), ...(seats ? { seats } : {}) });
+      }
     }
     return groups;
   },
@@ -391,10 +433,35 @@ export const pgSource: DataSource = {
     const rows = await sql`select o.slug, o.level, count(*)::int as n from mandates m join offices o on o.id = m.office_id where m.status = 'em_exercicio' group by 1, 2 order by min(o.slug)`;
     const byLevel: Record<Level, number> = { federal: 0, estadual: 0, municipal: 0 };
     const order = Object.keys(PLURAL) as OfficeSlug[];
-    const byOffice = rows
+    const byOffice: { office: OfficeSlug; label: string; count: number; expected?: number; why?: string }[] = rows
       .map((r) => ({ office: r.slug as OfficeSlug, label: PLURAL[r.slug as OfficeSlug], count: Number(r.n) }))
       .sort((a, b) => order.indexOf(a.office) - order.indexOf(b.office));
     for (const r of rows) byLevel[r.level as Level] += Number(r.n);
+    // “—” com motivo: cargo com menos gente em exercício do que lugares (BUG-024, BUG-025). Nunca omitir a diferença.
+    const lack = await sql`
+      select o.slug as office, array_agg(distinct pl.uf order by pl.uf) filter (where pl.uf is not null) as ufs
+      from offices o cross join places pl
+      where pl.kind = 'uf' and o.slug in ('governador', 'vice_governador')
+        and not exists (select 1 from mandates m where m.office_id = o.id and m.place_id = pl.id and m.status = 'em_exercicio')
+      group by 1`;
+    const seatsExpected = {
+      deputado_estadual: UF_ROWS.filter((r) => r[1] !== "DF").reduce((s, r) => s + stateSeats(r[4]), 0),
+      deputado_distrital: stateSeats(UF_ROWS.find((r) => r[1] === "DF")![4]),
+    };
+    for (const b of byOffice) {
+      const missing = lack.find((l) => l.office === b.office);
+      if (missing && (missing.ufs as string[]).length) {
+        const ufs = missing.ufs as string[];
+        b.expected = 27;
+        b.why = `${ufs.join(", ")} sem ${b.office === "governador" ? "governador" : "vice-governador"} em exercício na fonte`;
+      } else if (b.office === "deputado_estadual" || b.office === "deputado_distrital") {
+        const exp = seatsExpected[b.office];
+        if (b.count < exp) {
+          b.expected = exp;
+          b.why = `${exp - b.count} cadeiras sem titular ou suplente em exercício carregado; ${SEATS_WHY}`;
+        }
+      }
+    }
     return { total: byLevel.federal + byLevel.estadual + byLevel.municipal, byLevel, byOffice };
   },
   async listParties() {

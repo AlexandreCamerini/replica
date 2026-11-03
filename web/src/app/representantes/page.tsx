@@ -170,7 +170,7 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
           {groups.map((g) => (
             <li key={g.key} className="shrink-0">
               <a href={`#${g.key}`} className="inline-flex h-8 items-center gap-1.5 rounded-pill bg-surface-sunken px-3 text-sm text-fg outline-none hover:underline focus-visible:outline-2 focus-visible:outline-focus">
-                {g.title} <span className="tabular text-muted">{g.people.length}</span>
+                {g.title} <span className="tabular text-muted">{g.seats ? `${g.people.length} de ${g.seats.total}` : g.people.length}</span>
               </a>
             </li>
           ))}
@@ -191,9 +191,19 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
             <section key={g.key} id={g.key} aria-labelledby={`${g.key}-h`} className="scroll-mt-28">
               <h2 id={`${g.key}-h`} className="mb-1 flex items-baseline gap-2 text-xl text-fg">
                 {g.title}
-                <span className="text-base tabular text-muted">{g.people.length}</span>
+                <span className="text-base tabular text-muted">{g.seats ? `${g.people.length} de ${g.seats.total} cadeiras carregadas` : g.people.length}</span>
               </h2>
               <p className="mb-3 text-sm text-muted">{levelNote(g.level, g.where)}</p>
+              {g.seats && (
+                <p className="mb-3 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-muted" data-testid="cadeiras">
+                  <span aria-hidden>—</span> {count(g.seats.total - g.seats.loaded)} {g.seats.total - g.seats.loaded === 1 ? "cadeira não está" : "cadeiras não estão"} aqui: {g.seats.why}.
+                </p>
+              )}
+              {g.gaps?.map((x) => (
+                <p key={x.what} className="mb-3 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-muted" data-testid="lacuna">
+                  <span className="font-semibold text-fg">{x.what}:</span> <span aria-hidden>—</span> {x.why}.
+                </p>
+              ))}
               <HolderGrid people={head} />
               {rest.length > 0 && (
                 <details className="group mt-2">

@@ -47,11 +47,20 @@ export default async function Home() {
                 href={`/quem?cargo=${o.office}`}
                 className="inline-flex h-9 items-center gap-2 rounded-pill bg-surface-sunken px-3 text-sm text-fg outline-none hover:underline focus-visible:outline-2 focus-visible:outline-focus"
               >
-                {o.label} <span className="font-semibold tabular">{count(o.count)}</span>
+                {o.label} <span className="font-semibold tabular">{o.expected != null ? `${count(o.count)} de ${count(o.expected)}` : count(o.count)}</span>
               </Link>
             </li>
           ))}
         </ul>
+        {counters.byOffice.some((o) => o.why) && (
+          <ul className="mt-2 flex flex-col gap-1 text-xs text-muted" data-testid="lacunas-cargos">
+            {counters.byOffice.filter((o) => o.why).map((o) => (
+              <li key={o.office}>
+                <span className="font-semibold text-fg">{o.label}:</span> <span aria-hidden>—</span> {o.why}.
+              </li>
+            ))}
+          </ul>
+        )}
         <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
       </section>
 

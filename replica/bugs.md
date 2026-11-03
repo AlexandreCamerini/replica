@@ -396,14 +396,14 @@ Steps
 3. Banco: Wilson Lima e Tadeu de Souza com `status = 'renunciou'` em 2026-04-04; nenhum titular `em_exercicio` no AM.
 Expected: quem exerce o governo do AM hoje, ou "—" com o motivo (titular e vice renunciaram; fonte não publica o sucessor).
 Cause: o `check` "um titular em exercício por lugar e cargo" testa no máximo 1, não exatamente 1, para governador.
-Status: open.
+Status: fixed na tela (fixui, D193). Cargo sem titular em exercício vira “—” com motivo: na home, “Governo do estado 26 de 27” e a linha “AM sem governador em exercício na fonte”; em /representantes o grupo Governo do estado não some e diz o motivo tirado do último mandato (AM: titular renunciou em 04/04/2026; há eleito aguardando posse; a fonte não publica quem exerce o cargo agora). Vice-governo faz o mesmo (MG, GO, PA, AC, AM, MT, PB, ES). A parte do `check` (exatamente 1 titular) é do agente de ETL e não foi tocada.
 
 ### BUG-025: deputados estaduais: 994 em exercício contra 1.035 cadeiras, sem aviso (SP 90 de 94, RJ 65 de 70)
 
 - Severity: S3 · Screen: S01, S07 (Campinas: "Deputados estaduais 90") · Build: anterior a esta noite
 Steps: `select uf, count(*) from mandates ... deputado_estadual em_exercicio` -> faltam 41 em 18 UFs (AP −1, BA −2, CE −4, ES −2, GO −1, MA −4, MG −3, MT −1, PA −2, PE −2, PI −2, PR −3, RJ −5, RO −1, RS −1, SC −2, SP −4, TO −1).
 Expected: suplentes em exercício (ALESP e ALMG já são lidas desde W3-A) ou "—" com motivo dizendo que suplente em exercício não está carregado.
-Status: open.
+Status: fixed na tela (fixui, D193). Deputados estaduais abaixo das cadeiras (CF art. 27) mostram “N de M cadeiras carregadas” no título, chip e aviso com o motivo (suplente que assumiu ainda não está todo carregado); a home mostra “N de M” no chip e a linha do motivo. Carregar os suplentes que faltam (41 em 18 UFs) é trabalho de ETL e segue aberto.
 
 ### BUG-026: /comparar e o bloco "Números" do crachá sem fonte e data do que mostram
 
