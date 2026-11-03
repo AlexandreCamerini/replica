@@ -232,7 +232,23 @@ Expected: 390.
 Actual: 515 (S24) e 673 (S23). Nenhum elemento visível passa da borda: os culpados são `<span class="sr-only">` (position: absolute) dentro das células; sem um ancestral posicionado, eles escapam do `overflow-x-auto` da região da tabela.
 Evidence: sonda de `getBoundingClientRect` por elemento; os testes `@mobile` do projeto Pixel 7 passavam porque comparavam `scrollWidth` com `innerWidth`, e na emulação de celular o viewport se alarga junto com o conteúdo.
 Suspected cause: `sr-only` absoluto fora do contêiner de rolagem.
-Status: fixed (região da tabela é `relative`). Os specs `w1a-*` comparam `scrollWidth` com 390 fixo. Os specs antigos (`shell-directory` SH-E2, `f01-core-loop` F01-E6) ainda comparam com `innerWidth` e podem deixar passar o mesmo defeito: dívida de teste, não corrigida neste lote.
+Status: fixed (região da tabela é `relative`). Os specs `w1a-*` comparam `scrollWidth` com 390 fixo. Os specs antigos (SH-E2, F01-E6, F03) também passaram a comparar com 390 fixo e isso revelou o BUG-012.
+
+### BUG-012: listas de pessoas e tabela de comparação estouram 390 px (rolagem horizontal da página)
+
+- Severity: S3 (regra de produto "sem rolagem horizontal em 390 px" quebrada em telas centrais)
+- Flow / case: F01, F04 / SH-E2, F01-E6 (passavam por checagem fraca)
+- Screen: S04, S07, S08, S12 (lista de pessoas e comparação)
+- Build: build 4 e anterior · Chromium 390 px, dados reais
+
+Steps
+1. Abrir /quem, /representantes?cidade=3509502 e /comparar?p=a,b em 390 px e ler `document.documentElement.scrollWidth`.
+
+Expected: 390.
+Actual: 541 (/quem), 456 (cidade), 446 e 437 (/comparar).
+Evidence: sonda de `getBoundingClientRect`: itens `li` de `ul.grid` sem coluna base passam da borda; na comparação o culpado é `sr-only` absoluto dentro da região rolável (mesma causa do BUG-011).
+Suspected cause: `ul class="grid gap-2 sm:grid-cols-2"` sem `grid-cols-1`: a coluna implícita é `auto` e cresce com o nome mais longo (`truncate` não corta sem `min-width: 0`). Os specs comparavam `scrollWidth` com `innerWidth`, que na emulação de celular se alarga junto com o conteúdo.
+Status: fixed (`grid-cols-1` em 9 grades; `relative` nas 5 regiões roláveis restantes); SH-E2 agora também cobre /sobre, /atualizacoes, /dados-abertos e /congresso.
 
 ## A conferir (não reproduzido como bug)
 
@@ -241,4 +257,4 @@ Status: fixed (região da tabela é `relative`). Os specs `w1a-*` comparam `scro
 - "Carreira" maior que a soma dos anos é esperado quando há fato fora dos anos de mandato no banco (matérias do senador antes de 2019, nota da cota com data fora do mandato). O `check` agora compara a carreira com o total direto da fonte (BUG-001 continua coberto).
 - ~~Senado: a API por senador marca 77 de 93 votações de 2025 como secretas.~~ Resolvido (D39): `/votacao` traz 128 votações em 2025 (abertas e secretas).
 - F01-E1 esperava exatamente 4 homônimos "Bom Jesus"; com os dados reais há 5 exatos (PI, PB, RN, RS, SC) mais "Bom Jesus da…". O teste passou a exigir pelo menos 4 e as 4 UFs; ajuste de teste, não de produto.
-- Hidratação (React #418 / "Hydration failed") apareceu de novo em crachá e em /representantes?cidade= no dev server 3101, em 3 de ~25 cargas dos specs de F04/F05/F06. Mesmo padrão do BUG-008; não relacionado às mudanças do build 5 (o diff aponta `Container`/`PageHeader` da lista de cidade). Segue aberto.
+- Hidratação (React #418 / "Hydration failed") apareceu de novo em crachá e em /representantes?cidade= no dev server 3101, em 3 de ~25 cargas dos specs de F04/F05/F06. Mesmo padrão do BUG-008; não isolado (não rodei um controle sem as mudanças do build 5) (o diff aponta `Container`/`PageHeader` da lista de cidade). Segue aberto.

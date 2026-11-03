@@ -115,3 +115,5 @@ Revalidação: `REVALIDATE_URL` não está no ambiente do ETL; o app pega o dado
 | S02 onboarding | 2026-11-03 | done | "Como cobrar" (metade do item 11, fica para o próximo lote) | cookie injetado por `storageState` para os 50+ testes antigos não serem bloqueados pelo modal |
 
 Entregas: 7 commits `build5 W1a`, 1 migração (`0005`), 8 specs novos `web/e2e/w1a-*.spec.ts`. Capturas em `replica/clone-screens/` (S22, S23, S24, S03, S02, S05-direito-resposta; 1440 e 390 px, claro e escuro). Nota de feature: 62,4 → 71,4 (`tools/parity.py`).
+
+Pendências desta rodada (front): (1) job de anonimização das sugestões após 12 meses (`/sobre#s-priv` já diz que não é automático); (2) lista de provedores de dado pessoal em `/sobre` quando houver endereço público; (3) "Como cobrar" (metade do item 11); (4) matriz S23 só tem informação quando o ETL municipal conferir cidades; (5) header fixo de 390 px ocupa ~150 px (busca + abas): avaliar recolher as abas ao rolar.
