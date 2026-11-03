@@ -89,7 +89,7 @@ export default async function Page({ params, searchParams }: Props) {
             Como cada bancada orientou
           </h2>
           <p className="mb-3 text-sm text-muted">Orientação é o voto que o líder pede à bancada. Não é o voto de ninguém.</p>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {[
               { title: "Governo, maioria, minoria e oposição", rows: blocs, label: (l: string, k: string) => ACTOR[k] ?? l },
               { title: "Partidos e blocos", rows: parties, label: (l: string) => l },
@@ -125,7 +125,7 @@ export default async function Page({ params, searchParams }: Props) {
           <h2 id="partidos-h" className="mb-3 text-xl text-fg">
             Votos por partido
           </h2>
-          <div tabIndex={0} role="region" aria-label="Tabela de votos por partido, rolável" className="overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
+          <div tabIndex={0} role="region" aria-label="Tabela de votos por partido, rolável" className="relative overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">

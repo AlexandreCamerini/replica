@@ -40,9 +40,9 @@ test.describe("Shell e diretório", () => {
     await page.goto(CAMPINAS);
     const a = await page.locator("#vereadores a[href^='/p/']").nth(0).getAttribute("href");
     const b = await page.locator("#vereadores a[href^='/p/']").nth(1).getAttribute("href");
-    for (const u of ["/", CAMPINAS, a!, `/comparar?p=${a!.split("/").pop()},${b!.split("/").pop()}`, "/quem"]) {
+    for (const u of ["/", "/sobre", "/atualizacoes", "/dados-abertos", "/congresso", CAMPINAS, a!, `/comparar?p=${a!.split("/").pop()},${b!.split("/").pop()}`, "/quem"]) {
       await page.goto(u);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), u).toBeLessThanOrEqual(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - 390), u).toBeLessThanOrEqual(0);
     }
   });
 

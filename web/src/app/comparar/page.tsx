@@ -61,7 +61,7 @@ async function Presets({ have }: { have: Person[] }) {
       <h2 id="sugestoes-h" className="mb-3 text-lg text-fg">
         Ou comece por um destes
       </h2>
-      <ul className="grid gap-3 md:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {presets.map((p) => (
           <li key={p.label}>
             <Link
@@ -161,7 +161,7 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
         </ul>
       </nav>
 
-      <div tabIndex={0} role="region" aria-label="Tabela de comparação" className="overflow-x-auto rounded-md border border-border bg-surface outline-none focus-visible:outline-2 focus-visible:outline-focus">
+      <div tabIndex={0} role="region" aria-label="Tabela de comparação" className="relative overflow-x-auto rounded-md border border-border bg-surface outline-none focus-visible:outline-2 focus-visible:outline-focus">
         <table className="w-full min-w-[640px] text-sm">
           <caption className="sr-only">Comparação de {people.map((p) => p.displayName).join(", ")}</caption>
           <thead>
@@ -214,7 +214,7 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
         <p className="mb-3 text-sm text-muted">
           Só votações nominais em que as duas pessoas registraram voto{year ? ` em ${year}` : ""}. Ausência não conta como divergência.
         </p>
-        <ul className="grid gap-2 md:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {agreement.map((a) => (
             <li key={`${a.a}-${a.b}`} className="flex flex-col gap-1 rounded-md border border-border bg-surface p-3">
               <span className="text-sm font-semibold text-fg">

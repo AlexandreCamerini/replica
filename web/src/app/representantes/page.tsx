@@ -99,7 +99,7 @@ async function PickPlace({ q }: { q?: string }) {
         <h2 id="niveis" className="mb-3 text-lg text-fg">
           Três níveis, uma lista
         </h2>
-        <ol className="grid gap-3 md:grid-cols-3">
+        <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {levels.map(({ Icon, where, who, when }) => (
             <li key={where} className="flex flex-col gap-1 rounded-md border border-border bg-surface p-4">
               <Icon aria-hidden className="size-5 text-accent-text" />

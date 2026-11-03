@@ -101,7 +101,7 @@ test.describe("F03 ler o crachá a fundo", () => {
     const r = await page.goto("/p/maria-aparecida-dos-santos-albuquerque-de-vasconcelos-filha");
     test.skip(r?.status() === 404, "nome longo só existe na demonstração");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Vasconcelos Filha");
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - 390)).toBeLessThanOrEqual(0);
   });
 
   test("F03-N1 APIs do crachá validam parâmetros", async ({ page, request }) => {

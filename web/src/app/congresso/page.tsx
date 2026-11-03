@@ -57,7 +57,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         </ul>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_1.2fr]">
         <section aria-labelledby="cadeiras-h" className="rounded-md border border-border bg-surface p-4 md:p-6">
           <h2 id="cadeiras-h" className="mb-3 text-xl text-fg">
             Cadeiras · {house.plenary}

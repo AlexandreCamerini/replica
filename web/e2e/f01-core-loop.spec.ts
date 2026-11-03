@@ -118,7 +118,7 @@ test.describe("F01 eleitor descobre quem o representa", () => {
       .toBe(true);
     await opt.tap(); // celular: toque, não clique
     await expect(page).toHaveURL(/cidade=3509502/);
-    const overflow = async () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    const overflow = async () => page.evaluate(() => document.documentElement.scrollWidth - 390);
     expect(await overflow()).toBeLessThanOrEqual(0);
     const first = page.locator('a[href^="/p/"]').first();
     const box = await first.locator("xpath=ancestor::li[1]").boundingBox(); // o cartão inteiro é a área de toque (::after do link)

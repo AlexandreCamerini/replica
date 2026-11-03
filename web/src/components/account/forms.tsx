@@ -210,7 +210,7 @@ export function SuggestionForm({ kind, person, personName, page }: { kind?: stri
           Se for correção, mande o link da fonte oficial. Isso acelera.
         </span>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-fg">
           Seu nome
           <input name="name" required maxLength={120} autoComplete="name" defaultValue={f.name} className={input} />

@@ -22,7 +22,7 @@ export default async function Page() {
   return (
     <Container>
       <PageHeader title="Acompanhando" lead={`Conectado como ${user.email}.`} />
-      <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[2fr_1fr]">
         <section aria-labelledby="novidades-h">
           <h2 id="novidades-h" className="mb-3 text-xl text-fg">
             Novidades

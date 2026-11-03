@@ -146,7 +146,7 @@ export default async function Page({ params, searchParams }: Props) {
         <h2 id="mandatos-h" className="sr-only">
           Mandatos
         </h2>
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {mandates
             .filter((m) => m.status !== "encerrado")
             .map((m) => (
