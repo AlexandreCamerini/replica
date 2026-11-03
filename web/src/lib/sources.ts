@@ -16,6 +16,9 @@ export const SOURCE_META: Record<string, SourceMeta> = {
     maxAgeHours: 60 * 24,
   },
   ibge: { brings: "regiões, estados, municípios, códigos e contornos", cadence: "uma vez por ano", maxAgeHours: 400 * 24 },
+  "ibge-sidra": { brings: "PIB, inflação (IPCA) e desemprego (PNAD Contínua), ano a ano, para /governos", cadence: "uma vez por trimestre", maxAgeHours: 120 * 24 },
+  "bcb-sgs": { brings: "meta da taxa Selic no fim de cada ano, para /governos", cadence: "uma vez por trimestre", maxAgeHours: 120 * 24 },
+  "receita-federal": { brings: "arrecadação federal por estado, mês e tributo, para /impostos", cadence: "uma vez por mês", maxAgeHours: 60 * 24 },
 };
 
 /** Fontes que o produto ainda não lê. Aparecem na tabela com “—” e o motivo, nunca como se existissem. */
