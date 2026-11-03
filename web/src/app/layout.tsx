@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Barlow_Condensed, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { DataFreshnessBar, DemoBanner } from "@/components/shell/bars";
+import { FirstVisit } from "@/components/shell/first-visit";
 import { CompareProvider } from "@/components/shell/compare";
 import { AppFooter } from "@/components/shell/footer";
 import { AppHeader } from "@/components/shell/header";
@@ -47,6 +48,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             {children}
           </main>
           <AppFooter />
+          <FirstVisit />
         </CompareProvider>
       </body>
     </html>
