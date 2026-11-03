@@ -137,6 +137,13 @@ export default function Page() {
               avisa isso. É uma contagem de presença em sessão, não de produtividade.
             </p>
             <p>
+              <strong>Por que o número pode diferir do da Câmara.</strong> Contamos sessões deliberativas. A página de cada deputado
+              no site da Câmara conta dias de presença e separa as ausências justificadas das não justificadas. Sessão e dia não são
+              a mesma unidade (um dia pode ter mais de uma sessão, e a Câmara pode contar dias sem sessão deliberativa), então os
+              dois números não precisam coincidir. O dia não é a nossa unidade porque a lista aberta que lemos é por sessão.
+              Rotulamos sempre como “sessões deliberativas”.
+            </p>
+            <p>
               <strong>Senado Federal.</strong> O Senado não publica lista de presença por senador em formato aberto. Nós não a
               estimamos a partir dos votos: a presença do Senado aparece como “—”, com o motivo, até que a fonte exista. As
               votações nominais, abertas ou secretas, vêm do Senado; nas secretas o evento aparece sem o voto de cada um.

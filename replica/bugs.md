@@ -425,7 +425,7 @@ Status: open.
 - Severity: S4 · Screen: S05 · Build: anterior
 Steps: /p/adriana-ventura?ano=2025 -> "90% (108 de 120)"; camara.leg.br/deputados/204528?ano=2025 -> 110 dias presentes, 11 ausências justificadas, 0 não justificadas. Carreira: clone 912 de 926; original 911 de 932.
 Cause provável: o clone conta sessões deliberativas; a Câmara conta dias. Não está dito no tile.
-Status: open (a conferir a definição; não afirmo qual está certo).
+Status: fixed por rótulo (fixui, D195). O tile continua “N de M sessões deliberativas”; a ajuda e /sobre#presenca explicam que a Câmara conta dias e separa justificadas, então o número pode diferir. Contagem por dia não é possível com a lista aberta (por sessão) e nem bateria: o clone teria menos dias que os 110 da Câmara.
 
 ### BUG-029: `npx eslint` em web/ lint a saída de build `.next-e2e-w3a/` (1.823 erros)
 
