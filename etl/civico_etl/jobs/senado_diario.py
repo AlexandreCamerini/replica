@@ -132,10 +132,16 @@ def run_senado(conn: psycopg.Connection, *, years: list[int], limit: int | None,
                             continue
                         ex = sorted(_list((mand.get("Exercicios") or {}).get("Exercicio")), key=lambda e: e.get("DataInicio") or "")
                         cause = (ex[-1].get("SiglaCausaAfastamento") or "") if ex else ""
-                        status = "renunciou" if cause == "REN" else "cassado" if cause in ("CAS", "PER") else "licenciado" if ex else "afastado"
+                        status = "renunciou" if cause == "REN" else "cassado" if cause in ("CAS", "PER") else "encerrado" if cause in ("FAL", "TER") else "licenciado" if cause.startswith("L") or cause == "AFO" else "afastado"
                         pid = people.by_external("senado", cod)
                         if not pid:
-                            m = people.resolve(source="senado", external_id=cod, civil_name=titlecase_pt(ident.get("NomeCompletoParlamentar")), birth_date=None,
+                            # nascimento do detalhe: casa com a pessoa que o TSE criou (nome de urna difere do parlamentar: "Leila do Vôlei" x "Leila Barros")
+                            try:
+                                det = fetch_json(f"{API}/senador/{cod}.json", max_age=WEEK)["DetalheParlamentar"]["Parlamentar"]
+                                birth = parse_date((det.get("DadosBasicosParlamentar") or {}).get("DataNascimento"))
+                            except FileNotFoundError:
+                                birth = None
+                            m = people.resolve(source="senado", external_id=cod, civil_name=titlecase_pt(ident.get("NomeCompletoParlamentar")), birth_date=birth,
                                                seat=(office, place), display_name=ident.get("NomeParlamentar"))
                             pid = m.person_id
                         if not pid:

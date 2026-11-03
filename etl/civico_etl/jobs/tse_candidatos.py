@@ -74,11 +74,11 @@ def term_dates(office: str, year: int) -> tuple[date, date]:
     """Posse e fim previsto (exclusivo). EC 111/2021: a partir de 2027 presidente toma posse em 5/1 e governador em 6/1."""
     y = year + 1
     if office in ("presidente", "vice_presidente"):
-        start = date(y, 1, 1) if year <= 2022 else date(y, 1, 5)
-        end = date(y + 4, 1, 5)
+        posse = lambda yy: date(yy, 1, 1) if yy <= 2023 else date(yy, 1, 5)  # noqa: E731 - EC 111/2021 vale a partir de 2027
+        start, end = posse(y), posse(y + 4)
     elif office in ("governador", "vice_governador"):
-        start = date(y, 1, 1) if year <= 2022 else date(y, 1, 6)
-        end = date(y + 4, 1, 6)
+        posse = lambda yy: date(yy, 1, 1) if yy <= 2023 else date(yy, 1, 6)  # noqa: E731
+        start, end = posse(y), posse(y + 4)
     elif office in ("prefeito", "vice_prefeito", "vereador"):
         start, end = date(y, 1, 1), date(y + 4, 1, 1)
     elif office == "senador":
@@ -332,6 +332,20 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
                 [(held, o, pl, held, held) for (o, pl), held in supp_by_seat.items()],
             )
             r.notes.append(f"{len(supp_by_seat)} cadeira(s) com eleição suplementar")
+        # mandato que a casa (ou outra carga) já registrou com outra data de início para a mesma pessoa e cargo: fica o existente
+        # (ex.: senador eleito em suplementar que o Senado registra desde o início da legislatura)
+        have: dict[tuple[str, str], list[tuple[date, date]]] = defaultdict(list)
+        for row in conn.execute("select person_id, office_id, started_on, ends_on from mandates where person_id = any(%s::uuid[])", (list({x[0] for x in rows_m}),)):
+            have[(str(row["person_id"]), str(row["office_id"]))].append((row["started_on"], row["ends_on"]))
+        kept = []
+        for row in rows_m:
+            spans = have[(row[0], row[1])]
+            if any(s_ != row[8] and s_ < row[9] and row[8] < e_ for s_, e_ in spans):
+                r.reject(1, f"mandato sobreposto a um já registrado: pessoa {row[0]} desde {row[8]}")
+                continue
+            spans.append((row[8], row[9]))
+            kept.append(row)
+        rows_m = kept
         n = len(upsert(
             conn, "mandates",
             ["person_id", "office_id", "place_id", "body_id", "party_id", "candidacy_id", "role", "status", "started_on", "ends_on", "elected_by", "status_source"],
