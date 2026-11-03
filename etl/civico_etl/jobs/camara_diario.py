@@ -50,6 +50,19 @@ EMENDA_TYPES = {"EMC", "EMP", "EMR", "ESB"}
 KEEP_TYPES = LAW_TYPES | {"PRC", "REQ", "RIC", "INC", "PFC"} | EMENDA_TYPES
 
 
+
+def upsert_sessions(conn, body: str, rows: list[tuple]) -> dict[str, str]:
+    """Sessões do Plenário com votação. `starts_at` aqui é a hora do primeiro voto, que só preenche sessão sem horário:
+    o início oficial vem de `camara.presenca` e não pode ser sobrescrito por esta (D173, ex-D163a). Sessão que já tinha
+    horário não entra no RETURNING do upsert (o DO UPDATE tem `where`), então os ids vêm de um select."""
+    upsert(conn, "sessions", ["body_id", "kind", "is_deliberative", "status", "starts_at", "official_url", "source_key"], rows,
+           ["body_id", "source_key"], update=["starts_at"], where="sessions.starts_at is null")
+    keys = [r[6] for r in rows]
+    if not keys:
+        return {}
+    cur = conn.execute("select id, source_key from sessions where body_id = %s and source_key = any(%s)", (body, keys))
+    return {r["source_key"]: str(r["id"]) for r in cur.fetchall()}
+
 def _legislature_for(d: date) -> int:
     for n, (a, b) in LEGISLATURES.items():
         if a <= d < b:
@@ -314,10 +327,7 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
                 cur = sess_rows.get(k)
                 if cur is None or ts < cur[4]:
                     sess_rows[k] = (ctx.body, "plenario", False, "encerrada", ts, f"https://www.camara.leg.br/evento-legislativo/{ev['idEvento']}" if ev["idEvento"] else None, k)
-            sess_id: dict[str, str] = {}
-            for row in upsert(conn, "sessions", ["body_id", "kind", "is_deliberative", "status", "starts_at", "official_url", "source_key"], list(sess_rows.values()),
-                              ["body_id", "source_key"], update=["starts_at"], returning=["id", "source_key"]):
-                sess_id[row["source_key"]] = str(row["id"])
+            sess_id = upsert_sessions(conn, ctx.body, list(sess_rows.values()))
 
             # eventos de votação
             ev_rows = []
