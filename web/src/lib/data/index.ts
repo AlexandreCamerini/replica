@@ -30,3 +30,4 @@ export const data: DataSource = new Proxy({} as DataSource, {
 });
 
 export * from "./types";
+export * from "./types-w4";

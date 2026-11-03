@@ -1,3 +1,5 @@
+import type { DataSourceW4 } from "./types-w4";
+
 // Tipos de domínio. Espelham replica/schema.sql; a implementação real (Postgres) devolve as mesmas formas.
 
 export type Level = "federal" | "estadual" | "municipal";
@@ -250,7 +252,7 @@ export type Agreement = { a: string; b: string; same: number; total: number };
 export type Disagreement = { event: VotingEvent & { proposalLabel: string | null }; a: VoteValue; b: VoteValue };
 
 /** Contrato da camada de dados. A versão fake e a Postgres implementam isto; nenhuma tela importa a implementação. */
-export interface DataSource {
+export interface DataSource extends DataSourceW4 {
   readonly isDemo: boolean;
   searchPlaces(q: string, limit?: number): Promise<Place[]>;
   getPlace(ibge: string): Promise<Place | null>;
