@@ -301,6 +301,16 @@ Actual: 14:34 UTC (11:34 -03); Senado 00:00 UTC (21:00 -03 do dia anterior).
 Cause: `parse_ts` devolve datetime naive e a conexão do ETL roda em `timezone = 'UTC'` (db.py): o relógio local entrava como UTC. Mesma causa em `camara.presenca` (sessions), `camara.diario` (sessions, voting_events), `parlamento_extras` (speeches) e, para a data só, em `senado.diario`/`speeches` do Senado.
 Status: fixed (D160-D163: `parse_ts_br`/`midnight_br`, migração 0050, `etl/tests/test_camara_fuso.py`). `camara_equipe.py` não grava hora; `agenda_events` já gravava com fuso.
 
+### BUG-019: voto de presidente em dobro (Lula 2022 2º turno com 120.691.998); receita e despesa de campanha presidencial também
+
+- Severity: S1 (dado errado publicado no crachá: votos, votos por município e dinheiro de campanha de todo candidato a presidente) · Flow / case: F04 · Screen: S05 (tile "votos recebidos", tabela "Eleições disputadas", "Dinheiro das campanhas") · Build: desde a primeira carga de `tse.votos`/`tse.contas`
+Steps
+1. `select c.votes from candidacies c join elections e on e.id = c.election_id where c.tse_sequencial = '280001607829' and e.round = 2` -> 120.691.998.
+2. TSE, `votacao_candidato_munzona_2022_BR.csv` (cdn.tse.jus.br, dados abertos): SQ 280001607829, turno 2 = 60.345.999; `detalhe_votacao_munzona_2022_BR.csv`: válidos do 2º turno = 118.552.353 (o banco somava 237.104.706 só com os dois finalistas).
+Expected: 1x a fonte. Actual: exatamente 2x em 18 de 18 candidaturas a presidente carregadas (2018, 2022, 2026, 1º e 2º turno) e em 99.720 linhas de `candidacy_place_votes`; receita, despesa e categorias de campanha das mesmas candidaturas também 2x.
+Cause: `remotezip.pick_members` devolvia `…_BRASIL.csv + …_BR.csv`. O BRASIL é a concatenação das 27 UFs com o BR (tamanho do BRASIL = UFs + BR − 27 cabeçalhos, em votação, receitas e despesas de 2018, 2022 e 2026) e o BR só tem presidente (CD_CARGO 1). Governador, senador, deputados e cargos municipais não estão no BR: não foram afetados.
+Status: fixed (D165–D169: `pick_members` só lê o BRASIL; dado corrigido por `civico-etl tse.fix019 --apply` e recarga de `tse.contas` 2026; invariante novo no `check`; `etl/tests/test_tse_bug019.py`).
+
 ## A conferir (não reproduzido como bug)
 
 - build 6: na suíte inteira contra o dev server 3101, ONB-H2 (foco no campo de cidade) falhou uma vez e passou na repetição; S04-H1 flaky (passou no retry); B6-W5/W6 flaky uma vez por "Hydration failed" logo depois de uma edição de arquivo (recompilação do dev server), 17/17 sem retry na rodada seguinte.

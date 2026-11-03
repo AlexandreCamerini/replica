@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
+from dataclasses import dataclass, field
 
 import psycopg
 
@@ -129,6 +130,75 @@ def _mark_cassados(conn: psycopg.Connection, year: int, sqs: set[str]) -> None:
         log.info("tse %d: %d mandatos marcados como cassados", year, cur.rowcount)
 
 
+@dataclass
+class VotesAgg:
+    agg: dict[tuple[str, int], int] = field(default_factory=lambda: defaultdict(int))  # (sq, turno) -> votos
+    by_place: dict[tuple[str, int, str, str], int] = field(default_factory=lambda: defaultdict(int))  # (sq, turno, UF, município); D15
+    cassados: set[str] = field(default_factory=set)
+    com_recurso: set[str] = field(default_factory=set)  # D90: registrado, não aplicado
+    lines: int = 0
+    rejected: int = 0
+
+
+def aggregate_votes(z, members, want: set[str], log_prefix: str = "tse votos") -> VotesAgg:
+    """Soma a votação dos CSVs `members` (já escolhidos por pick_members: nunca BRASIL + BR juntos, BUG-019)."""
+    out = VotesAgg()
+    for m in members:
+        log.info("%s: lendo %s (%.0f MB comprimidos)", log_prefix, m.filename, m.compress_size / 1e6)
+        for sq, turno, valid, nominal, uf, mun, cargo, cass in rows(z, m, ["SQ_CANDIDATO", "NR_TURNO", "QT_VOTOS_NOMINAIS_VALIDOS", "QT_VOTOS_NOMINAIS", "SG_UF", "NM_MUNICIPIO", "CD_CARGO", "DS_SITUACAO_CASSACAO"]):
+            out.lines += 1
+            if sq not in want:
+                continue
+            q = valid if valid not in ("", "-1", "#NULO") else nominal
+            try:
+                v = int(q)
+            except ValueError:
+                out.rejected += 1
+                continue
+            t = int(turno or 1)
+            out.agg[(sq, t)] += v
+            if cargo.strip() not in MUNICIPAL_CARGOS and uf not in ("ZZ", "BR", "VT"):
+                out.by_place[(sq, t, uf, mun)] += v
+            if cass and _is_cassado_definitivo(cass):
+                out.cassados.add(sq)
+            elif cass and "CASSAD" in cass.upper():
+                out.com_recurso.add(sq)
+    return out
+
+
+@dataclass
+class FinanceAgg:
+    raised: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    spent: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    by_cat: dict[tuple[str, str, str], int] = field(default_factory=lambda: defaultdict(int))  # D07
+
+
+def aggregate_finance(z, rec, des, want: set[str], log_prefix: str = "tse contas") -> FinanceAgg:
+    """Receita e despesa paga por candidatura (rec/des já escolhidos por pick_members, BUG-019).
+    D07: origem do dinheiro e destino da despesa agregados por categoria oficial do TSE; nunca grava doador nem fornecedor."""
+    out = FinanceAgg()
+    prestador: dict[str, str] = {}
+    for m in rec:
+        log.info("%s: lendo %s (%.0f MB)", log_prefix, m.filename, m.compress_size / 1e6)
+        for sq, sp, v, origem in rows(z, m, ["SQ_CANDIDATO", "SQ_PRESTADOR_CONTAS", "VR_RECEITA", "DS_ORIGEM_RECEITA"]):
+            if sq not in want:
+                continue
+            prestador[sp] = sq
+            c = cents(v)
+            if c is not None:
+                out.raised[sq] += c
+                out.by_cat[(sq, "receita", (origem or "Não informado").strip() or "Não informado")] += c
+    for m in des:
+        log.info("%s: lendo %s (%.0f MB)", log_prefix, m.filename, m.compress_size / 1e6)
+        for sp, v, origem in rows(z, m, ["SQ_PRESTADOR_CONTAS", "VR_PAGTO_DESPESA", "DS_ORIGEM_DESPESA"]):
+            sq = prestador.get(sp)
+            c = cents(v)
+            if sq and c is not None:
+                out.spent[sq] += c
+                out.by_cat[(sq, "despesa", (origem or "Não informado").strip() or "Não informado")] += c
+    return out
+
+
 def run_votes(conn: psycopg.Connection, years: list[int], force: bool) -> None:
     for year in years:
         url = f"{BASE}/votacao_candidato_munzona/votacao_candidato_munzona_{year}.zip"
@@ -141,31 +211,10 @@ def run_votes(conn: psycopg.Connection, years: list[int], force: bool) -> None:
         try:
             with run(conn, f"tse.votos.{year}", "tse", input_checksum=checksum(members), force=force) as r:
                 want = _known(conn, year)
-                agg: dict[tuple[str, int], int] = defaultdict(int)
-                by_place: dict[tuple[str, int, str, str], int] = defaultdict(int)  # (sq, turno, UF, município) -> votos; D15
-                cassados: set[str] = set()
-                com_recurso: set[str] = set()  # D90: registrado, não aplicado
-                t0, n = time.monotonic(), 0
-                for m in members:
-                    log.info("tse votos %d: lendo %s (%.0f MB comprimidos)", year, m.filename, m.compress_size / 1e6)
-                    for sq, turno, valid, nominal, uf, mun, cargo, cass in rows(z, m, ["SQ_CANDIDATO", "NR_TURNO", "QT_VOTOS_NOMINAIS_VALIDOS", "QT_VOTOS_NOMINAIS", "SG_UF", "NM_MUNICIPIO", "CD_CARGO", "DS_SITUACAO_CASSACAO"]):
-                        n += 1
-                        if sq not in want:
-                            continue
-                        q = valid if valid not in ("", "-1", "#NULO") else nominal
-                        try:
-                            v = int(q)
-                        except ValueError:
-                            r.reject(1)
-                            continue
-                        t = int(turno or 1)
-                        agg[(sq, t)] += v
-                        if cargo.strip() not in MUNICIPAL_CARGOS and uf not in ("ZZ", "BR", "VT"):
-                            by_place[(sq, t, uf, mun)] += v
-                        if cass and _is_cassado_definitivo(cass):
-                            cassados.add(sq)
-                        elif cass and "CASSAD" in cass.upper():
-                            com_recurso.add(sq)
+                t0 = time.monotonic()
+                va = aggregate_votes(z, members, want, log_prefix=f"tse votos {year}")
+                r.reject(va.rejected)
+                agg, by_place, cassados, com_recurso, n = va.agg, va.by_place, va.cassados, va.com_recurso, va.lines
                 log.info("tse votos %d: %d linhas em %.0fs, %d candidaturas com voto", year, n, time.monotonic() - t0, len(agg))
                 r.add(_apply(conn, year, "votes", agg, by_round=True))
                 r.add(_place_votes(conn, r, year, by_place))
@@ -197,30 +246,8 @@ def run_finance(conn: psycopg.Connection, years: list[int], force: bool) -> None
         try:
             with run(conn, f"tse.contas.{year}", "tse", input_checksum=checksum(rec + des), force=force) as r:
                 want = _known(conn, year)
-                raised: dict[str, int] = defaultdict(int)
-                prestador: dict[str, str] = {}
-                # D07: origem do dinheiro e destino da despesa por candidatura, agregados por categoria oficial do TSE.
-                # Nunca grava doador nem fornecedor (nome ou documento): pessoa física doadora não aparece em lugar nenhum.
-                by_cat: dict[tuple[str, str, str], int] = defaultdict(int)
-                for m in rec:
-                    log.info("tse contas %d: lendo %s (%.0f MB)", year, m.filename, m.compress_size / 1e6)
-                    for sq, sp, v, origem in rows(z, m, ["SQ_CANDIDATO", "SQ_PRESTADOR_CONTAS", "VR_RECEITA", "DS_ORIGEM_RECEITA"]):
-                        if sq not in want:
-                            continue
-                        prestador[sp] = sq
-                        c = cents(v)
-                        if c is not None:
-                            raised[sq] += c
-                            by_cat[(sq, "receita", (origem or "Não informado").strip() or "Não informado")] += c
-                spent: dict[str, int] = defaultdict(int)
-                for m in des:
-                    log.info("tse contas %d: lendo %s (%.0f MB)", year, m.filename, m.compress_size / 1e6)
-                    for sp, v, origem in rows(z, m, ["SQ_PRESTADOR_CONTAS", "VR_PAGTO_DESPESA", "DS_ORIGEM_DESPESA"]):
-                        sq = prestador.get(sp)
-                        c = cents(v)
-                        if sq and c is not None:
-                            spent[sq] += c
-                            by_cat[(sq, "despesa", (origem or "Não informado").strip() or "Não informado")] += c
+                fa = aggregate_finance(z, rec, des, want, log_prefix=f"tse contas {year}")
+                raised, spent, by_cat = fa.raised, fa.spent, fa.by_cat
                 log.info("tse contas %d: %d candidaturas com receita, %d com despesa paga", year, len(raised), len(spent))
                 r.add(_apply(conn, year, "raised_cents", raised, by_round=False))
                 r.add(_apply(conn, year, "spent_cents", spent, by_round=False))

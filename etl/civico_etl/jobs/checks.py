@@ -34,6 +34,18 @@ PREFEITO_EXCECOES: dict[str, str] = {
     "2412559": SEM_ELEITO_2024 + "; suplementar marcada para 06/12/2026",
 }
 _EXC = ", ".join(f"'{k}'" for k in sorted(PREFEITO_EXCECOES))
+
+# BUG-019 / D168: votos válidos de presidente por turno publicados pelo TSE (detalhe_votacao_munzona_{ano}_BR.csv, soma de
+# QT_TOTAL_VOTOS_VALIDOS e de QT_APTOS; cdn.tse.jus.br/estatistica/sead/odsele, conferido em 03/11/2026).
+# (ano, turno) -> (votos válidos, eleitorado apto). Ano fora da tabela usa o maior eleitorado conhecido +10% como teto.
+PRESIDENTE_TSE: dict[tuple[int, int], tuple[int, int]] = {
+    (2018, 1): (107_050_749, 147_306_295), (2018, 2): (104_838_753, 147_306_294),
+    (2022, 1): (118_229_719, 156_454_011), (2022, 2): (118_552_353, 156_454_011),
+    (2026, 1): (119_300_788, 158_745_502), (2026, 2): (124_082_273, 158_745_502),
+}
+_PRES_VALUES = ", ".join(f"({y}, {t}, {v}, {a})" for (y, t), (v, a) in sorted(PRESIDENTE_TSE.items()))
+_PRES_TETO = int(max(a for _, a in PRESIDENTE_TSE.values()) * 1.1)
+
 _PREFEITOS_POR_MUNICIPIO = f"""
     select pl.ibge_code, (select count(*) from mandates m join offices o on o.id = m.office_id
                           where m.place_id = pl.id and o.slug = 'prefeito' and m.role = 'titular' and m.status = 'em_exercicio'
@@ -41,6 +53,23 @@ _PREFEITOS_POR_MUNICIPIO = f"""
     from places pl where pl.kind = 'municipio'"""
 
 CHECKS: list[tuple[str, str]] = [
+    (
+        # BUG-019: presidente contado 2x (…_BRASIL.csv + …_BR.csv). O diretório tem só parte dos candidatos, então a soma
+        # das candidaturas carregadas nunca passa do total de válidos do TSE (nem do eleitorado, em ano fora da tabela);
+        # nenhuma candidatura passa do total; e a soma por município nunca passa do voto da candidatura (exterior fica fora).
+        "presidente: votos por turno <= votos válidos do TSE (ou eleitorado) e votos por município <= total da candidatura",
+        f"""with tse (year, round, validos, aptos) as (values {_PRES_VALUES}),
+           s as (select e.year, e.round, sum(c.votes) as soma, max(c.votes) as maior
+                 from candidacies c join elections e on e.id = c.election_id join contests ct on ct.id = c.contest_id
+                 join offices o on o.id = ct.office_id
+                 where o.slug = 'presidente' and c.votes is not null group by 1, 2),
+           p as (select c.id, c.votes, (select sum(v.votes) from candidacy_place_votes v where v.candidacy_id = c.id) as por_mun
+                 from candidacies c join contests ct on ct.id = c.contest_id join offices o on o.id = ct.office_id
+                 where o.slug = 'presidente' and c.votes is not null)
+           select (select count(*) from s left join tse t using (year, round)
+                   where s.soma > coalesce(t.validos, {_PRES_TETO}) or s.maior > coalesce(t.validos, {_PRES_TETO}))
+                + (select count(*) from p where p.por_mun > p.votes)""",
+    ),
     (
         # BUG-001: carreira multiplicada pelo join com os anos. Compara com a contagem direta na fonte (não com a soma das linhas
         # de ano: a carreira inclui anos sem mandato no banco, p.ex. matérias de senador antes de 2019, e lançamentos com data fora do mandato)

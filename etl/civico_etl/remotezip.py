@@ -71,11 +71,15 @@ def open_remote(url: str) -> zipfile.ZipFile:
 
 
 def pick_members(z: zipfile.ZipFile, prefix: str) -> list[zipfile.ZipInfo]:
-    """Consolidado nacional quando existe (…_BRASIL.csv + …_BR.csv da eleição presidencial); senão, todos os de UF."""
+    """Só o consolidado nacional …_BRASIL.csv quando existe; senão, todos os arquivos (UFs + …_BR.csv).
+
+    BUG-019 / D165: o …_BRASIL.csv do TSE é a concatenação dos 27 arquivos de UF com o …_BR.csv (a eleição presidencial;
+    conferido em 2018, 2022 e 2026: tamanho do BRASIL = soma de UFs + BR menos os 27 cabeçalhos, em votação e em contas).
+    Ler BRASIL e BR juntos contava presidente duas vezes (votos, votos por município, receita e despesa).
+    Nenhum arquivo de UF traz presidente, então o fallback sem BRASIL (UFs + BR) não duplica."""
     infos = [i for i in z.infolist() if i.filename.lower().endswith(".csv") and i.filename.startswith(prefix)]
     brasil = [i for i in infos if i.filename.upper().endswith("_BRASIL.CSV")]
-    br = [i for i in infos if i.filename.upper().endswith("_BR.CSV")]
-    return (brasil + br) if brasil else infos
+    return brasil if brasil else infos
 
 
 def rows(z: zipfile.ZipFile, info: zipfile.ZipInfo, cols: list[str]) -> Iterator[tuple[str, ...]]:
