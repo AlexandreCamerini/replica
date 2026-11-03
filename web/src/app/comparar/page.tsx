@@ -100,7 +100,6 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
   const periodHref = (y: number | null) => `/comparar?p=${slugs.join(",")}${y ? `&periodo=${y}` : ""}`;
   const stamp = await data.getStamp("tse.candidatos");
   const dash = <NotPublished />;
-  const pct = (a: number | null, b: number | null) => (a === null || !b ? dash : `${Math.round((a / b) * 100)}%`);
 
   const groups: { title: string; rows: [string, (r: (typeof rows)[number]) => Cell][] }[] = [
     {
@@ -134,7 +133,7 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
     {
       title: year ? `Atividade em ${year}` : "Atividade na carreira",
       rows: [
-        ["Presença", (r) => pct(r.stats.presencePresent, r.stats.presenceTotal)],
+        ["Presença em sessões deliberativas", (r) => (r.stats.presenceTotal ? `${Math.round(((r.stats.presencePresent ?? 0) / r.stats.presenceTotal) * 100)}% (${count(r.stats.presencePresent ?? 0)} de ${count(r.stats.presenceTotal)})` : <span title={r.stats.missing.find((m) => m.dataset === "presenca")?.reason}>{dash}</span>)],
         ["Propostas como autor(a)", (r) => (r.stats.proposalsPrincipal === null ? dash : count(r.stats.proposalsPrincipal))],
         ["Votos em plenário", (r) => (r.stats.votesRegistered === null ? dash : count(r.stats.votesRegistered))],
         ["Gastos do gabinete", (r) => (r.stats.expensesCents === null ? dash : money(r.stats.expensesCents))],
@@ -206,6 +205,10 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
           ))}
         </table>
       </div>
+
+      <p className="mt-2 text-xs text-muted">
+        Presença: lista oficial de presença da Câmara nas sessões deliberativas do plenário. O Senado não publica a lista de presença por senador, por isso “—”.
+      </p>
 
       <section aria-labelledby="iguais-h" className="mt-8">
         <h2 id="iguais-h" className="text-xl text-fg">

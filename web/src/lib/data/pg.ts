@@ -327,7 +327,7 @@ export const pgSource: DataSource = {
       const FEDERAL_REASON: Record<string, string> = {
         propostas: "a carga das matérias de autoria no Senado entra na próxima fase",
         gastos_gabinete: "a carga da CEAPS (cota do Senado) entra na próxima fase",
-        presenca: "ainda não carregado para esta casa",
+        presenca: "o Senado não publica a lista de presença por senador",
         votos: "ainda não carregado para esta casa",
       };
       for (const d of (s?.missing_datasets as string[] | undefined) ?? [])

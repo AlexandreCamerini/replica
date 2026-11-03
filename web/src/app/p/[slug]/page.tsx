@@ -220,8 +220,8 @@ export default async function Page({ params, searchParams }: Props) {
                 value={stats.presenceTotal ? Math.round(((stats.presencePresent ?? 0) / stats.presenceTotal) * 100) : null}
                 kind="percent"
                 label={`presença ${periodLabel}`}
-                sub={stats.presenceTotal ? `${count(stats.presencePresent ?? 0)} de ${count(stats.presenceTotal)} dias com votação` : missingOf("presenca")?.reason}
-                help="Dias com votação nominal em plenário em que a pessoa registrou voto. Ausência justificada conta como ausência na fonte."
+                sub={stats.presenceTotal ? `${count(stats.presencePresent ?? 0)} de ${count(stats.presenceTotal)} sessões deliberativas` : missingOf("presenca")?.reason}
+                help="Sessões deliberativas do plenário em que o nome está na lista oficial de presença da Câmara, entre as realizadas enquanto a pessoa estava em exercício. A lista não traz justificativa: ausência justificada conta como ausência. O Senado não publica lista de presença por senador."
               />
               <StatTile
                 value={stats.proposalsPrincipal}
