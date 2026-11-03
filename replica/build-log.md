@@ -142,3 +142,15 @@ Pendências desta rodada (front): (1) job de anonimização das sugestões após
 Verificação: `tsc` e `eslint` limpos; `next build` ok (`NEXT_DIST_DIR=.next-e2e`, dados demo); suíte inteira contra 3101 (`E2E_PG=1`): 112 passed, 2 failed, 1 flaky, 1 skipped na 1ª passada; corrigido F04-E4 (colisão de texto) e repetidos os 4 arquivos afetados: 21 passed, 2 flaky (dev server recompilando); specs novos `b6-*` 17/17 sem retry. ONB-H2 é o flaky conhecido do foco do onboarding. Specs novos: `web/e2e/b6-etl-front.spec.ts` (A1–A7), `b6-w1.spec.ts` (W5, W6, W8, W10, W11b), `b6-w2.spec.ts` (W12–W15). Capturas PNG em `replica/clone-screens/png/b6-*` (1440 e 390, claro; crachá e S07 também no escuro; card OG). Toda página capturada mede `scrollWidth` = 390 no celular. Nota de feature: 71,4 → 78,2 (`tools/parity.py`, sem as linhas de /cargos e /dicionario do outro agente). Decisões D50–D65.
 
 Pendências (front/ETL): (1) semear o subsídio federal anterior a 02/2023 em `salaries` (fecha o "salário recebido"); (2) folha mensal da Câmara para salário da equipe; (3) marcar votação secreta no ETL do Senado em vez de deduzir; (4) `SITE_URL` na publicação para o og:image; (5) ouvidorias de Assembleias e Câmaras Municipais; (6) rotas `/congresso/leis`, `/uf/{uf}`, sitemap e robots (D17).
+
+## 2026-11-03 · W4 (S14 eleições, S12 governos, S16 impostos, S11 partidos)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| S16 /impostos | 2026-11-03 | done | anos 2008–2012 (formato do CSV; D146) | CSV da Receita com três formatos numéricos e sem receita previdenciária antes de 2013 |
+| S12 /governos | 2026-11-03 | done | conferir datas no Planalto (D148) | Planalto fora do ar para o robô |
+| S14 /eleicoes | 2026-11-03 | partial | derrotados sem crachá; voto de presidente (BUG-017); apuração ao vivo (fora) | voto de presidente em dobro no banco |
+| S11 /partidos | 2026-11-03 | partial | alinhamento de quem orienta por bloco/federação; sem espectro por decisão | orientação do governo só cobre 2020–21 e 2023–26 |
+
+Entregas: migração `0040`, ETL `governos_indicadores.py` e `receita_arrecadacao.py`, `pg-w4.ts`/`fake-w4.ts`/`types-w4.ts`, 4 páginas, `web/e2e/w4-paginas.spec.ts` (20 casos, verdes contra o banco real em :3201). Capturas `replica/clone-screens/png/w4-*` (1440 e 390).
+Verificação: `tsc` e `eslint` limpos; suíte inteira contra :3201 (`E2E_PG=1`): 132 passed, 3 failed, 1 skipped. Falhas fora do escopo W4: B6-W10 (salário acumulado, 94 meses vs. texto esperado; dado do banco compartilhado mudou), S24-H1 (o banco compartilhado ganhou fontes de outros agentes, alesp/alemg/sapl/tcu, sem `SOURCE_META` neste branch) e ONB-H2 (foco do onboarding).

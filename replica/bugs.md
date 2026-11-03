@@ -300,3 +300,16 @@ Status: fixed (`sr-only` num `div` em volta da tabela).
 - ~~Senado: a API por senador marca 77 de 93 votações de 2025 como secretas.~~ Resolvido (D39): `/votacao` traz 128 votações em 2025 (abertas e secretas).
 - F01-E1 esperava exatamente 4 homônimos "Bom Jesus"; com os dados reais há 5 exatos (PI, PB, RN, RS, SC) mais "Bom Jesus da…". O teste passou a exigir pelo menos 4 e as 4 UFs; ajuste de teste, não de produto.
 - Hidratação (React #418 / "Hydration failed") apareceu de novo em crachá e em /representantes?cidade= no dev server 3101, em 3 de ~25 cargas dos specs de F04/F05/F06. Mesmo padrão do BUG-008; não isolado (não rodei um controle sem as mudanças do build 5) (o diff aponta `Container`/`PageHeader` da lista de cidade). Segue aberto.
+
+### BUG-017: voto de presidente em dobro no banco (ETL `tse.votos`)
+
+- Severity: S1 (número errado exibível)
+- Flow / case: dado / conferência de /eleicoes
+- Screen: S05 (tile de votos de quem foi candidato a presidente) e S14
+- Build: w4  Browser / device: consulta direta ao Postgres local
+
+Steps: `candidacies.votes` de presidente 2022: Lula 1º turno 114.519.008, 2º turno 120.691.998; Bolsonaro 2º turno 116.412.708. O TSE publica exatamente a metade (Lula 2º turno 60.345.999). 2018 e 2026 também em dobro; `candidacy_place_votes` de presidente herda.
+
+Causa: `remotezip.pick_members` devolve `_BRASIL.csv` (todos os cargos) **e** `_BR.csv` (presidente); a eleição presidencial está nos dois. Os demais cargos estão corretos (Boulos dep. federal 2022 = 1.001.472).
+
+Estado: o app não mostra voto de presidente/vice (`pg-w4.ts`). Correção: devolver só `_BRASIL.csv` e recarregar `tse.votos` 2018/2022/2026 (~4 GB por ano). Não corrigido aqui por tocar tabela compartilhada.
