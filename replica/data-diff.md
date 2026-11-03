@@ -1,5 +1,7 @@
 # Auditoria de paridade de DADOS: clone × politicometro.org
 
+> **Status build 5 · dados (2026-11-03):** ver a seção 10 (status por achado: fixed / partial / blocked / front / ok). Números conferidos por SQL em `replica/build-log.md` › "build 5 · dados".
+
 Data da auditoria: 2026-11-02. Somente leitura de código e banco. Original lido pelo Browser pane (curl direto caiu no Vercel Security Checkpoint, HTTP 429, e não foi contornado), por `fetch` same-origin das próprias páginas e de `/api/galeria/indice`, `/sitemap/{0,1}.xml`, `/robots.txt`. Cerca de 20 requisições ao original. Clone: `localhost:3101` e Postgres `:54329`.
 
 Premissas e limites:
@@ -229,3 +231,36 @@ Só no clone: `/design`, `/votacoes/[id]`, `/cidades/[letra]`, `/api/revalidate`
 10. D15: popular `candidacy_place_votes` e exibir "mais votados na cidade".
 11. D10/D11/D13: Senado (matérias, CEAPS), equipes de gabinete, ALESP.
 12. D17/D18: rotas `/uf`, `/governos/{uf}`, sitemap e robots; contador "aguardando posse" e população na home.
+
+## 10. Status por achado (build 5 · dados, agente de ETL)
+
+Legenda: **fixed** = dado corrigido e conferido por SQL; **partial** = melhorou, resto explicado; **blocked** = depende de algo fora do alcance (chave, outro lote); **front** = o dado existe, falta a tela (agente de front); **ok** = sem ação.
+
+| ID | Status | Antes → depois (SQL) | Resto / bloqueio |
+| --- | --- | --- | --- |
+| D01 | fixed | Adriana 2026 41/69 (derivado) → **74/75** (= original); 2025 108/120; senadores 100% → **null** (81 de 81) | ausência justificada conta como ausência (dado aberto não traz) |
+| D02 | front + partial | Câmara agora 2019–2026 (votos, cota, presença, propostas); TSE 2012–2026 | o rótulo "carreira" ainda não diz a janela (tela) |
+| D03 | front | — | renderização de "—" quando o dataset falta |
+| D04 | front | — | filtro por tipo de cargo em `pg.ts` |
+| D05 | fixed | 420 divergentes → **0** entre 3.112 em exercício com candidatura 2026; Guto Zacarias UNIÃO → **MISSÃO**; Felicio Ramuth PSD → **MDB**; Randolfe → PT | filiação vinda do TSE tem a data da eleição |
+| D06 | partial | total 70.984 → **70.823** (original 70.798, Δ +25); gov+vices 54 → **45** (42); estaduais 1.059 → **1.018** (1.015); pref+vices 11.110 → **11.035** (11.026); vereadores 58.165 → **58.129** (58.119) | gov+vices +3: 6 vices concorreram a deputado em 2026 sem obrigação legal de renunciar (AM tratado: titular e vice saíram, interino fora das fontes); estaduais/municipais: licença, morte e cassação pela casa sem fonte nacional |
+| D07 | partial | 2018/2020 nunca carregados → TSE **2012–2026 com --all** ligado ao diretório; senadores em exercício com candidatura 43 → **75 de 81**; Adriana: eleita 3×, patrimônio 2018 R$ 1.074.617, campanhas R$ 3.590.142; Randolfe: R$ 3.036.421, 163.857 votos; Rubinho Nunes: 4 campanhas R$ 5.114.600; Guto Zacarias R$ 957.663; Ricardo Nunes eleito 4×, patrimônio 2012 R$ 4.248.354 (todos = original) | 6 suplentes de senador em exercício sem candidatura própria (o TSE registra suplente na chapa do titular; `offices` não tem esse cargo); prestação de contas só 2018–2026; derrotado sem crachá não vira pessoa (D34) |
+| D08 | fixed | Câmara 2025–26 → **2019–2026** (votos 1,04 mi, cota 1,27 mi lançamentos, presença 2019–2026). Adriana carreira: votos 500 → **2.966** (2.994), cota R$ 131.940 → **R$ 476.297** (R$ 517.773), presença **912/926** (911/932); comparar Adriana × Baleia 39% → **57%, 1.015 de 1.775** (57%, 1.012 de 1.773) | deputados da legislatura 56 fora do diretório não ganham crachá (D34); cota 2019–2022 de quem não está no diretório fica fora |
+| D09 | partial | emendas (EMC/EMP/EMR/ESB) entram como tipo próprio; proposições 2019–2026; Adriana carreira 991 + 624 → **1.581 + 926** (1.654 + 934) | leis: 1 × 9 (parser só lê "Transformado na Lei"); REQ de comissões diferentes com o mesmo número colidem na chave (tipo, número, ano) |
+| D10 | fixed | Senado: votações 24 → **2019–2026 completas** (2026: 62, 2025: 128, 2024: 95 = original); matérias de autoria **25.117** (Randolfe 2.089 = 1.246 + 843, igual); CEAPS 2019–2026 **117.800** lançamentos | votos secretos sem voto individual; presença não publicada |
+| D11 | partial | equipe 0 → **secretários parlamentares da Câmara** (Adriana 14 = original) | salário mensal não vem no arquivo (null); Senado não carregado |
+| D12 | blocked | — | chave do Portal da Transparência (decisão D04) |
+| D13 | blocked | — | ALESP/Assembleias: outro lote |
+| D14 | partial | `salaries` só federal → + teto dep. estadual/distrital (R$ 34.774,64) e vereador por município (SP R$ 26.080,98; Feijó R$ 10.432,39 = original) | governador e prefeito: lei local, sem seed |
+| D15 | partial | `candidacy_place_votes` 0 → **3,1 mi** linhas (2018, 2022, 2026; cargos estaduais e federais) | só candidaturas do diretório (D35); falta a consulta e o bloco na tela |
+| D16 | blocked | — | fora do núcleo |
+| D17 | front | — | rotas |
+| D18 | partial + front | população IBGE 2026 em `places.population` (Campinas 1.189.761 = original) | eleitorado TSE não carregado; tela |
+| D19 | front/curadoria | — | — |
+| D20 | ok (critério) | pago (`VR_PAGTO_DESPESA`) mantido; origem e destino por categoria em `campaign_finance_entries` | decidir rótulo "pago" na tela |
+| D21 | open | — | escolaridade da primeira leitura (não tratado nesta rodada) |
+| D22 | fixed via D08 | janela 2025–26 → 2019–2026 | — |
+| D23 | partial | Senado 2026: 11 → 62 votações | Câmara simbólicas: critério de tela |
+| D24 | ok | — | — |
+| D25 | front | — | rótulo de fonte por casa |
+| D26, D27 | ok | — | — |

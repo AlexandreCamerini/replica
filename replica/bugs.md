@@ -151,9 +151,59 @@ Evidence: `.local/e2e-run9.log` (F01-E6 mobile); sonda de 25 amostras a cada 80 
 Suspected cause: comportamento do Popover do React Aria em dispositivos de toque (posicionamento/visibilidade ajustados ao viewport visual depois de abrir). Não isolado no código da biblioteca.
 Status: open (S4). O teste espera a opção ficar tocável antes de tocar e documenta o atraso. Reavaliar ao atualizar `react-aria-components`.
 
+### BUG-010: presença derivada de voto mostrada como presença oficial
+
+- Severity: S1 (dado errado mostrado como certo: Adriana Ventura 63% × 98% oficial; senador sempre 100%)
+- Flow / case: data-diff D01
+- Screen: S05, comparador
+- Build: 178e39b · banco local :54329
+
+Steps
+1. `select presence_present, presence_total from person_period_stats` para adriana-ventura, período 2026.
+
+Expected: 74 de 75 sessões deliberativas (lista oficial da Câmara).
+Actual: 41 de 69 "dias com votação nominal".
+Evidence: `replica/data-diff.md` §3.1.
+Suspected cause: `camara_diario._derive_attendance` contava "registrou voto nominal" como presença; o Senado reaproveitava a mesma regra.
+Status: fixed (build 5 · dados, f087d07): `camara.presenca` com `eventosPresencaDeputados`; Senado null. Adriana 2026 = 74/75.
+
+### BUG-011: carga do TSE 2018 quebra na exclusão de mandato sobreposto (posse de governador)
+
+- Severity: S2 (carga falha; nada gravado)
+- Flow / case: ETL `tse.candidatos --year 2018`
+- Build: f087d07
+
+Steps
+1. `civico-etl tse.candidatos --year 2018 --all`.
+
+Expected: mandatos de governador 2019-01-01 → 2023-01-01.
+Actual: `no_overlapping_mandate` ([2019-01-01, 2023-01-06) × [2023-01-01, 2027-01-06)).
+Suspected cause: `term_dates` aplicava a posse de 6/1 (EC 111/2021, só a partir de 2027) ao fim de todo mandato.
+Status: fixed (8c90cc5): posse em 1/1 até 2023, 5/1 (presidente) e 6/1 (governador) a partir de 2027. Mesma carga: senador eleito em suplementar (2020) que o Senado registra desde 2019 → fica o mandato da casa.
+
+### BUG-012: senador falecido aparece como "licenciado"
+
+- Severity: S3
+- Flow / case: ETL `senado.diario` (titulares fora de exercício)
+- Build: f087d07
+
+Expected: Major Olímpio e Arolde de Oliveira (falecidos) com mandato encerrado.
+Actual: `licenciado` (todo afastamento com exercício anterior virava licença).
+Status: fixed (8c90cc5): causa FAL/TER → encerrado; L*/AFO → licenciado; REN → renunciou.
+
+### BUG-013: API da Câmara devolve 504 persistente no detalhe de deputados antigos
+
+- Severity: S3 (carga de 2019–2022 travava horas em retentativa)
+- Flow / case: ETL `camara.diario --year 2019`
+- Build: 6a01a27
+
+Expected: votos e propostas de 2019–2022 ligados a quem está no diretório.
+Actual: `/deputados/{id}` com 504 por ~20 s a cada tentativa para ids da legislatura 56.
+Status: worked around: legislatura passada não consulta detalhe; os ids são ligados pela lista da legislatura (nome eleitoral + UF = candidatura a deputado federal na eleição que formou a legislatura, casamento único). Falha de `/historico` deixa a presença daquele deputado fora da carga (nem infla nem zera).
+
 ## A conferir (não reproduzido como bug)
 
 - Flaky sob carga (passam na repetição, 3/3 ok isoladamente em <1 s): F02-H1, F02-E1 (clique em link da home não navega em 15 s com 2 workers contra um único `next start`) e F01-E6 mobile. Config: `workers: 2`, `retries: 1`.
 
-- 1 pessoa (de 71 mil) tem "carreira" maior que a soma dos anos: fato registrado fora do intervalo do mandato (ex.: voto antes da posse formal). Decidir se o ano do fato entra no período mesmo sem mandato.
-- Senado: a API por senador marca 77 de 93 votações de 2025 como secretas. Conferir com outro endpoint antes de afirmar "16 votações nominais em 2025".
+- "Carreira" maior que a soma dos anos é esperado quando há fato fora dos anos de mandato no banco (matérias do senador antes de 2019, nota da cota com data fora do mandato). O `check` agora compara a carreira com o total direto da fonte (BUG-001 continua coberto).
+- ~~Senado: a API por senador marca 77 de 93 votações de 2025 como secretas.~~ Resolvido (D39): `/votacao` traz 128 votações em 2025 (abertas e secretas).

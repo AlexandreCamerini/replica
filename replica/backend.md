@@ -26,24 +26,32 @@ Desvio do baseline: `postgres` (postgres.js) em vez de Drizzle. O schema é SQL 
 | Senado | 81 em exercício + afastados da legislatura; 2025+2026: 24 votações nominais abertas, 1,8 mil votos | — | ~1 min |
 | derivado | `person_period_stats` 217 mil linhas (carreira + ano), `data_coverage` 33,5 mil linhas padrão, `attendance` 96,5 mil | — | 5 s |
 
-Resultado: 71.017 pessoas no cargo, 1.682 aguardando posse. 513 deputados em exercício (487 titulares + 26 suplentes) e 81 senadores (70 + 11): as contas fecham com as cadeiras.
+Build 5 (2026-11-03): TSE 2012–2026 `--all` (ligado ao diretório), Câmara 2019–2026 (votos, cota, presença oficial, propostas com emendas, equipe), Senado 2019–2026 (votações, autorias, CEAPS, filiações), população IBGE 2026 e tetos. Números e tempos em `build-log.md` › "build 5 · dados".
+
+Resultado (R0): 71.017 pessoas no cargo, 1.682 aguardando posse. 513 deputados em exercício (487 titulares + 26 suplentes) e 81 senadores (70 + 11): as contas fecham com as cadeiras.
 
 ## Regras publicadas (o que o usuário precisa saber para confiar no número)
 
-- **Presença**: derivada. Sessão = evento do Plenário com votação nominal. Presente = registrou voto (inclusive abstenção, obstrução e art. 17). Ausente = tinha mandato e não votou. "Fora do exercício" = mandato hoje não está em exercício (a fonte não publica o histórico de licenças, então é aproximação). Vale para Câmara e Senado.
+- **Presença** (D30/D31): oficial. Câmara: lista de presença das Sessões Deliberativas do Plenário (`eventosPresencaDeputados` + `eventos`, órgão PLEN, encerradas). Presente = está na lista; ausente = estava em exercício na hora da sessão (períodos do `/deputados/{id}/historico`) e não está na lista; fora do exercício não entra no total. Ausência justificada conta como ausência (o dado aberto não traz a justificativa). Senado: não publica presença por senador → null ("—"). Presença derivada de voto não existe mais.
 - **Fidelidade ao partido**: votos sim/não iguais à orientação do partido na data do voto, só nas votações em que houve orientação.
 - **Temas**: os 32 temas oficiais da Câmara (`proposicoesTemas`) caem em 17 temas do produto por regra fixa (`etl/civico_etl/jobs/seed.py`, `rule_version 1`). Senado não classifica matérias no mesmo formato: votos do Senado ficam sem tema.
 - **Salário**: Decreto Legislativo 7/2022 (deputados, senadores, presidente, vice), escalonado 2023/2024/2025. Cargos estaduais e municipais: teto constitucional só quando a casa publicar; até lá "—".
-- **Partido mostrado**: filiação atual segundo a casa (`party_memberships` com `from_on` = início da legislatura, aproximação) ou, na falta, o partido na posse (TSE). Partidos: renomeações viram alias (PMDB→MDB, PR→PL…); fusões não são fundidas.
+- **Partido mostrado** (D32): linha do tempo. Observações datadas: Câmara `/historico` (cada registro tem partido e data), Senado `/filiacoes` (data de filiação), candidaturas do TSE (data do 1º turno). O partido de hoje = a observação mais recente; no mesmo dia, a casa vence o TSE. `party_memberships` é reconstruída a cada `derive.stats`; o app lê `person_current_party`. Partidos: renomeações viram alias (PMDB→MDB, PR→PL…); fusões não são fundidas.
+- **Vacância estadual e municipal** (D33): governador/prefeito candidato a outro cargo numa eleição geral renuncia 6 meses antes do 1º turno (CF art. 14 §6); o vice assume (mandato de titular novo) e a vaga de vice fica vazia; vice que concorreu a terceiro cargo também sai (o interino, presidente da casa, não está em fonte nenhuma). Posse em cargo incompatível encerra o anterior na data da posse (dep. estadual eleito prefeito). Cassação publicada pelo TSE na votação → `cassado`. Licença, morte e cassação pela casa estadual/municipal: sem fonte nacional aberta.
+- **Diretório** (D34): só quem tem mandato atual ou a tomar posse vira crachá. Candidaturas derrotadas e eleições anteriores (TSE 2018–2026, `--all`) e atividade da Câmara de 2019–2022 só se ligam a quem já está no diretório.
+- **Salário** (D37): subsídio federal pelo Decreto Legislativo 7/2022. Teto constitucional (`is_ceiling`): dep. estadual/distrital = 75% do federal (CF art. 27 §2º, 32 §3º); vereador = 20% a 75% do estadual pela população IBGE do município (CF art. 29 VI). Governador e prefeito: lei local, "—".
+- **Campanha** (D36): total arrecadado (`VR_RECEITA`) e pago (`VR_PAGTO_DESPESA`); origem e destino agregados por categoria oficial do TSE em `campaign_finance_entries`. Nenhum doador nem fornecedor é gravado.
+- **Mais votados na cidade** (D35): `candidacy_place_votes` (votos por município, cargos estaduais e federais, 2018/2022/2026) só das candidaturas do diretório: o ranking é entre quem tem crachá.
 - **Eleição suplementar**: o mandato começa na data da eleição (aproximação da posse) e encerra, nessa data, os mandatos regulares da mesma disputa, inclusive o da mesma pessoa reeleita; exceto senador (vaga única entre três). 82 disputas em 2024/2026.
 - **Status do mandato**: TSE cria (em exercício / aguardando posse); a casa é dona do status depois. Câmara: "Não Eleito" + "Vacância" = perdeu o mandato (ex.: cassação) → `encerrado`; eleito que a Câmara não lista na legislatura → `encerrado` (não tomou posse). Senado: lista por legislatura traz a causa do afastamento (REN → `renunciou`, AFO → `licenciado`).
 - **Identidade**: id da fonte → título de eleitor → nome civil + nascimento → cadeira (cargo + lugar) + nome parlamentar igual ou mesmo nascimento → fila manual. Nunca por nome sozinho. Duplicata já publicada é fundida por `merge_person()` com redirect 308 do slug antigo (13 fusões na primeira carga: TSE e Câmara divergem em nome civil e até em data de nascimento).
-- **Votos do Senado**: a API por senador marca como secretas 77 de 93 votações de 2025 e devolve "Votou"; só votações abertas entram. Conferir com `/plenario/lista/votacao` no R2.
+- **Votos do Senado** (D39): `/votacao?dataInicio&dataFim` traz todas as votações nominais do Plenário (2026: 62; 2025: 128). Secreta entra como evento sem voto individual (a fonte só diz "Votou"). Matérias de autoria: `/senador/{cod}/autorias` (carreira inteira). Cota: CEAPS (`adm-dadosabertos /senadores/despesas_ceaps/{ano}`) 2019–2026.
+- **Equipe de gabinete** (D40): secretários parlamentares da Câmara (`funcionarios.csv`), nome e nível; salário null (o arquivo não traz). Senado não carregado.
 - **`null` nunca vira 0**: casa sem adapter de dados abertos → estatística `null` e lista de "faltam N dados" por `data_coverage`.
 
 ## Invariantes (`civico-etl check`, exit 1 se quebrar)
 
-carreira = soma dos anos; nenhum zero em ano sem carga da fonte; ≤ 513 deputados e ≤ 81 senadores em exercício; um titular de Executivo por lugar; nenhuma sobreposição de mandato; nenhuma duplicata TSE × casa na mesma cadeira; voto só em evento nominal; presença ≤ total; stamp da Câmara/Senado com menos de 48 h e do TSE com menos de 60 dias. Roda ao fim de `all` e no `replica-test`.
+carreira = total direto da fonte e ≥ soma dos anos; nenhum zero em ano sem carga da fonte; ≤ 513 deputados e ≤ 81 senadores em exercício; um titular de Executivo por lugar; nenhuma sobreposição de mandato; nenhuma duplicata TSE × casa na mesma cadeira; voto só em evento nominal; presença ≤ total; stamp da Câmara/Senado com menos de 48 h e do TSE com menos de 60 dias. Roda ao fim de `all` e no `replica-test`.
 
 ## Contrato de job (todos)
 
@@ -54,9 +62,13 @@ db/pg-local.sh start && DATABASE_URL=$(db/pg-local.sh url) db/migrate.sh --local
 cd etl && uv venv .venv && uv pip install -p .venv/bin/python -e .
 export ETL_DATABASE_URL=postgres://postgres@localhost:54329/civico
 civico-etl seed && civico-etl ibge.places
-civico-etl tse.candidatos --year 2022 --year 2024 --year 2026      # --all para todas as candidaturas; --votes para votos por candidato (550 MB/eleição)
-civico-etl camara.diario --year 2025 --year 2026                    # --limit 40 em desenvolvimento
-civico-etl senado.diario --year 2025 --year 2026
+civico-etl tse.candidatos --all --year 2018 --year 2020 --year 2022 --year 2024 --year 2026   # derrotados só se ligam a quem está no diretório
+civico-etl ibge.populacao                                           # população IBGE + tetos de vereador (seed)
+civico-etl camara.diario --year 2019 … --year 2026                  # --limit 40 em desenvolvimento; anos < 2023 não criam pessoa
+civico-etl camara.presenca --year 2019 … --year 2026                # presença oficial (sessões deliberativas)
+civico-etl camara.equipe                                            # secretários parlamentares
+civico-etl senado.diario --year 2019 … --year 2026                  # votações, autorias, filiações, CEAPS
+civico-etl tse.votos --year 2018 … --year 2026 && civico-etl tse.contas --year 2018 … --year 2026
 ```
 
 ## Auth e escrita (R2, construído em 2026-11-02)
@@ -88,11 +100,13 @@ civico-etl senado.diario --year 2025 --year 2026
 
 ## Dívida e riscos registrados
 
-- `candidacies.votes` vazio: o TSE publica votos por candidato num arquivo de 550 MB por eleição (`--votes`); não rodou nesta carga. Crachá mostra "—" em "votos recebidos".
-- Prestação de contas de campanha (`raised/spent`) não carregada (arquivo separado do TSE): "—".
+- Emendas parlamentares: bloqueadas (chave do Portal da Transparência; decisão D04 da rodada). `amendments` vazia.
+- ALESP e demais Assembleias, câmaras municipais: fora deste lote (presença, propostas, cota, salário pago).
+- Governador e prefeito: salário depende de lei local; sem seed.
+- Senado: sem presença (não publica); equipe dos senadores não carregada; 8 suplentes em exercício não têm candidatura própria (o TSE registra suplente na chapa do titular; o cargo "suplente de senador" não existe em `offices`).
+- "Mais votados na cidade" só entre quem tem crachá (D35).
 - Siglas reutilizadas por partidos diferentes (PL 1985 ≠ PL 2006) estão numa linha só.
-- Posse de suplente aproximada pela data do último status na Câmara; `mandate_periods` (licenças) ainda não é preenchida.
-- `person_current_party.from_on` = início da legislatura, não a data real da filiação.
-- Senado 2025: só 16 votações abertas pela API por senador (ver regra acima).
+- Filiação vinda do TSE tem a data da eleição, não a da filiação real.
+- Vacância: licença e morte de deputado estadual, vereador e prefeito não têm fonte aberta nacional; o contador conta a cadeira do titular até lá.
 - `people` sem foto espelhada: só a URL oficial; o espelhamento com limite de 200 KB entra no R2.
 - Desempenho em dev: lista de uma capital com 200 pessoas leva ~1 s de query (view `person_current_party` por linha). Índice ou materialização no R1.

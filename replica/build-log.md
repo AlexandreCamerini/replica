@@ -57,3 +57,47 @@ Resultado: 38 casos automatizados (Playwright + axe em cada tela, falha em erro 
 | ID | data | status | o que falta | o que foi mais difícil que o esperado |
 | --- | --- | --- | --- | --- |
 | S05 R2 | 2026-11-02 | partial | emendas (precisa de chave do Portal da Transparência), viagens, equipe do gabinete, leis vindas do Senado | o último despacho da Câmara nem sempre traz o número da lei ("recebido ofício… sancionado"): o primeiro parser pegou o número do projeto e foi descartado; só o despacho "Transformado na Lei…" vale (31 de 39 casos) |
+
+## build 5 · dados (agente de ETL, 2026-11-02 → 03)
+
+| ID | data | status | o que falta | o que foi mais difícil que o esperado |
+| --- | --- | --- | --- | --- |
+| D01 presença | 2026-11-03 | done | justificativa de ausência (não está no dado aberto) | sessão certa: só "Sessão Deliberativa" do PLEN (o CN usa o mesmo arquivo); períodos de exercício pelo `/historico` |
+| D05 partido | 2026-11-03 | done | data real de filiação para quem só tem TSE | `party_memberships` tem exclusão de sobreposição: virou tabela derivada, reconstruída inteira |
+| D06 contadores | 2026-11-03 | partial | licença/morte/cassação pela casa estadual e municipal | vice que concorre a terceiro cargo não pode suceder (AM) |
+| D07 TSE | 2026-11-03 | partial | suplentes de senador sem candidatura própria; contas < 2018 | não deixar o diretório virar lista de 1 milhão de candidatos |
+| D08/D09 Câmara | 2026-11-03 | partial | leis (1 × 9 da Adriana), colisão de número de REQ entre comissões | API devolve 504 persistente no detalhe de deputados antigos; voto de janeiro/2023 criava crachá de ex-deputado |
+| D10 Senado | 2026-11-03 | done | voto individual em votação secreta (a fonte não publica) | a API por senador escondia votações abertas |
+| D11 equipe | 2026-11-03 | partial | salário por nível; Senado | — |
+| D14 tetos | 2026-11-03 | partial | governador e prefeito (lei local) | — |
+| D15 cidade | 2026-11-03 | partial | consulta + bloco na tela; derrotados sem crachá | — |
+
+Backup lógico antes de mexer: `.local/backup-2301.dump` (74 MB) e `.local/backup-0008.dump` (302 MB, antes de apagar os 163 crachás criados por engano).
+
+Números de aceite (SQL, banco local :54329, 2026-11-03 00:10):
+
+- Presença Adriana Ventura: 2026 **74/75** (original 74/75); carreira **912/926 = 98%** (original 911/932 = 98%). Baleia Rossi carreira 814/926 = 88% (original 83%: diferença não explicada; hipótese: o original desconta licenças de outra forma). Senadores: presença null em 81 de 81.
+- Comparar Adriana × Baleia: **1.015 iguais em 1.775** votações em comum = 57% (original 1.012 de 1.773 = 57%).
+- Adriana carreira: votos 2.966 (original 2.994), propostas 1.581 + 926 (1.654 + 934), cota R$ 476.297 (R$ 517.773), equipe 14 (14).
+- Partido: divergentes entre 3.112 em exercício com candidatura 2026: 420 → **0**. Guto Zacarias MISSÃO, Felicio Ramuth MDB.
+- Contadores (em exercício): total **70.823** (original 70.798; antes 70.984). Gov+vices 45 (42), estaduais 1.018 (1.015), prefeitos+vices 11.035 (11.026), vereadores 58.129 (58.119), federais e senado exatos.
+- TSE: senadores em exercício com candidatura 43 → 75 de 81 (6 suplentes). Adriana campanhas R$ 3.590.142 e patrimônio 2018 R$ 1.074.617; Randolfe R$ 3.036.421; Rubinho Nunes R$ 5.114.600; Ricardo Nunes eleito 4×. Iguais ao original.
+- Senado votações 2026/2025/2024: 62/128/95 (= original). CEAPS 2019–2026: 117.800 lançamentos. Autorias: 25.117 matérias.
+- Tetos: vereador SP R$ 26.080,98 e Feijó R$ 10.432,39; dep. estadual R$ 34.774,64 (= original). População Campinas 1.189.761 (= original).
+- `candidacy_place_votes` 3.111.403 linhas; `campaign_finance_entries` 779.660 linhas (0 com doador ou fornecedor); `staff_members` 10.332; `people` 71.599 (antes 71.592: +7 senadores eleitos em 2018 que o Senado lista como licenciados/afastados).
+- `civico-etl check`: 10 de 10 verdes (o de carreira agora compara com o total direto e pegou a multiplicação por orientação duplicada).
+
+Tempo de carga (relógio, rede de casa, cache HTTP do checkout principal):
+
+| job | anos | tempo |
+| --- | --- | --- |
+| camara.diario `--force` | 2019–2026 | 25 min 30 s (504 da API no detalhe de deputados) |
+| camara.presenca | 2019–2026 | 5 min 26 s (histórico de ~600 deputados) |
+| senado.diario | 2019–2026 | 2 min 19 s (1ª), 20 s (cache) |
+| tse.candidatos `--all` | 2026 / 2018 / 2020+2024 / 2012+2014+2016 | 17 s / 15 s / 2 min 34 s / 5 min 8 s |
+| tse.votos (com município) | 2018–2026 | ~6 min (2022: 9,5 mi linhas por Range em 50 s) |
+| tse.contas | 2018–2026 | ~3 min |
+| camara.equipe, ibge.populacao | — | 5 s, 2 s |
+| derive.stats / check | — | 25 s / 3 s |
+
+Revalidação: `REVALIDATE_URL` não está no ambiente do ETL; o app pega o dado novo no próximo ISR.
