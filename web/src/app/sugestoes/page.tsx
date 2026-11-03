@@ -6,7 +6,7 @@ import { data } from "@/lib/data";
 export const metadata: Metadata = { title: "Sugerir ou corrigir" };
 
 type SP = Promise<{ tipo?: string; p?: string; de?: string }>;
-const TIPO: Record<string, string> = { erro: "algo_errado", falta: "informacao_faltando", fonte: "fonte_de_dados", ideia: "ideia" };
+const TIPO: Record<string, string> = { erro: "algo_errado", falta: "informacao_faltando", fonte: "fonte_de_dados", dado: "fonte_de_dados", ideia: "ideia" };
 
 /** S25: ideia, dado que falta, erro ou fonte. "Reportar erro" no crachá chega aqui com a pessoa preenchida. */
 export default async function Page({ searchParams }: { searchParams: SP }) {
