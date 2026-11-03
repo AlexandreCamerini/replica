@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Flag } from "lucide-react";
+import { ArrowLeft, Bell, Flag, MessageSquareReply } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -286,6 +286,27 @@ export default async function Page({ params, searchParams }: Props) {
           />
         )}
       </div>
+
+      <footer aria-labelledby="resposta-h" className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-sunken p-4">
+        <div className="max-w-[62ch]">
+          <h2 id="resposta-h" className="text-base font-semibold text-fg">
+            {f ? "É ela e discorda de algo aqui?" : "É ele e discorda de algo aqui?"}
+          </h2>
+          <p className="text-sm text-muted">
+            Quem é citado, ou quem o representa, pode contestar um dado ou o jeito como ele aparece. Como tratamos o pedido:{" "}
+            <Link href="/sobre#s-resposta" className="font-semibold text-fg underline underline-offset-2">
+              direito de resposta
+            </Link>
+            .
+          </p>
+        </div>
+        <Link
+          href={`/sugestoes?tipo=resposta&p=${person.slug}`}
+          className="inline-flex h-10 items-center gap-2 rounded-pill border-[1.5px] border-border-input bg-surface px-4 text-sm font-semibold text-fg outline-none hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <MessageSquareReply aria-hidden className="size-4" /> Direito de resposta
+        </Link>
+      </footer>
     </Container>
   );
 }

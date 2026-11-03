@@ -169,6 +169,7 @@ const KINDS = [
   { v: "ideia", l: "Ideia para o site" },
   { v: "outro", l: "Outro assunto" },
 ];
+const RESPOSTA = { v: "direito_resposta", l: "Direito de resposta" };
 
 export function SuggestionForm({ kind, person, personName, page }: { kind?: string; person?: string; personName?: string; page?: string }) {
   const [state, action, pending] = useActionState(submitSuggestion, {});
@@ -193,7 +194,7 @@ export function SuggestionForm({ kind, person, personName, page }: { kind?: stri
       )}
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-sm font-semibold text-fg">Sobre o que é?</legend>
-        {KINDS.map((k) => (
+        {(person ? [RESPOSTA, ...KINDS] : KINDS).map((k) => (
           <label key={k.v} className="flex items-center gap-2 text-sm text-fg">
             <input type="radio" name="kind" value={k.v} defaultChecked={(f.kind || kind || "algo_errado") === k.v} className="size-4 accent-[var(--accent)]" />
             {k.l}
