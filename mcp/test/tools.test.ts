@@ -162,6 +162,22 @@ describe("como_votou", () => {
     const datas = r.votos.map((v: any) => v.data);
     assert.deepEqual(datas, [...datas].sort().reverse());
   });
+  test("senador: votação secreta vem de voting_events.is_secret, não da falta de voto (D114)", async () => {
+    const r = (await comoVotou(sql, { slug: "delegado-alessandro", limite: 1 })) as Record<string, any>;
+    const [n] = await sql`select count(*) filter (where e.is_secret is true)::int as sec,
+        count(*) filter (where e.is_secret is false and not exists (select 1 from votes v where v.voting_event_id = e.id))::int as aberta
+      from voting_events e join legislative_bodies b on b.id = e.body_id and b.kind = 'senado'
+      where e.is_nominal and exists (select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'senador' join people p on p.id = m.person_id
+        where p.slug = 'delegado-alessandro' and m.status <> 'eleito_aguardando_posse'
+          and (e.occurred_at at time zone 'America/Sao_Paulo')::date >= m.started_on and (e.occurred_at at time zone 'America/Sao_Paulo')::date < m.ends_on)`;
+    assert.ok(Number(n.sec) > 0);
+    assert.equal(r.senado_sem_voto_individual.votacoes_secretas, Number(n.sec));
+    assert.equal(r.senado_sem_voto_individual.votacoes_abertas_sem_voto_individual_publicado, Number(n.aberta));
+  });
+  test("deputado: sem bloco do Senado (is_secret null não vira rótulo)", async () => {
+    const r = (await comoVotou(sql, { slug: "adriana-ventura", limite: 1 })) as Record<string, any>;
+    assert.equal(r.senado_sem_voto_individual, undefined);
+  });
   test("tema inválido lista os válidos", async () => {
     const e = (await recusa(comoVotou(sql, { slug: "adriana-ventura", tema: "xx" }))) as ToolError;
     assert.ok(e.sugestoes.includes("saude"));

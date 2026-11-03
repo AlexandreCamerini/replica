@@ -326,6 +326,22 @@ export async function comoVotou(sql: Sql, a: { slug: string; tema?: string; ano?
     where ${where} order by e.occurred_at desc, v.id desc limit ${limite} offset ${offset}`;
   const casas = [...new Set(rows.map((r) => String(r.body)))];
   const stampsUsed = await Promise.all((casas.length ? casas : ["camara", "senado"]).map((c) => stampOf(sql, `${c === "senado" ? "senado" : "camara"}.votacoes`, a.ano)));
+  // Senado: o que a fonte marca (voting_events.is_secret), não o que falta de voto (D114). true = secreta; false sem voto gravado = aberta, sem voto individual publicado; null = nada.
+  const [sen] = await sql`select exists (select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'senador' where m.person_id = ${p.id}::uuid and m.status <> 'eleito_aguardando_posse') as ok`;
+  const naoIndividuais = sen?.ok
+    ? (
+        await sql`
+          select count(*) filter (where e.is_secret is true)::int as secretas,
+                 count(*) filter (where e.is_secret is false and not exists (select 1 from votes v where v.voting_event_id = e.id))::int as abertas_sem_voto
+          from voting_events e join legislative_bodies b on b.id = e.body_id and b.kind = 'senado'
+          where e.is_nominal
+            and exists (select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'senador'
+                        where m.person_id = ${p.id}::uuid and m.status <> 'eleito_aguardando_posse'
+                          and (e.occurred_at at time zone 'America/Sao_Paulo')::date >= m.started_on and (e.occurred_at at time zone 'America/Sao_Paulo')::date < m.ends_on)
+            ${a.ano ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${a.ano}` : sql``}
+            ${tema ? sql`and exists (select 1 from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id and t.slug = ${tema})` : sql``}`
+      )[0]
+    : null;
   const body: Record<string, unknown> = {
     pessoa: { slug: p.slug, nome: p.nome },
     filtros: { tema: tema ?? "—", ano: a.ano ?? "—" },
@@ -342,7 +358,16 @@ export async function comoVotou(sql: Sql, a: { slug: string; tema?: string; ano?
       resultado: r.result ? String(r.result) : "—",
       placar: { sim: num(r.yes_count), nao: num(r.no_count) },
     })),
-    nota: "Só votações nominais. No Senado, votação secreta não tem voto individual e não aparece. Tema vem de regra de palavras-chave sobre a proposição, não de avaliação.",
+    ...(naoIndividuais
+      ? {
+          senado_sem_voto_individual: {
+            votacoes_secretas: Number(naoIndividuais.secretas),
+            votacoes_abertas_sem_voto_individual_publicado: Number(naoIndividuais.abertas_sem_voto),
+            criterio: "campo votacaoSecreta da fonte (Senado) no período de exercício; não é falta de voto",
+          },
+        }
+      : {}),
+    nota: "Só votações nominais. No Senado, votação secreta (marcada pela fonte) não tem voto individual e não aparece na lista; a aberta sem voto individual publicado também não. Tema vem de regra de palavras-chave sobre a proposição, não de avaliação.",
   };
   if (!Number(n)) body.motivo = "nenhum voto nominal carregado para este filtro (a casa pode não ter carregado esta pessoa ou este período)";
   return resposta(body, stampsUsed);
