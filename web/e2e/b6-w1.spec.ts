@@ -81,7 +81,9 @@ test.describe("B6-W1", () => {
     await page.goto("/p/adriana-ventura");
     const tile = page.locator("section[aria-labelledby='numeros-h'] > div > div").filter({ hasText: /salário recebido desde/ });
     await expect(tile).toContainText(/R\$\s[\d.]+/);
-    await expect(tile).toContainText(/de 94 meses no cargo \(desde 02\/2019\)/);
+    // D120 (W3-B): subsídio federal semeado desde 2015, os 94 meses têm valor (antes era "46 de 94")
+    await expect(tile).toContainText(/94 meses no cargo desde 02\/2019/);
+    await expect(tile).not.toContainText("ainda não está carregado");
     await page.goto("/p/adriana-ventura?ano=2025");
     await expect(page.locator("section[aria-labelledby='numeros-h']")).toContainText(/salário recebido em 2025\s*12 meses no cargo/);
     // teto (vereador) não vira "recebido"

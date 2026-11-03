@@ -578,6 +578,9 @@ export const fakeSource: DataSource = {
   async getTopVotedInPlace() {
     return null; // a demo não simula votos por município
   },
+  async getCityCouncil() {
+    return null; // a demo não simula Câmaras Municipais
+  },
   async getAssembly(uf) {
     // a demo não simula Assembleias: toda casa aparece como não lida, com o motivo (nunca número inventado)
     const u = uf.toUpperCase();

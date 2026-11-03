@@ -18,6 +18,7 @@ import { data, type MandateStatus, type PeriodStats, type YearStats } from "@/li
 import { age, count, date, money } from "@/lib/format";
 import { campaignTotals, joinYears } from "@/lib/campaign";
 import { Assembly, stampOf } from "./assembleia";
+import { CityCouncil } from "./camara-municipal";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Params> };
 
@@ -54,7 +55,13 @@ export default async function Page({ params, searchParams }: Props) {
   const main = mandates.find((m) => m.status === "em_exercicio") ?? mandates[0];
   const yearParam = sp.ano && years.includes(Number(sp.ano)) ? Number(sp.ano) : null;
   const period: PeriodStats["period"] = yearParam ? (String(yearParam) as `${number}`) : "career";
-  const stats = await data.getStats(person.id, period);
+  const rawStats = await data.getStats(person.id, period);
+  // W3-B/D129: vereador de câmara lida pelo SAPL. Os números ficam no bloco próprio (sem porcentagem); o cartão diz onde estão
+  const council = main && main.office === "vereador" ? await data.getCityCouncil(person.id) : null;
+  const SAPL_NOTE = "está no bloco Câmara Municipal, lido do SAPL (sem porcentagem: a fonte não publica o total de sessões de cada mandato)";
+  const stats = council
+    ? { ...rawStats, missing: rawStats.missing.map((x) => (["presenca", "propostas"].includes(x.dataset) || (x.dataset === "votos" && council.votes) ? { ...x, reason: SAPL_NOTE } : x)) }
+    : rawStats;
 
   const legislative = !!main && LEGISLATIVE.has(main.office);
   const full = !!main && FULL_DATA.has(main.office);
@@ -313,9 +320,9 @@ export default async function Page({ params, searchParams }: Props) {
         </p>
       )}
 
-      {stats.missing.length > 0 && (
+      {stats.missing.some((m) => m.reason !== SAPL_NOTE) && (
         <div className="mt-6">
-          <MissingDataNote items={stats.missing.map((m) => ({ what: m.label, why: m.reason }))} />
+          <MissingDataNote items={stats.missing.filter((m) => m.reason !== SAPL_NOTE).map((m) => ({ what: m.label, why: m.reason }))} />
         </div>
       )}
 
@@ -336,6 +343,7 @@ export default async function Page({ params, searchParams }: Props) {
             <Speeches personId={person.id} base={base} sp={sp} year={yearParam} />
           </>
         )}
+        {council && <CityCouncil info={council} f={f} />}
         {assembly && placeUf && (
           <>
             <Assembly uf={placeUf} stats={stats} periodLabel={periodLabel} f={f} />

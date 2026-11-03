@@ -4,6 +4,7 @@ import { houseName, notReadReason } from "./assembleias";
 import type {
   AssemblyDataset,
   AssemblyInfo,
+  CityCouncilInfo,
   Agreement,
   Disagreement,
   Candidacy,
@@ -196,7 +197,9 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
     yes: Number(r.yes_count ?? 0),
     no: Number(r.no_count ?? 0),
     isNominal: Boolean(r.is_nominal),
-    isSecret: body === "senado" && r.has_votes === false,
+    // D55 trocada pela D123: secreta é o que a fonte marca; null (Câmara não informa) não vira rótulo nenhum
+    isSecret: r.is_secret === true,
+    openNoVotes: r.is_secret === false && r.has_votes === false,
     proposal: r.type ? { label: `${r.type} ${r.number}/${r.year}`, summary: String(r.summary_official ?? ""), url: (r.url as string | null) ?? null } : null,
   };
 }
@@ -303,6 +306,49 @@ export const pgSource: DataSource = {
         };
       }),
     } satisfies AssemblyInfo;
+  },
+  async getCityCouncil(personId) {
+    const [sp] = await sql`
+      select sp.house_id, sp.sapl_id, h.base_url, h.legislature_number, h.legislature_start, h.legislature_end, h.loaded_at, pl.name as city, pl.uf
+      from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id join places pl on pl.id = h.place_id
+      where sp.person_id = ${personId}::uuid and sp.match_status = 'casado' and h.status = 'ok' and h.loaded_at is not null
+      order by h.loaded_at desc limit 1`;
+    if (!sp) return null;
+    const house = Number(sp.house_id), pid = Number(sp.sapl_id);
+    const [m] = await sql`select count(*)::int as n, count(*) filter (where a.primeiro_autor)::int as p from sapl_autorias a join sapl_materias mt on mt.house_id = a.house_id and mt.sapl_id = a.materia_sapl_id where a.house_id = ${house} and a.parlamentar_sapl_id = ${pid}`;
+    const items = await sql`
+      select mt.type_sigla, mt.number, mt.year, mt.presented_on, mt.summary, mt.url, coalesce(a.primeiro_autor, false) as principal
+      from sapl_autorias a join sapl_materias mt on mt.house_id = a.house_id and mt.sapl_id = a.materia_sapl_id
+      where a.house_id = ${house} and a.parlamentar_sapl_id = ${pid}
+      order by mt.presented_on desc nulls last, mt.year desc, mt.number desc limit 10`;
+    const [pr] = await sql`select count(distinct p.sessao_sapl_id)::int as n, min(s.starts_on) as a, max(s.starts_on) as b from sapl_presencas p join sapl_sessoes s on s.house_id = p.house_id and s.sapl_id = p.sessao_sapl_id where p.house_id = ${house} and p.parlamentar_sapl_id = ${pid}`;
+    const [hv] = await sql`select exists (select 1 from sapl_votos where house_id = ${house}) as any`;
+    let votes: CityCouncilInfo["votes"] = null;
+    if (hv?.any) {
+      const by = await sql`select voto, count(*)::int as n from sapl_votos where house_id = ${house} and parlamentar_sapl_id = ${pid} group by 1 order by 1`;
+      const last = await sql`select voted_at, voto, description from sapl_votos where house_id = ${house} and parlamentar_sapl_id = ${pid} order by voted_at desc nulls last, sapl_id desc limit 10`;
+      votes = {
+        total: by.reduce((a, r) => a + Number(r.n), 0),
+        byValue: by.map((r) => ({ label: String(r.voto), n: Number(r.n) })),
+        items: last.map((r) => ({ votedAt: r.voted_at ? isoTs(r.voted_at) : null, value: String(r.voto), description: (r.description as string | null) ?? null })),
+      };
+    }
+    return {
+      city: String(sp.city),
+      uf: String(sp.uf),
+      baseUrl: String(sp.base_url),
+      legislature: num(sp.legislature_number),
+      legislatureStart: sp.legislature_start ? iso(sp.legislature_start) : null,
+      legislatureEnd: sp.legislature_end ? iso(sp.legislature_end) : null,
+      loadedAt: isoTs(sp.loaded_at),
+      materias: {
+        total: Number(m?.n ?? 0),
+        principal: Number(m?.p ?? 0),
+        items: items.map((r) => ({ type: String(r.type_sigla), number: Number(r.number), year: Number(r.year), presentedOn: r.presented_on ? iso(r.presented_on) : null, summary: String(r.summary), url: String(r.url), principal: Boolean(r.principal) })),
+      },
+      presence: { sessions: Number(pr?.n ?? 0), first: pr?.a ? iso(pr.a) : null, last: pr?.b ? iso(pr.b) : null },
+      votes,
+    } satisfies CityCouncilInfo;
   },
   async getTopVotedInPlace(ibge, limit = 5) {
     const [pl] = await sql`select id, uf from places where ibge_code = ${ibge} and kind = 'municipio'`;
@@ -555,7 +601,7 @@ export const pgSource: DataSource = {
     const [r] = await sql`
       select count(*)::int as n
       from voting_events e join legislative_bodies b on b.id = e.body_id and b.kind = 'senado'
-      where e.is_nominal and not exists (select 1 from votes v where v.voting_event_id = e.id)
+      where e.is_nominal and e.is_secret is true
         and exists (select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'senador'
                     where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
                       and (e.occurred_at at time zone 'America/Sao_Paulo')::date >= m.started_on and (e.occurred_at at time zone 'America/Sao_Paulo')::date < m.ends_on)
@@ -762,7 +808,7 @@ export const pgSource: DataSource = {
     const from = sql`from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id`;
     const [{ n }] = await sql`select count(*)::int as n ${from} where ${where}`;
     const rows = await sql`
-      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal,
+      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret,
              exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
@@ -774,7 +820,7 @@ export const pgSource: DataSource = {
   async getVotingEvent(id) {
     if (!/^[0-9a-f-]{36}$/.test(id)) return null;
     const [r] = await sql`
-      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, b.kind as body,
+      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret, b.kind as body,
              exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic

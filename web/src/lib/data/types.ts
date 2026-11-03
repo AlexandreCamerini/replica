@@ -141,6 +141,20 @@ export type AssemblyItem = {
   /** prefixo do carimbo (ex.: "alesp.proposicoes"), para getStamp */
   stampDataset: string | null;
 };
+/** W3-A/B: Câmara Municipal lida pelo SAPL (tabelas sapl_*, D126–D129). Presença sem porcentagem: a fonte não publica o denominador. */
+export type CityCouncilInfo = {
+  city: string;
+  uf: string;
+  baseUrl: string;
+  legislature: number | null;
+  legislatureStart: string | null;
+  legislatureEnd: string | null;
+  loadedAt: string;
+  materias: { total: number; principal: number; items: { type: string; number: number; year: number; presentedOn: string | null; summary: string; url: string; principal: boolean }[] };
+  presence: { sessions: number; first: string | null; last: string | null };
+  /** null = o SAPL da câmara não tem voto nominal registrado na legislatura */
+  votes: { total: number; byValue: { label: string; n: number }[]; items: { votedAt: string | null; value: string; description: string | null }[] } | null;
+};
 export type AssemblyInfo = {
   uf: string;
   houseName: string;
@@ -178,8 +192,9 @@ export type VotingEvent = {
 export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string };
 
 export type Body = "camara" | "senado";
-/** isSecret: votação do Senado publicada sem voto individual (secreta). Não é "não votou". */
-export type VotingEventSummary = VotingEvent & { proposal: { label: string; summary: string; url: string | null } | null; isNominal: boolean; isSecret?: boolean };
+/** isSecret: a fonte marca a votação como secreta (`voting_events.is_secret`, D123); não é "não votou".
+ *  openNoVotes: a fonte diz que foi aberta, mas não publicou o voto de cada pessoa. Fonte que não informa (Câmara) = os dois false. */
+export type VotingEventSummary = VotingEvent & { proposal: { label: string; summary: string; url: string | null } | null; isNominal: boolean; isSecret?: boolean; openNoVotes?: boolean };
 export type OrientationValue = "sim" | "nao" | "abstencao" | "obstrucao" | "liberado";
 export type VotingEventDetail = VotingEventSummary & {
   counts: Record<VoteValue, number>;
@@ -284,6 +299,8 @@ export interface DataSource {
   getCoverage(place: Place): Promise<MissingDataset[]>;
   /** W3-A: Assembleia Legislativa da UF (ou Câmara Legislativa do DF): fonte, o que é lido e o motivo de cada "—". null = UF inexistente. */
   getAssembly(uf: string): Promise<AssemblyInfo | null>;
+  /** Vereador casado no SAPL da câmara (match_status = casado). null = câmara não lida pelo SAPL ou pessoa não casada. */
+  getCityCouncil(personId: string): Promise<CityCouncilInfo | null>;
   /** Mais votados no município na última eleição geral com votos por município carregados (deputados federais e estaduais). null = sem dado. */
   getTopVotedInPlace(ibge: string, limit?: number): Promise<PlaceTopVoted | null>;
   getCounters(): Promise<{ total: number; byLevel: Record<Level, number>; byOffice: { office: OfficeSlug; label: string; count: number }[] }>;
@@ -298,7 +315,7 @@ export interface DataSource {
   getActiveYears(personId: string): Promise<number[]>;
   /** Estatísticas de cada ano carregado (sem "career"), do mais antigo ao mais recente. */
   getYearlyStats(personId: string): Promise<YearStats[]>;
-  /** Votações secretas do Senado no período de exercício (sem voto individual publicado). */
+  /** Votações que a fonte marca como secretas (is_secret = true) no período de exercício do senador. */
   countSecretVotes(personId: string, year?: number): Promise<number>;
   /** Uma entrada por ano de eleição (o 2º turno não repete), mais recente primeiro. */
   getCampaignFinance(personId: string): Promise<CampaignFinance[]>;

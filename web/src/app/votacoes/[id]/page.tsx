@@ -74,8 +74,8 @@ export default async function Page({ params, searchParams }: Props) {
             Votação secreta
           </h2>
           <p className="max-w-[70ch] rounded-sm bg-surface-sunken px-4 py-3 text-sm text-fg" data-testid="votacao-secreta">
-            O Senado publicou esta votação sem o voto de cada senador, como faz nas votações secretas que a Constituição prevê (escolha de autoridades e
-            embaixadores, por exemplo). Fica o resultado{ev.yes + ev.no > 0 ? ` (${count(ev.yes)} sim · ${count(ev.no)} não)` : ""}; não há lista de votos aqui, e ninguém aparece como ausente.
+            O Senado marca esta votação como secreta nos dados abertos, como nas votações que a Constituição prevê (escolha de autoridades e
+            embaixadores, por exemplo), e não publica o voto de cada senador. Fica o resultado{ev.yes + ev.no > 0 ? ` (${count(ev.yes)} sim · ${count(ev.no)} não)` : ""}; não há lista de votos aqui, e ninguém aparece como ausente.
           </p>
         </section>
       ) : (
@@ -168,7 +168,13 @@ export default async function Page({ params, searchParams }: Props) {
         </section>
       )}
 
-      {!ev.isSecret && (
+      {ev.openNoVotes && (
+        <p className="mb-8 max-w-[70ch] rounded-sm bg-surface-sunken px-4 py-3 text-sm text-fg" data-testid="votacao-sem-votos">
+          Votação aberta, segundo a fonte, mas publicada sem o voto de cada pessoa. Fica o resultado; não há lista de votos aqui, e ninguém aparece como ausente.
+        </p>
+      )}
+
+      {!ev.isSecret && !ev.openNoVotes && (
       <section aria-labelledby="pessoas-h" id="pessoas" className="scroll-mt-28">
         <h2 id="pessoas-h" className="mb-3 flex items-baseline gap-2 text-xl text-fg">
           Voto de cada pessoa <span className="text-base font-normal tabular text-muted">{count(shown.length)}</span>
