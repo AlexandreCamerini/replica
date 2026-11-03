@@ -355,6 +355,7 @@ Actual: −14,4% (Adriana 2025), −8,9% (Baleia 2025); passagens aéreas da Adr
 Cause: `etl/civico_etl/jobs/camara_diario.py::_expenses` usa `key = ideDocumento` e faz `upsert(... ["body_id","source_key"])`: linhas diferentes do mesmo documento se sobrescrevem e só a última sobrevive. Valores negativos (estornos) sobrevivem ou somem conforme a ordem do arquivo.
 Fix sugerido: chave composta (`ideDocumento` + `numParcela` + `txtPassageiro`/`numRessarcimento` + valor + ordem da linha no arquivo, ou o hash da linha inteira) e recarga de `camara.despesas` 2019–2026; invariante novo no `check`: soma por deputado e ano = soma de `vlrLiquido` do CSV.
 Status: fixed (fix ETL, D180, D181 e D183). Chave por linha da fonte e prune por arquivo. Complemento pela API a partir de 2025 para as passagens SIGEPA com codDocumento UUID, que o arquivo não traz. Ano de competência no `occurred_on`, também na CEAPS. Recarga de 2019 a 2026: a Câmara passou de 1.258.789 para 1.475.785 linhas e 0 chaves antigas. Conferido contra a página da Câmara: Adriana 2025 dá 104.693,75 (antes 89.595,04) e Baleia Rossi 2025 dá 377.205,06 (antes 343.601,05; página 377.205,07). Também conferidos Tabata 2024 e 2025, Kim 2024 e 2025 e Nikolas 2024, 2025 e 2026, todos com diferença de no máximo R$ 0,10. Estornos batem com a API: Adriana 2025 tem 39 linhas, −12.247,87; Baleia 2025 tem 54, −51.967,93. CEAPS sem o defeito da chave (`id` único na fonte). Invariante novo no `check` (amostra de 10 deputado-ano) e `etl/tests/test_cota.py`. `derive.stats` rodado.
+Reverificação 2026-11-03: parcial. A chave por linha funciona: 2024 do banco = soma de `vlrLiquido` do `Ano-2024.csv` por deputado, linha a linha e centavo a centavo (232.014 linhas, 581 deputados, 0 divergências; a única diferença é Marcelo Ramos, fora do diretório, R$ -38,56). Não há duplicata nem soma acima da página: 21 deputado-ano conferidos fora da `COTA_REFERENCIA` batem com a página quando o deputado não tem auxílio-moradia (até R$ 0,14). O critério "bate com a página da Câmara" falha para quem recebe complementação do auxílio-moradia: a Câmara publica `vlrLiquido` negativo nessas linhas, o banco subtrai e a página soma. Luciano Vieira 2024 aparece com R$ 449.994 no crachá, contra R$ 516.374,69 na página (-12,9%). Erika Hilton 2025 tem R$ 444.871 contra R$ 506.616,91 (-12,2%). São 84 a 96 deputados por ano desde 2023, com o pior caso em -31%. A amostra da `COTA_REFERENCIA` (5 deputados de SP e MG) não tinha nenhum caso. Detalhe em BUG-030 (S1). As correções colaterais conferem: anos fechados não perderam linha legítima (Alberto Mourão 2024: banco = arquivo, 153 linhas), CEAPS bate com a API do Senado em 2019 (58 senadores) e 2025 (77), e o `derive.stats` só mudou `expenses_cents` (506.624 linhas comparadas com o backup).
 
 ### BUG-021: /partidos some com o partido que só existe como partido atual (MISSÃO): Câmara soma 512 de 513
 
@@ -365,6 +366,7 @@ Steps
 Expected: linha MISSÃO com 1 cadeira; total 513.
 Cause: `pg-w4.ts::listPartyRows` lista partidos com `exists mandates.party_id = pa.id`, mas conta cadeiras por `coalesce(person_current_party, mandates.party_id)`. Quem trocou para um partido que não está em nenhum `mandates.party_id` some da tabela. features.csv já registrava "512/513" como se fosse aceitável.
 Status: fixed (fixui, D191). A causa era do front: `listPartyRows` filtrava partidos por `mandates.party_id`, mas as cadeiras usam `person_current_party`. O filtro agora aceita as duas origens; MISSÃO volta com 1 cadeira e a soma é 513 de 513. Se algum mandato ficar sem partido, a nota sob a tabela diz "N deputado(s) sem partido vigente na fonte". Lado do dado (fix ETL, D187): não havia defeito. O banco tem 513 em exercício, todos com partido vigente, e MISSÃO em `parties`; batem com a Câmara partido a partido. O `check` passou a exigir exatamente 513, todos com partido vigente.
+Reverificação 2026-11-03: confirmado. /partidos soma 513 de 513 e tem MISSÃO 1. Os 21 partidos batem com a API `/deputados` da Câmara (03/11/2026), e o partido de cada um dos 513 deputados bate com a API.
 
 ### BUG-022: bancada do Senado em /partidos diverge do Senado (PT 10 / PSD 13 / PL 16 contra 9 / 14 / 15)
 
@@ -376,6 +378,7 @@ Steps
 Expected: a mesma regra de partido em todo o site, com a fonte e a data de onde veio a filiação.
 Cause: `person_current_party` (filiação vinda do TSE/candidatura) vence o partido do mandato publicado pela casa; para Eliziane pode ser filiação para 2026 que o Senado ainda não refletiu, mas o site afirma "PT" sem dizer de onde.
 Status: fixed (fix ETL, D182). A filiação vigente vem da casa: a candidatura do TSE posterior à última observação da casa não vence enquanto o mandato está em exercício, e o "S/Partido" do Senado virou observação. Antes, o banco tinha PT 10, PSD 13, PL 16. Agora tem AVANTE 1, MDB 9, PDT 1, PL 15, PODE 3, PP 8, PSB 7, PSD 14, PSDB 4, PT 9, REPUBLICANOS 6, S/Partido 1 e UNIÃO 3, o mesmo que `senador/lista/atual` traz em 03/11/2026: 81 de 81, sem nenhuma divergência por senador. A Câmara confere 513 de 513 por deputado contra `/deputados`. Nota para a tela: o cabeçalho do crachá ainda não diz de onde veio o partido ("segundo o Senado/Câmara"), e /partidos vai mostrar a linha "S/Partido" com 1 cadeira no Senado, como o próprio Senado faz.
+Reverificação 2026-11-03: parcial. Dado confirmado: os 81 senadores batem um a um com `senador/lista/atual` (0 divergências), e /partidos mostra PT 9, PSD 14, PL 15 e S/Partido 1. A regra da casa não teve efeito colateral: contra o backup, só Eliziane (PT→PSD) e Romário (PL→S/Partido) mudaram de partido vigente, entre 71.594 pessoas. Fica aberto o que o próprio Expected pedia: o cabeçalho do crachá mostra "PSD" e "S/Partido" sem dizer a fonte nem a data da filiação. Também saiu da linha do tempo `party_memberships` a filiação PT de 2026 da Eliziane, que segue só na tabela de eleições.
 
 ### BUG-023: "Desemprego, média do ano" em /governos não é a taxa média anual do IBGE (2024: 6,85 contra 6,6)
 
@@ -386,6 +389,7 @@ Steps
 Cause: o ETL faz média simples dos quatro trimestres da SIDRA 4099; o IBGE publica a média anual por outro cálculo. A nota de método diz "média simples dos quatro trimestres", mas o cabeçalho diz "média do ano".
 Fix sugerido: usar a série anual publicada pelo IBGE (ou renomear para "média dos 4 trimestres" e mostrar o valor oficial ao lado).
 Status: fixed (fixui, D190). Job usa a taxa média anual do IBGE (SIDRA 10379 v4099, total): 2022 9,6; 2023 7,7; 2024 6,6; 2025 5,6. Rótulo e nota de método de /governos ajustados. Nota: a tabela dá 7,7 para 2023, a notícia do IBGE citada acima dizia 7,8; vale a tabela, que é a fonte primária.
+Reverificação 2026-11-03: confirmado. /governos de 2019 a 2025 mostra 11,8 / 13,7 / 14,0 / 9,6 / 7,7 / 6,6 / 5,6, os mesmos números da SIDRA 10379 v4099 (Total), conferida na apisidra em 03/11/2026. A série de 2012 a 2018 também bate, e o rótulo diz "taxa média anual (IBGE)".
 
 ### BUG-024: Amazonas sem governador: home diz "Governo do estado 26" e Manaus omite o nível sem "—"
 
@@ -397,6 +401,7 @@ Steps
 Expected: quem exerce o governo do AM hoje, ou "—" com o motivo (titular e vice renunciaram; fonte não publica o sucessor).
 Cause: o `check` "um titular em exercício por lugar e cargo" testa no máximo 1, não exatamente 1, para governador.
 Status: fixed na tela (fixui, D193). Cargo sem titular em exercício vira “—” com motivo: na home, “Governo do estado 26 de 27” e a linha “AM sem governador em exercício na fonte”; em /representantes o grupo Governo do estado não some e diz o motivo tirado do último mandato (AM: titular renunciou em 04/04/2026; há eleito aguardando posse; a fonte não publica quem exerce o cargo agora). Vice-governo faz o mesmo (MG, GO, PA, AC, AM, MT, PB, ES). A parte do `check` (exatamente 1 titular) é do agente de ETL e não foi tocada. Lado do dado (fix ETL, D184 e D185): a causa não era carga nem cassação. Houve dupla vacância por renúncia, que é real, e a sucessão por eleição indireta na ALEAM não está no TSE. Roberto Cidade (União) agora é governador em exercício desde 04/05/2026, até 06/01/2027, pela lista curada `EXECUTIVO_FORA_DO_TSE` com fonte da Agência Brasil. O crachá mostra "situação segundo o ALEAM", e /representantes?cidade=1302603 no 3101 já mostra o nome. A vaga de vice do AM segue vazia: o vice eleito, Serafim Corrêa, não está no diretório. `check` novo: exatamente 1 governador por UF, com lista de exceções (vazia); hoje dá 27 de 27.
+Reverificação 2026-11-03: reaberto. O AM está certo: a página da Governadoria (08/05/2026) nomeia Roberto Maia Cidade Filho. Ela basta para dizer quem governa, mas não traz a data de posse nem a eleição indireta, que hoje só têm fonte na imprensa. Em compensação, 3 UFs mostram como governador quem não está no cargo. DF mostra Ibaneis Rocha, que renunciou em 28/03/2026, e quem governa é Celina Leão. RJ mostra Cláudio Castro, que renunciou em 23/03/2026; o governo está com o presidente do TJ-RJ, interino. RR mostra Antonio Denarium, que renunciou e foi cassado pelo TSE com o vice. O `check` "exatamente 1 governador por UF" passa com 27 de 27 porque conta linhas e não confere a pessoa. Ver BUG-031 (S1).
 
 ### BUG-025: deputados estaduais: 994 em exercício contra 1.035 cadeiras, sem aviso (SP 90 de 94, RJ 65 de 70)
 
@@ -404,6 +409,7 @@ Status: fixed na tela (fixui, D193). Cargo sem titular em exercício vira “—
 Steps: `select uf, count(*) from mandates ... deputado_estadual em_exercicio` -> faltam 41 em 18 UFs (AP −1, BA −2, CE −4, ES −2, GO −1, MA −4, MG −3, MT −1, PA −2, PE −2, PI −2, PR −3, RJ −5, RO −1, RS −1, SC −2, SP −4, TO −1).
 Expected: suplentes em exercício (ALESP e ALMG já são lidas desde W3-A) ou "—" com motivo dizendo que suplente em exercício não está carregado.
 Status: fixed na tela (fixui, D193). Deputados estaduais abaixo das cadeiras (CF art. 27) mostram “N de M cadeiras carregadas” no título, chip e aviso com o motivo (suplente que assumiu ainda não está todo carregado); a home mostra “N de M” no chip e a linha do motivo. Carregar os suplentes que faltam (41 em 18 UFs) é trabalho de ETL e segue aberto. Lado do dado (fix ETL, D186): não é erro de carga. Os titulares eleitos fecham com as cadeiras da CF art. 27 nas 26 UFs. Os 41 que faltam são titulares que saíram: 39 viraram prefeito ou vice em 01/01/2025, um virou prefeito em 2026 (AP) e outro foi para o Senado (CE). Com o governador do AM (BUG-024), hoje são 993 de 1.035. O suplente que assumiu não está em fonte aberta lida: o TSE não publica posse de suplente, e ALESP e ALMG listam o suplente, mas criar crachá a partir da casa é trabalho novo. Segue aberto como carga de suplentes. `check` novo: titulares por UF iguais às cadeiras e em exercício menor ou igual às cadeiras.
+Reverificação 2026-11-03: confirmado. O banco tem 42 titulares de 2022 que saíram: 39 em 01/01/2025, o AP, o CE e o AM (Roberto Cidade). A amostra de 5 confere com o resultado de 2024: Igor Normando, prefeito de Belém; Evandro Leitão, de Fortaleza; Tiago Amaral, de Londrina; Gerson Pessoa, de Osasco; e Egidio Ferrari, de Blumenau. Sargento Reginauro está em `senador/lista/atual` (CE). A tela do Rio mostra "65 de 70" com o motivo. A carga de suplentes segue aberta, como o próprio status declara.
 
 ### BUG-026: /comparar e o bloco "Números" do crachá sem fonte e data do que mostram
 
@@ -412,6 +418,7 @@ Steps
 1. /comparar?p=adriana-ventura,baleia-rossi: presença, propostas, votos e cota são da Câmara; o único rodapé da página é "Fonte: TSE · Dados Abertos".
 2. /p/adriana-ventura, bloco "Números desde 2019": nenhum "Fonte: … · atualizado em …"; o salário acumulado não cita o decreto legislativo nem a data (só o texto de ajuda "como a lei publica").
 Status: fixed (fixui, D194). Bloco “Números” do crachá ganhou uma lista de fontes com “Fonte: … · atualizado em …” por número (salário: decreto ou Constituição; patrimônio e votos: TSE candidatos; campanha: TSE contas; presença, propostas, votos e gastos: Câmara, Senado, Assembleia ou SAPL conforme a casa). /comparar cita a fonte de cada bloco (TSE; Câmara ou Senado) com a data da carga.
+Reverificação 2026-11-03: confirmado. /comparar cita a fonte por bloco: TSE para patrimônio e campanha e "Câmara dos Deputados · Dados Abertos · atualizado em 03/11/2026" para presença, propostas, votos e cota. O crachá lista uma fonte e uma data por número.
 
 ### BUG-027: ONB-H2 (foco no campo de cidade depois do onboarding) falha no dev server
 
@@ -419,6 +426,7 @@ Status: fixed (fixui, D194). Bloco “Números” do crachá ganhou uma lista de
 Steps: suíte contra 3101: falhou nas 2 tentativas; isolado com `--repeat-each 3`: 1 de 3 falhou. Contra o build de produção (3301): passou.
 Cause provável: corrida entre a hidratação do combobox e o `focus()` disparado ao fechar o modal; em celular lento pode aparecer em produção.
 Status: fixed (fixui, D196). Era bug real: o intervalo de foco parava no primeiro acerto e só esperava 3 s; no dev a rota /representantes compila em mais tempo e o modal devolve o foco depois do primeiro acerto. `first-visit.tsx` agora só age em /representantes, espera até 10 s, refaz o foco se ficar solto e para depois de 500 ms estável. ONB-H2 passou 5 de 5 com `--repeat-each 5` no dev.
+Reverificação 2026-11-03: não conferido. O `playwright test -g ONB-H2` não abriu o navegador: falta o chromium-headless-shell 1248 no cache, e baixar o binário ficou fora do escopo. O código de `first-visit.tsx` não foi lido a fundo.
 
 ### BUG-028: presença do crachá não bate com a da Câmara (2025: 108 de 120 contra 110 + 11 justificadas)
 
@@ -426,6 +434,7 @@ Status: fixed (fixui, D196). Era bug real: o intervalo de foco parava no primeir
 Steps: /p/adriana-ventura?ano=2025 -> "90% (108 de 120)"; camara.leg.br/deputados/204528?ano=2025 -> 110 dias presentes, 11 ausências justificadas, 0 não justificadas. Carreira: clone 912 de 926; original 911 de 932.
 Cause provável: o clone conta sessões deliberativas; a Câmara conta dias. Não está dito no tile.
 Status: fixed por rótulo (fixui, D195). O tile continua “N de M sessões deliberativas”; a ajuda e /sobre#presenca explicam que a Câmara conta dias e separa justificadas, então o número pode diferir. Contagem por dia não é possível com a lista aberta (por sessão) e nem bateria: o clone teria menos dias que os 110 da Câmara.
+Reverificação 2026-11-03: confirmado. A ajuda do tile e /sobre ("Por que o número pode diferir do da Câmara") dizem que o clone conta sessões deliberativas, que a Câmara conta dias e separa as justificadas, e que justificada conta como ausência aqui. Isso explica as duas direções da diferença: dia sem sessão deliberativa e ausência justificada. Ressalva: a frase "um dia pode ter mais de uma sessão" explica o caso contrário ao da Adriana (110 dias contra 108 sessões).
 
 ### BUG-029: `npx eslint` em web/ lint a saída de build `.next-e2e-w3a/` (1.823 erros)
 
@@ -433,3 +442,74 @@ Status: fixed por rótulo (fixui, D195). O tile continua “N de M sessões deli
 Steps: `cd web && npx eslint` -> 10.937 problemas, todos em `.next-e2e-w3a/`; `npx eslint src e2e` -> 0.
 Fix sugerido (uma linha): em `eslint.config.mjs`, trocar `".next-e2e/**"` por `".next*/**"`. Não aplicado: fora do escopo de commit desta verificação.
 Status: fixed (fixui). `eslint.config.mjs` ignora `.next*/**`; `npx eslint` sem argumento agora dá 0 problemas.
+Reverificação 2026-11-03: confirmado. `npx eslint` em web/ sai com código 0 e nenhum problema. `eslint.config.mjs` ignora `.next*/**`.
+
+## Reverificação independente (2026-11-03, reverify.md)
+
+### BUG-030: a cota subtrai a complementação do auxílio-moradia, que a Câmara soma: até -31% no crachá de 84 a 96 deputados por ano
+
+- Severity: S1 (número errado publicado no crachá, no comparar e no MCP; mesma classe do BUG-020)
+- Flow / case: F03 / dado contra fonte · Screen: S05, S08 · Build: aa72e47. O defeito é anterior, mas a recarga do BUG-020 o agravou. No backup pre-bug020-024, a subcota tinha 5.371 linhas, saldo de R$ -2,71 mi e 1.569 linhas positivas. Hoje tem 3.910 linhas, todas negativas, com saldo de R$ -7,36 mi.
+- Browser / device: curl no 3101 e Postgres local, só leitura
+
+Steps
+1. Abrir /p/luciano-vieira?ano=2024. O tile mostra "R$ 449.994 gastos do gabinete em 2024".
+2. Abrir camara.leg.br/deputados/220616?ano=2024. Cota Parlamentar Total: 516.374,69.
+3. No `Ano-2024.csv` da Câmara, as linhas de "COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA" do deputado vêm com `vlrDocumento` 4148.8 e `vlrLiquido` -4148.8.
+4. No banco, `select sum(amount_cents) from expenses where category ilike '%moradia%' and source_key like 'cota2024:220616:%'` dá -33.190,40.
+
+Expected: o total do ano bate com a página da Câmara, que soma a complementação como gasto.
+Actual: o banco subtrai o valor, e o erro sai em dobro (2 × |moradia|). Recalculado com o sinal trocado, o total bate com a página até o centavo em todos os casos conferidos:
+
+| Deputado (id) | Ano | Página | Banco | Banco com o sinal da moradia trocado |
+|---|---|---|---|---|
+| Luciano Vieira (220616) | 2023 / 2024 / 2025 | 467.736,88 / 516.374,69 / 495.275,83 | 384.761,08 / 449.993,86 / 410.066,44 | 467.737,08 / 516.374,66 / 495.275,80 |
+| Erika Hilton (220645) | 2023 / 2024 / 2025 | 411.632,50 / 492.049,79 / 506.616,91 | 384.988,78 / 465.863,47 / 444.871,49 | igual à página |
+| Jorge Solla (178857) | 2024 / 2025 | 531.145,88 / 538.934,40 | 523.811,88 / 523.406,40 | igual à página |
+| Pedro Lupion (204395) | 2024 | 529.523,91 | 512.065,91 | igual à página |
+| 204486 | 2025 | 602.281,03 | 517.146,97 | 602.281,07 |
+
+Alcance: 2019: 34 deputados; 2020: 28; 2021: 23; 2022: 24; 2023: 96; 2024: 88; 2025: 84; 2026: 77. Pior caso: -31% em 2025. Mediana dos afetados: -7% em 2025. Nenhuma linha de moradia é positiva no banco.
+Cause: `camara_diario.py::_expenses` grava `cents(x["vlrLiquido"])` sem tratar a subcota 40 (complementação do auxílio-moradia), em que a fonte publica o líquido negativo. A API `/deputados/{id}/despesas` não traz essa subcota, então o complemento D181 não corrige nada.
+Gap no teste: a `COTA_REFERENCIA` (D183) tem 5 deputados de SP e MG, todos sem complementação. A amostra não exercita o caso.
+Fix sugerido: decidir a regra em decisions.md (a página da Câmara soma `vlrDocumento` dessas linhas). Usar valor absoluto ou `vlrDocumento` na subcota 40, recarregar 2019 a 2026 e pôr na referência um deputado com complementação, como Luciano Vieira 2024 (516.374,69).
+
+### BUG-031: governador de DF, RJ e RR é quem já saiu do cargo; o `check` "1 por UF" passa assim mesmo
+
+- Severity: S1 (dado errado publicado: a tela afirma quem governa 3 UFs, e erra)
+- Flow / case: F02 / dado contra fonte · Screen: S07 (/representantes), S01 (contador da home), S05 (crachá do ex-governador) · Build: aa72e47. A lógica não é desta noite (regra D06 + TSE), mas o BUG-024 "fixed" afirmou 27 de 27.
+
+Steps
+1. /representantes?cidade=5300108 (Brasília) mostra "Ibaneis Rocha Governador · MDB" e "Celina Leão Vice-governadora".
+2. /representantes?cidade=3304557 (Rio) mostra "Cláudio Castro Governador · PL" e "Thiago Pampolha Vice-governador".
+3. /representantes?cidade=1400100 (Boa Vista) mostra "Antonio Denarium Governador · PP" e "Edilson Damião Vice-governador".
+4. Banco: os três têm mandato `em_exercicio` até 2027-01-06 com `status_source = 'tse'`.
+
+Expected: quem exerce o cargo hoje, ou "—" com motivo quando a fonte oficial lida não publica.
+Actual e fontes (imprensa; o portal oficial de cada UF não foi conferido):
+- DF: Ibaneis renunciou em 28/03/2026, e Celina Leão foi empossada pela CLDF em 30/03 (Jornal de Brasília, Poder360, IstoÉ). Ibaneis desistiu do Senado e não tem candidatura em 2026, por isso a regra D06 não dispara.
+- RJ: Cláudio Castro renunciou em 23/03/2026, na véspera do julgamento no TSE. O RJ não tem vice, e o presidente do TJ-RJ, Ricardo Couto, governa interinamente enquanto o STF decide o formato do mandato-tampão (Poder360, SBT News, Correio da Manhã, 08/2026).
+- RR: Denarium renunciou, e Edilson Damião assumiu em 27/03/2026. O TSE cassou a chapa de 2022 em 30/04/2026, e a eleição suplementar foi em 21/06/2026, com resultado sub judice até 01/07 (CNN Brasil, InfoMoney, Congresso em Foco). Quem governa hoje não foi confirmado.
+Cause: a regra D06 só marca renúncia quando há candidatura a outro cargo no TSE. Renúncia sem candidatura (DF, RJ), cassação (RR) e interinidade de outro Poder ficam fora. O `check` D185 conta "exatamente 1 titular em exercício por UF" e não confere quem é.
+Fix sugerido: estender `EXECUTIVO_FORA_DO_TSE` (DF: Celina Leão desde 30/03/2026; RJ e RR: "—" com motivo até haver fonte oficial) e criar um check de identidade do governador por UF contra uma lista curada com fonte e data. Rever as outras 24 UFs contra o portal de cada governo.
+
+### BUG-032: o casamento de identidade pelo `SQ_CANDIDATO` sem o ano liga candidaturas de 2012 e 2014 a outras pessoas (15.769 pessoas, 3.406 mandatos)
+
+- Severity: S1 (histórico eleitoral, mandatos e campanhas de outra pessoa publicados no crachá)
+- Flow / case: F03 / identidade · Screen: S05 (Eleições, Mandatos, Dinheiro das campanhas) · Build: anterior a esta noite (carga TSE 2012/2014/2016)
+
+Steps
+1. /p/roberto-cidade, seção de eleições: "2012 Vereador · Fonte Boa · AM PCdoB Suplente". No banco, o nome de urna dessa candidatura é "Dinelci".
+2. `select e.year, c.ballot_name, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id join people p on p.id = c.person_id where p.slug = 'roberto-cidade'`: 2012 "Dinelci" (Fonte Boa) e 2016 "Roberto Cidade" (Manaus) têm o mesmo `tse_sequencial` 40000001600.
+3. `person_external_ids` tem um único `tse:40000001600`, `exact_id`, confiança 1,000.
+
+Expected: candidatura de 2012 só se liga à pessoa por título de eleitor, CPF ou nome + nascimento, nunca por um sequencial de outra eleição.
+Actual: `tse_candidatos.py` chama `people.resolve(source="tse", external_id=sq, ...)`. O `SQ_CANDIDATO` é único só dentro da eleição, e a TSE repete números entre 2012, 2014 e 2016, então o `exact_id` vence o título.
+Alcance:
+- 15.769 pessoas têm o mesmo sequencial em mais de um ano.
+- Candidaturas ligadas por colisão: 15.769 em 2012, 687 em 2014 e 15.082 em 2016. A de 2016 é a legítima na amostra.
+- Das 15.769 de 2012, 15.649 (99%) têm nome de urna sem nenhum token em comum com o nome civil da pessoa.
+- 3.573 eleitos de 2012 e 421 de 2014 estão na colisão, e 3.406 mandatos de 2012 apontam para a pessoa errada.
+- Exemplos: Beth Sahão aparece com 2012 "Mauro Eugenio (Mauá/SP)"; Jair Lorenzon, com 2012 "Jair Borges (Salto do Jacuí/RS)"; Lela (PA), com 2012 "Ivaldo Reis".
+Heurística pedida (nome de urna sem token em comum com o nome civil): sozinha, gera ruído. Ela marca 61.768 candidaturas, a maioria apelido legítimo ("Fuba", "Tilim", "Ferrugem"). O detector preciso é "mesmo `tse_sequencial` em anos diferentes para a mesma pessoa". Combinado com a heurística, dá 15.649 casos quase certos em 2012.
+Fix sugerido: chave externa `tse:{ano}:{sq}` (ou `{eleição}:{sq}`), desligar `exact_id` entre eleições, reprocessar 2012, 2014 e 2016 com o título como chave de identidade, e criar um `check` que falhe se a mesma pessoa tiver o mesmo `tse_sequencial` em anos diferentes.
