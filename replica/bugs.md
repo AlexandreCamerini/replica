@@ -334,3 +334,102 @@ Steps: `candidacies.votes` de presidente 2022: Lula 1º turno 114.519.008, 2º t
 Causa: `remotezip.pick_members` devolve `_BRASIL.csv` (todos os cargos) **e** `_BR.csv` (presidente); a eleição presidencial está nos dois. Os demais cargos estão corretos (Boulos dep. federal 2022 = 1.001.472).
 
 Estado: o app não mostra voto de presidente/vice (`pg-w4.ts`). Correção: devolver só `_BRASIL.csv` e recarregar `tse.votos` 2018/2022/2026 (~4 GB por ano). Não corrigido aqui por tocar tabela compartilhada.
+
+## Verificação final independente (2026-11-03, verify-final.md)
+
+### BUG-020: cota parlamentar subcontada: o ETL descarta linhas que dividem o mesmo `ideDocumento` (passagem, estorno, taxa)
+
+- Severity: S1 (perda de dado no ETL e número errado publicado no crachá, no comparar e no MCP; mesmo critério do BUG-019)
+- Flow / case: F03 / dado contra fonte · Screen: S05 (tile "gastos do gabinete", seção Gastos), S08 · Build: desde e07184b (primeira carga), não é regressão desta noite
+- Browser / device: consulta ao Postgres local e à API da Câmara; Chrome 1440 no 3301
+
+Steps
+1. `select sum(amount_cents)/100 from expenses where person_id = (Adriana Ventura) and extract(year from occurred_on) = 2025` -> 89.595,04 (crachá: "R$ 89.595" em 2025; carreira R$ 476.298).
+2. API `GET /api/v2/deputados/204528/despesas?idLegislatura=57&ano=2025` (todas as páginas): 406 linhas, `valorLiquido` = 104.680,79. Página oficial camara.leg.br/deputados/204528?ano=2025: "Cota parlamentar 104.693,75".
+3. Na API, 37 `codDocumento` aparecem em 2 a 4 linhas (passagem aérea SIGEPA: emissão, estorno negativo, taxa de remarcação).
+4. Baleia Rossi 2025: API 377.188,69; banco 343.601,05 (−8,9%).
+5. Original (politicometro.org/p/adriana-ventura, captura replica/screens/final-cracha-1440.png): "R$ 517.773 gastou de cota parlamentar somando todos os anos"; clone R$ 476.298.
+
+Expected: soma de `vlrLiquido` de todas as linhas do arquivo `Ano-AAAA.csv.zip` (bate com a página da Câmara).
+Actual: −14,4% (Adriana 2025), −8,9% (Baleia 2025); passagens aéreas da Adriana 2025: 12.721,27 no banco contra 27.532,19 na fonte.
+Cause: `etl/civico_etl/jobs/camara_diario.py::_expenses` usa `key = ideDocumento` e faz `upsert(... ["body_id","source_key"])`: linhas diferentes do mesmo documento se sobrescrevem e só a última sobrevive. Valores negativos (estornos) sobrevivem ou somem conforme a ordem do arquivo.
+Fix sugerido: chave composta (`ideDocumento` + `numParcela` + `txtPassageiro`/`numRessarcimento` + valor + ordem da linha no arquivo, ou o hash da linha inteira) e recarga de `camara.despesas` 2019–2026; invariante novo no `check`: soma por deputado e ano = soma de `vlrLiquido` do CSV.
+Status: open (não corrigido: exige recarga de tabela compartilhada).
+
+### BUG-021: /partidos some com o partido que só existe como partido atual (MISSÃO): Câmara soma 512 de 513
+
+- Severity: S3 · Screen: S11 /partidos · Build: W4 (regressão desta noite, página nova)
+Steps
+1. Abrir /partidos; somar a coluna Câmara -> 512. Não há linha MISSÃO.
+2. Abrir /p/kim-kataguiri -> cabeçalho "MISSÃO"; API da Câmara `deputados?siglaPartido=MISSÃO` -> Kim Kataguiri.
+Expected: linha MISSÃO com 1 cadeira; total 513.
+Cause: `pg-w4.ts::listPartyRows` lista partidos com `exists mandates.party_id = pa.id`, mas conta cadeiras por `coalesce(person_current_party, mandates.party_id)`. Quem trocou para um partido que não está em nenhum `mandates.party_id` some da tabela. features.csv já registrava "512/513" como se fosse aceitável.
+Status: open.
+
+### BUG-022: bancada do Senado em /partidos diverge do Senado (PT 10 / PSD 13 / PL 16 contra 9 / 14 / 15)
+
+- Severity: S3 · Screen: S11 /partidos e S05 (cabeçalho do crachá) · Build: W4 (contagem nova); a fonte do "partido atual" é anterior
+Steps
+1. /partidos: Senado PT 10, PSD 13, PL 16.
+2. `https://legis.senado.leg.br/dadosabertos/senador/lista/atual`: PT 9, PSD 14, PL 15, S/Partido 1 (Romário).
+3. /p/eliziane-gama mostra "PT"; o mandato no banco e o Senado dizem PSD. /p/romario mostra "PL"; o Senado diz "S/Partido".
+Expected: a mesma regra de partido em todo o site, com a fonte e a data de onde veio a filiação.
+Cause: `person_current_party` (filiação vinda do TSE/candidatura) vence o partido do mandato publicado pela casa; para Eliziane pode ser filiação para 2026 que o Senado ainda não refletiu, mas o site afirma "PT" sem dizer de onde.
+Status: open.
+
+### BUG-023: "Desemprego, média do ano" em /governos não é a taxa média anual do IBGE (2024: 6,85 contra 6,6)
+
+- Severity: S3 (número diferente do oficial, com rótulo que sugere o oficial) · Screen: S12 /governos · Build: W4 (regressão desta noite)
+Steps
+1. /governos: 2023 = 7,98; 2024 = 6,85.
+2. IBGE, Agência de Notícias 42530/42531: taxa média anual de desocupação 2023 = 7,8%, 2024 = 6,6%.
+Cause: o ETL faz média simples dos quatro trimestres da SIDRA 4099; o IBGE publica a média anual por outro cálculo. A nota de método diz "média simples dos quatro trimestres", mas o cabeçalho diz "média do ano".
+Fix sugerido: usar a série anual publicada pelo IBGE (ou renomear para "média dos 4 trimestres" e mostrar o valor oficial ao lado).
+Status: open.
+
+### BUG-024: Amazonas sem governador: home diz "Governo do estado 26" e Manaus omite o nível sem "—"
+
+- Severity: S3 · Screen: S01, S07 · Build: dado de 02/11 23:13 (carga TSE); não determinado se é desta noite
+Steps
+1. Home: chip "Governo do estado 26", "Vice-governo 19".
+2. /representantes?cidade=1302603 (Manaus): não existe seção "Governo do estado"; nenhum aviso.
+3. Banco: Wilson Lima e Tadeu de Souza com `status = 'renunciou'` em 2026-04-04; nenhum titular `em_exercicio` no AM.
+Expected: quem exerce o governo do AM hoje, ou "—" com o motivo (titular e vice renunciaram; fonte não publica o sucessor).
+Cause: o `check` "um titular em exercício por lugar e cargo" testa no máximo 1, não exatamente 1, para governador.
+Status: open.
+
+### BUG-025: deputados estaduais: 994 em exercício contra 1.035 cadeiras, sem aviso (SP 90 de 94, RJ 65 de 70)
+
+- Severity: S3 · Screen: S01, S07 (Campinas: "Deputados estaduais 90") · Build: anterior a esta noite
+Steps: `select uf, count(*) from mandates ... deputado_estadual em_exercicio` -> faltam 41 em 18 UFs (AP −1, BA −2, CE −4, ES −2, GO −1, MA −4, MG −3, MT −1, PA −2, PE −2, PI −2, PR −3, RJ −5, RO −1, RS −1, SC −2, SP −4, TO −1).
+Expected: suplentes em exercício (ALESP e ALMG já são lidas desde W3-A) ou "—" com motivo dizendo que suplente em exercício não está carregado.
+Status: open.
+
+### BUG-026: /comparar e o bloco "Números" do crachá sem fonte e data do que mostram
+
+- Severity: S3 (regra de produto "fonte e data em todo bloco") · Screen: S08, S05 · Build: anterior; o tile de salário acumulado é desta noite (W3-B)
+Steps
+1. /comparar?p=adriana-ventura,baleia-rossi: presença, propostas, votos e cota são da Câmara; o único rodapé da página é "Fonte: TSE · Dados Abertos".
+2. /p/adriana-ventura, bloco "Números desde 2019": nenhum "Fonte: … · atualizado em …"; o salário acumulado não cita o decreto legislativo nem a data (só o texto de ajuda "como a lei publica").
+Status: open.
+
+### BUG-027: ONB-H2 (foco no campo de cidade depois do onboarding) falha no dev server
+
+- Severity: S4 · Screen: S02 · Build: anterior (já estava em "A conferir", build 6)
+Steps: suíte contra 3101: falhou nas 2 tentativas; isolado com `--repeat-each 3`: 1 de 3 falhou. Contra o build de produção (3301): passou.
+Cause provável: corrida entre a hidratação do combobox e o `focus()` disparado ao fechar o modal; em celular lento pode aparecer em produção.
+Status: open.
+
+### BUG-028: presença do crachá não bate com a da Câmara (2025: 108 de 120 contra 110 + 11 justificadas)
+
+- Severity: S4 · Screen: S05 · Build: anterior
+Steps: /p/adriana-ventura?ano=2025 -> "90% (108 de 120)"; camara.leg.br/deputados/204528?ano=2025 -> 110 dias presentes, 11 ausências justificadas, 0 não justificadas. Carreira: clone 912 de 926; original 911 de 932.
+Cause provável: o clone conta sessões deliberativas; a Câmara conta dias. Não está dito no tile.
+Status: open (a conferir a definição; não afirmo qual está certo).
+
+### BUG-029: `npx eslint` em web/ lint a saída de build `.next-e2e-w3a/` (1.823 erros)
+
+- Severity: S4 (ferramenta) · Build: W3-A
+Steps: `cd web && npx eslint` -> 10.937 problemas, todos em `.next-e2e-w3a/`; `npx eslint src e2e` -> 0.
+Fix sugerido (uma linha): em `eslint.config.mjs`, trocar `".next-e2e/**"` por `".next*/**"`. Não aplicado: fora do escopo de commit desta verificação.
+Status: open.

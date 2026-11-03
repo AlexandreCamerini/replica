@@ -1,0 +1,72 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 390,
+    "height": 844
+  },
+  "clone": {
+    "width": 390,
+    "height": 844
+  },
+  "compared_at": {
+    "width": 390,
+    "height": 844
+  },
+  "height_delta_pct": 0.0,
+  "score": 28.6,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 0,
+      "w": 384,
+      "h": 576,
+      "cells": 126,
+      "where": "top centre"
+    },
+    {
+      "x": 32,
+      "y": 672,
+      "w": 352,
+      "h": 172,
+      "cells": 41,
+      "where": "bottom centre"
+    },
+    {
+      "x": 32,
+      "y": 576,
+      "w": 288,
+      "h": 96,
+      "cells": 15,
+      "where": "bottom centre"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "w": 192,
+      "h": 64,
+      "cells": 7,
+      "where": "top left"
+    },
+    {
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 32,
+      "cells": 2,
+      "where": "top centre"
+    },
+    {
+      "x": 0,
+      "y": 768,
+      "w": 32,
+      "h": 64,
+      "cells": 2,
+      "where": "bottom left"
+    }
+  ],
+  "files": {
+    "original": "replica/screens/final-cracha-390.png",
+    "clone": "replica/clone-screens/final-cracha-390.png"
+  }
+}
