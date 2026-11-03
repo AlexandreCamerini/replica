@@ -46,6 +46,18 @@ PRESIDENTE_TSE: dict[tuple[int, int], tuple[int, int]] = {
 _PRES_VALUES = ", ".join(f"({y}, {t}, {v}, {a})" for (y, t), (v, a) in sorted(PRESIDENTE_TSE.items()))
 _PRES_TETO = int(max(a for _, a in PRESIDENTE_TSE.values()) * 1.1)
 
+# BUG-020 / D183: cota parlamentar de uma amostra fixa contra o total da Câmara (arquivo Ano-AAAA.csv.zip + linhas que só a API
+# tem, D181), conferido em 03/11/2026 na API /deputados/{id}/despesas e na página camara.leg.br/deputados/{id}?ano=AAAA.
+# (id da Câmara, ano) -> centavos. Tolerância de 0,5% para republicação da fonte; o defeito do BUG-020 era -9% a -14%.
+COTA_REFERENCIA: dict[tuple[str, int], int] = {
+    ("204528", 2024): 6_712_529, ("204528", 2025): 10_469_375,    # Adriana Ventura (2025: 104.693,75; antes da correção 89.595,04)
+    ("178975", 2024): 31_139_916, ("178975", 2025): 37_720_507,   # Baleia Rossi (2025 antes: 343.601,05)
+    ("204534", 2024): 51_872_520, ("204534", 2025): 53_151_883,   # Tabata Amaral
+    ("204536", 2024): 16_236_521, ("204536", 2025): 15_175_134,   # Kim Kataguiri
+    ("209787", 2024): 41_202_602, ("209787", 2025): 46_343_464,   # Nikolas Ferreira
+}
+_COTA_VALUES = ", ".join(f"('{d}', {y}, {c})" for (d, y), c in sorted(COTA_REFERENCIA.items())) or "(null, null, null)"
+
 _PREFEITOS_POR_MUNICIPIO = f"""
     select pl.ibge_code, (select count(*) from mandates m join offices o on o.id = m.office_id
                           where m.place_id = pl.id and o.slug = 'prefeito' and m.role = 'titular' and m.status = 'em_exercicio'
@@ -103,6 +115,24 @@ CHECKS: list[tuple[str, str]] = [
         "senado: no máximo 81 em exercício",
         """select greatest(count(*) - 81, 0) from mandates m join offices o on o.id = m.office_id
            where o.slug = 'senador' and m.status = 'em_exercicio'""",
+    ),
+    (
+        "cota: amostra fixa de deputados e anos = total da Câmara (±0,5%)",
+        f"""with ref (dep, year, cents) as (values {_COTA_VALUES}),
+           d as (select r.dep, r.year, r.cents,
+                        (select coalesce(sum(x.amount_cents), 0) from expenses x
+                         join legislative_bodies b on b.id = x.body_id and b.kind = 'camara_deputados'
+                         where x.person_id = (select e.person_id from person_external_ids e join sources s on s.id = e.source_id and s.slug = 'camara'
+                                              where e.external_id = r.dep)
+                           and x.occurred_on >= make_date(r.year, 1, 1) and x.occurred_on < make_date(r.year + 1, 1, 1)) as banco
+                 from ref r where r.dep is not null)
+           select count(*) from d where abs(banco - cents) > abs(cents) * 0.005""",
+    ),
+    (
+        # BUG-020: chave por linha da fonte; o formato antigo (só ideDocumento) não pode voltar
+        "cota da Câmara: toda linha com chave por linha da fonte (cotaAAAA: ou cotaapiAAAA:)",
+        """select count(*) from expenses x join legislative_bodies b on b.id = x.body_id and b.kind = 'camara_deputados'
+           where x.source_key !~ '^cota(api)?[0-9]{4}:'""",
     ),
     (
         "executivo: um titular em exercício por lugar e cargo",

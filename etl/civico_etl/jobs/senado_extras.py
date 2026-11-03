@@ -10,7 +10,6 @@ Presença: o Senado não publica lista de presença por senador. A presença der
 from __future__ import annotations
 
 import logging
-from datetime import date
 
 import psycopg
 
@@ -96,6 +95,7 @@ def ceaps(conn: psycopg.Connection, years: list[int], body: str, force: bool) ->
     for year in years:
         try:
             from ..http import fetch
+            from .camara_diario import cota_occurred
 
             f = fetch(f"{ADM}/senadores/despesas_ceaps/{year}", max_age=DAY)
         except FileNotFoundError:
@@ -110,7 +110,8 @@ def ceaps(conn: psycopg.Connection, years: list[int], body: str, force: bool) ->
                         unknown.add(x.get("codSenador"))
                         continue
                     amount = cents(x.get("valorReembolsado"))
-                    day = parse_date(x.get("data")) or (date(int(x["ano"]), int(x["mes"]), 1) if x.get("ano") and x.get("mes") else None)
+                    # D180: o ano do total é o da competência (ano/mes); data de emissão em outro ano (ou digitada "0023") vai para o mês de competência
+                    day = cota_occurred(x.get("data"), x.get("ano"), x.get("mes"))
                     if amount is None or not day:
                         r.reject(1)
                         continue

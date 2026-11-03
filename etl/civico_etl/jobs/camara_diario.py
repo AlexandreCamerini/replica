@@ -28,7 +28,7 @@ from ..db import Run, SkipUnchanged, run, upsert
 from ..http import fetch, fetch_json, paginate_camara
 from ..identity import PersonResolver
 from ..parties import PartyResolver
-from ..util import cents, fold, midnight_br, nz, parse_date, parse_ts_br, titlecase_pt
+from ..util import cents, fold, midnight_br, nz, parse_date, parse_ts_br, sha256_text, titlecase_pt
 
 log = logging.getLogger("etl.camara")
 API = "https://dadosabertos.camara.leg.br/api/v2"
@@ -522,44 +522,179 @@ def _proposals(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> N
         return
 
 
+# BUG-020 / D180: a cota da Câmara publica VÁRIAS linhas por `ideDocumento` (emissão de passagem, estorno negativo, taxa de
+# remarcação; e `ideDocumento = 0` em milhares de linhas sem documento, como telefonia). A chave antiga era só o ideDocumento:
+# no upsert, só a última linha de cada documento sobrevivia (Adriana Ventura 2025: 89.595 no banco contra 104.693,75 na Câmara).
+# Chave nova, por linha da fonte: arquivo do ano + deputado + documento + hash dos campos que distinguem a linha + ordinal entre
+# linhas idênticas nesses campos. Não depende da ordem do arquivo (o ordinal só separa linhas indistinguíveis), então a
+# recarga do mesmo arquivo grava as mesmas chaves; o que sumiu da fonte é apagado no mesmo run (prune por arquivo).
+COTA_FIELDS = ("numSubCota", "numEspecificacaoSubCota", "txtCNPJCPF", "txtNumero", "indTipoDocumento", "datEmissao", "vlrDocumento",
+               "vlrGlosa", "vlrLiquido", "numMes", "numParcela", "txtPassageiro", "txtTrecho", "numLote", "numRessarcimento", "vlrRestituicao")
+# D181: desde 2025 a Câmara publica as passagens do SIGEPA novo (codDocumento UUID) só na API /deputados/{id}/despesas; o
+# arquivo Ano-AAAA.csv.zip não traz essas linhas. A partir deste ano, o que a API tem e o arquivo não tem entra como complemento.
+COTA_API_FROM = 2025
+
+
+def cota_occurred(dat_emissao: str | None, ano: str | int | None, mes: str | int | None) -> date | None:
+    """Data do lançamento. O ano que a Câmara usa nos totais é o da competência (numAno/numMes, o arquivo do ano); se a
+    data de emissão cai em outro ano (nota emitida em dezembro e lançada em janeiro, data digitada errada), usa o 1º dia
+    do mês de competência para o lançamento contar no ano em que a Câmara conta (D180)."""
+    d = parse_date(dat_emissao) if dat_emissao else None
+    try:
+        a, m = int(str(ano).strip()), int(str(mes).strip())
+    except (TypeError, ValueError):
+        return d
+    if not (1 <= m <= 12):
+        return d if d and d.year == a else None
+    if d and d.year == a:
+        return d
+    return date(a, m, 1)
+
+
+def cota_keys(rows: list[tuple[str, str, tuple]], prefix: str) -> list[str]:
+    """(deputado, documento, campos) -> chave estável por linha: prefixo:dep:doc:hash[#n]. n conta só linhas idênticas nos campos."""
+    seen: dict[str, int] = defaultdict(int)
+    out = []
+    for dep, doc, fields in rows:
+        base = f"{prefix}:{dep}:{doc or '-'}:{sha256_text(chr(31).join(str(f or '') for f in fields))[:16]}"
+        n = seen[base]
+        seen[base] += 1
+        out.append(base if n == 0 else f"{base}#{n}")
+    return out
+
+
+def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> list[dict]:
+    """Linhas da API que o arquivo não tem: diferença de multiconjunto por (documento, valor líquido em centavos).
+    Linhas do arquivo que a API não tem (telefonia sem documento) ficam: o arquivo é a fonte principal."""
+    left: dict[tuple[str, int], int] = defaultdict(int)
+    for doc, amount in file_rows:
+        left[(str(doc), amount)] += 1
+    extra = []
+    for x in api_rows:
+        k = (str(x.get("codDocumento") or ""), cents(x.get("valorLiquido")) or 0)
+        if left.get(k, 0) > 0:
+            left[k] -= 1
+        else:
+            extra.append(x)
+    return extra
+
+
+EXP_COLS = ["person_id", "body_id", "occurred_on", "category", "supplier_name", "supplier_doc", "amount_cents", "currency", "receipt_url", "source_key"]
+
+
+def _write_year(conn: psycopg.Connection, body: str, prefix: str, rows: list[tuple]) -> int:
+    """Grava em lotes e apaga o que o arquivo/API do ano não traz mais (mesmo prefixo). Uma transação por run."""
+    n = 0
+    for i in range(0, len(rows), 20000):
+        n += len(upsert(conn, "expenses", EXP_COLS, rows[i:i + 20000], ["body_id", "source_key"], returning=["id"]))
+    keys = [r[-1] for r in rows]
+    gone = conn.execute(
+        "delete from expenses where body_id = %s and source_key like %s and not (source_key = any(%s))",
+        (body, prefix + ":%", keys),
+    ).rowcount
+    if gone:
+        log.info("%s: %d lançamentos que a fonte não traz mais apagados", prefix, gone)
+    return n
+
+
+def _cat(s: str | None) -> str:
+    s = (s or "").strip()
+    return s[:1].upper() + s[1:].lower()
+
+
 def _expenses(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
     try:
         f = fetch(f"https://www.camara.leg.br/cotas/Ano-{year}.csv.zip")
     except FileNotFoundError:
         log.warning("sem cota de %d", year)
         return
+    prefix = f"cota{year}"
     try:
         with run(conn, f"camara.despesas.{year}", "camara", input_checksum=f.checksum, force=force) as r:
             with zipfile.ZipFile(f.path) as z:
                 name = next(n for n in z.namelist() if n.lower().endswith(".csv"))
                 with z.open(name) as fh:
                     reader = csv.DictReader(io.TextIOWrapper(fh, encoding="utf-8-sig", newline=""), delimiter=";")
-                    rows, unknown, batch = [], set(), 0
+                    pending, ident, unknown, legacy_docs, legacy_fallback = [], [], set(), set(), []
                     for x in reader:
                         dep = (x["ideCadastro"] or "").strip()
                         if not dep:
                             continue  # lideranças e órgãos: não são pessoa
+                        doc = (x["ideDocumento"] or "").strip()
+                        legacy_docs.add(doc)
+                        legacy_fallback.append(f"{dep}:{x['numAno']}:{x['numMes']}:{x['txtNumero']}:{x['txtCNPJCPF']}")
                         pid = ctx.person_for_deputy(dep, create=False)
                         if not pid:
                             unknown.add(dep)
                             continue
                         amount = cents(x["vlrLiquido"])
-                        occurred = parse_date(x["datEmissao"]) or (date(int(x["numAno"]), int(x["numMes"]), 1) if x["numMes"].isdigit() else None)
+                        occurred = cota_occurred(x["datEmissao"], x["numAno"], x["numMes"])
                         if amount is None or not occurred:
                             r.reject(1)
                             continue
-                        cat = (x["txtDescricao"] or "").strip()
-                        cat = cat[:1].upper() + cat[1:].lower()
-                        key = (x["ideDocumento"] or "").strip() or f"{dep}:{x['numAno']}:{x['numMes']}:{x['txtNumero']}:{x['txtCNPJCPF']}"
-                        rows.append((pid, ctx.body, occurred, cat, nz(x["txtFornecedor"]), nz(x["txtCNPJCPF"]), amount, "BRL", nz(x["urlDocumento"]), key))
-                        if len(rows) >= 20000:
-                            batch += len(upsert(conn, "expenses", ["person_id", "body_id", "occurred_on", "category", "supplier_name", "supplier_doc", "amount_cents", "currency", "receipt_url", "source_key"], rows, ["body_id", "source_key"], returning=["id"]))
-                            rows = []
-                    if rows:
-                        batch += len(upsert(conn, "expenses", ["person_id", "body_id", "occurred_on", "category", "supplier_name", "supplier_doc", "amount_cents", "currency", "receipt_url", "source_key"], rows, ["body_id", "source_key"], returning=["id"]))
+                        ident.append((dep, doc, tuple(x.get(k) for k in COTA_FIELDS)))
+                        pending.append((pid, ctx.body, occurred, _cat(x["txtDescricao"]), nz(x["txtFornecedor"]), nz(x["txtCNPJCPF"]), amount, "BRL", nz(x["urlDocumento"])))
+            rows = [p + (k,) for p, k in zip(pending, cota_keys(ident, prefix))]
+            r.add(_write_year(conn, ctx.body, prefix, rows))
+            # chaves do formato antigo (só ideDocumento, ou o fallback dep:ano:mes:numero:cnpj) que vieram deste arquivo
+            old = conn.execute(
+                "delete from expenses where body_id = %s and source_key not like 'cota%%' and (source_key = any(%s) or source_key = any(%s))",
+                (ctx.body, [d for d in legacy_docs if d], legacy_fallback),
+            ).rowcount
+            if old:
+                r.notes.append(f"{old} lançamentos com chave antiga (só ideDocumento, BUG-020) substituídos")
             ctx.people.flush()
-            r.add(batch)
             if unknown:
                 r.notes.append(f"{len(unknown)} deputados da cota sem cadastro: {sorted(unknown)[:10]}")
     except SkipUnchanged:
-        return
+        pass
+    if year >= COTA_API_FROM:
+        _expenses_api(conn, ctx, year)
+
+
+def _expenses_api(conn: psycopg.Connection, ctx: _Ctx, year: int) -> None:
+    """D181: complemento da API para o que o arquivo não traz (passagens SIGEPA com codDocumento UUID). Sempre roda (a API
+    muda sem o arquivo mudar); o prefixo próprio (cotaapi) faz o prune não tocar nas linhas do arquivo."""
+    prefix = f"cotaapi{year}"
+    legs = sorted({n for n, (a, b) in LEGISLATURES.items() if a <= date(year, 12, 31) and b > date(year, 1, 1)})
+    # deputados com mandato no ano (id da Câmara já ligado no diretório) e linhas do arquivo de cada um, por (documento, valor)
+    deps = defaultdict(set)
+    for row in conn.execute(
+        """select distinct e.external_id, e.person_id from person_external_ids e join sources s on s.id = e.source_id and s.slug = 'camara'
+           join mandates m on m.person_id = e.person_id join offices o on o.id = m.office_id and o.slug = 'deputado_federal'
+           where m.started_on <= %s and m.ends_on > %s and m.status <> 'eleito_aguardando_posse'""",
+        (date(year, 12, 31), date(year, 1, 1)),
+    ):
+        deps[str(row["person_id"])].add(row["external_id"])
+    file_rows: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    for row in conn.execute("select source_key, amount_cents from expenses where body_id = %s and source_key like %s", (ctx.body, f"cota{year}:%")):
+        _, dep, doc, _h = row["source_key"].split(":", 3)
+        file_rows[dep].append((doc, row["amount_cents"]))
+    with run(conn, f"camara.despesasapi.{year}", "camara") as r:
+        rows, ident, failed = [], [], []
+        for pid, ext_ids in sorted(deps.items()):
+            for dep in sorted(ext_ids):
+                items: list[dict] = []
+                try:
+                    for leg in legs:
+                        items += list(paginate_camara(f"{API}/deputados/{dep}/despesas?idLegislatura={leg}&ano={year}&itens=100&ordem=ASC&ordenarPor=dataDocumento", max_age=86400))
+                except (httpx.HTTPError, FileNotFoundError) as e:
+                    failed.append(dep)
+                    log.warning("cota pela API: deputado %s %d sem resposta (%s)", dep, year, e)
+                    continue
+                for x in cota_api_extra(file_rows.get(dep, []), items):
+                    amount = cents(x.get("valorLiquido"))
+                    occurred = cota_occurred(x.get("dataDocumento"), x.get("ano"), x.get("mes"))
+                    if amount is None or not occurred:
+                        r.reject(1)
+                        continue
+                    fields = (x.get("tipoDespesa"), x.get("numDocumento"), x.get("dataDocumento"), x.get("valorDocumento"), x.get("valorGlosa"),
+                              x.get("valorLiquido"), x.get("mes"), x.get("parcela"), x.get("numRessarcimento"), x.get("codLote"), x.get("cnpjCpfFornecedor"))
+                    ident.append((dep, str(x.get("codDocumento") or ""), fields))
+                    rows.append((pid, ctx.body, occurred, _cat(x.get("tipoDespesa")), nz(x.get("nomeFornecedor")), nz(x.get("cnpjCpfFornecedor")), amount, "BRL", nz(x.get("urlDocumento"))))
+        if failed:
+            # sem a resposta de um deputado, o prune apagaria o complemento dele: não grava nada e falha o run
+            raise RuntimeError(f"API da cota sem resposta para {len(failed)} deputado(s) em {year}: {failed[:10]}")
+        rows = [p + (k,) for p, k in zip(rows, cota_keys(ident, prefix))]
+        r.add(_write_year(conn, ctx.body, prefix, rows))
+        r.notes.append(f"{len(rows)} lançamentos só na API (fora do arquivo Ano-{year}.csv.zip)")
