@@ -2,6 +2,7 @@ import "server-only";
 import postgres from "postgres";
 import type {
   Agreement,
+  Disagreement,
   Candidacy,
   DataSource,
   Expense,
@@ -575,6 +576,62 @@ export const pgSource: DataSource = {
         out.push({ a: personIds[i], b: personIds[j], same: Number(r.same), total: Number(r.total) });
       }
     return out;
+  },
+  async listDisagreements(a, b, f) {
+    const limit = Math.min(f.limit ?? 20, 400);
+    const base = sql`
+      from votes va join votes vb on vb.voting_event_id = va.voting_event_id and vb.person_id = ${b}::uuid
+      join voting_events e on e.id = va.voting_event_id
+      where va.person_id = ${a}::uuid
+        and va.value in ('sim','nao','abstencao','obstrucao') and vb.value in ('sim','nao','abstencao','obstrucao') and va.value <> vb.value
+        ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}`;
+    const topicFilter = f.topic ? sql`and exists (select 1 from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id and t.slug = ${f.topic})` : sql``;
+    const [{ n }] = await sql`select count(*)::int as n ${base} ${topicFilter}`;
+    const list = await sql`
+      select e.id, bd.kind as body, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, va.value as va, vb.value as vb,
+             case when pr.id is not null then pr.type || ' ' || pr.number || '/' || pr.year end as label, pr.summary_official,
+             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
+      from votes va join votes vb on vb.voting_event_id = va.voting_event_id and vb.person_id = ${b}::uuid
+      join voting_events e on e.id = va.voting_event_id
+      join legislative_bodies bd on bd.id = e.body_id
+      left join proposals pr on pr.id = e.proposal_id
+      where va.person_id = ${a}::uuid
+        and va.value in ('sim','nao','abstencao','obstrucao') and vb.value in ('sim','nao','abstencao','obstrucao') and va.value <> vb.value
+        ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
+        ${topicFilter}
+      order by e.occurred_at desc, e.id limit ${limit}`;
+    const tc = await sql`
+      select t.slug, count(distinct e.id)::int as n
+      from votes va join votes vb on vb.voting_event_id = va.voting_event_id and vb.person_id = ${b}::uuid
+      join voting_events e on e.id = va.voting_event_id
+      join proposal_topics pt on pt.proposal_id = e.proposal_id join topics t on t.id = pt.topic_id
+      where va.person_id = ${a}::uuid
+        and va.value in ('sim','nao','abstencao','obstrucao') and vb.value in ('sim','nao','abstencao','obstrucao') and va.value <> vb.value
+        ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
+      group by 1 order by 1`;
+    return {
+      ...page(
+        list.map<Disagreement>((r) => ({
+          event: {
+            id: String(r.id),
+            body: r.body === "senado" ? "senado" : "camara",
+            occurredAt: isoTs(r.occurred_at),
+            description: r.summary_official ? String(r.summary_official) : String(r.description),
+            topic: (r.topic as string | null) ?? null,
+            result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
+            yes: Number(r.yes_count ?? 0),
+            no: Number(r.no_count ?? 0),
+            proposalLabel: (r.label as string | null) ?? null,
+          },
+          a: r.va as VoteValue,
+          b: r.vb as VoteValue,
+        })),
+        Number(n),
+        0,
+        limit,
+      ),
+      topics: tc.map((t) => ({ slug: String(t.slug), count: Number(t.n) })),
+    };
   },
   async listTopics() {
     return (await sql`select slug, name from topics order by name collate pt_br`).map((r) => ({ slug: String(r.slug), name: String(r.name) }));

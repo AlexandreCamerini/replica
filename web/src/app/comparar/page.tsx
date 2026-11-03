@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Container, PageHeader } from "@/components/page/page-header";
 import { PersonPicker } from "@/components/people/person-picker";
-import { LinkChip } from "@/components/profile/ui";
+import { LinkChip, SelectField } from "@/components/profile/ui";
 import { NotPublished, SourceFooter } from "@/components/ui/data";
 import { data, type Person } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Comparar", description: "De 2 a 5 pe
 
 const MAX = 5;
 const SLUG = /^[a-z0-9-]{1,120}$/;
-type SP = Promise<{ p?: string; periodo?: string }>;
+type SP = Promise<{ p?: string; periodo?: string; par?: string; tema?: string; nd?: string }>;
 
 export default async function Page({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
@@ -36,7 +36,7 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
       <div className="mb-8">
         <PersonPicker current={slugs} max={MAX} />
       </div>
-      {people.length < 2 ? <Presets have={people} /> : <CompareTable people={people} periodoRaw={sp.periodo} />}
+      {people.length < 2 ? <Presets have={people} /> : <CompareTable people={people} periodoRaw={sp.periodo} sp={sp} />}
     </Container>
   );
 }
@@ -81,7 +81,7 @@ async function Presets({ have }: { have: Person[] }) {
 
 type Cell = React.ReactNode;
 
-async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoRaw?: string }) {
+async function CompareTable({ people, periodoRaw, sp }: { people: Person[]; periodoRaw?: string; sp: Awaited<SP> }) {
   const years = [...new Set((await Promise.all(people.map((p) => data.getActiveYears(p.id)))).flat())].sort((a, b) => b - a).slice(0, 6);
   const year = periodoRaw && years.includes(Number(periodoRaw)) ? Number(periodoRaw) : null;
   const period = year ? (String(year) as `${number}`) : ("career" as const);
@@ -238,7 +238,108 @@ async function CompareTable({ people, periodoRaw }: { people: Person[]; periodoR
           ))}
         </ul>
       </section>
+      <Divergences people={people} year={year} since={since} sp={sp} />
       <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
     </>
+  );
+}
+
+const VOTE_LABEL: Record<string, string> = { sim: "Sim", nao: "Não", abstencao: "Abstenção", obstrucao: "Obstrução" };
+const STEP = 20;
+
+/** W1 item 8: em que o par escolhido votou diferente, com filtro por tema e "mostrar mais"; tudo na URL. Ordem: data. */
+async function Divergences({ people, year, since, sp }: { people: Person[]; year: number | null; since: number | null; sp: Awaited<SP> }) {
+  const slugs = people.map((p) => p.slug);
+  const want = (sp.par ?? "").split(",").filter((x) => slugs.includes(x));
+  const [a, b] = want.length === 2 && want[0] !== want[1] ? want.map((x) => people.find((p) => p.slug === x)!) : [people[0], people[1]];
+  const shown = Math.min(Math.max(Number(sp.nd) || STEP, STEP), 400);
+  const topicsAll = await data.listTopics();
+  const tema = topicsAll.some((t) => t.slug === sp.tema) ? sp.tema : undefined;
+  const page = await data.listDisagreements(a.id, b.id, { year: year ?? undefined, topic: tema, limit: shown });
+  const topicName = Object.fromEntries(topicsAll.map((t) => [t.slug, t.name]));
+  const qs = (patch: Record<string, string | undefined>) => {
+    const u = new URLSearchParams();
+    const cur: Record<string, string | undefined> = { p: slugs.join(","), periodo: year ? String(year) : undefined, par: `${a.slug},${b.slug}`, tema, nd: undefined, ...patch };
+    for (const [k, v] of Object.entries(cur)) if (v) u.set(k, v);
+    return `/comparar?${u.toString()}`;
+  };
+  const pairs: [Person, Person][] = [];
+  for (let i = 0; i < people.length; i++) for (let j = i + 1; j < people.length; j++) pairs.push([people[i], people[j]]);
+  return (
+    <section aria-labelledby="diferente-h" id="diferente" className="mt-8 scroll-mt-28">
+      <h2 id="diferente-h" className="text-xl text-fg">
+        Em que votaram diferente
+      </h2>
+      <p className="mb-3 text-sm text-muted">
+        Votações nominais em que {a.displayName} e {b.displayName} registraram votos diferentes{year ? ` em ${year}` : since ? `, desde ${since}` : ""}, da mais recente para a mais
+        antiga. Ausência não entra.
+      </p>
+      {pairs.length > 1 && (
+        <nav aria-label="Escolher o par" className="mb-3">
+          <ul className="flex flex-wrap gap-2">
+            {pairs.map(([x, y]) => (
+              <li key={`${x.slug}-${y.slug}`}>
+                <LinkChip href={qs({ par: `${x.slug},${y.slug}`, tema: undefined })} active={(x.slug === a.slug && y.slug === b.slug) || (x.slug === b.slug && y.slug === a.slug)}>
+                  {x.displayName} × {y.displayName}
+                </LinkChip>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      <form action="/comparar#diferente" className="mb-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="p" value={slugs.join(",")} />
+        {year && <input type="hidden" name="periodo" value={year} />}
+        <input type="hidden" name="par" value={`${a.slug},${b.slug}`} />
+        <SelectField
+          label="Tema"
+          name="tema"
+          value={tema}
+          options={[{ value: "", label: "Todos os temas" }, ...page.topics.map((t) => ({ value: t.slug, label: `${topicName[t.slug] ?? t.slug} (${count(t.count)})` }))]}
+        />
+        <button type="submit" className="h-10 rounded-pill bg-surface-inverse px-4 text-sm font-semibold text-on-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+          Filtrar
+        </button>
+      </form>
+      <p className="mb-2 text-sm text-fg" data-testid="divergencias-total">
+        <strong className="tabular">{count(page.total)}</strong> {page.total === 1 ? "votação" : "votações"} com votos diferentes{tema ? ` em ${topicName[tema]}` : ""}.
+      </p>
+      {page.items.length === 0 ? (
+        <p className="rounded-sm bg-surface-sunken px-4 py-6 text-center text-sm text-muted">
+          {tema ? "Nenhuma votação com votos diferentes neste tema." : "Nenhuma votação em comum com votos diferentes (casas ou períodos diferentes, ou votaram sempre igual)."}
+        </p>
+      ) : (
+        <ol className="flex flex-col divide-y divide-border rounded-md border border-border bg-surface px-4" data-testid="divergencias">
+          {page.items.map((d) => (
+            <li key={d.event.id} className="relative flex flex-col gap-1.5 py-3">
+              <Link href={`/votacoes/${d.event.id}`} className="text-sm text-fg outline-none after:absolute after:inset-0 hover:underline focus-visible:after:outline-2 focus-visible:after:outline-focus">
+                {d.event.proposalLabel && <span className="font-mono font-semibold">{d.event.proposalLabel}: </span>}
+                {d.event.description.slice(0, 200)}
+                {d.event.description.length > 200 ? "…" : ""}
+              </Link>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                <time dateTime={d.event.occurredAt}>{date(d.event.occurredAt)}</time>
+                <span>
+                  {a.displayName}: <strong className="text-fg">{VOTE_LABEL[d.a]}</strong>
+                </span>
+                <span>
+                  {b.displayName}: <strong className="text-fg">{VOTE_LABEL[d.b]}</strong>
+                </span>
+                {d.event.topic && topicName[d.event.topic] && <span>{topicName[d.event.topic]}</span>}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      {page.total > page.items.length && (
+        <Link
+          href={`${qs({ nd: String(shown + STEP) })}#diferente`}
+          scroll={false}
+          className="mt-3 inline-flex h-10 items-center rounded-pill border-[1.5px] border-border-input bg-surface px-4 text-sm font-semibold text-fg outline-none hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          Mostrar mais {Math.min(page.total - page.items.length, STEP)} de {count(page.total - page.items.length)}
+        </Link>
+      )}
+    </section>
   );
 }

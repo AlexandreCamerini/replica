@@ -235,6 +235,8 @@ export type VoteFilter = { year?: number; topic?: string; value?: VoteValue; q?:
 export type ExpenseFilter = { year?: number; category?: string; cursor?: string; limit?: number };
 
 export type Agreement = { a: string; b: string; same: number; total: number };
+/** Uma votação em que as duas pessoas registraram votos diferentes (comparar, W1 item 8). */
+export type Disagreement = { event: VotingEvent & { proposalLabel: string | null }; a: VoteValue; b: VoteValue };
 
 /** Contrato da camada de dados. A versão fake e a Postgres implementam isto; nenhuma tela importa a implementação. */
 export interface DataSource {
@@ -268,6 +270,8 @@ export interface DataSource {
   listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote>>;
   listExpenses(personId: string, f: ExpenseFilter): Promise<Page<Expense> & { byCategory: { label: string; cents: number }[] }>;
   getAgreement(personIds: string[], period: "career" | number): Promise<Agreement[]>;
+  /** Votações em que a e b votaram diferente (sim/não/abstenção/obstrução), mais recentes primeiro; topics = temas com divergência e quantas. */
+  listDisagreements(a: string, b: string, f: { year?: number; topic?: string; limit?: number }): Promise<Page<Disagreement> & { topics: { slug: string; count: number }[] }>;
   listTopics(): Promise<Topic[]>;
   /** Pessoas em exercício numa casa, para o hemiciclo (ordem: partido A–Z, depois nome). */
   getChamber(body: Body): Promise<{ slug: string; name: string; party: string; uf: string | null }[]>;

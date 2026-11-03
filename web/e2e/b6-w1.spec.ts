@@ -48,4 +48,32 @@ test.describe("B6-W1", () => {
     await sec.getByRole("link").first().click();
     await expect(page).toHaveURL(/\/p\//);
   });
+
+  test("B6-W8 comparar: em que votaram diferente, filtro por tema na URL e mostrar mais", async ({ page, axe }) => {
+    await page.goto("/comparar?p=adriana-ventura,baleia-rossi");
+    const sec = page.locator("#diferente");
+    const total = Number((await sec.getByTestId("divergencias-total").innerText()).match(/^([\d.]+)/)![1].replace(/\./g, ""));
+    // bate com o cartão "Votaram igual?": total - iguais
+    const card = await page.locator("section[aria-labelledby='iguais-h'] li").first().innerText();
+    const [same, all] = card.match(/([\d.]+) de ([\d.]+) votações/)!.slice(1).map((x) => Number(x.replace(/\./g, "")));
+    expect(total).toBe(all - same);
+    const items = sec.getByTestId("divergencias").locator("li");
+    await expect(items).toHaveCount(20);
+    await sec.getByRole("link", { name: /^Mostrar mais/ }).click();
+    await expect(page).toHaveURL(/nd=40/);
+    await expect(items).toHaveCount(40);
+    await sec.locator('select[name="tema"]').selectOption("saude");
+    await sec.getByRole("button", { name: "Filtrar" }).click();
+    await expect(page).toHaveURL(/tema=saude/);
+    await expect(page.locator("#diferente").getByTestId("divergencias-total")).toContainText("em Saúde");
+    await axe();
+  });
+
+  test("B6-W8 comparar com 3 pessoas escolhe o par pela URL", async ({ page }) => {
+    await page.goto("/comparar?p=adriana-ventura,baleia-rossi,randolfe-rodrigues&par=adriana-ventura,randolfe-rodrigues");
+    const sec = page.locator("#diferente");
+    await expect(sec.getByRole("navigation", { name: "Escolher o par" }).getByRole("link")).toHaveCount(3);
+    await expect(sec.locator("[aria-current='true']")).toContainText("Adriana Ventura × Randolfe Rodrigues");
+    await expect(sec).toContainText(/Nenhuma votação em comum/);
+  });
 });

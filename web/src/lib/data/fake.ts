@@ -770,6 +770,17 @@ export const fakeSource: DataSource = {
       }
     return out;
   },
+  async listDisagreements(a, b, f) {
+    const va = new Map(votesOf(a).map((v) => [v.event.id, v]));
+    const ok = (x: string) => ["sim", "nao", "abstencao", "obstrucao"].includes(x);
+    const all = votesOf(b)
+      .filter((v) => va.has(v.event.id) && ok(v.value) && ok(va.get(v.event.id)!.value) && v.value !== va.get(v.event.id)!.value && (!f.year || yearOf(v.event.occurredAt) === f.year))
+      .map((v) => ({ event: { ...v.event, proposalLabel: null }, a: va.get(v.event.id)!.value, b: v.value }));
+    const topics = new Map<string, number>();
+    for (const d of all) if (d.event.topic) topics.set(d.event.topic, (topics.get(d.event.topic) ?? 0) + 1);
+    const items = all.filter((d) => !f.topic || d.event.topic === f.topic);
+    return { ...page(items, undefined, f.limit ?? 20), topics: [...topics].map(([slug, count]) => ({ slug, count })).sort((x, y) => x.slug.localeCompare(y.slug)) };
+  },
   async listTopics() {
     return TOPICS;
   },
