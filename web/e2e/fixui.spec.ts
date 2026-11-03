@@ -27,12 +27,13 @@ test.describe("fixui · correções da verificação final", () => {
     await expect(page.getByText(/RJ, RR sem governador em exercício/)).toBeVisible();
   });
 
-  test("FX-024 Manaus mostra o governador e o vice vago como “—” com o motivo", async ({ page, axe }) => {
+  // D228: o vice do AM deixou de ser vaga (Serafim Corrêa, fonte ALEAM); a lacuna "—" segue coberta por FX-031 (DF)
+  test("FX-024 Manaus mostra governador e vice fora do TSE, sem lacuna de vice", async ({ page, axe }) => {
     test.skip(!PG, "números reais");
     await page.goto("/representantes?cidade=1302603");
     await expect(page.getByText("Roberto Cidade").first()).toBeVisible();
-    const gap = page.getByTestId("lacuna").filter({ hasText: /Vice-gov/ });
-    await expect(gap).toContainText("—");
+    await expect(page.getByText("Serafim Corrêa").first()).toBeVisible();
+    await expect(page.getByTestId("lacuna").filter({ hasText: /Vice-gov/ })).toHaveCount(0);
     await axe();
   });
 

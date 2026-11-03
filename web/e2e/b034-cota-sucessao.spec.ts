@@ -22,10 +22,10 @@ test.describe("B034 cota com glosa dupla e motivo da sucessão", () => {
     await expect(page.getByTestId("sucessao")).toContainText("o governador renunciou em 02/04/2026");
   });
 
-  test("B034-3 vice do AM: motivo cita Serafim Corrêa com fonte oficial", async ({ page }) => {
-    await page.goto("/representantes?cidade=1302603");
-    const gap = page.getByTestId("lacuna").filter({ hasText: /Vice-gov/ });
-    await expect(gap).toContainText("Serafim Corrêa é o vice-governador desde 04/05/2026");
-    await expect(gap).not.toContainText("não achamos o ato");
+  // D228: Serafim Corrêa virou mandato (fonte ALEAM), não mais motivo de vaga
+  test("B034-3 vice do AM: Serafim Corrêa aparece como vice com a ALEAM como fonte", async ({ page }) => {
+    await page.goto("/p/serafim-correa");
+    await expect(page.getByText(/Vice-governador/).first()).toBeVisible();
+    await expect(page.getByText("situação segundo a Assembleia Legislativa do Amazonas").first()).toBeVisible();
   });
 });
