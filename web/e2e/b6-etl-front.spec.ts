@@ -49,4 +49,23 @@ test.describe("B6-A correções de front do ETL", () => {
     await expect(page.locator(tiles)).not.toContainText(/na carreira/);
     await axe();
   });
+
+  test("B6-A6 Senado: propostas, cota, votação secreta e emendas rotuladas", async ({ page, axe }) => {
+    await page.goto("/p/randolfe-rodrigues");
+    await expect(page.locator("#propostas ol li").first()).toBeVisible();
+    await expect(page.locator("#propostas")).toContainText("Fonte: Senado Federal");
+    await expect(page.locator("#gastos table").first()).toBeVisible();
+    await expect(page.getByTestId("votos-secretos")).toContainText(/votaç(ão|ões) secretas?/);
+    await expect(page.locator("#votos")).not.toContainText(/secreta.*Não votou/);
+    await page.goto("/congresso?casa=senado");
+    const secret = page.locator("li").filter({ hasText: "votação secreta" }).first();
+    await secret.getByRole("link").click();
+    await expect(page.getByTestId("votacao-secreta")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Voto de cada pessoa/ })).toHaveCount(0);
+    await axe();
+    await page.goto("/p/adriana-ventura?tipo=emenda#propostas");
+    const first = page.locator("#propostas ol li").first();
+    await expect(first).toContainText(/^(EMC|EMP|EMR|ESB) /);
+    await expect(first).toContainText("emenda");
+  });
 });

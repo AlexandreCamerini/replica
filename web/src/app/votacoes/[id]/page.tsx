@@ -68,6 +68,17 @@ export default async function Page({ params, searchParams }: Props) {
 
       {ev.proposal && <p className="mb-6 max-w-[70ch] text-sm text-fg">O que foi votado: {ev.description}</p>}
 
+      {ev.isSecret ? (
+        <section aria-labelledby="placar-h" className="mb-8">
+          <h2 id="placar-h" className="mb-3 text-xl text-fg">
+            Votação secreta
+          </h2>
+          <p className="max-w-[70ch] rounded-sm bg-surface-sunken px-4 py-3 text-sm text-fg" data-testid="votacao-secreta">
+            O Senado publicou esta votação sem o voto de cada senador, como faz nas votações secretas que a Constituição prevê (escolha de autoridades e
+            embaixadores, por exemplo). Fica o resultado{ev.yes + ev.no > 0 ? ` (${count(ev.yes)} sim · ${count(ev.no)} não)` : ""}; não há lista de votos aqui, e ninguém aparece como ausente.
+          </p>
+        </section>
+      ) : (
       <section aria-labelledby="placar-h" className="mb-8">
         <h2 id="placar-h" className="mb-3 text-xl text-fg">
           Placar
@@ -82,6 +93,7 @@ export default async function Page({ params, searchParams }: Props) {
         </dl>
         <p className="mt-2 text-xs text-muted">{count(total)} pessoas com registro nesta votação. Ausência não aparece como voto.</p>
       </section>
+      )}
 
       {ev.orientations.length > 0 && (
         <section aria-labelledby="orientacao-h" className="mb-8">
@@ -156,6 +168,7 @@ export default async function Page({ params, searchParams }: Props) {
         </section>
       )}
 
+      {!ev.isSecret && (
       <section aria-labelledby="pessoas-h" id="pessoas" className="scroll-mt-28">
         <h2 id="pessoas-h" className="mb-3 flex items-baseline gap-2 text-xl text-fg">
           Voto de cada pessoa <span className="text-base font-normal tabular text-muted">{count(shown.length)}</span>
@@ -197,6 +210,7 @@ export default async function Page({ params, searchParams }: Props) {
           </ul>
         )}
       </section>
+      )}
       <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
     </Container>
   );

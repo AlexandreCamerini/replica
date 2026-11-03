@@ -688,6 +688,9 @@ export const fakeSource: DataSource = {
   async getActiveYears(personId) {
     return mandateYears(personId);
   },
+  async countSecretVotes() {
+    return 0; // a demo não simula votação secreta
+  },
   async getYearlyStats(personId) {
     const years = [...mandateYears(personId)].sort((a, b) => a - b);
     return Promise.all(
@@ -704,7 +707,7 @@ export const fakeSource: DataSource = {
       (p) =>
         (!f.year || p.year === f.year) &&
         (!f.topic || p.topics.includes(f.topic)) &&
-        (!f.type || (f.type === "lei") === p.canBecomeLaw) &&
+        (!f.type || (f.type === "emenda" ? false : (f.type === "lei") === p.canBecomeLaw)) &&
         (!f.role || p.role === f.role) &&
         (!q || fold(p.summary).includes(q) || `${p.type} ${p.number}`.toLowerCase().includes(q)),
     );

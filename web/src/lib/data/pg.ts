@@ -97,6 +97,8 @@ const OWN_DATASETS: Partial<Record<OfficeSlug, string[]>> = {
   governador: [],
   vice_governador: [],
 };
+/** Emendas (D38): tipo próprio, não viram lei sozinhas; na tela, rótulo "emenda". */
+export const EMENDA_TYPES = ["EMC", "EMP", "EMR", "ESB"];
 const toDataset = (d: string): MissingDataset["dataset"] =>
   (d.startsWith("salario") ? "salario" : (["presenca", "votos", "propostas", "gastos_gabinete", "patrimonio"].includes(d) ? d : "propostas")) as MissingDataset["dataset"];
 
@@ -177,6 +179,7 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
     yes: Number(r.yes_count ?? 0),
     no: Number(r.no_count ?? 0),
     isNominal: Boolean(r.is_nominal),
+    isSecret: body === "senado" && r.has_votes === false,
     proposal: r.type ? { label: `${r.type} ${r.number}/${r.year}`, summary: String(r.summary_official ?? ""), url: (r.url as string | null) ?? null } : null,
   };
 }
@@ -396,6 +399,17 @@ export const pgSource: DataSource = {
       expensesCents: missing(r, "gastos_gabinete") ? null : num(r.expenses_cents),
     }));
   },
+  async countSecretVotes(personId, year) {
+    const [r] = await sql`
+      select count(*)::int as n
+      from voting_events e join legislative_bodies b on b.id = e.body_id and b.kind = 'senado'
+      where e.is_nominal and not exists (select 1 from votes v where v.voting_event_id = e.id)
+        and exists (select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'senador'
+                    where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
+                      and (e.occurred_at at time zone 'America/Sao_Paulo')::date >= m.started_on and (e.occurred_at at time zone 'America/Sao_Paulo')::date < m.ends_on)
+        ${year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${year}` : sql``}`;
+    return Number(r?.n ?? 0);
+  },
   async getActiveYears(personId) {
     const rows = await sql`select distinct y::int as y from mandates m,
       generate_series(extract(year from m.started_on)::int, least(extract(year from m.ends_on - 1)::int, extract(year from current_date)::int)) y
@@ -409,7 +423,7 @@ export const pgSource: DataSource = {
     const q = f.q?.trim();
     const where = sql`pa.person_id = ${personId}::uuid
       ${f.year ? sql`and p.year = ${f.year}` : sql``}
-      ${f.type ? sql`and p.can_become_law = ${f.type === "lei"}` : sql``}
+      ${f.type === "lei" ? sql`and p.can_become_law` : f.type === "pedido" ? sql`and not p.can_become_law and p.type <> all(${EMENDA_TYPES}::text[])` : f.type === "emenda" ? sql`and p.type = any(${EMENDA_TYPES}::text[])` : sql``}
       ${f.role ? sql`and (pa.role = 'principal') = ${f.role === "autor"}` : sql``}
       ${f.topic ? sql`and exists (select 1 from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = p.id and t.slug = ${f.topic})` : sql``}
       ${q ? sql`and (f_unaccent(lower(p.summary_official)) like '%' || f_unaccent(lower(${q})) || '%' or lower(p.type || ' ' || p.number) like '%' || lower(${q}) || '%')` : sql``}`;
@@ -540,6 +554,7 @@ export const pgSource: DataSource = {
     const [{ n }] = await sql`select count(*)::int as n ${from} where ${where}`;
     const rows = await sql`
       select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal,
+             exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
       ${from} where ${where} order by e.occurred_at desc, e.id limit ${limit} offset ${offset}`;
@@ -551,6 +566,7 @@ export const pgSource: DataSource = {
     if (!/^[0-9a-f-]{36}$/.test(id)) return null;
     const [r] = await sql`
       select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, b.kind as body,
+             exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
       from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id

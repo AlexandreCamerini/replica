@@ -106,6 +106,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                         </Link>
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                           {e.result && <VoteBadge value={e.result} />}
+                          {e.isSecret && <span className="rounded-pill bg-surface-sunken px-2 py-0.5 font-semibold text-fg">votação secreta</span>}
                           {e.yes + e.no > 0 && (
                             <span className="tabular">
                               {count(e.yes)} sim · {count(e.no)} não

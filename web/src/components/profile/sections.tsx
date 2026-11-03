@@ -5,6 +5,8 @@ import { count, date, money, monthYear } from "@/lib/format";
 import { Empty, MoreLink, SelectField, Section, fieldCls, hrefWith, type Params } from "./ui";
 
 const STEP = 20;
+// emendas de plenário/comissão (D38): não viram lei sozinhas; o tipo vem da casa, o rótulo é nosso
+const EMENDA = new Set(["EMC", "EMP", "EMR", "ESB"]);
 const shown = (v: string | undefined) => Math.min(Math.max(Number(v) || STEP, STEP), 500);
 
 type Common = { personId: string; base: string; sp: Params; year: number | null; /** motivo, quando o dado consta como não carregado: mostra "—", nunca "nenhum" */ notLoaded?: string };
@@ -36,7 +38,7 @@ export async function Proposals({ personId, base, sp, year, f, body = "camara", 
       </Section>
     );
   const limit = shown(sp.np);
-  const type = sp.tipo === "lei" || sp.tipo === "pedido" ? sp.tipo : undefined;
+  const type = sp.tipo === "lei" || sp.tipo === "pedido" || sp.tipo === "emenda" ? sp.tipo : undefined;
   const role = sp.autoria === "autor" || sp.autoria === "coautor" ? sp.autoria : undefined;
   const [page, topics, stamp] = await Promise.all([
     data.listProposals(personId, { year: year ?? undefined, topic: sp.tema || undefined, type, role, q: sp.busca?.slice(0, 80) || undefined, limit }),
@@ -50,7 +52,7 @@ export async function Proposals({ personId, base, sp, year, f, body = "camara", 
       <form action={`${base}#propostas`} className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_1fr_2fr_auto]">
         <HiddenKeep sp={sp} keep={["ano", "voto", "vtema", "gcat"]} />
         <SelectField label="Tema" name="tema" value={sp.tema} options={[{ value: "", label: "Todos" }, ...topics.map((t) => ({ value: t.slug, label: t.name }))]} />
-        <SelectField label="Tipo" name="tipo" value={type} options={[{ value: "", label: "Todos" }, { value: "lei", label: "Pode virar lei" }, { value: "pedido", label: "Pedidos e requerimentos" }]} />
+        <SelectField label="Tipo" name="tipo" value={type} options={[{ value: "", label: "Todos" }, { value: "lei", label: "Pode virar lei" }, { value: "pedido", label: "Pedidos e requerimentos" }, { value: "emenda", label: "Emendas" }]} />
         <SelectField label="Autoria" name="autoria" value={role} options={[{ value: "", label: "Todas" }, { value: "autor", label: f ? "Autora principal" : "Autor principal" }, { value: "coautor", label: f ? "Coautora" : "Coautor" }]} />
         <label className="col-span-2 flex flex-col gap-1 text-xs font-semibold text-fg md:col-span-1">
           Buscar no resumo
@@ -70,6 +72,7 @@ export async function Proposals({ personId, base, sp, year, f, body = "camara", 
                 <span className="font-mono font-semibold text-fg">
                   {p.type} {p.number}/{p.year}
                 </span>
+                {EMENDA.has(p.type) && <span className="rounded-pill bg-surface-sunken px-2 py-0.5 font-semibold text-fg">emenda</span>}
                 <time dateTime={p.presentedOn}>{date(p.presentedOn)}</time>
                 <span>{p.role === "autor" ? (f ? "autora principal" : "autor principal") : f ? "coautora" : "coautor"}</span>
                 <span>· {p.status}</span>
@@ -114,10 +117,11 @@ export async function Votes({ personId, base, sp, year, body, notLoaded }: Commo
     );
   const limit = shown(sp.nv);
   const value = VOTE_OPTIONS.some((o) => o.value === sp.voto && o.value) ? (sp.voto as VoteValue) : undefined;
-  const [page, topics, stamp] = await Promise.all([
+  const [page, topics, stamp, secret] = await Promise.all([
     data.listVotes(personId, { year: year ?? undefined, topic: sp.vtema || undefined, value, limit }),
     data.listTopics(),
     data.getStamp(`${body}.votacoes`),
+    body === "senado" ? data.countSecretVotes(personId, year ?? undefined) : Promise.resolve(0),
   ]);
   const topicName = Object.fromEntries(topics.map((t) => [t.slug, t.name]));
   // agrupa por mês para a linha do tempo
@@ -166,6 +170,13 @@ export async function Votes({ personId, base, sp, year, body, notLoaded }: Commo
             </div>
           ))}
         </div>
+      )}
+      {secret > 0 && (
+        <p className="mt-3 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-fg" data-testid="votos-secretos">
+          Mais {count(secret)} {secret === 1 ? "votação secreta" : "votações secretas"}
+          {year ? ` em ${year}` : " no período carregado"} (escolha de autoridades e embaixadores, por exemplo). Nelas o Senado publica só o resultado, não o voto de cada
+          senador: não aparecem acima e não contam como ausência.
+        </p>
       )}
       <MoreLink href={hrefWith(base, sp, { nv: String(limit + STEP) }, "votos")} remaining={page.total - page.items.length} />
       <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />

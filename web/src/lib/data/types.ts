@@ -138,7 +138,8 @@ export type VotingEvent = {
 export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string };
 
 export type Body = "camara" | "senado";
-export type VotingEventSummary = VotingEvent & { proposal: { label: string; summary: string; url: string | null } | null; isNominal: boolean };
+/** isSecret: votação do Senado publicada sem voto individual (secreta). Não é "não votou". */
+export type VotingEventSummary = VotingEvent & { proposal: { label: string; summary: string; url: string | null } | null; isNominal: boolean; isSecret?: boolean };
 export type OrientationValue = "sim" | "nao" | "abstencao" | "obstrucao" | "liberado";
 export type VotingEventDetail = VotingEventSummary & {
   counts: Record<VoteValue, number>;
@@ -221,7 +222,7 @@ export type PeopleFilter = {
   limit?: number;
 };
 
-export type ProposalFilter = { year?: number; topic?: string; type?: "lei" | "pedido"; role?: "autor" | "coautor"; q?: string; cursor?: string; limit?: number };
+export type ProposalFilter = { year?: number; topic?: string; type?: "lei" | "pedido" | "emenda"; role?: "autor" | "coautor"; q?: string; cursor?: string; limit?: number };
 export type VoteFilter = { year?: number; topic?: string; value?: VoteValue; q?: string; cursor?: string; limit?: number };
 export type ExpenseFilter = { year?: number; category?: string; cursor?: string; limit?: number };
 
@@ -249,6 +250,8 @@ export interface DataSource {
   getActiveYears(personId: string): Promise<number[]>;
   /** Estatísticas de cada ano carregado (sem "career"), do mais antigo ao mais recente. */
   getYearlyStats(personId: string): Promise<YearStats[]>;
+  /** Votações secretas do Senado no período de exercício (sem voto individual publicado). */
+  countSecretVotes(personId: string, year?: number): Promise<number>;
   listProposals(personId: string, f: ProposalFilter): Promise<Page<Proposal>>;
   listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote>>;
   listExpenses(personId: string, f: ExpenseFilter): Promise<Page<Expense> & { byCategory: { label: string; cents: number }[] }>;
