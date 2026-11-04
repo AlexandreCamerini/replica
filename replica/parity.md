@@ -39,7 +39,30 @@ A nota baixa é esperada. O clone não copia a trade dress do original (ver repl
 | e2e contra :3101 (Postgres real) | 170 passed, 1 flaky (SH-E2, 390 px no dev), 1 skipped. As 2 falhas da 1ª passada (FX-024) eram teste preso ao dado antigo do AM; teste reescrito, 2/2 |
 | dado contra fonte (verificador) | 16 números conferidos, 11 batiam. Os 4 que não batiam viraram BUG-020/022/023/028 e estão corrigidos (cota da Adriana em 2025 = R$ 104.693,75, igual à página da Câmara; Senado 81/81; desemprego 2024 = 6,6; presença rotulada) |
 
-O que **não** foi reverificado por um agente independente depois das correções: os bugs 020 a 029 foram conferidos pelos próprios agentes que os corrigiram, mais o meu check e a suíte. O invariante da cota compara com a página oficial, o que reduz o risco, mas não substitui um segundo olhar.
+### Reverificações independentes (2026-11-03)
+
+Depois desta rodada, cinco verificadores independentes (Opus, nenhum escreveu o código conferido) tentaram derrubar cada correção contra a fonte primária. Cada achado foi corrigido e reverificado na rodada seguinte. Detalhes em `replica/reverify.md` e `replica/bugs.md`.
+
+| rodada | achou | o que era |
+| --- | --- | --- |
+| 1 | 3 S1 | cota com sinal errado no auxílio-moradia (BUG-030, até −31% em 84–96 deputados por ano); governadores que já tinham saído em DF, RJ e RR (BUG-031); SQ do TSE sem ano, com 15.769 pessoas carregando a candidatura de outra (BUG-032) |
+| 2 | 1 S1, 2 S2 | fusão por "mesma cadeira + nascimento" sem nome em comum (BUG-033, Eli Corrêa no crachá do Geninho); glosa 2020–21 (BUG-034); reparo do 032 que apagou 8 candidaturas verdadeiras (BUG-035) |
+| 3 | 1 S2, 2 S3 | fusão do TSE por nome + nascimento sem UF (BUG-038, 11 casos); Divino (BUG-039); testes do vice do AM (BUG-040) |
+| 4 | 1 S2, 2 S3 | título repetido pelo TSE na linha de outra pessoa (BUG-041); título reemitido com uma letra diferente (BUG-042); 16 registros INAPTOS antigos (BUG-043) |
+| 5 | 0 S1/S2, 2 S3 | regra do título deixa passar homônimos com token comum, latente, sem caso no banco (BUG-044); #NULO# exibido como "Não eleito" (BUG-045, corrigido em 732e3b5) |
+
+Estado depois da 5ª rodada:
+- pytest 111/111;
+- `check` 40/40, duas vezes, com md5 estável;
+- e2e 181 passed, 4 flaky (hidratação no `next dev`), 0 failed;
+- totais globais explicados variação por variação.
+
+A cota foi conferida contra a página da Câmara em mais de 40 deputado-ano, os 27 governadores contra fonte oficial e as fusões contra o `consulta_cand` do TSE.
+
+Abertos:
+- BUG-044 (S3 latente: vira S2 quando uma das pessoas entrar no diretório);
+- fila de identidade com 19 itens para revisão humana;
+- 2 eleitos de suplementar só no relatório (Gelson, Davino Serrath).
 
 ## O que entrou nesta noite
 
@@ -103,4 +126,11 @@ O que **não** foi reverificado por um agente independente depois das correçõe
 2. SAPL incremental e expansão para as ~900 câmaras, em lotes.
 3. Assembleias: as próximas UFs com dado aberto, e presença/votação de comissão como bloco próprio em SP e MG.
 4. As duas contas do dono: chave do Portal da Transparência (emendas, CGU) e Resend + domínio (resumo por e-mail).
-5. Reverificação independente dos BUG-020 a 029 e investigação do casamento "Dinelci".
+5. Revisar a fila de identidade (19 itens) e fechar o BUG-044 antes que uma das pessoas entre no diretório. Medir a suíte contra `next start`, não `next dev`.
+
+## Decisões de identidade e dado que o dono deve revisar (reverificações)
+
+- D200 e D230: a cota segue a página da Câmara, inclusive somando o documento inteiro acima do teto legal quando há glosa dupla. Enio Verri 2020 e Félix Mendonça 2024 ficam com o valor da fonte, sem explicação.
+- D202 e D203: lista curada de governadores por UF. Precisa de manutenção a cada renúncia; o check avisa quando ela fica para trás.
+- D227, D236 e D240: crachás criados para pessoas sem mandato atual (Eli Corrêa Filho, Átila Lira pai e 8 separados), como exceção à D34.
+- D241: a regra fonética de reemissão de título prefere mandar para a fila a fundir. Exemplo do custo: Evaldo × Evandro "DD".
