@@ -1,0 +1,40 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 1440,
+    "height": 900
+  },
+  "clone": {
+    "width": 1440,
+    "height": 900
+  },
+  "compared_at": {
+    "width": 480,
+    "height": 300
+  },
+  "height_delta_pct": 0.0,
+  "score": 30.9,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 900,
+      "cells": 44,
+      "where": "middle centre"
+    },
+    {
+      "x": 840,
+      "y": 0,
+      "w": 600,
+      "h": 240,
+      "cells": 8,
+      "where": "top right"
+    }
+  ],
+  "files": {
+    "original": "replica/screens/final-representantes-cidade-1440.png",
+    "clone": "replica/clone-screens/final-representantes-cidade-1440.png"
+  }
+}

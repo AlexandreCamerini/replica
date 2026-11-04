@@ -20,8 +20,8 @@ export const MORE: NavItem[] = [
   { href: "/cargos", label: "Entenda os cargos", release: "R5" },
   { href: "/dicionario", label: "Dicionário", release: "R5" },
   { href: "/dados-abertos", label: "Quem publica dados", release: "R2" },
-  { href: "/sobre", label: "Como funciona", release: "R2" },
-  { href: "/atualizacoes", label: "Novidades", release: "R2" },
+  { href: "/sobre", label: "Metodologia e fontes", release: "R2" },
+  { href: "/atualizacoes", label: "Como atualizamos", release: "R2" },
   { href: "/ajudar", label: "Como ajudar", release: "R5" },
   { href: "/mcp", label: "Assistente (MCP)", release: "R5" },
 ];

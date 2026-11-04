@@ -18,8 +18,11 @@ test.describe("Shell e diretório", () => {
     await expect(page.getByRole("menu")).toBeHidden();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Quem publica dados");
     const dark = page.getByRole("radio", { name: "Tema escuro" });
-    await dark.click();
-    await expect(dark).toHaveAttribute("aria-checked", "true");
+    // a página de destino é pesada em dev: um clique antes da hidratação é perdido, então repete até pegar
+    await expect(async () => {
+      await dark.click();
+      await expect(dark).toHaveAttribute("aria-checked", "true", { timeout: 1500 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -37,17 +40,17 @@ test.describe("Shell e diretório", () => {
     await page.goto(CAMPINAS);
     const a = await page.locator("#vereadores a[href^='/p/']").nth(0).getAttribute("href");
     const b = await page.locator("#vereadores a[href^='/p/']").nth(1).getAttribute("href");
-    for (const u of ["/", CAMPINAS, a!, `/comparar?p=${a!.split("/").pop()},${b!.split("/").pop()}`, "/quem"]) {
+    for (const u of ["/", "/sobre", "/atualizacoes", "/dados-abertos", "/congresso", CAMPINAS, a!, `/comparar?p=${a!.split("/").pop()},${b!.split("/").pop()}`, "/quem"]) {
       await page.goto(u);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), u).toBeLessThanOrEqual(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - 390), u).toBeLessThanOrEqual(0);
     }
   });
 
   test("S04-H1 diretório filtra, pagina e conta", async ({ page, axe }) => {
     await page.goto("/quem");
     await axe();
-    await page.getByLabel("Cargo").selectOption("senador");
-    await page.getByLabel("Estado").selectOption("SP");
+    await page.locator("select[name=cargo]").selectOption("senador");
+    await page.locator("select[name=uf]").selectOption("SP");
     await page.getByRole("button", { name: "Buscar" }).click();
     await expect(page).toHaveURL(/cargo=senador/);
     await expect(page).toHaveURL(/uf=SP/);

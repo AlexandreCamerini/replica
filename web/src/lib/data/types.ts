@@ -1,3 +1,5 @@
+import type { DataSourceW4 } from "./types-w4";
+
 // Tipos de domínio. Espelham replica/schema.sql; a implementação real (Postgres) devolve as mesmas formas.
 
 export type Level = "federal" | "estadual" | "municipal";
@@ -25,11 +27,19 @@ export type Place = {
   slug: string;
   uf: string | null;
   region: string | null;
+  /** moradores (IBGE, estimativa do ano em populationYear); null/ausente = não carregado */
+  population?: number | null;
+};
+
+/** Votos de uma candidatura num município (S07 "mais votados na cidade"). */
+export type PlaceTopVoted = {
+  year: number;
+  groups: { office: OfficeSlug; label: string; items: { slug: string; name: string; gender: "f" | "m"; party: string; votes: number; result: ElectionResult | null }[] }[];
 };
 
 export type Party = { id: string; acronym: string; name: string };
 
-export type MandateStatus = "em_exercicio" | "eleito_aguardando_posse" | "licenciado" | "encerrado";
+export type MandateStatus = "em_exercicio" | "eleito_aguardando_posse" | "licenciado" | "afastado" | "encerrado" | "renunciou" | "cassado";
 export type Mandate = {
   id: string;
   personId: string;
@@ -40,6 +50,8 @@ export type Mandate = {
   startedOn: string; // ISO date
   endsOn: string;
   statusSource: string;
+  /** como chegou ao cargo: "TSE 2022", ou "sucessão: vice assumiu (…)" quando o vice virou titular. Opcional na demo. */
+  electedBy?: string | null;
 };
 
 export type ElectionResult = "eleito" | "eleito_qp" | "eleito_media" | "suplente" | "nao_eleito" | "segundo_turno" | "indeferido" | "renuncia";
@@ -48,7 +60,7 @@ export type Candidacy = {
   office: OfficeSlug;
   placeIbge: string;
   partyId: string;
-  result: ElectionResult;
+  result: ElectionResult | null; // null = a fonte não publica resultado (#NULO#), mostrado como "Sem resultado publicado" (BUG-045)
   votes: number | null; // null = votação por candidato ainda não carregada (nunca 0)
   raisedCents: number | null;
   spentCents: number | null;
@@ -84,6 +96,26 @@ export type PeriodStats = {
   missing: MissingDataset[];
 };
 
+/** Uma linha por ano com dado (S08 "ano a ano"). Mesma regra: null = a fonte não publica ou não carregou. */
+export type YearStats = {
+  year: number;
+  presencePresent: number | null;
+  presenceTotal: number | null;
+  proposalsPrincipal: number | null;
+  proposalsCosigned: number | null;
+  votesRegistered: number | null;
+  expensesCents: number | null;
+};
+
+/** Subsídio bruto somado mês a mês desde a posse (W1 item 10). Só com valor pago publicado (teto não entra). */
+export type SalaryAccrued = { cents: number; months: number; coveredMonths: number; firstMonth: string; coveredFrom: string | null };
+
+/** Prestação de contas de uma campanha, somada por categoria oficial do TSE. Nunca nome de doador (D36). */
+export type CampaignFinance = { year: number; officeName: string; placeLabel: string; income: { label: string; cents: number }[]; spending: { label: string; cents: number }[] };
+
+/** Equipe do gabinete (W2 item 14). Salário null = a fonte lida não traz (vira "—" com motivo). */
+export type StaffMember = { name: string; role: string | null; monthlySalaryCents: number | null; asOf: string };
+
 export type Dataset =
   | "salario"
   | "presenca"
@@ -96,6 +128,43 @@ export type CoverageStatus = "no_site" | "carregando" | "so_portal" | "nao_publi
 export type MissingDataset = { dataset: Dataset; label: string; status: CoverageStatus; reason: string };
 
 export type Topic = { slug: string; name: string };
+
+/** W3-A: o que o site lê da Assembleia de uma UF. Cada item tem status e motivo; "no_site" vem com a data da carga. */
+export type AssemblyDataset = "presenca" | "votos" | "propostas" | "gastos_gabinete";
+export type AssemblyItem = {
+  dataset: AssemblyDataset;
+  label: string;
+  status: CoverageStatus;
+  reason: string;
+  evidenceUrl: string | null;
+  checkedOn: string | null;
+  /** carimbo da última carga deste conjunto (null = nunca carregado) */
+  refreshedAt: string | null;
+  /** prefixo do carimbo (ex.: "alesp.proposicoes"), para getStamp */
+  stampDataset: string | null;
+};
+/** W3-A/B: Câmara Municipal lida pelo SAPL (tabelas sapl_*, D126–D129). Presença sem porcentagem: a fonte não publica o denominador. */
+export type CityCouncilInfo = {
+  city: string;
+  uf: string;
+  baseUrl: string;
+  legislature: number | null;
+  legislatureStart: string | null;
+  legislatureEnd: string | null;
+  loadedAt: string;
+  materias: { total: number; principal: number; items: { type: string; number: number; year: number; presentedOn: string | null; summary: string; url: string; principal: boolean }[] };
+  presence: { sessions: number; first: string | null; last: string | null };
+  /** null = o SAPL da câmara não tem voto nominal registrado na legislatura */
+  votes: { total: number; byValue: { label: string; n: number }[]; items: { votedAt: string | null; value: string; description: string | null }[] } | null;
+};
+export type AssemblyInfo = {
+  uf: string;
+  houseName: string;
+  /** a casa tem adaptador de dados abertos ligado */
+  read: boolean;
+  source: { name: string; url: string } | null;
+  items: AssemblyItem[];
+};
 
 export type Proposal = {
   id: string;
@@ -125,7 +194,9 @@ export type VotingEvent = {
 export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string };
 
 export type Body = "camara" | "senado";
-export type VotingEventSummary = VotingEvent & { proposal: { label: string; summary: string; url: string | null } | null; isNominal: boolean };
+/** isSecret: a fonte marca a votação como secreta (`voting_events.is_secret`, D123); não é "não votou".
+ *  openNoVotes: a fonte diz que foi aberta, mas não publicou o voto de cada pessoa. Fonte que não informa (Câmara) = os dois false. */
+export type VotingEventSummary = VotingEvent & { proposal: { label: string; summary: string; url: string | null } | null; isNominal: boolean; isSecret?: boolean; openNoVotes?: boolean };
 export type OrientationValue = "sim" | "nao" | "abstencao" | "obstrucao" | "liberado";
 export type VotingEventDetail = VotingEventSummary & {
   counts: Record<VoteValue, number>;
@@ -144,6 +215,34 @@ export type ActivityItem = {
 };
 
 export type LawItem = { number: string; sanctionedOn: string; summary: string; url: string | null; proposal: string; role: "autor" | "coautor" };
+/** S09 aba "virou lei": norma publicada + a proposta de origem e os autores principais que têm crachá. */
+/** S09 aba "agenda": sessões do Plenário já marcadas (`agenda_events`) e a pauta de cada uma (`agenda_items`). Texto de situação e regime como a fonte escreve. */
+export type AgendaItem = {
+  position: number;
+  label: string | null; // "PL 6461/2019"
+  title: string;
+  summary: string | null;
+  regime: string | null;
+  rapporteur: string | null;
+  outcome: string | null;
+  proposalUrl: string | null; // página oficial da proposta, só se a proposta está carregada
+  votingEventId: string | null; // votação nominal da mesma proposta, se houver
+};
+export type AgendaEvent = {
+  id: string;
+  house: "camara" | "senado" | "congresso";
+  startsAt: string; // ISO com fuso
+  kind: string;
+  title: string | null;
+  status: string;
+  location: string | null;
+  officialUrl: string | null;
+  items: AgendaItem[];
+  itemsTotal: number;
+};
+export type AgendaView = { events: AgendaEvent[]; total: number; source: { name: string; url: string; refreshedAt: string } | null };
+
+export type LawListItem = { number: string; sanctionedOn: string; summary: string; url: string | null; proposal: string | null; proposalUrl: string | null; authors: { slug: string; name: string }[]; moreAuthors: number };
 export type CommitteeItem = { acronym: string | null; name: string; role: string; from: string; to: string | null; body: Body };
 export type SpeechItem = { id: string; occurredAt: string; summary: string | null; url: string | null };
 export type ContactItem = { kind: "email" | "telefone" | "gabinete" | "site" | "instagram" | "facebook" | "x" | "youtube" | "tiktok" | "outra_rede"; value: string };
@@ -161,7 +260,30 @@ export type Expense = {
 
 export type Stamp = { dataset: string; source: string; sourceUrl: string; refreshedAt: string };
 
+/** Uma fonte oficial e os carimbos de cada conjunto carregado dela (S24). Sem estado "no prazo": isso se calcula em lib/sources. */
+export type SourceStatus = {
+  slug: string;
+  name: string;
+  url: string;
+  datasets: { dataset: string; refreshedAt: string }[];
+  lastRefreshedAt: string | null;
+};
+
+/** Contagem de cidades por situação do dado, por UF e tipo de dado (S23). Só municípios; a UF não entra na conta. */
+export type CoverageCounts = Partial<Record<CoverageStatus, number>>;
+export type CoverageMatrix = {
+  datasets: { key: string; label: string }[];
+  rows: { uf: string; name: string; cities: number; cells: Record<string, CoverageCounts> }[];
+  total: { cities: number; cells: Record<string, CoverageCounts> };
+  checkedOn: string | null;
+};
+
 export type Page<T> = { items: T[]; nextCursor: string | null; total: number };
+
+/** De onde vem o partido vigente da pessoa e desde quando (BUG-022, D220). `since` = início da linha do tempo `party_memberships` nesse partido. */
+export type PartyProvenance =
+  | { kind: "camara" | "senado" | "tse"; since: string; electionYear?: number }
+  | { kind: "none"; reason: string };
 
 /** Uma pessoa no cargo, já com o que a lista precisa (cartão). */
 export type Officeholder = {
@@ -178,6 +300,10 @@ export type RepresentativeGroup = {
   level: Level;
   where: string;
   people: Officeholder[];
+  /** Cargo do grupo sem ninguém em exercício na fonte: aparece como “—” com o motivo, nunca some (BUG-024). */
+  gaps?: { what: string; why: string }[];
+  /** Cadeiras da casa legislativa: carregadas contra as previstas na Constituição (BUG-025). */
+  seats?: { loaded: number; total: number; why: string };
 };
 
 export type PeopleFilter = {
@@ -190,14 +316,16 @@ export type PeopleFilter = {
   limit?: number;
 };
 
-export type ProposalFilter = { year?: number; topic?: string; type?: "lei" | "pedido"; role?: "autor" | "coautor"; q?: string; cursor?: string; limit?: number };
+export type ProposalFilter = { year?: number; topic?: string; type?: "lei" | "pedido" | "emenda"; role?: "autor" | "coautor"; q?: string; cursor?: string; limit?: number };
 export type VoteFilter = { year?: number; topic?: string; value?: VoteValue; q?: string; cursor?: string; limit?: number };
 export type ExpenseFilter = { year?: number; category?: string; cursor?: string; limit?: number };
 
 export type Agreement = { a: string; b: string; same: number; total: number };
+/** Uma votação em que as duas pessoas registraram votos diferentes (comparar, W1 item 8). */
+export type Disagreement = { event: VotingEvent & { proposalLabel: string | null }; a: VoteValue; b: VoteValue };
 
 /** Contrato da camada de dados. A versão fake e a Postgres implementam isto; nenhuma tela importa a implementação. */
-export interface DataSource {
+export interface DataSource extends DataSourceW4 {
   readonly isDemo: boolean;
   searchPlaces(q: string, limit?: number): Promise<Place[]>;
   getPlace(ibge: string): Promise<Place | null>;
@@ -206,7 +334,13 @@ export interface DataSource {
   listMunicipalities(uf?: string): Promise<Place[]>;
   getRepresentatives(place: Place): Promise<RepresentativeGroup[]>;
   getCoverage(place: Place): Promise<MissingDataset[]>;
-  getCounters(): Promise<{ total: number; byLevel: Record<Level, number>; byOffice: { office: OfficeSlug; label: string; count: number }[] }>;
+  /** W3-A: Assembleia Legislativa da UF (ou Câmara Legislativa do DF): fonte, o que é lido e o motivo de cada "—". null = UF inexistente. */
+  getAssembly(uf: string): Promise<AssemblyInfo | null>;
+  /** Vereador casado no SAPL da câmara (match_status = casado). null = câmara não lida pelo SAPL ou pessoa não casada. */
+  getCityCouncil(personId: string): Promise<CityCouncilInfo | null>;
+  /** Mais votados no município na última eleição geral com votos por município carregados (deputados federais e estaduais). null = sem dado. */
+  getTopVotedInPlace(ibge: string, limit?: number): Promise<PlaceTopVoted | null>;
+  getCounters(): Promise<{ total: number; byLevel: Record<Level, number>; byOffice: { office: OfficeSlug; label: string; count: number; expected?: number; why?: string }[] }>;
   listParties(): Promise<Party[]>;
   listOffices(): Promise<Office[]>;
   listPeople(f: PeopleFilter): Promise<Page<Officeholder>>;
@@ -214,12 +348,28 @@ export interface DataSource {
   getPerson(slug: string): Promise<{ person: Person; redirectTo?: string } | null>;
   getMandates(personId: string): Promise<(Mandate & { party: Party; officeName: string; placeLabel: string })[]>;
   getCandidacies(personId: string): Promise<(Candidacy & { party: Party; officeName: string; placeLabel: string })[]>;
+  /** Fonte e data do partido vigente (person_current_party). `none` traz o motivo. */
+  getPartyProvenance(personId: string): Promise<PartyProvenance>;
   getStats(personId: string, period: PeriodStats["period"]): Promise<PeriodStats>;
   getActiveYears(personId: string): Promise<number[]>;
+  /** Estatísticas de cada ano carregado (sem "career"), do mais antigo ao mais recente. */
+  getYearlyStats(personId: string): Promise<YearStats[]>;
+  /** Votações que a fonte marca como secretas (is_secret = true) no período de exercício do senador. */
+  countSecretVotes(personId: string, year?: number): Promise<number>;
+  /** Uma entrada por ano de eleição (o 2º turno não repete), mais recente primeiro. */
+  getCampaignFinance(personId: string): Promise<CampaignFinance[]>;
+  /** Equipe do gabinete, A–Z por nome. */
+  listStaff(personId: string): Promise<StaffMember[]>;
+  /** null = cargo sem valor pago publicado (teto ou nada). */
+  getSalaryAccrued(personId: string, year?: number): Promise<SalaryAccrued | null>;
+  /** Presença por mês num ano (sessões deliberativas da Câmara; fora do exercício não conta). Só meses com sessão. */
+  getPresenceByMonth(personId: string, year: number): Promise<{ month: number; present: number; total: number }[]>;
   listProposals(personId: string, f: ProposalFilter): Promise<Page<Proposal>>;
   listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote>>;
   listExpenses(personId: string, f: ExpenseFilter): Promise<Page<Expense> & { byCategory: { label: string; cents: number }[] }>;
   getAgreement(personIds: string[], period: "career" | number): Promise<Agreement[]>;
+  /** Votações em que a e b votaram diferente (sim/não/abstenção/obstrução), mais recentes primeiro; topics = temas com divergência e quantas. */
+  listDisagreements(a: string, b: string, f: { year?: number; topic?: string; limit?: number }): Promise<Page<Disagreement> & { topics: { slug: string; count: number }[] }>;
   listTopics(): Promise<Topic[]>;
   /** Pessoas em exercício numa casa, para o hemiciclo (ordem: partido A–Z, depois nome). */
   getChamber(body: Body): Promise<{ slug: string; name: string; party: string; uf: string | null }[]>;
@@ -228,9 +378,19 @@ export interface DataSource {
   /** Novidades de várias pessoas (feed de quem a pessoa acompanha), mais recentes primeiro. */
   getActivity(personIds: string[], limit?: number): Promise<ActivityItem[]>;
   getLaws(personId: string): Promise<LawItem[]>;
+  /** Leis federais por data de publicação (mais recente primeiro). */
+  listLaws(f: { year?: number; cursor?: string; limit?: number }): Promise<Page<LawListItem> & { years: number[] }>;
+  /** Próximas sessões do Plenário (a partir de hoje, horário de Brasília) e a pauta. `casa` senado inclui o Congresso Nacional. */
+  getAgenda(f: { body: Body; limit?: number }): Promise<AgendaView>;
   getCommittees(personId: string): Promise<CommitteeItem[]>;
   listSpeeches(personId: string, f: { year?: number; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
   getContacts(personId: string): Promise<ContactItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
+  /** Normas que fixam o salário do cargo (decreto legislativo ou Constituição), com a data da última carga. Vazio = sem salário carregado. */
+  getSalarySources(office: OfficeSlug): Promise<{ name: string; url: string; updatedAt: string }[]>;
+  /** Anos já carregados de um conjunto com carimbo por ano (ex.: "tse.contas" → [2018, 2020, …]), crescente. */
+  listStampYears(prefix: string): Promise<number[]>;
   latestRefresh(): Promise<string>;
+  listSourceStatus(): Promise<SourceStatus[]>;
+  getCoverageMatrix(): Promise<CoverageMatrix>;
 }

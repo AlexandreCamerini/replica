@@ -68,6 +68,17 @@ export default async function Page({ params, searchParams }: Props) {
 
       {ev.proposal && <p className="mb-6 max-w-[70ch] text-sm text-fg">O que foi votado: {ev.description}</p>}
 
+      {ev.isSecret ? (
+        <section aria-labelledby="placar-h" className="mb-8">
+          <h2 id="placar-h" className="mb-3 text-xl text-fg">
+            Votação secreta
+          </h2>
+          <p className="max-w-[70ch] rounded-sm bg-surface-sunken px-4 py-3 text-sm text-fg" data-testid="votacao-secreta">
+            O Senado marca esta votação como secreta nos dados abertos, como nas votações que a Constituição prevê (escolha de autoridades e
+            embaixadores, por exemplo), e não publica o voto de cada senador. Fica o resultado{ev.yes + ev.no > 0 ? ` (${count(ev.yes)} sim · ${count(ev.no)} não)` : ""}; não há lista de votos aqui, e ninguém aparece como ausente.
+          </p>
+        </section>
+      ) : (
       <section aria-labelledby="placar-h" className="mb-8">
         <h2 id="placar-h" className="mb-3 text-xl text-fg">
           Placar
@@ -82,6 +93,7 @@ export default async function Page({ params, searchParams }: Props) {
         </dl>
         <p className="mt-2 text-xs text-muted">{count(total)} pessoas com registro nesta votação. Ausência não aparece como voto.</p>
       </section>
+      )}
 
       {ev.orientations.length > 0 && (
         <section aria-labelledby="orientacao-h" className="mb-8">
@@ -89,7 +101,7 @@ export default async function Page({ params, searchParams }: Props) {
             Como cada bancada orientou
           </h2>
           <p className="mb-3 text-sm text-muted">Orientação é o voto que o líder pede à bancada. Não é o voto de ninguém.</p>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {[
               { title: "Governo, maioria, minoria e oposição", rows: blocs, label: (l: string, k: string) => ACTOR[k] ?? l },
               { title: "Partidos e blocos", rows: parties, label: (l: string) => l },
@@ -125,7 +137,7 @@ export default async function Page({ params, searchParams }: Props) {
           <h2 id="partidos-h" className="mb-3 text-xl text-fg">
             Votos por partido
           </h2>
-          <div tabIndex={0} role="region" aria-label="Tabela de votos por partido, rolável" className="overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
+          <div tabIndex={0} role="region" aria-label="Tabela de votos por partido, rolável" className="relative overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
@@ -156,6 +168,13 @@ export default async function Page({ params, searchParams }: Props) {
         </section>
       )}
 
+      {ev.openNoVotes && (
+        <p className="mb-8 max-w-[70ch] rounded-sm bg-surface-sunken px-4 py-3 text-sm text-fg" data-testid="votacao-sem-votos">
+          Votação aberta, segundo a fonte, mas publicada sem o voto de cada pessoa. Fica o resultado; não há lista de votos aqui, e ninguém aparece como ausente.
+        </p>
+      )}
+
+      {!ev.isSecret && !ev.openNoVotes && (
       <section aria-labelledby="pessoas-h" id="pessoas" className="scroll-mt-28">
         <h2 id="pessoas-h" className="mb-3 flex items-baseline gap-2 text-xl text-fg">
           Voto de cada pessoa <span className="text-base font-normal tabular text-muted">{count(shown.length)}</span>
@@ -197,6 +216,7 @@ export default async function Page({ params, searchParams }: Props) {
           </ul>
         )}
       </section>
+      )}
       <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
     </Container>
   );

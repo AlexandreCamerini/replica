@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks -- `use` do Playwright, não é o hook do React */
 import { test as base, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 

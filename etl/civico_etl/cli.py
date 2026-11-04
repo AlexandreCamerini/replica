@@ -5,9 +5,24 @@ Exemplos:
   civico-etl ibge.places
   civico-etl tse.candidatos --year 2022 --year 2024 --uf SP            # só eleitos; --all para todos
   civico-etl camara.diario --year 2025 --limit 40                        # --limit: N deputados (desenvolvimento)
+  civico-etl camara.presenca --year 2025 --year 2026                  # presença oficial em sessões deliberativas
   civico-etl senado.diario --year 2025
+  civico-etl senado.secretas                                          # votação secreta do Senado pela fonte (D123)
+  civico-etl agenda.congresso                                         # pauta de plenário Câmara/Senado (mês passado a mês que vem)
+  civico-etl tse.fix019 --year 2022 [--apply]                        # BUG-019: corrige presidente contado 2x (dry-run sem --apply)
+  civico-etl tse.fix032 [--year 2012] [--apply]                    # BUG-032: identidade casada por SQ sem o ano (dry-run sem --apply)
+  civico-etl identity.fix033 [--apply]                              # BUG-033: separa pessoas fundidas pela cadeira da casa
+  civico-etl tse.fix035 [--apply]                                   # BUG-035: chave 2012 com a UE e restauração das candidaturas
+  civico-etl identity.fix038 [--apply]                              # BUG-038: separa pessoas do TSE fundidas por nome + nascimento
+  civico-etl identity.fix041 [--apply]                              # BUG-041/042/043: título repetido, reemitido e registro substituído
+  civico-etl identity.repairs [--apply]                             # rotina: reparos ainda necessários depois das cargas (D245)
+
+Os seis reparos de uma vez só acima (tse.fix019, tse.fix032, tse.fix035, identity.fix033[.devolver], identity.fix038 e
+identity.fix041) são legado e NÃO rodam na rotina: a regra deles está na carga (D245) e o `check` acusa se o defeito voltar.
+Ficam para resposta a incidente. A rotina roda `identity.repairs` depois de tse.candidatos e de camara/senado.diario.
   civico-etl derive.stats
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
+  civico-etl run-due [--dry-run] [--only TAREFA --force]             # agenda (D250): roda o que venceu, check e alerta; exit 2 = alerta
 """
 
 from __future__ import annotations
@@ -25,8 +40,25 @@ log = logging.getLogger("etl")
 
 
 def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if args and args[0] == "run-due":  # agenda (D250): roda o que venceu, repara identidade, check e alerta
+        from .schedule import main as schedule_main
+
+        return schedule_main(args)
+    if args and args[0].startswith("ale."):  # Assembleias Legislativas (W3-A): ale.sp, ale.mg, ale.todas, ale.cobertura
+        from .jobs.ale_cli import main as ale_main
+
+        return ale_main(args)
+    if args and args[0].startswith("sancoes."):  # sanções de órgãos de controle (W3-B): sancoes.tcu
+        from .jobs.sancoes import main as sancoes_main
+
+        return sancoes_main(args)
+    if args and args[0].startswith("sapl."):  # Câmaras Municipais via SAPL (W3-B): sapl.descobrir, sapl.carregar, sapl.todas
+        from .jobs.sapl import main as sapl_main
+
+        return sapl_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "identity.repairs", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -34,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, help="Câmara/Senado: no máximo N parlamentares (desenvolvimento)")
     p.add_argument("--no-expenses", action="store_true", help="Câmara: pular a cota parlamentar")
     p.add_argument("--force", action="store_true", help="ignorar checksum e reprocessar")
+    p.add_argument("--apply", action="store_true", help="tse.fix019/tse.fix032/tse.fix035/identity.fix033/identity.fix038/identity.fix041: gravar a correção (sem isto, dry-run)")
     a = p.parse_args(argv)
 
     conn = db.connect()
@@ -48,6 +81,12 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.ibge_places import run_places
 
             run_places(conn, force=a.force)
+        if a.job in ("ibge.populacao", "all"):
+            from .jobs.ibge_populacao import run_populacao
+            from .jobs.seed import run_seed as _seed
+
+            run_populacao(conn, force=a.force)
+            _seed(conn)  # tetos de vereador dependem da população
         if a.job in ("ibge.malhas", "all"):
             from .jobs.ibge_malhas import run_malhas
 
@@ -65,14 +104,63 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.tse_votos_contas import run_finance
 
             run_finance(conn, a.year or [y for y in (2022, 2024, 2026) if y <= today.year], force=a.force)
+        if a.job == "tse.fix019":  # BUG-019: desfaz a contagem dupla de presidente (BRASIL + BR) sem rebaixar o BRASIL
+            from .jobs.tse_bug019 import run_fix
+
+            run_fix(conn, a.year or [2018, 2022, 2026], apply=a.apply)
+        if a.job == "tse.fix032":  # BUG-032: religa candidaturas/mandatos casados pelo SQ_CANDIDATO de outra eleição
+            from .jobs.tse_bug032 import run_fix as run_fix032
+
+            run_fix032(conn, a.year, apply=a.apply)
+        if a.job == "identity.fix033":  # BUG-033: separa pessoas fundidas pela cadeira (mesmo nascimento ou nome parlamentar)
+            from .jobs.identity_bug033 import run_fix as run_fix033
+
+            run_fix033(conn, apply=a.apply)
+        if a.job == "identity.fix033.devolver":  # BUG-033 / D227: o id separado vira pessoa e recebe cota, partido, votos e autorias
+            from .jobs.identity_bug033 import run_restore
+
+            run_restore(conn, apply=a.apply)
+        if a.job == "tse.fix035":  # BUG-035: SQ repetido em 2012 (eleição ordinária x suplementar); chave ANO:UE:SQ e restauração
+            from .jobs.tse_bug035 import run_fix as run_fix035
+
+            run_fix035(conn, apply=a.apply)
+        if a.job == "identity.fix038":  # BUG-038: TSE fundido por nome civil + nascimento sem lugar; título de outra pessoa
+            from .jobs.identity_bug038 import run_fix as run_fix038
+
+            run_fix038(conn, apply=a.apply)
+        if a.job == "identity.fix041":  # BUG-041/042/043: título repetido pelo TSE, título reemitido e registro substituído no banco
+            from .jobs.identity_bug041 import run_fix as run_fix041
+
+            run_fix041(conn, apply=a.apply)
+        if a.job == "identity.repairs":  # D245: só os reparos que a carga ainda não faz, em ordem fixa (jobs/repairs.py)
+            from .jobs.repairs import run_identity_repairs
+
+            res = run_identity_repairs(conn, apply=a.apply)
+            log.info("identity.repairs (%s): %s", "aplicado" if a.apply else "dry-run", res)
         if a.job in ("camara.diario", "all"):
             from .jobs.camara_diario import run_camara
 
             run_camara(conn, years=a.year or [today.year - 1, today.year], limit=a.limit, expenses=not a.no_expenses, force=a.force)
+        if a.job in ("camara.presenca", "all"):
+            from .jobs.camara_presenca import run_presenca
+
+            run_presenca(conn, years=a.year or [today.year - 1, today.year], force=a.force)
+        if a.job in ("camara.equipe", "all"):
+            from .jobs.camara_equipe import run_equipe
+
+            run_equipe(conn, force=a.force)
         if a.job in ("senado.diario", "all"):
             from .jobs.senado_diario import run_senado
 
             run_senado(conn, years=a.year or [today.year - 1, today.year], limit=a.limit, force=a.force)
+        if a.job in ("senado.secretas", "all"):
+            from .jobs.senado_diario import run_secretas
+
+            run_secretas(conn, years=a.year or list(range(2019, today.year + 1)), force=a.force)
+        if a.job in ("agenda.congresso", "all"):
+            from .jobs.agenda_congresso import run_agenda
+
+            run_agenda(conn, years=a.year, force=a.force)
         if a.job in ("parlamento.extras", "all"):
             from .jobs.parlamento_extras import run_extras
 
@@ -81,10 +169,19 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.identity_dedupe import run_dedupe
 
             run_dedupe(conn)
-        if a.job in ("derive.stats", "all") or a.job in ("tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "parlamento.extras", "identity.dedupe"):
+        if a.job in ("derive.stats", "all") or a.job in ("tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "camara.presenca", "senado.diario", "parlamento.extras", "identity.dedupe"):
             from .jobs.derive_stats import run_derive
 
             run_derive(conn)
+        # W4: fora do "all" (fontes novas, independentes das legislativas)
+        if a.job == "governos.indicadores":
+            from .jobs.governos_indicadores import run_governos
+
+            run_governos(conn, force=a.force)
+        if a.job == "receita.arrecadacao":
+            from .jobs.receita_arrecadacao import run_arrecadacao
+
+            run_arrecadacao(conn, force=a.force)
         if a.job in ("check", "all"):
             from .jobs.checks import run_checks
 

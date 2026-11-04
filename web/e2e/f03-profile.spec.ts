@@ -94,14 +94,14 @@ test.describe("F03 ler o crachá a fundo", () => {
   test("F03-E5 ano sem mandato cai para carreira", async ({ page }) => {
     const href = await federalDeputy(page);
     await page.goto(`${href}?ano=1999`);
-    await expect(page.getByText(/propostas na carreira/)).toBeVisible();
+    await expect(page.getByText(/propostas (na carreira|desde \d{4})/)).toBeVisible(); // D02: a carreira diz a janela carregada
   });
 
   test("F03-E2 nome de 60 caracteres sem overflow @mobile", async ({ page }) => {
     const r = await page.goto("/p/maria-aparecida-dos-santos-albuquerque-de-vasconcelos-filha");
     test.skip(r?.status() === 404, "nome longo só existe na demonstração");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Vasconcelos Filha");
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - 390)).toBeLessThanOrEqual(0);
   });
 
   test("F03-N1 APIs do crachá validam parâmetros", async ({ page, request }) => {

@@ -1,0 +1,52 @@
+# Agenda do ETL em produção (D250). Desligada até o dono configurar:
+#   secret ETL_DATABASE_URL (role de escrita do banco de produção), variável ETL_SCHEDULE_ENABLED=true
+#   e, opcional, secret ETL_ALERT_WEBHOOK (Slack/Discord/Teams compatível com {"text": ...}).
+# run-due decide o que venceu; chamar a cada 3 h basta (Câmara/Senado vencem em 20 h, prazo do site 36 h).
+# O cache de downloads (etl/.cache) é preservado entre execuções para o TSE e o SAPL não baixarem tudo de novo.
+# Actions fixadas por SHA (tag no comentário). Pendente: travar dependências do pip com hash (--require-hashes).
+name: etl
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "tarefa única (schedule.TASKS), com --force"
+        required: false
+concurrency: { group: etl, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  run-due:
+    if: vars.ETL_SCHEDULE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    defaults: { run: { working-directory: etl } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.12" }
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: etl/.cache
+          key: etl-cache-${{ github.run_id }}
+          restore-keys: etl-cache-
+      - run: pip install -e .
+      - name: run-due
+        # segredos só neste passo (não nas actions de terceiros nem no pip); input via env, nunca interpolado no shell
+        env:
+          ONLY: ${{ inputs.only }}
+          ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
+          ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
+          ETL_DEADLINE_MIN: "320"  # abaixo do timeout do job: a agenda adia o que não cabe e sempre alerta
+        run: |
+          if [ -n "$ONLY" ]; then python -m civico_etl.cli run-due --only "$ONLY" --force
+          else python -m civico_etl.cli run-due; fi
+      # exit 2 (alerta) deixa o run vermelho de propósito; o cache e o relatório são salvos mesmo assim
+      - if: always()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: etl/.cache
+          key: etl-cache-${{ github.run_id }}
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: { name: last-run, path: etl/.state, if-no-files-found: ignore }

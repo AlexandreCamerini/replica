@@ -1,7 +1,13 @@
 import "server-only";
 import postgres from "postgres";
+import { houseName, notReadReason } from "./assembleias";
+import { UF_ROWS, stateSeats } from "./reference";
 import type {
+  AssemblyDataset,
+  AssemblyInfo,
+  CityCouncilInfo,
   Agreement,
+  Disagreement,
   Candidacy,
   DataSource,
   Expense,
@@ -13,12 +19,20 @@ import type {
   Page,
   Party,
   PeriodStats,
+  PlaceTopVoted,
+  CampaignFinance,
+  StaffMember,
+  SalaryAccrued,
+  YearStats,
   Person,
   PersonVote,
   Place,
   Proposal,
   RepresentativeGroup,
   Stamp,
+  SourceStatus,
+  CoverageMatrix,
+  CoverageStatus,
   VoteValue,
   VotingEventDetail,
   VotingEventSummary,
@@ -26,8 +40,13 @@ import type {
   CommitteeItem,
   ContactItem,
   LawItem,
+  AgendaEvent,
+  AgendaItem,
+  AgendaView,
+  LawListItem,
   SpeechItem,
 } from "./types";
+import { pgW4 } from "./pg-w4";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
 // Nenhuma query fora daqui. Listas públicas ordenam por nome (collation pt_br), nunca por métrica: regra de neutralidade.
@@ -64,6 +83,42 @@ const GROUPS: { key: string; offices: OfficeSlug[]; level: Level; title: (uf: st
   { key: "camara", offices: ["deputado_federal"], level: "federal", title: () => PLURAL.deputado_federal },
   { key: "presidencia", offices: ["presidente", "vice_presidente"], level: "federal", title: () => PLURAL.presidente },
 ];
+/** Cadeiras da Assembleia (CF art. 27: 3 × federais até 12; acima, 36 + excedente). DF: a Câmara Legislativa tem 24. */
+function stateSeatsOf(uf: string): number | null {
+  const row = UF_ROWS.find((r) => r[1] === uf);
+  return row ? stateSeats(row[4]) : null;
+}
+const SEATS_WHY = "a fonte oficial traz quem está em exercício; suplentes que assumiram vagas ainda não estão todos carregados";
+const GAP_STATUS: Record<string, string> = {
+  renunciou: "renunciou",
+  cassado: "foi cassado",
+  falecido: "faleceu",
+  afastado: "está afastado",
+};
+const OFFICE_LABEL: Record<string, string> = { governador: "Governo do estado", vice_governador: "Vice-governo" };
+const dmy = (d: string) => d.split("-").reverse().join("/");
+/** Governador e vice de uma UF sem mandato em exercício: o cargo aparece como “—”, com o motivo tirado do último mandato (BUG-024). */
+async function executiveGaps(uf: string): Promise<{ office: OfficeSlug; what: string; why: string }[]> {
+  const rows = await sql`
+    select o.slug as office, m.status, m.started_on, m.ends_on, m.vacancy_note
+    from mandates m join offices o on o.id = m.office_id join places pl on pl.id = m.place_id
+    where pl.kind = 'uf' and pl.uf = ${uf} and o.slug in ('governador', 'vice_governador')
+    order by m.started_on desc`;
+  const out: { office: OfficeSlug; what: string; why: string }[] = [];
+  for (const office of ["governador", "vice_governador"] as OfficeSlug[]) {
+    const mine = rows.filter((r) => r.office === office);
+    if (mine.some((r) => r.status === "em_exercicio")) continue;
+    const last = mine.find((r) => r.status !== "eleito_aguardando_posse" && r.status !== "em_exercicio");
+    const waiting = mine.find((r) => r.status === "eleito_aguardando_posse");
+    const bits: string[] = [];
+    if (last) bits.push(`o último ${office === "governador" ? "titular" : "vice"} ${GAP_STATUS[String(last.status)] ?? "deixou o cargo"}${last.ends_on ? ` em ${dmy(iso(last.ends_on))}` : ""}`);
+    if (waiting) bits.push(`há eleito aguardando posse${waiting.started_on ? ` em ${dmy(iso(waiting.started_on))}` : ""}`);
+    // D202: motivo conferido na fonte (interino de outro Poder, vaga), no lugar do genérico
+    bits.push(last?.vacancy_note ? String(last.vacancy_note) : "a fonte (TSE) não publica quem exerce o cargo agora");
+    out.push({ office, what: OFFICE_LABEL[office], why: bits.join("; ") });
+  }
+  return out;
+}
 const DATASET_LABEL: Record<string, string> = {
   salario: "Salário pago",
   salario_prefeito: "Salário do prefeito",
@@ -81,6 +136,20 @@ const DATASET_LABEL: Record<string, string> = {
   viagens: "Viagens",
   contato: "Contato",
 };
+const EXECUTIVE = new Set<OfficeSlug>(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
+// o que cada cargo fora do federal tem de dado próprio (chaves de data_coverage)
+const LEG = ["presenca", "votos", "propostas", "gastos_gabinete"];
+const OWN_DATASETS: Partial<Record<OfficeSlug, string[]>> = {
+  deputado_estadual: [...LEG, "salario_deputados_estaduais"],
+  deputado_distrital: [...LEG, "salario_deputados_estaduais"],
+  vereador: [...LEG, "salario_vereadores"],
+  prefeito: ["salario_prefeito"],
+  vice_prefeito: ["salario_prefeito"],
+  governador: [],
+  vice_governador: [],
+};
+/** Emendas (D38): tipo próprio, não viram lei sozinhas; na tela, rótulo "emenda". */
+export const EMENDA_TYPES = ["EMC", "EMP", "EMR", "ESB"];
 const toDataset = (d: string): MissingDataset["dataset"] =>
   (d.startsWith("salario") ? "salario" : (["presenca", "votos", "propostas", "gastos_gabinete", "patrimonio"].includes(d) ? d : "propostas")) as MissingDataset["dataset"];
 
@@ -90,7 +159,15 @@ const isoTs = (d: unknown) => (d instanceof Date ? d.toISOString() : String(d ??
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
 function place(r: Row): Place {
-  return { ibge: String(r.ibge_code), kind: r.kind as Place["kind"], name: String(r.name), slug: String(r.slug), uf: (r.uf as string | null) ?? null, region: (r.region as string | null) ?? null };
+  return {
+    ibge: String(r.ibge_code),
+    kind: r.kind as Place["kind"],
+    name: String(r.name),
+    slug: String(r.slug),
+    uf: (r.uf as string | null) ?? null,
+    region: (r.region as string | null) ?? null,
+    population: r.population === undefined ? undefined : num(r.population),
+  };
 }
 function person(r: Row): Person {
   return {
@@ -127,13 +204,14 @@ function mandate(r: Row): Mandate {
     startedOn: iso(r.started_on),
     endsOn: iso(r.ends_on),
     statusSource: String(r.status_source),
+    electedBy: (r.elected_by as string | null) ?? null,
   };
 }
 
 // partido mostrado = filiação atual (person_current_party) ou, na falta, o partido na posse
 const HOLDER_SELECT = sql`
   select p.id, p.slug, p.display_name, p.civil_name, p.gender, p.birth_date, p.education, b.ibge_code as birthplace_ibge,
-         m.id as mandate_id, o.slug as office, o.name_m, o.name_f, o.level, m.status, m.started_on, m.ends_on, m.status_source,
+         m.id as mandate_id, o.slug as office, o.name_m, o.name_f, o.level, m.status, m.started_on, m.ends_on, m.status_source, m.elected_by,
          pl.ibge_code as place_ibge, pl.name as place_name, pl.kind as place_kind, pl.uf as place_uf,
          coalesce(cp.party_id, m.party_id) as party_id, pa.acronym as party_acronym, pa.name as party_name
   from mandates m
@@ -160,12 +238,16 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
     yes: Number(r.yes_count ?? 0),
     no: Number(r.no_count ?? 0),
     isNominal: Boolean(r.is_nominal),
+    // D55 trocada pela D123: secreta é o que a fonte marca; null (Câmara não informa) não vira rótulo nenhum
+    isSecret: r.is_secret === true,
+    openNoVotes: r.is_secret === false && r.has_votes === false,
     proposal: r.type ? { label: `${r.type} ${r.number}/${r.year}`, summary: String(r.summary_official ?? ""), url: (r.url as string | null) ?? null } : null,
   };
 }
 
 export const pgSource: DataSource = {
   isDemo: false,
+  ...pgW4,
 
   async searchPlaces(q, limit = 10) {
     const f = q.trim();
@@ -187,7 +269,7 @@ export const pgSource: DataSource = {
     return rows.map(place);
   },
   async getPlace(ibge) {
-    const [r] = await sql`select ibge_code, kind, name, slug, uf, null as region from places where ibge_code = ${ibge}`;
+    const [r] = await sql`select ibge_code, kind, name, slug, uf, null as region, population from places where ibge_code = ${ibge}`;
     return r ? place(r) : null;
   },
   async getPlaceByUf(uf) {
@@ -211,13 +293,19 @@ export const pgSource: DataSource = {
         ${pl.kind === "municipio" ? sql`or pl.ibge_code = ${pl.ibge}` : sql``})
       order by p.display_name collate pt_br`;
     const groups: RepresentativeGroup[] = [];
+    const missingExec = pl.uf ? await executiveGaps(pl.uf) : [];
     for (const g of GROUPS) {
       if (g.level === "municipal" && pl.kind !== "municipio") continue;
       const people = rows
         .filter((r) => g.offices.includes(r.office as OfficeSlug) && (g.level === "federal" && g.key === "presidencia" ? r.place_ibge === "BR" : g.level === "municipal" ? r.place_ibge === pl.ibge : r.place_kind === "uf"))
         .sort((a, b) => g.offices.indexOf(a.office as OfficeSlug) - g.offices.indexOf(b.office as OfficeSlug))
         .map(holder);
-      if (people.length) groups.push({ key: g.key, title: g.title(pl.uf), level: g.level, where: people[0].placeLabel, people });
+      const gaps = g.key === "governo" ? missingExec.filter((x) => g.offices.includes(x.office)).map(({ what, why }) => ({ what, why })) : undefined;
+      const total = g.key === "assembleia" && pl.uf ? stateSeatsOf(pl.uf) : null;
+      const seats = total != null && people.length < total ? { loaded: people.length, total, why: SEATS_WHY } : undefined;
+      if (people.length || gaps?.length || seats) {
+        groups.push({ key: g.key, title: g.title(pl.uf), level: g.level, where: people[0]?.placeLabel ?? pl.uf ?? "", people, ...(gaps?.length ? { gaps } : {}), ...(seats ? { seats } : {}) });
+      }
     }
     return groups;
   },
@@ -225,14 +313,156 @@ export const pgSource: DataSource = {
     const rows = await sql`select dataset, status, reason from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = ${pl.ibge} and dc.status <> 'no_site' order by dataset`;
     return rows.map((r) => ({ dataset: toDataset(String(r.dataset)), label: DATASET_LABEL[String(r.dataset)] ?? String(r.dataset), status: r.status as MissingDataset["status"], reason: String(r.reason) }));
   },
+  async getAssembly(uf) {
+    const [b] = await sql`
+      select b.adapter, b.place_id, s.slug, s.name as source_name, s.url as source_url
+      from legislative_bodies b join places p on p.id = b.place_id
+      left join sources s on b.adapter = 'ale_custom' and s.url = b.open_data_url
+      where p.kind = 'uf' and p.uf = ${uf.toUpperCase()} and b.kind in ('assembleia', 'camara_legislativa_df') limit 1`;
+    if (!b) return null;
+    const read = b.adapter === "ale_custom" && !!b.slug;
+    const cov = await sql`select dataset, status, reason, evidence_url, checked_on from data_coverage where place_id = ${b.place_id as string}::uuid and dataset in ('presenca', 'votos', 'propostas', 'gastos_gabinete')`;
+    const STAMP: Partial<Record<AssemblyDataset, string>> = { propostas: "proposicoes", gastos_gabinete: "despesas", presenca: "presenca", votos: "votacoes" };
+    const stamps = read
+      ? await sql`select split_part(dataset, '.', 2) as kind, max(refreshed_at) as at from dataset_stamps where dataset like ${String(b.slug) + ".%"} group by 1`
+      : [];
+    const at = new Map(stamps.map((r) => [String(r.kind), isoTs(r.at)]));
+    const byDs = new Map(cov.map((c) => [String(c.dataset), c]));
+    const order: AssemblyDataset[] = ["presenca", "votos", "propostas", "gastos_gabinete"];
+    const LABEL: Record<AssemblyDataset, string> = { presenca: "Presença no plenário", votos: "Votos no plenário", propostas: "Propostas apresentadas", gastos_gabinete: "Verba de gabinete" };
+    const u = uf.toUpperCase();
+    return {
+      uf: u,
+      houseName: houseName(u),
+      read,
+      source: read ? { name: String(b.source_name), url: String(b.source_url) } : null,
+      items: order.map((d) => {
+        const c = byDs.get(d);
+        const kind = STAMP[d]!;
+        const refreshedAt = read ? (at.get(kind) ?? null) : null;
+        // só conta como lido o que tem carimbo; sem carga, "no_site" não vale (o motivo explica)
+        const status = (c?.status as AssemblyInfo["items"][number]["status"]) ?? "desconhecido";
+        return {
+          dataset: d,
+          label: LABEL[d],
+          status: status === "no_site" && !refreshedAt ? "carregando" : status,
+          reason: c ? String(c.reason) : notReadReason(u),
+          evidenceUrl: (c?.evidence_url as string | null) ?? null,
+          checkedOn: c?.checked_on ? iso(c.checked_on) : null,
+          refreshedAt,
+          stampDataset: read && refreshedAt ? `${String(b.slug)}.${kind}` : null,
+        };
+      }),
+    } satisfies AssemblyInfo;
+  },
+  async getCityCouncil(personId) {
+    const [sp] = await sql`
+      select sp.house_id, sp.sapl_id, h.base_url, h.legislature_number, h.legislature_start, h.legislature_end, h.loaded_at, pl.name as city, pl.uf
+      from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id join places pl on pl.id = h.place_id
+      where sp.person_id = ${personId}::uuid and sp.match_status = 'casado' and h.status = 'ok' and h.loaded_at is not null
+      order by h.loaded_at desc limit 1`;
+    if (!sp) return null;
+    const house = Number(sp.house_id), pid = Number(sp.sapl_id);
+    const [m] = await sql`select count(*)::int as n, count(*) filter (where a.primeiro_autor)::int as p from sapl_autorias a join sapl_materias mt on mt.house_id = a.house_id and mt.sapl_id = a.materia_sapl_id where a.house_id = ${house} and a.parlamentar_sapl_id = ${pid}`;
+    const items = await sql`
+      select mt.type_sigla, mt.number, mt.year, mt.presented_on, mt.summary, mt.url, coalesce(a.primeiro_autor, false) as principal
+      from sapl_autorias a join sapl_materias mt on mt.house_id = a.house_id and mt.sapl_id = a.materia_sapl_id
+      where a.house_id = ${house} and a.parlamentar_sapl_id = ${pid}
+      order by mt.presented_on desc nulls last, mt.year desc, mt.number desc limit 10`;
+    const [pr] = await sql`select count(distinct p.sessao_sapl_id)::int as n, min(s.starts_on) as a, max(s.starts_on) as b from sapl_presencas p join sapl_sessoes s on s.house_id = p.house_id and s.sapl_id = p.sessao_sapl_id where p.house_id = ${house} and p.parlamentar_sapl_id = ${pid}`;
+    const [hv] = await sql`select exists (select 1 from sapl_votos where house_id = ${house}) as any`;
+    let votes: CityCouncilInfo["votes"] = null;
+    if (hv?.any) {
+      const by = await sql`select voto, count(*)::int as n from sapl_votos where house_id = ${house} and parlamentar_sapl_id = ${pid} group by 1 order by 1`;
+      const last = await sql`select voted_at, voto, description from sapl_votos where house_id = ${house} and parlamentar_sapl_id = ${pid} order by voted_at desc nulls last, sapl_id desc limit 10`;
+      votes = {
+        total: by.reduce((a, r) => a + Number(r.n), 0),
+        byValue: by.map((r) => ({ label: String(r.voto), n: Number(r.n) })),
+        items: last.map((r) => ({ votedAt: r.voted_at ? isoTs(r.voted_at) : null, value: String(r.voto), description: (r.description as string | null) ?? null })),
+      };
+    }
+    return {
+      city: String(sp.city),
+      uf: String(sp.uf),
+      baseUrl: String(sp.base_url),
+      legislature: num(sp.legislature_number),
+      legislatureStart: sp.legislature_start ? iso(sp.legislature_start) : null,
+      legislatureEnd: sp.legislature_end ? iso(sp.legislature_end) : null,
+      loadedAt: isoTs(sp.loaded_at),
+      materias: {
+        total: Number(m?.n ?? 0),
+        principal: Number(m?.p ?? 0),
+        items: items.map((r) => ({ type: String(r.type_sigla), number: Number(r.number), year: Number(r.year), presentedOn: r.presented_on ? iso(r.presented_on) : null, summary: String(r.summary), url: String(r.url), principal: Boolean(r.principal) })),
+      },
+      presence: { sessions: Number(pr?.n ?? 0), first: pr?.a ? iso(pr.a) : null, last: pr?.b ? iso(pr.b) : null },
+      votes,
+    } satisfies CityCouncilInfo;
+  },
+  async getTopVotedInPlace(ibge, limit = 5) {
+    const [pl] = await sql`select id, uf from places where ibge_code = ${ibge} and kind = 'municipio'`;
+    if (!pl) return null;
+    // última eleição geral com voto por município carregado para esta cidade (1º turno: é onde deputado se elege)
+    const [y] = await sql`
+      select max(e.year)::int as year from candidacy_place_votes cpv
+      join candidacies c on c.id = cpv.candidacy_id join elections e on e.id = c.election_id
+      where cpv.place_id = ${pl.id as string}::uuid and e.kind = 'geral' and e.round = 1`;
+    if (!y?.year) return null;
+    const offices: OfficeSlug[] = ["deputado_federal", pl.uf === "DF" ? "deputado_distrital" : "deputado_estadual"];
+    const out: PlaceTopVoted = { year: Number(y.year), groups: [] };
+    for (const office of offices) {
+      // ordem por votos é o próprio dado pedido (resultado da urna), com desempate A–Z; a tela diz que é "entre quem tem crachá" (D35)
+      const rows = await sql`
+        select p.slug, p.display_name, p.gender, coalesce(pa.acronym, '—') as party, cpv.votes, c.result
+        from candidacy_place_votes cpv
+        join candidacies c on c.id = cpv.candidacy_id
+        join elections e on e.id = c.election_id and e.kind = 'geral' and e.round = 1 and e.year = ${out.year}
+        join contests ct on ct.id = c.contest_id join offices o on o.id = ct.office_id and o.slug = ${office}
+        join people p on p.id = c.person_id
+        left join parties pa on pa.id = c.party_id
+        where cpv.place_id = ${pl.id as string}::uuid
+        order by cpv.votes desc, p.display_name collate pt_br limit ${Math.min(limit, 20)}`;
+      if (rows.length)
+        out.groups.push({
+          office,
+          label: PLURAL[office],
+          items: rows.map((r) => ({ slug: String(r.slug), name: String(r.display_name), gender: r.gender === "f" ? "f" : "m", party: String(r.party), votes: Number(r.votes), result: (r.result as Candidacy["result"] | null) ?? null })),
+        });
+    }
+    return out.groups.length ? out : null;
+  },
   async getCounters() {
     const rows = await sql`select o.slug, o.level, count(*)::int as n from mandates m join offices o on o.id = m.office_id where m.status = 'em_exercicio' group by 1, 2 order by min(o.slug)`;
     const byLevel: Record<Level, number> = { federal: 0, estadual: 0, municipal: 0 };
     const order = Object.keys(PLURAL) as OfficeSlug[];
-    const byOffice = rows
+    const byOffice: { office: OfficeSlug; label: string; count: number; expected?: number; why?: string }[] = rows
       .map((r) => ({ office: r.slug as OfficeSlug, label: PLURAL[r.slug as OfficeSlug], count: Number(r.n) }))
       .sort((a, b) => order.indexOf(a.office) - order.indexOf(b.office));
     for (const r of rows) byLevel[r.level as Level] += Number(r.n);
+    // “—” com motivo: cargo com menos gente em exercício do que lugares (BUG-024, BUG-025). Nunca omitir a diferença.
+    const lack = await sql`
+      select o.slug as office, array_agg(distinct pl.uf order by pl.uf) filter (where pl.uf is not null) as ufs
+      from offices o cross join places pl
+      where pl.kind = 'uf' and o.slug in ('governador', 'vice_governador')
+        and not exists (select 1 from mandates m where m.office_id = o.id and m.place_id = pl.id and m.status = 'em_exercicio')
+      group by 1`;
+    const seatsExpected = {
+      deputado_estadual: UF_ROWS.filter((r) => r[1] !== "DF").reduce((s, r) => s + stateSeats(r[4]), 0),
+      deputado_distrital: stateSeats(UF_ROWS.find((r) => r[1] === "DF")![4]),
+    };
+    for (const b of byOffice) {
+      const missing = lack.find((l) => l.office === b.office);
+      if (missing && (missing.ufs as string[]).length) {
+        const ufs = missing.ufs as string[];
+        b.expected = 27;
+        b.why = `${ufs.join(", ")} sem ${b.office === "governador" ? "governador" : "vice-governador"} em exercício na fonte`;
+      } else if (b.office === "deputado_estadual" || b.office === "deputado_distrital") {
+        const exp = seatsExpected[b.office];
+        if (b.count < exp) {
+          b.expected = exp;
+          b.why = `${exp - b.count} cadeiras sem titular ou suplente em exercício carregado; ${SEATS_WHY}`;
+        }
+      }
+    }
     return { total: byLevel.federal + byLevel.estadual + byLevel.municipal, byLevel, byOffice };
   },
   async listParties() {
@@ -278,8 +508,28 @@ export const pgSource: DataSource = {
   },
   async getMandates(personId) {
     const rows = await sql`${HOLDER_SELECT} where p.id = ${personId}::uuid
-      order by case m.status when 'em_exercicio' then 0 when 'eleito_aguardando_posse' then 1 when 'licenciado' then 2 else 3 end, m.started_on desc`;
+      order by case m.status when 'em_exercicio' then 0 when 'eleito_aguardando_posse' then 1 when 'licenciado' then 2 when 'afastado' then 2 else 3 end, m.started_on desc`;
     return rows.map((r) => ({ ...mandate(r), party: party(r), officeName: officeName(r), placeLabel: placeLabel(r) }));
+  },
+  // D220: fonte do partido vigente. Lê party_memberships via person_current_party (web_reader não lê party_observations).
+  // Quem está em exercício na Câmara/Senado tem o partido da casa (D182); senão, candidatura do TSE na mesma data; senão, sem fonte.
+  async getPartyProvenance(personId) {
+    const [r] = await sql`
+      select cp.from_on,
+        (select case b.kind when 'camara_deputados' then 'camara' else 'senado' end
+           from mandates m join legislative_bodies b on b.id = m.body_id
+          where m.person_id = cp.person_id and m.status = 'em_exercicio' and b.kind in ('camara_deputados', 'senado')
+          order by m.started_on desc limit 1) as house,
+        (select e.year from candidacies c join elections e on e.id = c.election_id
+          where c.person_id = cp.person_id and c.party_id = cp.party_id and e.held_on = cp.from_on
+          order by e.year desc limit 1) as tse_year
+      from person_current_party cp where cp.person_id = ${personId}::uuid`;
+    if (!r) return { kind: "none", reason: "sem filiação registrada nas fontes" };
+    const since = iso(r.from_on);
+    if (!since) return { kind: "none", reason: "sem data de filiação" };
+    if (r.house === "camara" || r.house === "senado") return { kind: r.house, since };
+    if (r.tse_year != null) return { kind: "tse", since, electionYear: Number(r.tse_year) };
+    return { kind: "none", reason: "fonte da filiação não identificada" };
   },
   async getCandidacies(personId) {
     const rows = await sql`
@@ -300,7 +550,7 @@ export const pgSource: DataSource = {
       office: r.office as OfficeSlug,
       placeIbge: String(r.place_ibge),
       partyId: String(r.party_id ?? ""),
-      result: (r.result as Candidacy["result"]) ?? "nao_eleito",
+      result: (r.result as Candidacy["result"]) ?? null,
       votes: num(r.votes),
       raisedCents: num(r.raised_cents),
       spentCents: num(r.spent_cents),
@@ -319,32 +569,45 @@ export const pgSource: DataSource = {
       where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
       order by case m.status when 'em_exercicio' then 0 else 1 end, m.started_on desc limit 1`;
     const missing: MissingDataset[] = [];
-    if (m && m.level === "federal") {
+    const executive = !!m && EXECUTIVE.has(m.office as OfficeSlug);
+    if (m && m.level === "federal" && !executive) {
       // o que o ETL federal ainda não carrega para esta casa (ex.: proposições e CEAPS do Senado): vem do derive.stats
       const FEDERAL_REASON: Record<string, string> = {
         propostas: "a carga das matérias de autoria no Senado entra na próxima fase",
         gastos_gabinete: "a carga da CEAPS (cota do Senado) entra na próxima fase",
-        presenca: "ainda não carregado para esta casa",
+        presenca: "o Senado não publica a lista de presença por senador",
         votos: "ainda não carregado para esta casa",
       };
       for (const d of (s?.missing_datasets as string[] | undefined) ?? [])
         missing.push({ dataset: toDataset(d), label: DATASET_LABEL[d] ?? d, status: "carregando", reason: FEDERAL_REASON[d] ?? "carga pendente" });
     }
     if (m && m.level !== "federal") {
-      // cobertura do lugar: UF para deputados estaduais, município para vereadores/prefeitos
+      // cobertura do lugar (UF ou município), filtrada pelo que ESTE cargo tem: Executivo não tem presença, votos,
+      // propostas nem cota de gabinete; cada cargo só vê a pendência do próprio salário (D04 da auditoria de dados)
       const cov = await sql`select dataset, status, reason from data_coverage where place_id = ${m.place_id as string}::uuid and status <> 'no_site' order by dataset`;
-      const relevant = cov.filter((c) => (m.level === "estadual" ? !String(c.dataset).includes("prefeito") && !String(c.dataset).includes("vereador") : !String(c.dataset).includes("estaduais")));
-      missing.push(...relevant.map((c) => ({ dataset: toDataset(String(c.dataset)), label: DATASET_LABEL[String(c.dataset)] ?? String(c.dataset), status: c.status as MissingDataset["status"], reason: String(c.reason) })));
+      const own = OWN_DATASETS[m.office as OfficeSlug] ?? [];
+      missing.push(
+        ...cov
+          .filter((c) => own.includes(String(c.dataset)))
+          .map((c) => ({ dataset: toDataset(String(c.dataset)), label: DATASET_LABEL[String(c.dataset)] ?? String(c.dataset), status: c.status as MissingDataset["status"], reason: String(c.reason) })),
+      );
+      if ((m.office === "governador" || m.office === "vice_governador") && m.amount_cents == null)
+        missing.push({ dataset: "salario", label: "Salário", status: "desconhecido", reason: "fixado por lei de cada estado; ainda não conferimos a lei deste estado" });
     }
+    // dado que consta como faltando nunca aparece como número (0 de "não carregado" vira "—")
+    const gone = new Set(missing.map((x) => x.dataset));
+    const keep = (d: MissingDataset["dataset"], v: number | null) => (gone.has(d) ? null : v);
+    // teto (is_ceiling) e "não conferido" nunca juntos: com valor de salário (pago ou teto) na tela, a pendência de salário sai da lista
+    if (m?.amount_cents != null) for (let i = missing.length - 1; i >= 0; i--) if (missing[i].dataset === "salario") missing.splice(i, 1);
     const topics = (s?.top_topics as { topic_slug: string; proposals: number }[] | undefined) ?? [];
     return {
       period,
-      presencePresent: num(s?.presence_present),
-      presenceTotal: num(s?.presence_total),
-      proposalsPrincipal: num(s?.proposals_principal),
-      proposalsCosigned: num(s?.proposals_cosigned),
-      votesRegistered: num(s?.votes_registered),
-      expensesCents: num(s?.expenses_cents),
+      presencePresent: keep("presenca", num(s?.presence_present)),
+      presenceTotal: keep("presenca", num(s?.presence_total)),
+      proposalsPrincipal: keep("propostas", num(s?.proposals_principal)),
+      proposalsCosigned: keep("propostas", num(s?.proposals_cosigned)),
+      votesRegistered: keep("votos", num(s?.votes_registered)),
+      expensesCents: keep("gastos_gabinete", num(s?.expenses_cents)),
       salaryMonthlyCents: num(m?.amount_cents),
       salaryIsCeiling: Boolean(m?.is_ceiling),
       topTopics: topics.map((t) => ({ topic: t.topic_slug, count: Number(t.proposals) })),
@@ -352,6 +615,91 @@ export const pgSource: DataSource = {
       partyAlignmentTotal: num(s?.party_alignment_total),
       missing,
     } satisfies PeriodStats;
+  },
+  async getYearlyStats(personId) {
+    const rows = await sql`select period::int as y, s.* from person_period_stats s where person_id = ${personId}::uuid and period <> 'career' order by 1`;
+    const missing = (r: Row, d: string) => ((r.missing_datasets as string[] | null) ?? []).includes(d);
+    return rows.map<YearStats>((r) => ({
+      year: Number(r.y),
+      presencePresent: missing(r, "presenca") ? null : num(r.presence_present),
+      presenceTotal: missing(r, "presenca") ? null : num(r.presence_total),
+      proposalsPrincipal: missing(r, "propostas") ? null : num(r.proposals_principal),
+      proposalsCosigned: missing(r, "propostas") ? null : num(r.proposals_cosigned),
+      votesRegistered: missing(r, "votos") ? null : num(r.votes_registered),
+      expensesCents: missing(r, "gastos_gabinete") ? null : num(r.expenses_cents),
+    }));
+  },
+  async getPresenceByMonth(personId, year) {
+    const rows = await sql`
+      select extract(month from s.starts_at at time zone 'America/Sao_Paulo')::int as m,
+             count(*) filter (where a.status = 'presente')::int as present,
+             count(*) filter (where a.status in ('presente', 'ausente', 'ausencia_justificada'))::int as total
+      from attendance a join sessions s on s.id = a.session_id
+      where a.person_id = ${personId}::uuid and s.is_deliberative
+        and s.starts_at >= make_timestamptz(${year}, 1, 1, 0, 0, 0, 'America/Sao_Paulo') and s.starts_at < make_timestamptz(${year + 1}, 1, 1, 0, 0, 0, 'America/Sao_Paulo')
+      group by 1 having count(*) filter (where a.status in ('presente', 'ausente', 'ausencia_justificada')) > 0 order by 1`;
+    return rows.map((r) => ({ month: Number(r.m), present: Number(r.present), total: Number(r.total) }));
+  },
+  async getSalaryAccrued(personId, year) {
+    // mês a mês, em todos os mandatos já exercidos; o valor de cada mês é o subsídio vigente no 1º dia dele.
+    // Mês sem valor carregado (antes do primeiro valid_from) conta no tempo de cargo, não na soma.
+    const [r] = await sql`
+      with ms as (
+        select m.office_id, m.place_id, gs::date as mo
+        from mandates m,
+             generate_series(date_trunc('month', m.started_on), date_trunc('month', least(m.ends_on - 1, current_date)), interval '1 month') gs
+        where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
+          ${year ? sql`and extract(year from gs) = ${year}` : sql``}
+      )
+      select count(*)::int as months, count(sa.amount_cents)::int as covered, sum(sa.amount_cents)::bigint as cents,
+             min(mo) as first, min(mo) filter (where sa.amount_cents is not null) as covered_from
+      from ms
+      left join lateral (select amount_cents from salaries s where s.office_id = ms.office_id and (s.place_id = ms.place_id or s.place_id is null)
+                         and s.valid_from <= ms.mo and not s.is_ceiling order by s.place_id nulls last, s.valid_from desc limit 1) sa on true`;
+    if (!r || !r.covered) return null;
+    return { cents: Number(r.cents), months: Number(r.months), coveredMonths: Number(r.covered), firstMonth: iso(r.first), coveredFrom: r.covered_from ? iso(r.covered_from) : null } satisfies SalaryAccrued;
+  },
+  async getCampaignFinance(personId) {
+    // uma candidatura por ano (a que tem lançamentos; o 2º turno não repete a conta: D44); categorias com soma 0 saem (ex.: "#NULO")
+    const rows = await sql`
+      with per as (
+        select c.id, e.year, o.slug as office, p.gender, o.name_m, o.name_f, pl.name as place_name, pl.kind as place_kind, pl.uf as place_uf,
+               (select count(*) from campaign_finance_entries f where f.candidacy_id = c.id) as n
+        from candidacies c join elections e on e.id = c.election_id join contests ct on ct.id = c.contest_id
+        join offices o on o.id = ct.office_id join places pl on pl.id = ct.place_id join people p on p.id = c.person_id
+        where c.person_id = ${personId}::uuid
+      ), pick as (
+        select distinct on (year) * from per where n > 0 order by year, n desc
+      )
+      select pick.year, pick.office, pick.gender, pick.name_m, pick.name_f, pick.place_name, pick.place_kind, pick.place_uf,
+             f.direction, f.category, sum(f.amount_cents)::bigint as cents
+      from pick join campaign_finance_entries f on f.candidacy_id = pick.id
+      group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+      having sum(f.amount_cents) <> 0
+      order by pick.year desc, f.direction, cents desc, f.category`;
+    const by = new Map<number, CampaignFinance>();
+    for (const r of rows) {
+      const y = Number(r.year);
+      const cur = by.get(y) ?? { year: y, officeName: officeName(r), placeLabel: placeLabel(r), income: [], spending: [] };
+      (r.direction === "receita" ? cur.income : cur.spending).push({ label: String(r.category), cents: Number(r.cents) });
+      by.set(y, cur);
+    }
+    return [...by.values()].sort((a, b) => b.year - a.year);
+  },
+  async listStaff(personId) {
+    const rows = await sql`select name, role, monthly_salary_cents, as_of from staff_members where person_id = ${personId}::uuid order by name collate pt_br`;
+    return rows.map<StaffMember>((r) => ({ name: String(r.name), role: (r.role as string | null) ?? null, monthlySalaryCents: num(r.monthly_salary_cents), asOf: iso(r.as_of) }));
+  },
+  async countSecretVotes(personId, year) {
+    const [r] = await sql`
+      select count(*)::int as n
+      from voting_events e join legislative_bodies b on b.id = e.body_id and b.kind = 'senado'
+      where e.is_nominal and e.is_secret is true
+        and exists (select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'senador'
+                    where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
+                      and (e.occurred_at at time zone 'America/Sao_Paulo')::date >= m.started_on and (e.occurred_at at time zone 'America/Sao_Paulo')::date < m.ends_on)
+        ${year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${year}` : sql``}`;
+    return Number(r?.n ?? 0);
   },
   async getActiveYears(personId) {
     const rows = await sql`select distinct y::int as y from mandates m,
@@ -366,7 +714,7 @@ export const pgSource: DataSource = {
     const q = f.q?.trim();
     const where = sql`pa.person_id = ${personId}::uuid
       ${f.year ? sql`and p.year = ${f.year}` : sql``}
-      ${f.type ? sql`and p.can_become_law = ${f.type === "lei"}` : sql``}
+      ${f.type === "lei" ? sql`and p.can_become_law` : f.type === "pedido" ? sql`and not p.can_become_law and p.type <> all(${EMENDA_TYPES}::text[])` : f.type === "emenda" ? sql`and p.type = any(${EMENDA_TYPES}::text[])` : sql``}
       ${f.role ? sql`and (pa.role = 'principal') = ${f.role === "autor"}` : sql``}
       ${f.topic ? sql`and exists (select 1 from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = p.id and t.slug = ${f.topic})` : sql``}
       ${q ? sql`and (f_unaccent(lower(p.summary_official)) like '%' || f_unaccent(lower(${q})) || '%' or lower(p.type || ' ' || p.number) like '%' || lower(${q}) || '%')` : sql``}`;
@@ -387,7 +735,8 @@ export const pgSource: DataSource = {
         topics: (r.topics as string[]) ?? [],
         role: r.role === "principal" ? "autor" : "coautor",
         canBecomeLaw: Boolean(r.can_become_law),
-        status: String(r.status ?? "Em tramitação"),
+        // sem situação na fonte lida (ALESP, parte da Câmara e do Senado): não presume "em tramitação"
+        status: r.status ? String(r.status) : "situação não carregada",
         presentedOn: r.presented_on ? iso(r.presented_on) : `${r.year}-01-01`,
         url: String(r.url ?? ""),
       })),
@@ -467,6 +816,62 @@ export const pgSource: DataSource = {
       }
     return out;
   },
+  async listDisagreements(a, b, f) {
+    const limit = Math.min(f.limit ?? 20, 400);
+    const base = sql`
+      from votes va join votes vb on vb.voting_event_id = va.voting_event_id and vb.person_id = ${b}::uuid
+      join voting_events e on e.id = va.voting_event_id
+      where va.person_id = ${a}::uuid
+        and va.value in ('sim','nao','abstencao','obstrucao') and vb.value in ('sim','nao','abstencao','obstrucao') and va.value <> vb.value
+        ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}`;
+    const topicFilter = f.topic ? sql`and exists (select 1 from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id and t.slug = ${f.topic})` : sql``;
+    const [{ n }] = await sql`select count(*)::int as n ${base} ${topicFilter}`;
+    const list = await sql`
+      select e.id, bd.kind as body, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, va.value as va, vb.value as vb,
+             case when pr.id is not null then pr.type || ' ' || pr.number || '/' || pr.year end as label, pr.summary_official,
+             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
+      from votes va join votes vb on vb.voting_event_id = va.voting_event_id and vb.person_id = ${b}::uuid
+      join voting_events e on e.id = va.voting_event_id
+      join legislative_bodies bd on bd.id = e.body_id
+      left join proposals pr on pr.id = e.proposal_id
+      where va.person_id = ${a}::uuid
+        and va.value in ('sim','nao','abstencao','obstrucao') and vb.value in ('sim','nao','abstencao','obstrucao') and va.value <> vb.value
+        ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
+        ${topicFilter}
+      order by e.occurred_at desc, e.id limit ${limit}`;
+    const tc = await sql`
+      select t.slug, count(distinct e.id)::int as n
+      from votes va join votes vb on vb.voting_event_id = va.voting_event_id and vb.person_id = ${b}::uuid
+      join voting_events e on e.id = va.voting_event_id
+      join proposal_topics pt on pt.proposal_id = e.proposal_id join topics t on t.id = pt.topic_id
+      where va.person_id = ${a}::uuid
+        and va.value in ('sim','nao','abstencao','obstrucao') and vb.value in ('sim','nao','abstencao','obstrucao') and va.value <> vb.value
+        ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
+      group by 1 order by 1`;
+    return {
+      ...page(
+        list.map<Disagreement>((r) => ({
+          event: {
+            id: String(r.id),
+            body: r.body === "senado" ? "senado" : "camara",
+            occurredAt: isoTs(r.occurred_at),
+            description: r.summary_official ? String(r.summary_official) : String(r.description),
+            topic: (r.topic as string | null) ?? null,
+            result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
+            yes: Number(r.yes_count ?? 0),
+            no: Number(r.no_count ?? 0),
+            proposalLabel: (r.label as string | null) ?? null,
+          },
+          a: r.va as VoteValue,
+          b: r.vb as VoteValue,
+        })),
+        Number(n),
+        0,
+        limit,
+      ),
+      topics: tc.map((t) => ({ slug: String(t.slug), count: Number(t.n) })),
+    };
+  },
   async listTopics() {
     return (await sql`select slug, name from topics order by name collate pt_br`).map((r) => ({ slug: String(r.slug), name: String(r.name) }));
   },
@@ -496,7 +901,8 @@ export const pgSource: DataSource = {
     const from = sql`from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id`;
     const [{ n }] = await sql`select count(*)::int as n ${from} where ${where}`;
     const rows = await sql`
-      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal,
+      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret,
+             exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
       ${from} where ${where} order by e.occurred_at desc, e.id limit ${limit} offset ${offset}`;
@@ -507,7 +913,8 @@ export const pgSource: DataSource = {
   async getVotingEvent(id) {
     if (!/^[0-9a-f-]{36}$/.test(id)) return null;
     const [r] = await sql`
-      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, b.kind as body,
+      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret, b.kind as body,
+             exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
       from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id
@@ -583,6 +990,99 @@ export const pgSource: DataSource = {
       order by l.sanctioned_on desc`;
     return rows.map<LawItem>((r) => ({ number: String(r.number), sanctionedOn: iso(r.sanctioned_on), summary: String(r.summary), url: (r.url as string | null) ?? null, proposal: String(r.proposal), role: r.role === "principal" ? "autor" : "coautor" }));
   },
+  async getAgenda(f) {
+    const limit = Math.min(f.limit ?? 10, 50);
+    const kind = f.body === "senado" ? "senado" : "camara_deputados";
+    const from = sql`from agenda_events e join legislative_bodies b on b.id = e.body_id and b.kind = ${kind}
+      where e.starts_at >= (date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo')`;
+    const [{ n }] = await sql`select count(*)::int as n ${from}`;
+    const evs = await sql`select e.id, e.house, e.starts_at, e.kind, e.title, e.status, e.location, e.official_url ${from} order by e.starts_at, e.id limit ${limit}`;
+    const ids = evs.map((e) => String(e.id));
+    const items = ids.length
+      ? await sql`
+          select i.agenda_event_id, i.position, i.proposal_type, i.proposal_number, i.proposal_year, i.title, i.summary, i.regime, i.rapporteur, i.outcome_text,
+                 pr.url as proposal_url,
+                 (select ve.id from voting_events ve where ve.proposal_id = i.proposal_id and ve.is_nominal order by ve.occurred_at desc limit 1) as voting_event_id
+          from agenda_items i left join proposals pr on pr.id = i.proposal_id
+          where i.agenda_event_id = any(${ids}::bigint[]) order by i.agenda_event_id, i.position`
+      : [];
+    const by = new Map<string, AgendaItem[]>();
+    for (const r of items) {
+      const arr = by.get(String(r.agenda_event_id)) ?? [];
+      const clean = (v: unknown) => {
+        const t = typeof v === "string" ? v.trim() : "";
+        return t && t !== "-" ? t : null;
+      };
+      arr.push({
+        position: Number(r.position),
+        label: r.proposal_type && r.proposal_number ? `${r.proposal_type} ${r.proposal_number}/${r.proposal_year}` : null,
+        title: String(r.title),
+        summary: clean(r.summary),
+        regime: clean(r.regime),
+        rapporteur: clean(r.rapporteur),
+        outcome: clean(r.outcome_text),
+        proposalUrl: typeof r.proposal_url === "string" && /^https?:\/\//.test(r.proposal_url) ? r.proposal_url : null,
+        votingEventId: r.voting_event_id ? String(r.voting_event_id) : null,
+      });
+      by.set(String(r.agenda_event_id), arr);
+    }
+    const events = evs.map<AgendaEvent>((e) => {
+      const all = by.get(String(e.id)) ?? [];
+      const url = typeof e.official_url === "string" && /^https?:\/\//.test(e.official_url) ? e.official_url : null;
+      return {
+        id: String(e.id),
+        house: e.house as AgendaEvent["house"],
+        startsAt: isoTs(e.starts_at),
+        kind: String(e.kind),
+        title: (e.title as string | null)?.trim() || null,
+        status: String(e.status),
+        location: (e.location as string | null)?.trim() || null,
+        officialUrl: url,
+        items: all.slice(0, 40),
+        itemsTotal: all.length,
+      };
+    });
+    const [st] = await sql`
+      select s.name, s.url, max(ds.refreshed_at) as at
+      from dataset_stamps ds join sources s on s.id = ds.source_id
+      where ds.dataset like ${(f.body === "senado" ? "agenda.senado" : "agenda.camara") + ".%"} group by s.name, s.url order by max(ds.refreshed_at) desc limit 1`;
+    return { events, total: Number(n), source: st ? { name: String(st.name), url: String(st.url), refreshedAt: isoTs(st.at) } : null } satisfies AgendaView;
+  },
+  async listLaws(f) {
+    const limit = Math.min(f.limit ?? 30, 200);
+    const offset = off(f.cursor);
+    const where = sql`l.sphere = 'federal' ${f.year ? sql`and extract(year from l.sanctioned_on) = ${f.year}` : sql``}`;
+    const [{ n }] = await sql`select count(*)::int as n from laws l where ${where}`;
+    const rows = await sql`
+      select l.number, l.sanctioned_on, l.summary, l.url, pr.type || ' ' || pr.number || '/' || pr.year as proposal, pr.url as proposal_url,
+             coalesce((select json_agg(json_build_object('slug', p.slug, 'name', p.display_name) order by p.display_name collate pt_br)
+                       from proposal_authors pa join people p on p.id = pa.person_id where pa.proposal_id = pr.id and pa.role = 'principal'), '[]') as authors
+      from laws l left join lateral (select * from proposals x where x.became_law_id = l.id order by x.presented_on nulls last limit 1) pr on true
+      where ${where}
+      order by l.sanctioned_on desc, l.number limit ${limit} offset ${offset}`;
+    const years = await sql`select distinct extract(year from sanctioned_on)::int as y from laws where sphere = 'federal' order by 1 desc`;
+    return {
+      ...page(
+        rows.map<LawListItem>((r) => {
+          const authors = (r.authors as { slug: string; name: string }[]) ?? [];
+          return {
+            number: String(r.number),
+            sanctionedOn: iso(r.sanctioned_on),
+            summary: String(r.summary),
+            url: (r.url as string | null) ?? null,
+            proposal: (r.proposal as string | null) ?? null,
+            proposalUrl: (r.proposal_url as string | null) ?? null,
+            authors: authors.slice(0, 3),
+            moreAuthors: Math.max(0, authors.length - 3),
+          };
+        }),
+        Number(n),
+        offset,
+        limit,
+      ),
+      years: years.map((y) => Number(y.y)),
+    };
+  },
   async getCommittees(personId) {
     const rows = await sql`
       select c.acronym, c.name, cm.role, cm.from_on, cm.to_on, b.kind
@@ -616,6 +1116,61 @@ export const pgSource: DataSource = {
       order by (ds.dataset = ${dataset}) desc, ds.refreshed_at desc limit 1`;
     if (!r) return { dataset, source: "Fonte oficial", sourceUrl: "/sobre#fontes", refreshedAt: new Date(0).toISOString() } satisfies Stamp;
     return { dataset: String(r.dataset), source: String(r.name), sourceUrl: String(r.url), refreshedAt: isoTs(r.refreshed_at) };
+  },
+  async getSalarySources(office) {
+    const rows = await sql`
+      select so.name, so.url, max(s.updated_at) as at
+      from salaries s join offices o on o.id = s.office_id join sources so on so.id = s.source_id
+      where o.slug = ${office} group by 1, 2 order by min(s.valid_from)`;
+    return rows.map((r) => ({ name: String(r.name), url: String(r.url), updatedAt: isoTs(r.at) }));
+  },
+  async listStampYears(prefix) {
+    const rows = await sql`select distinct right(dataset, 4)::int as y from dataset_stamps where dataset like ${prefix + ".%"} and right(dataset, 4) ~ '^[0-9]{4}$' order by 1`;
+    return rows.map((r) => Number(r.y));
+  },
+  async listSourceStatus() {
+    const rows = await sql`
+      select s.slug, s.name, s.url, ds.dataset, ds.refreshed_at
+      from sources s join dataset_stamps ds on ds.source_id = s.id
+      order by s.name collate pt_br, ds.dataset`;
+    const by = new Map<string, SourceStatus>();
+    for (const r of rows) {
+      const slug = String(r.slug);
+      const cur = by.get(slug) ?? { slug, name: String(r.name), url: String(r.url), datasets: [], lastRefreshedAt: null };
+      const at = isoTs(r.refreshed_at);
+      cur.datasets.push({ dataset: String(r.dataset), refreshedAt: at });
+      if (!cur.lastRefreshedAt || at > cur.lastRefreshedAt) cur.lastRefreshedAt = at;
+      by.set(slug, cur);
+    }
+    return [...by.values()];
+  },
+  async getCoverageMatrix() {
+    const rows = await sql`
+      select p.uf, dc.dataset, dc.status, count(*)::int as n, max(dc.checked_on) as checked
+      from data_coverage dc join places p on p.id = dc.place_id
+      where p.kind = 'municipio'
+      group by 1, 2, 3`;
+    const ufs = await sql`select p.uf, p.name, (select count(*)::int from places m where m.kind = 'municipio' and m.uf = p.uf) as cities from places p where p.kind = 'uf' order by p.name collate pt_br`;
+    const keys = [...new Set(rows.map((r) => String(r.dataset)))].sort((a, b) => Object.keys(DATASET_LABEL).indexOf(a) - Object.keys(DATASET_LABEL).indexOf(b));
+    const out: CoverageMatrix = {
+      datasets: keys.map((k) => ({ key: k, label: DATASET_LABEL[k] ?? k })),
+      rows: ufs.map((u) => ({ uf: String(u.uf), name: String(u.name), cities: Number(u.cities), cells: {} })),
+      total: { cities: 0, cells: {} },
+      checkedOn: null,
+    };
+    out.total.cities = out.rows.reduce((a, r) => a + r.cities, 0);
+    const byUf = new Map(out.rows.map((r) => [r.uf, r]));
+    for (const r of rows) {
+      const row = byUf.get(String(r.uf));
+      if (!row) continue;
+      const d = String(r.dataset), st = r.status as CoverageStatus, n = Number(r.n);
+      (row.cells[d] ??= {})[st] = n;
+      const t = (out.total.cells[d] ??= {});
+      t[st] = (t[st] ?? 0) + n;
+      const c = r.checked ? String(r.checked instanceof Date ? r.checked.toISOString() : r.checked).slice(0, 10) : null;
+      if (c && (!out.checkedOn || c > out.checkedOn)) out.checkedOn = c;
+    }
+    return out;
   },
   async latestRefresh() {
     const [r] = await sql`select max(refreshed_at) as at from dataset_stamps`;
