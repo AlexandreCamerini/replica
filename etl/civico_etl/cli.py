@@ -9,6 +9,8 @@ Exemplos:
   civico-etl derive.stats
   civico-etl pauta                                                   # pauta de hoje a +14 dias; rodar várias vezes ao dia
   civico-etl check                                                  # invariantes; exit 1 se alguma quebrar
+  civico-etl rascunho --limit 5                                     # IA rascunha as respostas (custa API); nada publica
+  civico-etl revisar [chave] [--aprovar|--reprovar] --revisor "Nome"  # fila, leitura e publicação por pessoa
 """
 
 from __future__ import annotations
@@ -27,7 +29,8 @@ log = logging.getLogger("etl")
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "parlamento.extras", "identity.dedupe", "derive.stats", "pauta", "check", "all"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "camara.diario", "senado.diario", "parlamento.extras", "identity.dedupe", "derive.stats", "pauta", "rascunho", "revisar", "check", "all"])
+    p.add_argument("key", nargs="?", help="rascunho/revisar: chave da proposta, ex. camara-pl-79-2020")
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -35,6 +38,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, help="Câmara/Senado: no máximo N parlamentares (desenvolvimento)")
     p.add_argument("--no-expenses", action="store_true", help="Câmara: pular a cota parlamentar")
     p.add_argument("--force", action="store_true", help="ignorar checksum e reprocessar")
+    p.add_argument("--model", help="rascunho: modelo (padrão claude-sonnet-5-5 ou RASCUNHO_MODEL)")
+    p.add_argument("--aprovar", action="store_true", help="revisar: publica o último rascunho")
+    p.add_argument("--reprovar", action="store_true", help="revisar: reprova o último rascunho")
+    p.add_argument("--revisor", help="revisar: nome de quem revisou (aparece como 'Revisado por pessoa')")
+    p.add_argument("--motivo", help="revisar: motivo da reprovação ou da correção")
+    p.add_argument("--nao-diz", action="append", default=[], metavar="CAMPO", help="revisar: troca o campo por 'O texto não diz' (repetível)")
+    p.add_argument("--frase", action="append", default=[], metavar='CAMPO="TEXTO"', help="revisar: reescreve a frase do campo; o trecho fica (repetível)")
     a = p.parse_args(argv)
 
     conn = db.connect()
@@ -90,6 +100,16 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.pauta import run_pauta
 
             run_pauta(conn)
+        if a.job == "rascunho":
+            from .jobs.rascunho import run_rascunho
+
+            run_rascunho(conn, key=a.key, limit=a.limit or 5, model=a.model, force=a.force)
+        if a.job == "revisar":
+            from .jobs.revisar import run_revisar
+
+            if a.aprovar and a.reprovar:
+                p.error("use --aprovar ou --reprovar, não os dois")
+            return run_revisar(conn, a.key, approve=a.aprovar, reject=a.reprovar, reviewer=a.revisor, note=a.motivo, not_said=a.nao_diz, phrases=a.frase)
         if a.job in ("check", "all"):
             from .jobs.checks import run_checks
 
