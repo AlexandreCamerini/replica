@@ -1,4 +1,4 @@
-# Agenda do ETL em produção (D250). Desligada até o dono configurar:
+# Agenda do ETL em produção (D250). Ligar: etl/deploy/github-actions-setup.sh (assistente interativo). Desligada até o dono configurar:
 #   secret ETL_DATABASE_URL (role de escrita do banco de produção), variável ETL_SCHEDULE_ENABLED=true
 #   e, opcional, secret ETL_ALERT_WEBHOOK (Slack/Discord/Teams compatível com {"text": ...}).
 # run-due decide o que venceu; chamar a cada 3 h basta (Câmara/Senado vencem em 20 h, prazo do site 36 h).
