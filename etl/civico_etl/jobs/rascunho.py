@@ -56,7 +56,7 @@ def _pages(pdf: bytes) -> list[str]:
 
 
 def run_rascunho(conn: psycopg.Connection, *, key: str | None = None, limit: int = 5, model: str | None = None, force: bool = False) -> None:
-    model = model or os.environ.get("RASCUNHO_MODEL", drafting.DEFAULT_MODEL)
+    model = model or os.environ.get("RASCUNHO_MODEL") or drafting.DEFAULT_MODEL
     client = anthropic.Anthropic()
     with run(conn, "rascunho", "camara", force=True) as r:
         done = 0

@@ -10,6 +10,7 @@ Estado em 2026-11-02. Camada real ligada ao app (`DATA_SOURCE=pg`), ETL rodado c
 | Postgres local | `db/pg-local.sh start` → `postgres://postgres@localhost:54329/civico`; `--local` aplica o stub do Supabase (roles, `auth.uid()`) e dá login ao `web_reader` | ok |
 | camada de dados do app | `web/src/lib/data/pg.ts` implementa o contrato `DataSource`; `index.ts` escolhe por `DATA_SOURCE` | 0 mudanças em tela; produção sem `DATA_SOURCE=pg` falha de propósito |
 | ETL | `etl/` (Python 3.12+, httpx, psycopg, DuckDB), `civico-etl <job>` | seed, ibge.places, tse.candidatos, camara.diario, senado.diario, identity.dedupe, derive.stats |
+| agendamento | `.github/workflows/etl-pauta.yml` (30 em 30 min seg–sex 08–22h, 3 em 3 h no fim de semana) e `etl-rascunho.yml` (seg–sex 08:30 e 14:30, limite 10); local: `etl/agenda/agendar-local.sh` (launchd, só banco local) | workflows inertes até: merge na main + secrets `ETL_DATABASE_URL`, `ANTHROPIC_API_KEY` |
 | revalidação | `POST /api/revalidate` com Bearer `REVALIDATE_SECRET`; o `derive.stats` chama se `REVALIDATE_URL` existir | ok |
 
 Desvio do baseline: `postgres` (postgres.js) em vez de Drizzle. O schema é SQL escrito à mão e validado; um query builder viraria segunda fonte de verdade sem ganho. Tagged templates dão parametrização segura.
@@ -96,3 +97,5 @@ civico-etl senado.diario --year 2025 --year 2026
 - Senado 2025: só 16 votações abertas pela API por senador (ver regra acima).
 - `people` sem foto espelhada: só a URL oficial; o espelhamento com limite de 200 KB entra no R2.
 - Desempenho em dev: lista de uma capital com 200 pessoas leva ~1 s de query (view `person_current_party` por linha). Índice ou materialização no R1.
+
+Desvio do baseline (jobs): pauta e rascunho rodam em GitHub Actions, não em Fly Machines. São jobs leves (HTTP + uma chamada de API, ~4 s a pauta), sem DuckDB nem arquivo de GB, e não exigem infra nova. O que se paga: o cron do GitHub atrasa minutos e pode pular disparo (a janela de 30 min absorve), e o banco precisa aceitar conexão de fora (Supabase aceita). Fly continua o lugar dos jobs pesados (TSE).

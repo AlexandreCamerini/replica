@@ -132,7 +132,7 @@ def main() -> int:
     s.add_parser("semear").add_argument("--n", type=int, default=30)
     r = s.add_parser("rodar")
     r.add_argument("--confirmo-custo", action="store_true")
-    r.add_argument("--model", default=os.environ.get("RASCUNHO_MODEL", drafting.DEFAULT_MODEL))
+    r.add_argument("--model", default=os.environ.get("RASCUNHO_MODEL") or drafting.DEFAULT_MODEL)
     a = p.parse_args()
     if a.cmd == "semear":
         semear(a.n)
