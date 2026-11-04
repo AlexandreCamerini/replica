@@ -322,3 +322,27 @@ Rodada autônoma autorizada pelo dono do projeto: diff full stack contra politic
   - (3) Pessoa da casa sem nascimento, ou com nascimento diferente do TSE, não funde mais no dedupe e fica duplicada até alguém decidir. Hoje são 0 pares.
   - (4) BUG-044 (título repetido com token em comum) segue aberto: o resolve e o check usam a mesma regra fraca.
   - (5) BUG-048: votação e contas por SQ sem a UE em 2012.
+
+## D250 · agenda do ETL: `civico-etl run-due` (orquestrador, 2026-11-04)
+- **Decisão.** Uma única entrada, `run-due`, chamada de hora em hora (launchd local) ou a cada 3 h (GitHub Actions, desligado por `vars.ETL_SCHEDULE_ENABLED`). Ela decide o que venceu pelo carimbo de cada família de datasets, roda em subprocesso com timeout e, se mexeu em pessoas, roda `identity.repairs --apply` (D245). Depois roda `derive.stats` e `check` e alerta. Arquivos: `etl/civico_etl/schedule.py`, `etl/deploy/launchd-install.sh`, `.github/workflows/etl.yml`, migração 0075.
+- **Régua.** A cadência de cada tarefa + o recuo de uma falha cabem no `maxAgeHours` do site (`web/src/lib/sources.ts`). `test_schedule.py` falha se as duas réguas divergirem.
+  - Câmara e Senado: 20 h.
+  - TSE das duas últimas eleições: 7 dias; votos e contas: 30 dias.
+  - Assembleias: 6 dias.
+  - SAPL: fila diária.
+  - TCU e Receita: 28 dias.
+  - SIDRA e BCB: 80 dias.
+  - IBGE: 365 dias.
+- **Carimbo.** `skipped_unchanged` também carimba `dataset_stamps`: fonte conferida e igual está em dia. Duas proteções acompanham isso:
+  - o checksum compara com o último run bem-sucedido;
+  - `sapl.descoberta` e "sem legislatura" não contam como fonte em dia.
+- **Alerta.** Dispara em falha, check quebrado, fonte fora do prazo, run órfão, agenda quebrada e lock travado há mais de 8 h. Sai pelo stdout, por `etl/.state/last-run.json` e pelo webhook opcional `ETL_ALERT_WEBHOOK`; o código de saída é 2. Não usa conta nova (D04). E-mail fica para quando houver Resend.
+- **Prazo.** `ETL_DEADLINE_MIN` adia a tarefa que não cabe e guarda 45 min para reparos, check e alerta. O alerta sai sempre (finally).
+- **Revisão independente (Opus).**
+  - Achou: 1 S1 (fila do SAPL), 4 S2 (carimbo falso, cache do workflow, prazo global, conexão ociosa/pooler), 5 S3 e 5 S4.
+  - Corrigido: o S1, todos os S2 e os S3 que dependiam de código. Os commits são `c891822` (agenda) e `a59f71a` (SAPL).
+  - Ficaram:
+    - fixar as actions por SHA e travar dependências com hash antes de ligar o workflow;
+    - o plist do launchd guarda a URL do banco em texto claro (com permissão 600), aceitável só para o Postgres local;
+    - o risco S4 de fundir dois homônimos com mesmo nascimento, mesma cadeira e sobrenome comum no dedupe.
+- **Para revisar (dono).** Ligar em produção depende do secret `ETL_DATABASE_URL` e da variável `ETL_SCHEDULE_ENABLED=true`. Ligar localmente: `etl/deploy/launchd-install.sh install`.

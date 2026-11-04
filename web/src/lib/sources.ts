@@ -23,7 +23,7 @@ export const SOURCE_META: Record<string, SourceMeta> = {
     maxAgeHours: 8 * 24,
   },
   // W3-B: cadência = agenda do ETL (schedule.py, D250). maxAgeHours aqui e MAX_AGE_H lá são a mesma régua (test_schedule.py)
-  sapl: { brings: "vereadores de 6 capitais pelo SAPL: projetos com autoria, presença em sessão (sem porcentagem) e votos nominais", cadence: "uma vez por semana", maxAgeHours: 8 * 24 },
+  sapl: { brings: "vereadores das câmaras municipais com SAPL já lidas: projetos com autoria, presença em sessão (sem porcentagem) e votos nominais", cadence: "toda câmara lida volta a ser conferida em até uma semana", maxAgeHours: 8 * 24 },
   tcu: { brings: "lista de inabilitados para função pública (sem CPF no site)", cadence: "uma vez por mês", maxAgeHours: 35 * 24 },
   alemg: {
     brings: "deputados estaduais de MG: verba indenizatória por mês (valor reembolsado) e proposições (projetos de lei, de lei complementar, de resolução e PECs) com autoria. Presença e votos em plenário não são publicados em dado aberto",
@@ -42,7 +42,7 @@ export const NOT_YET: { name: string; brings: string; why: string }[] = [
     brings: "deputados estaduais: presença, votos, propostas, verbas",
     why: "cada casa publica de um jeito; já lemos São Paulo e Minas Gerais. Rio de Janeiro e Rio Grande do Sul: não localizamos catálogo de dados abertos que permita leitura automática",
   },
-  { name: "Câmaras Municipais (fora as 6 capitais lidas pelo SAPL)", brings: "vereadores: presença, votos, propostas", why: "mais de 900 sites diferentes, a lê-los um de cada vez" },
+  { name: "Câmaras Municipais (fora as já lidas pelo SAPL)", brings: "vereadores: presença, votos, propostas", why: "mais de 900 câmaras usam o SAPL; a leitura avança em lotes diários, e as demais publicam em sites próprios" },
   { name: "Portal da Transparência (federal)", brings: "emendas parlamentares", why: "depende de chave de acesso que ainda não foi criada" },
   { name: "Tribunais de Contas", brings: "salário pago a prefeitos e vereadores", why: "fonte ainda não mapeada" },
 ];

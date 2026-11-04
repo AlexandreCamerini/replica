@@ -94,7 +94,7 @@ Abertos:
 1. **Emendas parlamentares** (should): falta a chave do Portal da Transparência, que é do dono.
 2. **Resumo por e-mail + descadastro** (should, F05): falta Resend + domínio, também do dono.
 3. **Assembleias além de SP e MG** (should, partial): RJ não tem dado aberto e o DOCIGP proíbe robôs; RS sem catálogo; outras 23 UFs a mapear. Presença e votos de plenário: SP e MG não publicam em dado aberto (só comissão, D102).
-4. **SAPL em escala** (should, partial): 6 de 937 câmaras, ~20 min por câmara. Precisa de carga incremental (maior id visto) e agendamento.
+4. **SAPL em escala** (should, partial): 6 de 937 câmaras carregadas hoje. Carga incremental (~30 s por câmara já lida) e fila diária na agenda (D250). A expansão avança sozinha quando a agenda for ligada: cerca de 15 câmaras novas por dia, a 1ª carga de cada uma é completa (~10 min).
 5. **Matriz de quem publica** (should, partial): preenche à medida que 3 e 4 crescem.
 6. Equipe do Senado e viagens (should, partial); folha mensal da Câmara para o salário da equipe.
 7. Could: STF, Planos de governo, camadas do mapa, salário de prefeito/vereador pelos Tribunais de Contas, sanções no crachá (0 casados por regra estrita), CGU (bloqueada por verificação humana, D130), dicionário completo (213), apuração ao vivo, mais vistos.
@@ -116,14 +116,14 @@ Abertos:
 ## Riscos
 
 - O fosso continua sendo o dado municipal e estadual. Entregável não quer dizer competitivo onde o usuário mora.
-- Nenhum ETL está agendado. A primeira carga da ALMG leva ~2 h, o SAPL ~20 min por câmara e o complemento da cota pela API ~8 min por ano. Sem rotina, "fora do prazo" em /atualizacoes vira regra.
+- A agenda existe (`civico-etl run-due`, D250), testada e rodada de verdade no banco local, mas **está desligada**. Ligar é decisão do dono: `etl/deploy/launchd-install.sh install` (local) ou secret + variável no GitHub (produção). Antes de ligar o workflow: fixar actions por SHA e travar dependências com hash.
 - Achado sem investigar: Roberto Cidade tem uma candidatura a vereador de 2012 com nome de urna "Dinelci", que parece casamento de identidade errado.
 - O dev server :3101 teve 500 intermitente por recompilação concorrente (vários agentes); em produção, `next start`, não reproduz.
 
 ## Próximos cinco
 
-1. Agendar o ETL (rotina diária e semanal por fonte) e ligar o "fora do prazo" a alerta.
-2. SAPL incremental e expansão para as ~900 câmaras, em lotes.
+1. Ligar a agenda do ETL (D250) onde o produto vai rodar e apontar `ETL_ALERT_WEBHOOK` para um canal do dono.
+2. Acompanhar a expansão do SAPL pela fila (cobertura em /atualizacoes) e mapear as câmaras sem SAPL.
 3. Assembleias: as próximas UFs com dado aberto, e presença/votação de comissão como bloco próprio em SP e MG.
 4. As duas contas do dono: chave do Portal da Transparência (emendas, CGU) e Resend + domínio (resumo por e-mail).
 5. Revisar a fila de identidade (19 itens) e fechar o BUG-044 antes que uma das pessoas entre no diretório. Medir a suíte contra `next start`, não `next dev`.
