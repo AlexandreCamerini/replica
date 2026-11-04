@@ -14,6 +14,14 @@ Ordem (architecture.md › Identidade):
   nunca casa (vai para a fila). E nome civil + nascimento só casa com lugar em comum: a UF da linha (ou a de nascimento) tem
   de estar na trajetória da pessoa (UF de mandato, candidatura ou nascimento). Sem isso, fila. Antes bastava o nome + nascimento
   únicos no diretório inteiro, e dois "José Antonio da Silva, 20/05/1963" (São Luís e Rio Grande) viraram uma pessoa.
+  Título repetido pelo TSE (BUG-041, D240): o TSE às vezes põe na linha de uma pessoa o título de outra (Virginia Pereira de
+  Oliveira 2012 com o título de Willya José da Silva). Título igual com nascimento diferente E nome civil sem nenhum token em
+  comum com a pessoa não casa: a linha segue sem título pelos outros ramos (pessoa nova ou fora do diretório, D34).
+  Título reemitido (BUG-042, D241): título desconhecido, MESMO município (a pessoa tem mandato ou candidatura nele), MESMO
+  nascimento e nome civil a no máximo 2 edições, com as diferenças só de grafia (s/z, m/n final, y/i, letra dobrada, h mudo):
+  casa, e o log diz por quê. Mais fraco que isso (outra grafia que não é só fonética, só a mesma UF, nascimento diferente no
+  mesmo município, ou os dois títulos na mesma eleição): fila. Gêmeos no mesmo município existem (Marcos x Márcio Pereira da
+  Silva, Araranguá, 18/01/1981) e ficam na fila, não fundidos.
 """
 
 from __future__ import annotations
@@ -44,6 +52,40 @@ def name_tokens(name: str | None) -> set[str]:
     return {t for t in re.split(r"[^a-z0-9]+", fold(name)) if len(t) >= 2 and t not in NAME_STOP}
 
 
+def names_compatible(civil_name: str | None, person_civil: str | None, person_display: str | None) -> bool:
+    """Nome civil da linha compatível com a pessoa: algum token significativo em comum (BUG-041). Grafia, nome social e
+    casamento quase sempre mantêm um token; Virginia Pereira de Oliveira x Willya José da Silva não tem nenhum."""
+    return bool(name_tokens(civil_name) & (name_tokens(person_civil) | name_tokens(person_display)))
+
+
+def edit_distance(a: str, b: str, limit: int = 2) -> int:
+    """Levenshtein com corte: devolve limit + 1 assim que passar do limite."""
+    if abs(len(a) - len(b)) > limit:
+        return limit + 1
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i] + [0] * len(b)
+        for j, cb in enumerate(b, 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb))
+        if min(cur) > limit:
+            return limit + 1
+        prev = cur
+    return prev[-1]
+
+
+_PHON = [(r"ph", "f"), (r"th", "t"), (r"y", "i"), (r"w", "v"), (r"k", "c"), (r"z", "s"), (r"m\b", "n"), (r"m(?=[^aeiou ])", "n"),
+         (r"(?<![cln])h", ""), (r"([a-z])\1+", r"\1")]
+
+
+def phonetic(name: str | None) -> str:
+    """Forma fonética do nome para a reemissão (BUG-042): ELOISA = Eloiza, GASPERIM = Gasperin, Willian = Wiliam.
+    Marcos x Márcio, Evaldo x Evandro e Kassâmio x Kassio continuam diferentes."""
+    s = re.sub(r"[^a-z ]", "", fold(name))
+    for pat, rep in _PHON:
+        s = re.sub(pat, rep, s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
 def seat_match(civil_name: str | None, birth_date: date | None, person_civil: str | None, person_display: str | None, person_birth: date | None) -> bool:
     """Ramo da cadeira (BUG-033): mesma data de nascimento E algum token do nome civil em comum. Sem os dois, não é prova."""
     if not (civil_name and birth_date and person_birth) or birth_date != person_birth:
@@ -56,6 +98,8 @@ class Match:
     person_id: str | None
     method: str  # exact_id | name_birth | name_birth_place | new | queued
     confidence: float
+    title_foreign: bool = False  # o título da linha é de outra pessoa (BUG-041): quem cria a pessoa não anexa o título
+    why: str | None = None  # motivo do casamento quando não é óbvio (reemissão de título, BUG-042)
 
 
 class PersonResolver:
@@ -76,7 +120,31 @@ class PersonResolver:
                 self.holds[str(r["person_id"])].add(str(r["source_id"]))
             if str(r["source_id"]) == self.sources.get("tse-titulo"):
                 self.titles[str(r["person_id"])].add(r["external_id"])
-        self.place_uf: dict[str, str | None] = {str(r["id"]): r["uf"] for r in conn.execute("select id, uf from places")}
+        self.place_uf: dict[str, str | None] = {}
+        self.muni_places: set[str] = set()
+        for r in conn.execute("select id, uf, kind from places"):
+            self.place_uf[str(r["id"])] = r["uf"]
+            if r["kind"] == "municipio":
+                self.muni_places.add(str(r["id"]))
+        # pessoa -> municípios da trajetória (mandato ou candidatura) e o inverso, para a reemissão de título (BUG-042)
+        self.places: dict[str, set[str]] = defaultdict(set)
+        self.place_people: dict[str, set[str]] = defaultdict(set)
+        for r in conn.execute(
+            """select m.person_id, m.place_id from mandates m union
+               select c.person_id, ct.place_id from candidacies c join contests ct on ct.id = c.contest_id"""
+        ):
+            if str(r["place_id"]) in self.muni_places:
+                self.places[str(r["person_id"])].add(str(r["place_id"]))
+                self.place_people[str(r["place_id"])].add(str(r["person_id"]))
+        # pessoa -> anos de eleição ordinária em que algum título dela concorre (tse_titulo_candidatura): dois títulos na mesma
+        # eleição são duas pessoas, nunca reemissão
+        self.title_years: dict[str, set[int]] = defaultdict(set)
+        tit_owner = {t: p for p, ts in self.titles.items() for t in ts}
+        for r in conn.execute("select titulo, year from tse_titulo_candidatura where kind = 'ordinaria'"):
+            if r["titulo"] in tit_owner:
+                self.title_years[tit_owner[r["titulo"]]].add(r["year"])
+        self.info: dict[str, tuple[str | None, str | None, date | None]] = {}  # pessoa -> (nome civil, nome de exibição, nascimento)
+        self.by_birth: dict[date, set[str]] = defaultdict(set)
         for r in conn.execute(
             """select m.person_id, pl.uf from mandates m join places pl on pl.id = m.place_id where pl.uf is not null
                union select c.person_id, pl.uf from candidacies c join contests ct on ct.id = c.contest_id join places pl on pl.id = ct.place_id
@@ -90,6 +158,9 @@ class PersonResolver:
             pid = str(r["id"])
             self.slugs.add(r["slug"])
             self.birth_uf[pid] = r["uf"]
+            self.info[pid] = (r["civil_name"], r["display_name"], r["birth_date"])
+            if r["birth_date"]:
+                self.by_birth[r["birth_date"]].add(pid)
             for n in {fold(r["civil_name"]), fold(r["display_name"])}:
                 if n:
                     self.by_name_birth[(n, r["birth_date"])].add(pid)
@@ -123,6 +194,56 @@ class PersonResolver:
         mine = self.ufs.get(pid, set()) | ({self.birth_uf[pid]} if self.birth_uf.get(pid) else set())
         return bool({u for u in (uf, birth_uf) if u} & mine)
 
+    def foreign_row(self, pid: str, civil_name: str | None, birth_date: date | None) -> bool:
+        """A linha com o título da pessoa é de outra pessoa (BUG-041): nascimento diferente E nome civil sem token em comum.
+        Um dos dois divergente é erro de digitação, nome social ou casamento (1.594 e 6 casos no banco) e casa."""
+        civ, disp, birth = self.info.get(pid, (None, None, None))
+        if not (birth_date and birth and civil_name) or birth_date == birth:
+            return False
+        return not names_compatible(civil_name, civ, disp)
+
+    def reissue(self, titulo: str | None, civil_name: str | None, birth_date: date | None, place_id: str | None, year: int | None,
+                uf: str | None = None, birth_uf: str | None = None) -> tuple[set[str], set[str], dict[str, str]]:
+        """Título reemitido (BUG-042, D241). Devolve (casáveis, fila, motivo por pessoa).
+        Casável: mesmo município da trajetória, mesmo nascimento, nome civil a <= 2 edições e igual na forma fonética.
+        Fila: nome a <= 2 edições com mesmo nascimento fora disso, com lugar em comum (UF) ou sem título na pessoa, ou mesmo
+        município com o mesmo nome civil e outro nascimento. Título diferente sem lugar em comum é outra pessoa (D235).
+        Nenhum dos dois quando um título da pessoa concorre na mesma eleição da linha: aí são duas pessoas (Jairo Stupp 1967 e
+        1970 em Aurora/SC 2012; Kássio e Kassâmio Leal Paraíba em Inhuma/PI 2016)."""
+        ok: set[str] = set()
+        weak: set[str] = set()
+        why: dict[str, str] = {}
+        if not civil_name:
+            return ok, weak, why
+        name, ph = fold(civil_name), None
+        muni = str(place_id) if place_id and str(place_id) in self.muni_places else None
+        def same_election(pid: str) -> bool:
+            # a linha tem título e um título da pessoa concorre na mesma eleição: são duas pessoas (gêmeos, homônimos), nem fila
+            return bool(titulo and year and year in self.title_years.get(pid, ()))
+
+        if birth_date:
+            for pid in self.by_birth.get(birth_date, ()):
+                if titulo and titulo in self.titles.get(pid, ()) or same_election(pid):
+                    continue
+                pciv = self.info[pid][0]
+                d = edit_distance(name, fold(pciv))
+                if d > 2:
+                    continue
+                ph = ph or phonetic(civil_name)
+                if muni and muni in self.places.get(pid, ()) and phonetic(pciv) == ph:
+                    ok.add(pid)
+                    why[pid] = (f"título {titulo} reemitido: mesmo município, mesmo nascimento ({birth_date}) e nome civil "
+                                f"'{civil_name}' x '{pciv}' a {d} edição(ões), só de grafia (BUG-042, D241)")
+                elif self.same_place(pid, uf, birth_uf) or not self.titles.get(pid):
+                    weak.add(pid)
+        if muni:
+            # mesmo município e mesmo nome civil, outro nascimento (Marcos do Santa Clara, 1988 x 1986): fila
+            for pid in self.place_people.get(muni, ()):
+                pciv, _, pb = self.info.get(pid, (None, None, None))
+                if pid not in ok and pb != birth_date and pciv and fold(pciv) == name and not same_election(pid):
+                    weak.add(pid)
+        return ok, weak - ok, why
+
     def corroborate(self, cands: set[str], titulo: str | None, uf: str | None, birth_uf: str | None) -> tuple[set[str], set[str]]:
         """Separa os candidatos por nome + nascimento em (casáveis, ambíguos); o resto é outra pessoa.
         Casável: sem título em conflito e com lugar em comum. Ambíguo (fila): título diferente no mesmo lugar (pode ser título
@@ -149,15 +270,34 @@ class PersonResolver:
         seat: tuple[str, str] | None = None,
         display_name: str | None = None,
         uf: str | None = None,
+        place_id: str | None = None,
+        year: int | None = None,
     ) -> Match:
         pid = self.by_external(source, external_id)
         if pid:
             return Match(pid, "exact_id", 1.0)
+        foreign = False
+        # '-4' (não divulgável) e outras sentinelas do TSE não são título: ligariam todas essas linhas à mesma pessoa
+        titulo = titulo if titulo and re.fullmatch(r"\d{6,}", titulo.strip()) else None
         if titulo:
             pid = self.by_external("tse-titulo", titulo)
-            if pid:
+            if pid and self.foreign_row(pid, civil_name, birth_date):
+                # BUG-041 (D240): o TSE repetiu nesta linha o título da pessoa; a linha é de outra pessoa. Segue sem o título.
+                c, _, b = self.info[pid]
+                log.warning("título %s repetido pelo TSE: linha '%s' (%s) x pessoa '%s' (%s); não casa pelo título (%s %s)",
+                            titulo, civil_name, birth_date, c, b, source, external_id)
+                foreign, titulo = True, None
+            elif pid:
                 self.link(pid, source, external_id, "exact_id", 1.0)
                 return Match(pid, "exact_id", 1.0)
+        m = self._resolve_names(source=source, external_id=external_id, civil_name=civil_name, birth_date=birth_date, birth_uf=birth_uf,
+                                titulo=titulo, raw=raw, seat=seat, uf=uf, place_id=place_id, year=year)
+        m.title_foreign = foreign
+        return m
+
+    def _resolve_names(self, *, source: str, external_id: str, civil_name: str | None, birth_date: date | None, birth_uf: str | None,
+                       titulo: str | None, raw: dict[str, Any] | None, seat: tuple[str, str] | None, uf: str | None,
+                       place_id: str | None, year: int | None) -> Match:
         uf = (uf or (self.place_uf.get(str(seat[1])) if seat else None) or "").upper() or None
         if uf == "BR":
             uf = None
@@ -189,8 +329,18 @@ class PersonResolver:
                 pid = next(iter(hits))
                 self._link_name(pid, source, external_id, titulo, uf, "name_birth_place", 0.9)
                 return Match(pid, "name_birth_place", 0.9)
-        # mais de um casável, ou só ambíguos (título diferente no mesmo lugar, sem lugar em comum, ou já com outro id da casa):
-        # fila. Não funde nem cria um homônimo (D221, D235).
+        # título reemitido no mesmo município (BUG-042, D241): casa se for um só e nada mais forte estiver na fila
+        ok, weak, why = self.reissue(titulo, civil_name, birth_date, place_id, year, uf, birth_uf) if source == "tse" else (set(), set(), {})
+        if len(ok) == 1 and not nb and not (blocked - ok):
+            pid = next(iter(ok))
+            self._link_name(pid, source, external_id, titulo, uf, "name_birth_place", 0.9)
+            if place_id and str(place_id) in self.muni_places:
+                self.places[pid].add(str(place_id))
+            log.info("casou por reemissão de título: %s -> pessoa %s: %s", external_id, pid, why[pid])
+            return Match(pid, "name_birth_place", 0.9, why=why[pid])
+        blocked |= ok | weak
+        # mais de um casável, ou só ambíguos (título diferente no mesmo lugar, sem lugar em comum, ou já com outro id da casa,
+        # ou grafia parecida sem a prova da reemissão): fila. Não funde nem cria um homônimo (D221, D235, D241).
         held = nb or blocked
         if held:
             self._pending_queue.append((self.sources[source], external_id, json.dumps(raw or {}, ensure_ascii=False, default=str), sorted(held)[0], 0.5))
@@ -251,6 +401,7 @@ class PersonResolver:
         titulo: str | None = None,
         photo_source_url: str | None = None,
         uf: str | None = None,
+        place_id: str | None = None,
     ) -> str:
         slug = self.alloc_slug(display_name, *slug_hints)
         row = self.conn.execute(
@@ -262,6 +413,12 @@ class PersonResolver:
         self.birth_uf[pid] = self.place_uf.get(str(birthplace_place_id)) if birthplace_place_id else None
         if uf and uf.upper() != "BR":
             self.ufs[pid].add(uf.upper())
+        self.info[pid] = (civil_name, display_name, birth_date)
+        if birth_date:
+            self.by_birth[birth_date].add(pid)
+        if place_id and str(place_id) in self.muni_places:
+            self.places[pid].add(str(place_id))
+            self.place_people[str(place_id)].add(pid)
         for n in {fold(civil_name), fold(display_name)}:
             if n:
                 self.by_name_birth[(n, birth_date)].add(pid)

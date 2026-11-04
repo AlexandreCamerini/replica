@@ -1,4 +1,4 @@
-"""Invariantes de identidade (BUG-032, D212; BUG-033 e BUG-035, D223 e D225; BUG-038 e BUG-039, D237 e D238). Separado de checks.py para não disputar o arquivo; checks.run_checks chama
+"""Invariantes de identidade (BUG-032, D212; BUG-033 e BUG-035, D223 e D225; BUG-038 e BUG-039, D237 e D238; BUG-041 e BUG-043, D240 e D242). Separado de checks.py para não disputar o arquivo; checks.run_checks chama
 run_identity_checks e soma as falhas.
 
 O SQ_CANDIDATO do TSE só é único dentro da eleição, e o TSE reaproveita os números entre anos. A chave da pessoa no TSE é
@@ -88,6 +88,31 @@ IDENTITY_CHECKS: list[tuple[str, str]] = [
            where t.kind = 'ordinaria' and t.result in ('ELEITO', 'ELEITO POR QP', 'ELEITO POR MÉDIA') and t.cargo !~ '^[0-9]+$'
              and not exists (select 1 from candidacies c join elections e on e.id = c.election_id
                              where c.person_id = x.person_id and e.year = t.year and c.result in ('eleito', 'eleito_qp', 'eleito_media'))""",
+    ),
+    (
+        # BUG-041 (D240): o TSE repete o título de uma pessoa na linha de outra. Candidatura cuja linha da fonte (pelo título da
+        # pessoa, ano e SQ) tem nascimento diferente E nome civil sem nenhum token em comum com a pessoa é de outra pessoa.
+        # Só um dos dois divergente é digitação, nome social ou casamento (1.594 nascimentos e 6 nomes no banco) e não dispara.
+        "identidade: candidatura cuja linha da fonte tem outro nascimento e nome civil sem token em comum com a pessoa",
+        """select count(distinct c.id) from candidacies c join elections e on e.id = c.election_id join people p on p.id = c.person_id
+           join person_external_ids x on x.person_id = p.id join sources s on s.id = x.source_id and s.slug = 'tse-titulo'
+           join tse_titulo_candidatura t on t.titulo = x.external_id and t.year = e.year and t.tse_sequencial = c.tse_sequencial
+           where t.birth_date is not null and p.birth_date is not null and t.birth_date <> p.birth_date
+             and not (identity_name_tokens(t.civil_name) && (identity_name_tokens(p.civil_name) || identity_name_tokens(p.display_name)))""",
+    ),
+    (
+        # BUG-043 (D242): registro substituído. Na mesma disputa (ano, tipo, UE, cargo, número e título) a fonte tem um registro
+        # de posto maior (eleito > foi à urna > INAPTO/#NULO#) que a pessoa não tem no banco. Estende o check do D238 a quem não
+        # foi eleito. As suplementares com os 2 registros no banco (Reverificação 3) não disparam: os 2 estão na pessoa.
+        "identidade: registro substituído no banco com registro de posto maior na fonte para a mesma disputa e número",
+        """select count(distinct c.id) from candidacies c join elections e on e.id = c.election_id
+           join person_external_ids x on x.person_id = c.person_id join sources s on s.id = x.source_id and s.slug = 'tse-titulo'
+           join tse_titulo_candidatura a on a.titulo = x.external_id and a.year = e.year and a.tse_sequencial = c.tse_sequencial
+           join tse_titulo_candidatura b on b.titulo = a.titulo and b.year = a.year and b.ue = a.ue and b.kind = a.kind
+                and b.cargo = a.cargo and b.ballot_number = a.ballot_number and b.tse_sequencial <> a.tse_sequencial
+           where tse_registration_rank(b.result) > tse_registration_rank(a.result)
+             and not exists (select 1 from candidacies c2 join elections e2 on e2.id = c2.election_id
+                             where c2.person_id = c.person_id and e2.year = b.year and c2.tse_sequencial = b.tse_sequencial)""",
     ),
 ]
 

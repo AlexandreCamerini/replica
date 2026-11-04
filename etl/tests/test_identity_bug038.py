@@ -31,7 +31,7 @@ def test_linhas_de_titulo_ignoram_2o_turno_e_consulta_popular():
             base | dict(NM_TIPO_ELEICAO="ELEIÇÃO ORDINÁRIA", NR_TURNO="2", DS_SIT_TOT_TURNO="ELEITO"),
             base | dict(NM_TIPO_ELEICAO="CONSULTA POPULAR", NR_TURNO="1", SQ_CANDIDATO="2", DS_SIT_TOT_TURNO="")]
     out = title_rows(rows, {"0123"})
-    assert out == [("0123", 2024, "71072", "1", "ordinaria", "SP", "prefeito", "2º TURNO")]
+    assert out == [("0123", 2024, "71072", "1", "ordinaria", "SP", "prefeito", "2º TURNO", None, None, None)]
     assert title_rows(rows, {"999"}) == []
 
 

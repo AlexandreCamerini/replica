@@ -14,6 +14,7 @@ Exemplos:
   civico-etl identity.fix033 [--apply]                              # BUG-033: separa pessoas fundidas pela cadeira da casa
   civico-etl tse.fix035 [--apply]                                   # BUG-035: chave 2012 com a UE e restauração das candidaturas
   civico-etl identity.fix038 [--apply]                              # BUG-038: separa pessoas do TSE fundidas por nome + nascimento
+  civico-etl identity.fix041 [--apply]                              # BUG-041/042/043: título repetido, reemitido e registro substituído
   civico-etl derive.stats
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
 """
@@ -47,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
 
         return sapl_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix033", "identity.fix033.devolver", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -55,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, help="Câmara/Senado: no máximo N parlamentares (desenvolvimento)")
     p.add_argument("--no-expenses", action="store_true", help="Câmara: pular a cota parlamentar")
     p.add_argument("--force", action="store_true", help="ignorar checksum e reprocessar")
-    p.add_argument("--apply", action="store_true", help="tse.fix019/tse.fix032/tse.fix035/identity.fix033/identity.fix038: gravar a correção (sem isto, dry-run)")
+    p.add_argument("--apply", action="store_true", help="tse.fix019/tse.fix032/tse.fix035/identity.fix033/identity.fix038/identity.fix041: gravar a correção (sem isto, dry-run)")
     a = p.parse_args(argv)
 
     conn = db.connect()
@@ -117,6 +118,10 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.identity_bug038 import run_fix as run_fix038
 
             run_fix038(conn, apply=a.apply)
+        if a.job == "identity.fix041":  # BUG-041/042/043: título repetido pelo TSE, título reemitido e registro substituído no banco
+            from .jobs.identity_bug041 import run_fix as run_fix041
+
+            run_fix041(conn, apply=a.apply)
         if a.job in ("camara.diario", "all"):
             from .jobs.camara_diario import run_camara
 
