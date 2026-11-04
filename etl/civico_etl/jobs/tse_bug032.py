@@ -37,6 +37,7 @@ import psycopg
 
 from ..http import CACHE_DIR
 from ..util import chunked, fold, parse_date
+from .tse_candidatos import registration_rank
 
 log = logging.getLogger("etl.tse.bug032")
 BUG = "BUG-032"
@@ -147,7 +148,7 @@ def classify_all(conn: psycopg.Connection, years: list[int] | None) -> tuple[lis
     """Uma entrada por candidatura do banco: verdict ok | religar | remover | sem_fonte."""
     people, by_titulo, by_name_birth = _load_people(conn)
     cands = conn.execute(
-        """select c.id, e.year, c.tse_sequencial sq, c.person_id, c.election_id, c.contest_id, c.ballot_name, ct.place_id::text, e.kind
+        """select c.id, e.year, c.tse_sequencial sq, c.person_id, c.election_id, c.contest_id, c.ballot_name, ct.place_id::text, e.kind, c.result
            from candidacies c join elections e on e.id = c.election_id join contests ct on ct.id = c.contest_id
            where %s::int[] is null or e.year = any(%s::int[])""", (years, years)).fetchall()
     by_year: dict[int, set[str]] = defaultdict(set)
@@ -174,7 +175,7 @@ def classify_all(conn: psycopg.Connection, years: list[int] | None) -> tuple[lis
         else:
             s = src.get((c["year"], c["sq"]))
         item = dict(id=str(c["id"]), year=c["year"], sq=c["sq"], person_id=pid, election_id=str(c["election_id"]),
-                    contest_id=str(c["contest_id"]), ballot_name=c["ballot_name"], src=s, target=None, basis=None, reason=None)
+                    contest_id=str(c["contest_id"]), ballot_name=c["ballot_name"], result=c["result"], src=s, target=None, basis=None, reason=None)
         if s is None:
             item["verdict"] = "sem_fonte"
         elif basis := same_person(s, people[pid]):
@@ -193,10 +194,19 @@ def classify_all(conn: psycopg.Connection, years: list[int] | None) -> tuple[lis
     for it in out:
         if it["verdict"] in ("ok", "sem_fonte"):
             final[(it["person_id"], it["election_id"])] = it["id"]
+    by_id = {it["id"]: it for it in out}
     for it in out:
         if it["verdict"] == "religar":
             k = (it["target"], it["election_id"])
             if k in final:
+                kept = by_id[final[k]]
+                # registro substituído na mesma disputa: fica o deferido/eleito (BUG-039, D238), não o que já estava
+                if kept["contest_id"] == it["contest_id"] and registration_rank(it["result"]) > registration_rank(kept["result"]):
+                    stats[(kept["year"], kept["verdict"], kept["basis"] or kept["reason"])] -= 1
+                    kept.update(verdict="remover", reason="conflito", target=None)
+                    stats[(kept["year"], "remover", "conflito")] += 1
+                    final[k] = it["id"]
+                    continue
                 stats[(it["year"], "religar", it["basis"])] -= 1
                 it.update(verdict="remover", reason="conflito")
                 stats[(it["year"], "remover", "conflito")] += 1

@@ -10,6 +10,10 @@ Ordem (architecture.md › Identidade):
       igual também não (Eli Corrêa Filho x Geninho Zuliani, ambos de 13/01/1976 na bancada de SP).
   Abaixo disso (ambíguo): vai para identity_match_queue e NÃO cria vínculo. Sem nenhum candidato: pessoa nova.
   Fontes com um id por pessoa (Câmara, Senado): quem já tem outro id da mesma fonte não é candidato a casar (D221).
+  Título de eleitor é id forte (BUG-038, D235): nos ramos de nome (3, 4 e 4b), quem já tem um título diferente do da linha
+  nunca casa (vai para a fila). E nome civil + nascimento só casa com lugar em comum: a UF da linha (ou a de nascimento) tem
+  de estar na trajetória da pessoa (UF de mandato, candidatura ou nascimento). Sem isso, fila. Antes bastava o nome + nascimento
+  únicos no diretório inteiro, e dois "José Antonio da Silva, 20/05/1963" (São Luís e Rio Grande) viraram uma pessoa.
 """
 
 from __future__ import annotations
@@ -62,12 +66,23 @@ class PersonResolver:
         self.by_name_birth: dict[tuple[str, date | None], set[str]] = defaultdict(set)
         self.birth_uf: dict[str, str | None] = {}
         self.slugs: set[str] = set()
+        self.titles: dict[str, set[str]] = defaultdict(set)  # pessoa -> títulos de eleitor (BUG-038)
+        self.ufs: dict[str, set[str]] = defaultdict(set)  # pessoa -> UFs da trajetória (mandatos e candidaturas)
         self.single_src = {sid for slug, sid in self.sources.items() if slug in SINGLE_ID_SOURCES}
         self.holds: dict[str, set[str]] = defaultdict(set)  # pessoa -> fontes de id único em que ela já tem id
         for r in conn.execute("select person_id, source_id, external_id from person_external_ids"):
             self.external[(str(r["source_id"]), r["external_id"])] = str(r["person_id"])
             if str(r["source_id"]) in self.single_src:
                 self.holds[str(r["person_id"])].add(str(r["source_id"]))
+            if str(r["source_id"]) == self.sources.get("tse-titulo"):
+                self.titles[str(r["person_id"])].add(r["external_id"])
+        self.place_uf: dict[str, str | None] = {str(r["id"]): r["uf"] for r in conn.execute("select id, uf from places")}
+        for r in conn.execute(
+            """select m.person_id, pl.uf from mandates m join places pl on pl.id = m.place_id where pl.uf is not null
+               union select c.person_id, pl.uf from candidacies c join contests ct on ct.id = c.contest_id join places pl on pl.id = ct.place_id
+               where pl.uf is not null"""
+        ):
+            self.ufs[str(r["person_id"])].add(r["uf"])
         for r in conn.execute(
             """select p.id, p.slug, p.display_name, p.civil_name, p.birth_date, b.uf
                from people p left join places b on b.id = p.birthplace_place_id"""
@@ -94,6 +109,33 @@ class PersonResolver:
             return set(cands)
         return {c for c in cands if sid not in self.holds.get(c, ())}
 
+    def free(self, cands: set[str], source: str) -> set[str]:
+        """Público: a trava do id único (D221) para quem casa por fora do resolve (ex.: nome de urna em camara_diario)."""
+        return self._free(cands, source)
+
+    def title_conflict(self, pid: str, titulo: str | None) -> bool:
+        """A linha traz um título e a pessoa já tem outro: são pessoas diferentes (BUG-038). Reemissão de título existe, mas
+        não dá para provar pelo nome; vai para a fila."""
+        return bool(titulo) and bool(self.titles.get(pid)) and titulo not in self.titles[pid]
+
+    def same_place(self, pid: str, uf: str | None, birth_uf: str | None) -> bool:
+        """Lugar em comum entre a linha e a pessoa: UF da linha ou de nascimento na trajetória (mandato, candidatura, nascimento)."""
+        mine = self.ufs.get(pid, set()) | ({self.birth_uf[pid]} if self.birth_uf.get(pid) else set())
+        return bool({u for u in (uf, birth_uf) if u} & mine)
+
+    def corroborate(self, cands: set[str], titulo: str | None, uf: str | None, birth_uf: str | None) -> tuple[set[str], set[str]]:
+        """Separa os candidatos por nome + nascimento em (casáveis, ambíguos); o resto é outra pessoa.
+        Casável: sem título em conflito e com lugar em comum. Ambíguo (fila): título diferente no mesmo lugar (pode ser título
+        reemitido) ou sem título em conflito e sem lugar em comum. Título diferente e lugar nenhum em comum: outra pessoa."""
+        ok, amb = set(), set()
+        for c in cands:
+            conflict, near = self.title_conflict(c, titulo), self.same_place(c, uf, birth_uf)
+            if near and not conflict:
+                ok.add(c)
+            elif near or not conflict:
+                amb.add(c)
+        return ok, amb
+
     def resolve(
         self,
         *,
@@ -106,6 +148,7 @@ class PersonResolver:
         raw: dict[str, Any] | None = None,
         seat: tuple[str, str] | None = None,
         display_name: str | None = None,
+        uf: str | None = None,
     ) -> Match:
         pid = self.by_external(source, external_id)
         if pid:
@@ -115,13 +158,16 @@ class PersonResolver:
             if pid:
                 self.link(pid, source, external_id, "exact_id", 1.0)
                 return Match(pid, "exact_id", 1.0)
-        nb = self._free(self.by_name_birth.get((fold(civil_name), birth_date), set()), source) if civil_name and birth_date else set()
+        uf = (uf or (self.place_uf.get(str(seat[1])) if seat else None) or "").upper() or None
+        if uf == "BR":
+            uf = None
+        nb_all = self.by_name_birth.get((fold(civil_name), birth_date), set()) if civil_name and birth_date else set()
+        nb, blocked = self.corroborate(self._free(nb_all, source), titulo, uf, birth_uf)
+        blocked |= nb_all - self._free(nb_all, source)  # já tem outro id da casa (D221): fila
         if len(nb) == 1:
-            # nome civil + nascimento único vence a cadeira (mais específico)
+            # nome civil + nascimento único, sem título em conflito e com lugar em comum: vence a cadeira (mais específico)
             pid = next(iter(nb))
-            self.link(pid, source, external_id, "name_birth", 0.95)
-            if titulo:
-                self.link(pid, "tse-titulo", titulo, "exact_id", 1.0)
+            self._link_name(pid, source, external_id, titulo, uf, "name_birth", 0.95)
             return Match(pid, "name_birth", 0.95)
         if seat and civil_name and birth_date:
             # cadeira conhecida (cargo + lugar), entre quem já tem mandato nela: mesmo nascimento E token do nome civil em comum
@@ -133,37 +179,32 @@ class PersonResolver:
                 (office_id, place_id),
             ).fetchall()
             hits = self._free({str(r["id"]) for r in rows if seat_match(civil_name, birth_date, r["civil_name"], r["display_name"], r["birth_date"])}, source)
+            # a cadeira já é lugar em comum: título diferente aqui pode ser reemissão, vai para a fila
+            blocked |= {h for h in hits if self.title_conflict(h, titulo)}
+            hits = {h for h in hits if not self.title_conflict(h, titulo)}
             if len(hits) > 1:  # ambíguo não funde
                 self._pending_queue.append((self.sources[source], external_id, json.dumps(raw or {}, ensure_ascii=False, default=str), None, 0.5))
                 return Match(None, "queued", 0.5)
             if len(hits) == 1:
                 pid = next(iter(hits))
-                self.link(pid, source, external_id, "name_birth_place", 0.9)
-                if titulo:
-                    self.link(pid, "tse-titulo", titulo, "exact_id", 1.0)
+                self._link_name(pid, source, external_id, titulo, uf, "name_birth_place", 0.9)
                 return Match(pid, "name_birth_place", 0.9)
-        if civil_name and birth_date:
-            cands = self._free(self.by_name_birth.get((fold(civil_name), birth_date), set()), source)
-            if len(cands) == 1:
-                pid = next(iter(cands))
-                self.link(pid, source, external_id, "name_birth", 0.95)
-                if titulo:
-                    self.link(pid, "tse-titulo", titulo, "exact_id", 1.0)
-                return Match(pid, "name_birth", 0.95)
-            if len(cands) > 1 and birth_uf:
-                narrowed = {c for c in cands if self.birth_uf.get(c) == birth_uf}
-                if len(narrowed) == 1:
-                    pid = next(iter(narrowed))
-                    self.link(pid, source, external_id, "name_birth_place", 0.9)
-                    return Match(pid, "name_birth_place", 0.9)
-            # mesmo nome civil + nascimento de quem já tem outro id da casa também vai para a fila: não funde nem cria um homônimo
-            held = cands or self.by_name_birth.get((fold(civil_name), birth_date), set())
-            if held:
-                self._pending_queue.append((self.sources[source], external_id, json.dumps(raw or {}, ensure_ascii=False, default=str), next(iter(held)), 0.5))
-                return Match(None, "queued", 0.5)
+        # mais de um casável, ou só ambíguos (título diferente no mesmo lugar, sem lugar em comum, ou já com outro id da casa):
+        # fila. Não funde nem cria um homônimo (D221, D235).
+        held = nb or blocked
+        if held:
+            self._pending_queue.append((self.sources[source], external_id, json.dumps(raw or {}, ensure_ascii=False, default=str), sorted(held)[0], 0.5))
+            return Match(None, "queued", 0.5)
         return Match(None, "new", 0.0)
 
     # ---- escrita ----
+    def _link_name(self, pid: str, source: str, external_id: str, titulo: str | None, uf: str | None, method: str, conf: float) -> None:
+        self.link(pid, source, external_id, method, conf)
+        if titulo:
+            self.link(pid, "tse-titulo", titulo, "exact_id", 1.0)
+        if uf:
+            self.ufs[pid].add(uf)
+
     def link(self, person_id: str, source: str, external_id: str, method: str, confidence: float) -> None:
         key = (self.sources[source], external_id)
         if key in self.external:
@@ -171,6 +212,8 @@ class PersonResolver:
         self.external[key] = person_id
         if key[0] in self.single_src:
             self.holds[person_id].add(key[0])
+        if source == "tse-titulo":
+            self.titles[person_id].add(external_id)
         self._pending_ext.append((person_id, self.sources[source], external_id, method, confidence))
 
     def alloc_slug(self, display_name: str, *hints: str | None) -> str:
@@ -207,6 +250,7 @@ class PersonResolver:
         external_id: str,
         titulo: str | None = None,
         photo_source_url: str | None = None,
+        uf: str | None = None,
     ) -> str:
         slug = self.alloc_slug(display_name, *slug_hints)
         row = self.conn.execute(
@@ -215,7 +259,9 @@ class PersonResolver:
             (slug, display_name, civil_name, gender, birth_date, birthplace_place_id, education, photo_source_url),
         ).fetchone()
         pid = str(row["id"])
-        self.birth_uf[pid] = None
+        self.birth_uf[pid] = self.place_uf.get(str(birthplace_place_id)) if birthplace_place_id else None
+        if uf and uf.upper() != "BR":
+            self.ufs[pid].add(uf.upper())
         for n in {fold(civil_name), fold(display_name)}:
             if n:
                 self.by_name_birth[(n, birth_date)].add(pid)

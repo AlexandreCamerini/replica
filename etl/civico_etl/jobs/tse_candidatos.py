@@ -22,6 +22,8 @@ from typing import Any
 import duckdb
 import psycopg
 
+import json
+
 from ..db import Run, SkipUnchanged, run, upsert
 from ..http import CACHE_DIR, fetch
 from ..identity import PersonResolver
@@ -41,6 +43,16 @@ RESULT = {
     "SUPLENTE": "suplente", "NÃO ELEITO": "nao_eleito", "2º TURNO": "segundo_turno",
 }
 ELECTED = {"eleito", "eleito_qp", "eleito_media"}
+
+
+def registration_rank(result: str | None) -> int:
+    """Entre dois registros da mesma pessoa na mesma disputa (registro substituído), fica o de maior posto: eleito > foi à
+    urna (suplente, não eleito, 2º turno) > sem resultado (#NULO#, INAPTO, indeferido, renúncia). BUG-039, D238."""
+    if result in ELECTED:
+        return 2
+    if result in ("suplente", "nao_eleito", "segundo_turno"):
+        return 1
+    return 0
 GENDER = {"2": "m", "4": "f"}
 BODY_KIND = {
     "deputado_federal": "camara_deputados", "senador": "senado", "deputado_estadual": "assembleia",
@@ -271,8 +283,14 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
     # mesma pessoa com duas candidaturas na mesma eleição (registro substituído, renúncia e novo registro): fica a que já está no
     # banco ou, no lote, a eleita primeiro
     # (a chave inclui o SQ: na mesma disputa, o registro substituído e o novo têm SQ diferentes; BUG-036, D226)
-    db_person_election = {(str(r_["person_id"]), str(r_["election_id"])): (str(r_["contest_id"]), r_["tse_sequencial"]) for r_ in conn.execute(
-        "select person_id, election_id, contest_id, tse_sequencial from candidacies where election_id = any(%s::uuid[])", (list(elections.values()),))}
+    # registro substituído na mesma disputa e com o mesmo número: fica o de maior posto (eleito > foi à urna > INAPTO/#NULO#),
+    # e não o que chegou primeiro (BUG-039, D238). O que sai vai inteiro para identity_repair_log (bug BUG-039).
+    db_person_election: dict[tuple[str, str], tuple[str, str]] = {}
+    db_cand: dict[tuple[str, str], dict[str, Any]] = {}
+    for r_ in conn.execute("select * from candidacies where election_id = any(%s::uuid[])", (list(elections.values()),)):
+        db_person_election[(str(r_["person_id"]), str(r_["election_id"]))] = (str(r_["contest_id"]), r_["tse_sequencial"])
+        db_cand[(str(r_["person_id"]), str(r_["election_id"]))] = r_
+    superseded: list[dict[str, Any]] = []
     parsed.sort(key=lambda x: (x["DS_SIT_TOT_TURNO"] or "").upper() not in ("ELEITO", "ELEITO POR QP", "ELEITO POR MÉDIA", "2º TURNO"))
     for x in parsed:
         sq = nz(x["SQ_CANDIDATO"])
@@ -295,7 +313,7 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             s0 = x["held"]
         may_create = result in ELECTED and e0 > today
         m = people.resolve(source="tse", external_id=tse_key(year, sq, x["SG_UE"]), civil_name=civil, birth_date=birth, birth_uf=birth_uf, titulo=titulo,
-                           raw={"ano": year, "nome": civil, "urna": urna, "cargo": x["office"], "uf": x["SG_UF"]})
+                           uf=x["SG_UF"], raw={"ano": year, "nome": civil, "urna": urna, "cargo": x["office"], "uf": x["SG_UF"]})
         if m.method == "queued":
             r.reject(1)
             continue
@@ -307,13 +325,20 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             birthplace_place_id=muni_lookup(birth_uf, x["NM_MUNICIPIO_NASCIMENTO"]) if birth_uf else None,
             education=(lambda e: e[0].upper() + e[1:].lower() if e else None)(nz(x["DS_GRAU_INSTRUCAO"]) or ""),
             slug_hints=((x["SG_UF"] or "").lower() or None, x["office"].replace("_", "-")),
-            source="tse", external_id=tse_key(year, sq, x["SG_UE"]), titulo=titulo,
+            source="tse", external_id=tse_key(year, sq, x["SG_UE"]), titulo=titulo, uf=x["SG_UF"],
         )
         el_id = elections[(x["kind"], year, x["turno"], x["held"])]
         contest_id = contests[(el_id, offices[x["office"]], x["place"])]
         if db_person_election.get((pid, el_id), (contest_id, sq)) != (contest_id, sq):
-            r.reject(1, f"outra candidatura da mesma pessoa na eleição: {civil} ({sq})")
-            continue
+            old_c = db_cand[(pid, el_id)]
+            number = int(x["NR_CANDIDATO"]) if (x["NR_CANDIDATO"] or "").isdigit() else None
+            if (str(old_c["contest_id"]) == contest_id and old_c["ballot_number"] == number
+                    and registration_rank(result) > registration_rank(old_c["result"]) and (pid, el_id) not in seen_person_election):
+                superseded.append(old_c)
+                db_person_election[(pid, el_id)] = (contest_id, sq)
+            else:
+                r.reject(1, f"outra candidatura da mesma pessoa na eleição: {civil} ({sq})")
+                continue
         if (pid, el_id) in seen_person_election:
             r.reject(1, f"pessoa duplicada na mesma eleição: {civil} ({sq})")
             continue
@@ -334,6 +359,11 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             body = bodies.get((BODY_KIND[x["office"]], x["place"])) if x["office"] in BODY_KIND else None
             mandate_rows.append((pid, offices[x["office"]], x["place"], body, party_id, "titular", status, start, end, f"TSE {year}", "tse", sq, contest_id))
     people.flush()
+    # BUG-038: a linha da fonte de cada título do diretório (inclusive as que não viram candidatura) para os checks de fusão
+    known = {ext for (src_id, ext) in people.external if src_id == people.sources.get("tse-titulo")}
+    write_title_rows(conn, title_rows(rows, known))
+    if superseded:
+        _drop_superseded(conn, r, superseded, year)
     if not_in_dir:
         r.notes.append(f"{not_in_dir} candidaturas de quem não está no diretório (sem mandato atual): não criam pessoa")
         log.info("tse %d: %d candidaturas sem pessoa no diretório, ignoradas", year, not_in_dir)
@@ -412,6 +442,49 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
                 decl.append((pid, cid, year, tot, "BRL"))
         r.add(len(upsert(conn, "asset_declarations", ["person_id", "candidacy_id", "year", "total_cents", "currency"], decl, ["candidacy_id"], returning=["id"])))
     log.info("tse %d: %d pessoas no resolver, %d candidaturas, %d mandatos", year, len(people.slugs), len(cand_rows), len(mandate_rows))
+
+
+def title_rows(rows: list[dict[str, Any]], known: set[str] | None) -> list[tuple]:
+    """Linhas de tse_titulo_candidatura (migração 0065) dos títulos em `known` (None: todos). 2º turno é a mesma linha."""
+    out = {}
+    for x in rows:
+        t = nz(x.get("NR_TITULO_ELEITORAL_CANDIDATO"))
+        sq, ue = nz(x.get("SQ_CANDIDATO")), (x.get("SG_UE") or "").strip()
+        tipo = (x.get("NM_TIPO_ELEICAO") or "").upper()
+        kind = "suplementar" if "SUPLEMENTAR" in tipo else "ordinaria" if "ORDIN" in tipo else None
+        if not (t and sq and ue and kind) or (known is not None and t not in known):
+            continue
+        k = (t, int(x["ANO_ELEICAO"]), ue, sq)
+        if k in out and (x.get("NR_TURNO") or "1") != "1":
+            continue
+        out[k] = (*k, kind, (x.get("SG_UF") or "").strip() or None, CARGO.get((x.get("CD_CARGO") or "").strip(), (x.get("CD_CARGO") or "").strip()),
+                  (x.get("DS_SIT_TOT_TURNO") or "").strip() or None)
+    return list(out.values())
+
+
+def write_title_rows(conn: psycopg.Connection, trows: list[tuple]) -> int:
+    if not trows:
+        return 0
+    return len(upsert(conn, "tse_titulo_candidatura", ["titulo", "year", "ue", "tse_sequencial", "kind", "uf", "cargo", "result"], trows,
+                      ["titulo", "year", "ue", "tse_sequencial"], update=["kind", "uf", "cargo", "result"], returning=["titulo"]))
+
+
+def _drop_superseded(conn: psycopg.Connection, r: Run, olds: list[dict[str, Any]], year: int) -> None:
+    """Tira o registro substituído (INAPTO/#NULO#) que perdeu para o deferido/eleito da mesma disputa e número. Antes de sair,
+    a candidatura, os mandatos e os bens vão inteiros para identity_repair_log (bug BUG-039, 'removido'/'substituido')."""
+    for c in olds:
+        ms = [dict(m) for m in conn.execute("select * from mandates where candidacy_id = %s", (c["id"],))]
+        bens = [dict(b) for b in conn.execute("select * from asset_declarations where candidacy_id = %s", (c["id"],))]
+        conn.execute(
+            """insert into identity_repair_log (bug, candidacy_id, year, tse_sequencial, action, reason, from_person_id, mandates_removed, raw)
+               values ('BUG-039', %s, %s, %s, 'removido', 'substituido', %s, %s, %s) on conflict (bug, candidacy_id) do nothing""",
+            (c["id"], year, c["tse_sequencial"], c["person_id"], len(ms),
+             json.dumps({"candidacy": dict(c), "mandates": ms, "asset_declarations": bens}, ensure_ascii=False, default=str)))
+        conn.execute("delete from asset_declarations where candidacy_id = %s", (c["id"],))
+        conn.execute("delete from mandates where candidacy_id = %s", (c["id"],))
+        conn.execute("delete from candidacies where id = %s", (c["id"],))
+        r.notes.append(f"registro substituído {c['tse_sequencial']} saiu para o deferido/eleito da mesma disputa (BUG-039)")
+        log.info("tse %d: registro substituído %s (%s) saiu para o deferido/eleito da mesma disputa", year, c["tse_sequencial"], c["result"])
 
 
 def _load_votes(conn: psycopg.Connection, year: int, ufs: list[str] | None, force: bool) -> None:

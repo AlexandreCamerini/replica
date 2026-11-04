@@ -1,4 +1,4 @@
-"""Invariantes de identidade (BUG-032, D212; BUG-033 e BUG-035, D223 e D225). Separado de checks.py para não disputar o arquivo; checks.run_checks chama
+"""Invariantes de identidade (BUG-032, D212; BUG-033 e BUG-035, D223 e D225; BUG-038 e BUG-039, D237 e D238). Separado de checks.py para não disputar o arquivo; checks.run_checks chama
 run_identity_checks e soma as falhas.
 
 O SQ_CANDIDATO do TSE só é único dentro da eleição, e o TSE reaproveita os números entre anos. A chave da pessoa no TSE é
@@ -67,6 +67,27 @@ IDENTITY_CHECKS: list[tuple[str, str]] = [
         "identidade: pessoa com mais de um id da Câmara ou do Senado",
         """select count(*) from (select e.person_id, s.slug from person_external_ids e join sources s on s.id = e.source_id
                                 where s.slug in ('camara', 'senado') group by 1, 2 having count(*) > 1) x""",
+    ),
+    (
+        # BUG-038: ninguém concorre em dois municípios na mesma eleição. Dois títulos da mesma pessoa que aparecem na fonte na
+        # mesma eleição ordinária, em UEs diferentes, são duas pessoas fundidas (tse_titulo_candidatura, migração 0065).
+        # Título reemitido no mesmo município (18 casos legítimos) não dispara: a UE é a mesma ou o ano é outro.
+        "identidade: pessoa com dois títulos de eleitor que concorrem na mesma eleição em municípios diferentes",
+        """select count(distinct x1.person_id) from person_external_ids x1 join sources s on s.id = x1.source_id and s.slug = 'tse-titulo'
+           join person_external_ids x2 on x2.person_id = x1.person_id and x2.source_id = x1.source_id and x2.external_id > x1.external_id
+           join tse_titulo_candidatura a on a.titulo = x1.external_id and a.kind = 'ordinaria'
+           join tse_titulo_candidatura b on b.titulo = x2.external_id and b.kind = 'ordinaria' and b.year = a.year and b.ue <> a.ue""",
+    ),
+    (
+        # BUG-039 (e BUG-036): quem a fonte dá como eleito numa eleição ordinária tem a candidatura eleita desse ano no crachá. Pega
+        # o registro substituído que ficou no lugar do eleito (Divino/PA, 2012) e a eleição antiga que não foi carregada.
+        # Fora: suplente de senador (cargo sem mandato próprio, não carregado; fica com o código cru do TSE).
+        "identidade: título com linha ELEITO na fonte e pessoa sem candidatura eleita nesse ano",
+        """select count(*) from tse_titulo_candidatura t join person_external_ids x on x.external_id = t.titulo
+           join sources s on s.id = x.source_id and s.slug = 'tse-titulo'
+           where t.kind = 'ordinaria' and t.result in ('ELEITO', 'ELEITO POR QP', 'ELEITO POR MÉDIA') and t.cargo !~ '^[0-9]+$'
+             and not exists (select 1 from candidacies c join elections e on e.id = c.election_id
+                             where c.person_id = x.person_id and e.year = t.year and c.result in ('eleito', 'eleito_qp', 'eleito_media'))""",
     ),
 ]
 

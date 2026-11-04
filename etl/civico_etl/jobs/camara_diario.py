@@ -140,7 +140,7 @@ class _Ctx:
         place = self.by_uf.get((st.get("siglaUf") or "").upper())
         m = self.people.resolve(source="camara", external_id=dep_id, civil_name=civil, birth_date=birth, birth_uf=birth_uf,
                                 raw={"nome": display, "civil": civil, "nascimento": str(birth), "uf": st.get("siglaUf")},
-                                seat=(self.office, place) if place else None, display_name=display)
+                                seat=(self.office, place) if place else None, display_name=display, uf=st.get("siglaUf"))
         if m.method == "queued":
             raise LookupError(f"deputado {dep_id} ambíguo")
         if m.person_id:
@@ -195,8 +195,12 @@ def link_past_roster(conn: psycopg.Connection, ctx: "_Ctx", leg: int) -> int:
             if m.person_id:
                 n_birth += 1
                 continue
-            hits = by_ballot.get(key(x["nome"]), set())
-            if len(hits) == 1:
+            if m.method == "queued":
+                continue  # nome civil + nascimento ambíguo (D235): não tenta o nome de urna por cima da fila
+            # trava do id único (D221, BUG-038): o nome de urna tem de ser único, e quem já tem outro id da Câmara não é candidato
+            all_hits = by_ballot.get(key(x["nome"]), set())
+            hits = ctx.people.free(all_hits, "camara")
+            if len(all_hits) == 1 and len(hits) == 1:
                 ctx.people.link(next(iter(hits)), "camara", dep, "name_birth_place", 0.9)
                 n_name += 1
     ctx.people.flush()
