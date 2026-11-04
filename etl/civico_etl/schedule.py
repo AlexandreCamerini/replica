@@ -357,7 +357,13 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
             print(f"pula {s['task']}: {s['why']}")
         return 0
 
-    lock = _connect(url)  # sessão dedicada só ao lock da agenda; fechar a sessão solta o lock
+    try:
+        lock = _connect(url)  # sessão dedicada só ao lock da agenda; fechar a sessão solta o lock
+    except psycopg.OperationalError as e:  # banco fora do ar também é alerta, não só traceback no log
+        rep.error = f"banco inacessível: {e}"[:500]
+        rep.finished_at = datetime.now(timezone.utc).isoformat()
+        notify(rep, state_dir)
+        return 2
     try:
         if not lock.execute("select pg_try_advisory_lock(hashtext(%s)) as ok", (SCHEDULER_LOCK,)).fetchone()["ok"]:
             r = lock.execute("select attempted_at from etl_schedule_attempts where task = '__run_due__'").fetchone()

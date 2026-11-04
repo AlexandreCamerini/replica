@@ -3,6 +3,8 @@
 # Uso: etl/deploy/launchd-install.sh install|uninstall|status|logs
 # Banco: ETL_DATABASE_URL do ambiente, senão o Postgres local (db/pg-local.sh url). Alerta: ETL_ALERT_WEBHOOK opcional.
 # Credencial: o plist fica 600, mas em texto claro; serve para o Postgres local. Produção usa o workflow com secrets.
+# launchd chama run-due-local.sh, que sobe o Postgres local se estiver parado (dados no checkout principal).
+# Instale a partir do checkout que vai continuar existindo: o plist guarda o caminho absoluto deste ROOT.
 # O Mac precisa estar ligado; launchd roda a chamada perdida quando ele acorda. Produção: .github/workflows/etl.yml.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -22,9 +24,10 @@ case "${1:-status}" in
   <key>Label</key><string>$LABEL</string>
   <key>WorkingDirectory</key><string>$ROOT/etl</string>
   <key>ProgramArguments</key><array>
-    <string>$ROOT/etl/.venv/bin/python</string><string>-m</string><string>civico_etl.cli</string><string>run-due</string>
+    <string>/bin/bash</string><string>$ROOT/etl/deploy/run-due-local.sh</string>
   </array>
   <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>ETL_DATABASE_URL</key><string>$(xml "$URL")</string>
     ${ETL_ALERT_WEBHOOK:+<key>ETL_ALERT_WEBHOOK</key><string>$(xml "$ETL_ALERT_WEBHOOK")</string>}
   </dict>
