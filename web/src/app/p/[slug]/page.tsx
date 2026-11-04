@@ -85,7 +85,7 @@ export default async function Page({ params, searchParams }: Props) {
   const legislative = !!main && LEGISLATIVE.has(main.office);
   const full = !!main && FULL_DATA.has(main.office);
   const base = `/p/${person.slug}`;
-  const elected = candidacies.find((c) => c.result.startsWith("eleito"));
+  const elected = candidacies.find((c) => c.result?.startsWith("eleito"));
   const withAssets = candidacies.find((c) => c.assetsCents !== null);
   const missingOf = (d: string) => stats.missing.find((m) => m.dataset === d);
   const f = person.gender === "f";
@@ -112,7 +112,7 @@ export default async function Page({ params, searchParams }: Props) {
   const accrued = await data.getSalaryAccrued(person.id, yearParam ?? undefined);
   const mmYYYY = (d: string) => `${d.slice(5, 7)}/${d.slice(0, 4)}`;
   const financeYears = await data.listStampYears("tse.contas");
-  const wins = [...new Set(candidacies.filter((c) => c.result.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
+  const wins = [...new Set(candidacies.filter((c) => c.result?.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
   const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
   // W3-A: deputado estadual/distrital lê a Assembleia da UF (o que é lido, com fonte e data, e o motivo de cada "—")
   const assembly = main && STATE_LEG.has(main.office) && placeUf ? await data.getAssembly(placeUf) : null;

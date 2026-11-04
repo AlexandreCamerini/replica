@@ -89,7 +89,7 @@ async function CompareTable({ people, periodoRaw, sp }: { people: Person[]; peri
     people.map(async (p) => {
       const [mandates, cands, stats, yearly] = await Promise.all([data.getMandates(p.id), data.getCandidacies(p.id), data.getStats(p.id, period), data.getYearlyStats(p.id)]);
       const main = mandates.find((m) => m.status === "em_exercicio") ?? mandates[0];
-      const lastElected = cands.find((c) => c.result.startsWith("eleito"));
+      const lastElected = cands.find((c) => c.result?.startsWith("eleito"));
       const decl = cands.filter((c) => c.assetsCents !== null);
       return { p, main, lastElected, latest: decl[0], first: decl[decl.length - 1], stats, camp: campaignTotals(cands), since: yearly.find((y) => y.votesRegistered !== null || y.proposalsPrincipal !== null || y.expensesCents !== null)?.year ?? null };
     }),

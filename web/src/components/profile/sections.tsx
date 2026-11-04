@@ -337,7 +337,7 @@ export async function Elections({ candidacies, f }: { candidacies: C[]; f: boole
                     {c.officeName} · {c.placeLabel}
                   </td>
                   <td className="py-2 pr-3 text-fg">{c.party.acronym}</td>
-                  <td className="py-2 pr-3 text-fg">{(RESULT[c.result] ?? ["Sem resultado publicado", "Sem resultado publicado"])[f ? 1 : 0]}</td>
+                  <td className="py-2 pr-3 text-fg">{((c.result && RESULT[c.result]) ?? ["Sem resultado publicado", "Sem resultado publicado"])[f ? 1 : 0]}</td>
                   <td className="py-2 text-right tabular text-fg">{c.votes === null ? <NotPublished /> : count(c.votes)}</td>
                 </tr>
               ))}

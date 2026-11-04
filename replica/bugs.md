@@ -861,3 +861,5 @@ Steps
 Expected: "Sem resultado publicado", ou o motivo (indeferida, cancelada).
 Actual: 513 candidaturas com resultado nulo, todas #NULO/#NULO# na fonte (322 e 191), em 507 pessoas, aparecem como "Não eleito/Não eleita". 491 estão em crachás de quem está em exercício. Desde e07184b.
 Fix sugerido: não converter null em `nao_eleito` em `getCandidacies`, e deixar o rótulo "Sem resultado publicado" do componente aparecer.
+
+Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não converte mais null em "nao_eleito"; a tabela mostra "Sem resultado publicado". Usos de `result.startsWith` passaram a `result?.`. e2e `b045-resultado-nulo.spec.ts` (Veter Martins 2020) verde.

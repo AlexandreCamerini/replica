@@ -550,7 +550,7 @@ export const pgSource: DataSource = {
       office: r.office as OfficeSlug,
       placeIbge: String(r.place_ibge),
       partyId: String(r.party_id ?? ""),
-      result: (r.result as Candidacy["result"]) ?? "nao_eleito",
+      result: (r.result as Candidacy["result"]) ?? null,
       votes: num(r.votes),
       raisedCents: num(r.raised_cents),
       spentCents: num(r.spent_cents),

@@ -28,7 +28,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const senado = main?.office === "senador";
   const house = senado ? "Senado" : "Câmara";
   const since = (k: "presencePresent" | "proposalsPrincipal") => yearly.find((y) => y[k] !== null)?.year;
-  const elected = cands.find((c) => c.result.startsWith("eleito"));
+  const elected = cands.find((c) => c.result?.startsWith("eleito"));
   const assets = cands.find((c) => c.assetsCents !== null);
   const camp = campaignTotals(cands);
 

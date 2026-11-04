@@ -60,7 +60,7 @@ export type Candidacy = {
   office: OfficeSlug;
   placeIbge: string;
   partyId: string;
-  result: ElectionResult;
+  result: ElectionResult | null; // null = a fonte não publica resultado (#NULO#), mostrado como "Sem resultado publicado" (BUG-045)
   votes: number | null; // null = votação por candidato ainda não carregada (nunca 0)
   raisedCents: number | null;
   spentCents: number | null;
