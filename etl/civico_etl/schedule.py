@@ -69,12 +69,15 @@ def _years(flag: str, ys: list[int]) -> list[str]:
 class Task:
     name: str
     argv: Callable[[date], list[str]]
-    prefixes: tuple[str, ...]  # datasets que a tarefa carimba (dataset like prefix || '%')
+    prefixes: tuple[str, ...] | Callable[[date], tuple[str, ...]]  # datasets que a tarefa carimba (dataset like prefix || '%')
     every_h: int
     timeout_h: float
     people: bool = False  # mexe em pessoas/candidaturas/mandatos: pede identity.repairs depois
     needs_repairs: bool = False  # só roda se identity.repairs existir (a recarga do TSE depende dos reparos)
     retry_h: int = 0  # 0 = every_h / 4, entre 2 h e 24 h
+
+    def families(self, today: date) -> tuple[str, ...]:
+        return self.prefixes(today) if callable(self.prefixes) else self.prefixes
 
     def retry(self) -> int:
         return self.retry_h or min(24, max(2, self.every_h // 4))
@@ -85,9 +88,9 @@ TASKS: list[Task] = [
     Task("ibge.places", lambda t: ["ibge.places"], ("ibge.places",), 365 * D, 1),
     Task("ibge.populacao", lambda t: ["ibge.populacao"], ("ibge.populacao",), 365 * D, 1),
     Task("ibge.malhas", lambda t: ["ibge.malhas"], ("ibge.malhas",), 365 * D, 2),
-    Task("tse.candidatos.recentes", lambda t: ["tse.candidatos", "--all", *_years("--year", _recent_election_years(t))], ("tse.candidatos.",), 30 * D, 5, people=True, needs_repairs=True),
-    Task("tse.votos", lambda t: ["tse.votos", *_years("--year", _recent_election_years(t))], ("tse.votos.",), 30 * D, 4, people=True, needs_repairs=True),
-    Task("tse.contas", lambda t: ["tse.contas", *_years("--year", _recent_election_years(t))], ("tse.contas.",), 30 * D, 4, needs_repairs=True),
+    Task("tse.candidatos.recentes", lambda t: ["tse.candidatos", "--all", *_years("--year", _recent_election_years(t))], lambda t: tuple(f"tse.candidatos.{y}" for y in _recent_election_years(t)), 7 * D, 5, people=True, needs_repairs=True),
+    Task("tse.votos", lambda t: ["tse.votos", *_years("--year", _recent_election_years(t))], lambda t: tuple(f"tse.votos.{y}" for y in _recent_election_years(t)), 30 * D, 4, people=True, needs_repairs=True),
+    Task("tse.contas", lambda t: ["tse.contas", *_years("--year", _recent_election_years(t))], lambda t: tuple(f"tse.contas.{y}" for y in _recent_election_years(t)), 30 * D, 4, needs_repairs=True),
     Task("camara.diario", lambda t: ["camara.diario"], ("camara.deputados", "camara.votacoes.", "camara.proposicoes.", "camara.despesas."), 20 * H, 4, people=True),
     Task("camara.presenca", lambda t: ["camara.presenca"], ("camara.presenca.",), 20 * H, 2),
     Task("camara.equipe", lambda t: ["camara.equipe"], ("camara.equipe",), 7 * D, 2),
@@ -167,11 +170,11 @@ def _like_any(prefixes: tuple[str, ...]) -> list[str]:
     return [p + "%" for p in prefixes]
 
 
-def last_stamp(conn: psycopg.Connection, task: Task) -> datetime | None:
+def last_stamp(conn: psycopg.Connection, task: Task, today: date) -> datetime | None:
     """Carimbo da tarefa = o da família de datasets mais atrasada (cada prefixo pelo seu dataset mais novo).
     Com max() simples, a cota recém-carregada esconderia votações paradas há dias. Família sem carimbo = nunca carregada."""
     ats = []
-    for p in task.prefixes:
+    for p in task.families(today):
         r = conn.execute("select max(refreshed_at) as at from dataset_stamps where dataset like %s", (p + "%",)).fetchone()
         if r["at"] is None:
             return None
@@ -179,8 +182,8 @@ def last_stamp(conn: psycopg.Connection, task: Task) -> datetime | None:
     return min(ats)
 
 
-def last_attempt(conn: psycopg.Connection, task: Task) -> datetime | None:
-    r = conn.execute("select max(started_at) as at from ingest_runs where dataset like any(%s)", (_like_any(task.prefixes),)).fetchone()
+def last_attempt(conn: psycopg.Connection, task: Task, today: date) -> datetime | None:
+    r = conn.execute("select max(started_at) as at from ingest_runs where dataset like any(%s)", (_like_any(task.families(today)),)).fetchone()
     return r["at"]
 
 
@@ -269,7 +272,7 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
             if t.needs_repairs and not has_repairs:
                 rep.skipped.append({"task": t.name, "why": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"})
                 continue
-            due, why = (True, "forçada") if force else is_due(t, last_stamp(conn, t), last_attempt(conn, t), now)
+            due, why = (True, "forçada") if force else is_due(t, last_stamp(conn, t, today), last_attempt(conn, t, today), now)
             if not due:
                 rep.skipped.append({"task": t.name, "why": why})
                 continue
