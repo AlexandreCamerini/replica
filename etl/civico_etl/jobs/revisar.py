@@ -2,18 +2,23 @@
 
   civico-etl revisar                                            # fila: rascunhos esperando revisão
   civico-etl revisar camara-pl-79-2020                          # mostra o último rascunho, campo a campo, com os avisos
-  civico-etl revisar camara-pl-79-2020 --aprovar --revisor "Nome" [--nao-diz quem_paga ...] [--frase campo="nova frase" ...] [--motivo "..."]
+  civico-etl revisar camara-pl-79-2020 --aprovar --conferido <código> --revisor "Nome" [--nao-diz quem_paga ...] [--frase campo="nova frase" ...] [--motivo "..."]
   civico-etl revisar camara-pl-79-2020 --reprovar --revisor "Nome" --motivo "trecho não sustenta a frase"
 
 Teste do revisor (Regra 3), por frase: o trecho existe e diz isso? Há termo proibido? Há número fora do trecho?
 O sistema já confere o que é mecânico; publicar com aviso bloqueante é recusado até o campo virar "O texto não diz".
 Se já houver versão publicada, aprovar a nova é uma correção: --motivo é obrigatório e vai para /correcoes.
+
+Trava de leitura: aprovar exige o código de conferência que só aparece ao mostrar o rascunho; se o rascunho mudar
+depois de lido, o código não bate. Com REVISORES="Nome 1,Nome 2" no ambiente, só esses nomes aprovam ou reprovam.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
 import re
 
 import psycopg
@@ -31,6 +36,12 @@ LABEL = {
 }
 
 
+def code(d: dict) -> str:
+    """Código de conferência: muda se as respostas ou os avisos do rascunho mudarem."""
+    raw = json.dumps([str(d["id"]), d["answers"], d["checks"]], sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(raw.encode()).hexdigest()[:8]
+
+
 def _key(key: str) -> tuple[str, str, int, int]:
     m = re.fullmatch(r"(camara|senado)-([a-z]{2,4})-(\d+)-(\d{4})", key)
     if not m:
@@ -39,14 +50,15 @@ def _key(key: str) -> tuple[str, str, int, int]:
 
 
 def run_revisar(conn: psycopg.Connection, key: str | None, *, approve: bool, reject: bool, reviewer: str | None,
-                note: str | None, not_said: list[str], phrases: list[str] | None = None) -> int:
+                note: str | None, not_said: list[str], phrases: list[str] | None = None, checked: str | None = None) -> int:
     if not key:
         return _queue(conn)
     kind, t, n, y = _key(key)
     d = conn.execute(
         """select a.* from answer_drafts a join legislative_bodies b on b.id = a.body_id
            where b.kind = %s and a.prop_type = %s and a.prop_number = %s and a.prop_year = %s and a.status = 'rascunho'
-           order by a.created_at desc limit 1""",
+           order by a.created_at desc limit 1
+           for update of a""",
         (kind, t, n, y),
     ).fetchone()
     if not d:
@@ -57,11 +69,14 @@ def run_revisar(conn: psycopg.Connection, key: str | None, *, approve: bool, rej
         return 0
     if not reviewer or not reviewer.strip():
         raise SystemExit("--revisor é obrigatório: o site mostra que uma pessoa revisou")
+    allowed = [n.strip() for n in os.environ.get("REVISORES", "").split(",") if n.strip()]
+    if allowed and reviewer.strip() not in allowed:
+        raise SystemExit(f"{reviewer.strip()} não está em REVISORES")
     if reject:
         if not note:
             raise SystemExit("--motivo é obrigatório ao reprovar")
-        conn.execute("update answer_drafts set status = 'reprovado', reviewer = %s, reviewed_at = now(), review_note = %s where id = %s",
-                     (reviewer.strip(), note, d["id"]))
+        _set(conn, "update answer_drafts set status = 'reprovado', reviewer = %s, reviewed_at = now(), review_note = %s where id = %s and status = 'rascunho'",
+             (reviewer.strip(), note, d["id"]))
         conn.commit()
         print(f"{key}: reprovado. Rode `civico-etl rascunho --key {key} --force` para um rascunho novo.")
         return 0
@@ -69,6 +84,8 @@ def run_revisar(conn: psycopg.Connection, key: str | None, *, approve: bool, rej
     edits = dict(e.split("=", 1) for e in phrases or [] if "=" in e)
     if len(edits) != len(phrases or []):
         raise SystemExit('--frase usa o formato campo="nova frase"')
+    if checked != code(d):
+        raise SystemExit(f"{key}: código de conferência ausente ou diferente. Rode `civico-etl revisar {key}`, leia e use --conferido <código>.")
     bad = [f for f in [*not_said, *edits] if f not in drafting.FIELDS]
     if bad:
         raise SystemExit(f"campo desconhecido em --nao-diz: {', '.join(bad)} (válidos: {', '.join(drafting.FIELDS)})")
@@ -95,16 +112,24 @@ def run_revisar(conn: psycopg.Connection, key: str | None, *, approve: bool, rej
         raise SystemExit(f"{key} já tem versão publicada: aprovar esta é uma correção. Informe --motivo (vai para /correcoes).")
     with conn.transaction():
         if prev:
-            conn.execute("update answer_drafts set status = 'substituido' where id = %s", (prev["id"],))
-        conn.execute(
+            _set(conn, "update answer_drafts set status = 'substituido' where id = %s and status = 'publicado'", (prev["id"],))
+        _set(
+            conn,
             """update answer_drafts set status = 'publicado', answers = %s, checks = %s, reviewer = %s, reviewed_at = now(),
-                      replaces_id = %s, correction_note = %s where id = %s""",
+                      replaces_id = %s, correction_note = %s where id = %s and status = 'rascunho'""",
             (json.dumps(answers, ensure_ascii=False), json.dumps(checks, ensure_ascii=False), reviewer.strip(),
              prev["id"] if prev else None, note if prev else None, d["id"]),
         )
     conn.commit()
     print(f"{key}: publicado{' como correção' if prev else ''}. O site mostra em até 10 minutos.")
     return 0
+
+
+def _set(conn: psycopg.Connection, q: str, args: tuple) -> None:
+    """Toda troca de status confere o status de origem: outro processo pode ter mexido entre a leitura e a escrita."""
+    if conn.execute(q, args).rowcount != 1:
+        conn.rollback()
+        raise SystemExit("o rascunho mudou de estado enquanto você revisava; mostre de novo e repita")
 
 
 def _queue(conn: psycopg.Connection) -> int:
@@ -139,3 +164,4 @@ def _show(key: str, d: dict) -> None:
             print(f"  ! {i}{' (bloqueia)' if i.split(':')[0] in drafting.BLOCKING else ''}")
         print()
     print("Confira cada frase: o trecho existe e diz isso? Há termo proibido? Há número fora do trecho?")
+    print(f"Código de conferência: {code(d)}  (use --conferido {code(d)} para aprovar)")

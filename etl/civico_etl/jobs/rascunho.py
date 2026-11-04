@@ -90,7 +90,7 @@ def run_rascunho(conn: psycopg.Connection, *, key: str | None = None, limit: int
                 r.reject(why=f"{label}: {len(pages)} páginas, acima do limite de {MAX_PAGES}")
                 continue
             try:
-                answers, usage = draft(client, model, label, c["summary_official"], pages)
+                answers, usage, served_by = draft(client, model, label, c["summary_official"], pages)
             except DraftError as x:
                 r.reject(why=f"{label}: {x}")
                 continue
@@ -105,7 +105,7 @@ def run_rascunho(conn: psycopg.Connection, *, key: str | None = None, limit: int
                 """insert into answer_drafts (body_id, prop_type, prop_number, prop_year, source_url, source_sha256, source_pages,
                                               model, prompt_version, answers, checks, input_tokens, output_tokens)
                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (c["body_id"], c["prop_type"], c["prop_number"], c["prop_year"], url, sha, len(pages), model, drafting.PROMPT_VERSION,
+                (c["body_id"], c["prop_type"], c["prop_number"], c["prop_year"], url, sha, len(pages), served_by, drafting.PROMPT_VERSION,
                  json.dumps(answers, ensure_ascii=False), json.dumps(checks, ensure_ascii=False), usage[0], usage[1]),
             )
             conn.commit()
@@ -118,7 +118,7 @@ class DraftError(Exception):
     pass
 
 
-def draft(client: anthropic.Anthropic, model: str, label: str, summary: str | None, pages: list[str]) -> tuple[dict[str, Any], tuple[int, int]]:
+def draft(client: anthropic.Anthropic, model: str, label: str, summary: str | None, pages: list[str]) -> tuple[dict[str, Any], tuple[int, int], str]:
     """Uma chamada, saída presa ao schema. Recusa e corte por tamanho viram DraftError, nunca resposta parcial."""
     try:
         resp = client.beta.messages.create(
@@ -147,4 +147,7 @@ def draft(client: anthropic.Anthropic, model: str, label: str, summary: str | No
         data = json.loads(text)
     except json.JSONDecodeError as x:
         raise DraftError("resposta fora do formato") from x
-    return data, (resp.usage.input_tokens, resp.usage.output_tokens)
+    errs = drafting.shape_errors(data)
+    if errs:
+        raise DraftError(f"resposta incompleta: {'; '.join(errs[:6])}")
+    return data, (resp.usage.input_tokens, resp.usage.output_tokens), resp.model

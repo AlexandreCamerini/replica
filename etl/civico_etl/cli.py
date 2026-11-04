@@ -44,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--revisor", help="revisar: nome de quem revisou (aparece como 'Revisado por pessoa')")
     p.add_argument("--motivo", help="revisar: motivo da reprovação ou da correção")
     p.add_argument("--nao-diz", action="append", default=[], metavar="CAMPO", help="revisar: troca o campo por 'O texto não diz' (repetível)")
+    p.add_argument("--conferido", metavar="CÓDIGO", help="revisar: código mostrado ao ler o rascunho; obrigatório para aprovar")
     p.add_argument("--frase", action="append", default=[], metavar='CAMPO="TEXTO"', help="revisar: reescreve a frase do campo; o trecho fica (repetível)")
     a = p.parse_args(argv)
 
@@ -109,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
 
             if a.aprovar and a.reprovar:
                 p.error("use --aprovar ou --reprovar, não os dois")
-            return run_revisar(conn, a.key, approve=a.aprovar, reject=a.reprovar, reviewer=a.revisor, note=a.motivo, not_said=a.nao_diz, phrases=a.frase)
+            return run_revisar(conn, a.key, approve=a.aprovar, reject=a.reprovar, reviewer=a.revisor, note=a.motivo, not_said=a.nao_diz, phrases=a.frase, checked=a.conferido)
         if a.job in ("check", "all"):
             from .jobs.checks import run_checks
 

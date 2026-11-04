@@ -32,7 +32,18 @@ FORBIDDEN = (
 )
 MAX_WORDS = 15
 # avisos que impedem publicar enquanto o campo não for trocado por "O texto não diz"
-BLOCKING = {"trecho_nao_encontrado", "termo_proibido", "numero_sem_trecho", "frase_vazia", "trecho_vazio", "frase_longa"}
+BLOCKING = {
+    "trecho_nao_encontrado", "termo_proibido", "numero_sem_trecho", "frase_vazia", "trecho_vazio", "frase_longa",
+    "trecho_curto", "caractere_estranho", "estimativa_sem_numero", "direcao_invalida",
+}
+MIN_QUOTE_WORDS = 5  # um trecho de 1 ou 2 palavras ("de", "a lei") está em qualquer PDF e não sustenta nada
+# numeral por extenso também é número; "um/uma" ficam de fora (são artigo na maioria das frases)
+NUMBER_WORDS = (
+    "dois", "duas", "tres", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze", "treze", "quatorze",
+    "catorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove", "vinte", "trinta", "quarenta", "cinquenta",
+    "sessenta", "setenta", "oitenta", "noventa", "cem", "cento", "duzentos", "trezentos", "quinhentos", "mil", "milhao",
+    "milhoes", "bilhao", "bilhoes", "trilhao", "trilhoes", "dobro", "triplo", "metade", "terco", "quarto", "por cento",
+)
 
 _CLAIM = {
     "type": "object",
@@ -106,19 +117,39 @@ def _fold(s: str) -> str:
 
 
 def _numbers(s: str) -> set[str]:
-    return {re.sub(r"[.\s]", "", n) for n in re.findall(r"\d[\d.,]*\d|\d", s)}
+    digits = {re.sub(r"[.\s]", "", n) for n in re.findall(r"\d[\d.,]*\d|\d", s)}
+    f = _fold(s)
+    return digits | {w for w in NUMBER_WORDS if re.search(rf"\b{w}\b", f)}
+
+
+def _words(s: str) -> list[str]:
+    return re.findall(r"\w+", s)
+
+
+def _odd_chars(s: str) -> bool:
+    """Letra fora do alfabeto latino (ex.: "а" cirílico) escapa da lista proibida; não tem lugar numa frase em português."""
+    return any(ch.isalpha() and "LATIN" not in unicodedata.name(ch, "") for ch in s)
 
 
 def locate(quote: str, pages: list[str]) -> int | None:
-    """Página (1..n) onde o trecho aparece; None se não aparece em lugar nenhum."""
+    """Página (1..n) onde o trecho começa; None se não aparece em lugar nenhum."""
     q = _norm(quote)
     if not q:
         return None
-    for i, t in enumerate(pages, 1):
-        if q in _norm(t):
+    normed = [_norm(t) for t in pages]
+    for i, t in enumerate(normed, 1):
+        if q in t:
             return i
-    joined = _norm(" ".join(pages))  # trecho que atravessa a quebra de página
-    return 0 if q in joined else None
+    joined = " ".join(normed)  # trecho que atravessa a quebra de página: vale a página onde ele começa
+    at = joined.find(q)
+    if at < 0:
+        return None
+    pos = 0
+    for i, t in enumerate(normed, 1):
+        pos += len(t) + 1
+        if at < pos:
+            return i
+    return len(pages)
 
 
 def check_phrase(field: str, frase: str, trecho: str) -> list[str]:
@@ -128,17 +159,45 @@ def check_phrase(field: str, frase: str, trecho: str) -> list[str]:
         issues.append("frase_vazia")
     if not trecho.strip():
         issues.append("trecho_vazio")
-    words = len(frase.split())
+    words = len(_words(frase))  # "a-b-c" conta como três
     if words > MAX_WORDS:
         issues.append(f"frase_longa:{words}")
+    if trecho.strip() and len(_words(trecho)) < MIN_QUOTE_WORDS:
+        issues.append("trecho_curto")
+    if _odd_chars(frase):
+        issues.append("caractere_estranho")
     ff = _fold(frase)
-    if any(re.search(rf"\b{re.escape(_fold(t))}\b", ff) for t in FORBIDDEN):
+    # radical, não forma exata: "beneficiará", "prejudicam", "avanços" também contam; "benefício" (substantivo) não
+    if any(re.search(rf"\b{re.escape(_fold(t))}\w*" if " " not in t else rf"\b{re.escape(_fold(t))}\b", ff) for t in FORBIDDEN):
         issues.append("termo_proibido")
     if field != "estimativa_impacto" and not any(re.search(rf"\b{_fold(v)}", ff) for v in VERBS):
         issues.append("sem_verbo_da_lista")
     if _numbers(frase) - _numbers(trecho):
         issues.append("numero_sem_trecho")
+    if field == "estimativa_impacto" and not re.search(r"\d", trecho):
+        issues.append("estimativa_sem_numero")
+    # a frase precisa dividir ao menos uma palavra de conteúdo com o trecho; o resto é julgamento do revisor
+    content = {w for w in _words(_fold(frase)) if len(w) >= 5}
+    if content and trecho.strip() and not any(w[:5] in _fold(trecho) for w in content):
+        issues.append("frase_longe_do_trecho")
     return issues
+
+
+def shape_errors(answers: Any) -> list[str]:
+    """Resposta do modelo sem um campo ou com tipo errado não é "O texto não diz": é resposta inválida."""
+    if not isinstance(answers, dict):
+        return ["resposta não é objeto"]
+    errs = []
+    for f in FIELDS:
+        a = answers.get(f)
+        if not isinstance(a, dict):
+            errs.append(f"{f}: ausente")
+            continue
+        if not isinstance(a.get("diz"), bool) or not isinstance(a.get("frase"), str) or not isinstance(a.get("trecho"), str) or not isinstance(a.get("pagina"), int):
+            errs.append(f"{f}: tipo errado")
+        if f == "dinheiro" and a.get("direcao") not in ("entra", "sai", "dividido", "nao_diz"):
+            errs.append("dinheiro: direcao fora da lista")
+    return errs
 
 
 def validate(answers: dict[str, Any], pages: list[str]) -> tuple[dict[str, Any], dict[str, list[str]]]:
@@ -155,9 +214,12 @@ def validate(answers: dict[str, Any], pages: list[str]) -> tuple[dict[str, Any],
                 page = locate(trecho, pages)
                 if page is None:
                     issues.append("trecho_nao_encontrado")
-                elif page and page != a.get("pagina"):
+                    a["pagina"] = 0  # nunca publicar página que o PDF não confirma
+                elif page != a.get("pagina"):
                     issues.append(f"pagina_corrigida:{a.get('pagina')}->{page}")
                     a["pagina"] = page
+            if f == "dinheiro" and a.get("direcao") not in ("entra", "sai", "dividido"):
+                issues.append("direcao_invalida")
         else:
             a.update(frase="", trecho="", pagina=0)
             if f == "dinheiro":

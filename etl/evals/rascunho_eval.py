@@ -76,7 +76,7 @@ def rodar(model: str) -> int:
         try:
             d = fetch_json(f"{CAMARA}/proposicoes/{c['camara_id']}", max_age=86400)["dados"]
             pages = _pages(fetch(d["urlInteiroTeor"], max_age=86400, accept="application/pdf").path.read_bytes())
-            ans, (i, o) = draft(client, model, c["chave"], d.get("ementa"), pages)
+            ans, (i, o), _ = draft(client, model, c["chave"], d.get("ementa"), pages)
         except (DraftError, KeyError, FileNotFoundError) as x:
             out.append({"chave": c["chave"], "erro": str(x)})
             continue

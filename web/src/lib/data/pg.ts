@@ -835,7 +835,9 @@ function claims(raw: unknown): Record<AnswerField, AnswerClaim> {
   return Object.fromEntries(
     ANSWER_FIELDS.map((f) => {
       const a = src[f] ?? {};
-      const c: AnswerClaim = { says: Boolean(a.diz), text: a.frase ?? "", quote: a.trecho ?? "", page: Number(a.pagina ?? 0) };
+      // sem frase ou sem trecho, a tela nunca mostra afirmação: vira "O texto não diz"
+      const says = Boolean(a.diz) && Boolean(a.frase?.trim()) && Boolean(a.trecho?.trim());
+      const c: AnswerClaim = { says, text: a.frase ?? "", quote: a.trecho ?? "", page: Number(a.pagina ?? 0) };
       if (f === "dinheiro") c.direction = (a.direcao as AnswerClaim["direction"]) ?? "nao_diz";
       return [f, c];
     }),
