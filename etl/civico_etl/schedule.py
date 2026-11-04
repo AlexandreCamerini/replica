@@ -99,7 +99,9 @@ TASKS: list[Task] = [
     Task("agenda.congresso", lambda t: ["agenda.congresso"], ("agenda.",), 20 * H, 1),
     Task("parlamento.extras", lambda t: ["parlamento.extras"], ("parlamento.extras",), 7 * D, 2),
     Task("ale.todas", lambda t: ["ale.todas", "--no-derive"], ("alesp.", "alemg."), 6 * D, 4),
-    Task("sapl.todas", lambda t: ["sapl.todas"], ("sapl.",), 6 * D, 6),
+    # SAPL: fila da própria job (nunca tentadas, depois a tentativa mais antiga); 150 por dia na descoberta e até 150 min de carga.
+    # Incremental por cursor (~30 s por câmara já carregada); a 1ª carga de cada câmara é completa (~10 min).
+    Task("sapl.todas", lambda t: ["sapl.todas", "--escopo", "todas", "--lote", "150", "--orcamento-min", "150"], ("sapl.",), 20 * H, 3),
     Task("sancoes.tcu", lambda t: ["sancoes.tcu"], ("sancoes.",), 28 * D, 1),
     Task("receita.arrecadacao", lambda t: ["receita.arrecadacao"], ("receita.",), 28 * D, 1),
     Task("governos.indicadores", lambda t: ["governos.indicadores"], ("governos.",), 80 * D, 1),
