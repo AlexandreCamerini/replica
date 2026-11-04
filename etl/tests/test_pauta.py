@@ -27,3 +27,15 @@ def test_senado_ignora_o_que_nao_e_lei():
     assert parse_senado_name("14 - REQ 133/2026 - CDH") is None
     assert parse_senado_name("1 - PFS 2/2026") is None
     assert parse_senado_name(None) is None
+
+
+def test_situacao_oficial_vira_estado_do_evento():
+    from civico_etl.jobs.pauta import event_state
+    assert event_state("Convocada") == "marcada"
+    assert event_state("Agendada") == "marcada"
+    assert event_state(None) == "marcada"
+    assert event_state("Em Andamento") == "em_andamento"
+    assert event_state("Suspensa") == "em_andamento"
+    assert event_state("Encerrada (Final)") == "encerrada"
+    assert event_state("Realizada") == "encerrada"
+    assert event_state("Cancelada") == "cancelada"

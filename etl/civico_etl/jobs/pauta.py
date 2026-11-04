@@ -8,6 +8,8 @@ Fontes (testadas em 03/11/2026, ver canvas "No seu bolso" › B2):
           /dadosabertos/comissao/agenda/{ini}/{fim}    -> itens de comissão (sem ementa; fora do número, D1)
 A pauta da Câmara falha com frequência (504, leitura incompleta). Cada evento que não carrega depois das
 retentativas de http.fetch entra em pauta_reads.failed_refs; a tela mostra "pelo menos N" (D5). Nada é inventado.
+Todo evento deliberativo da janela vai para pauta_events, inclusive encerrado e cancelado: é o que separa
+"saiu da pauta" de "a reunião aconteceu" (view pauta_exits). Itens só vêm de evento marcado ou em andamento.
 """
 
 from __future__ import annotations
@@ -31,8 +33,6 @@ CAMARA = "https://dadosabertos.camara.leg.br/api/v2"
 SENADO = "https://legis.senado.leg.br/dadosabertos"
 BRT = ZoneInfo("America/Sao_Paulo")
 WINDOW_DAYS = 14
-CAMARA_SKIP = ("Cancelada", "Encerrada", "Encerrada (Termo)", "Encerrada (Final)")
-SENADO_SKIP = ("Cancelada", "Realizada", "Encerrada")
 NAME_RE = re.compile(r"^\s*(?:\d+\s*-\s*)?([A-Z]{2,4})\s+(\d+)/(\d{4})\b")
 
 
@@ -42,6 +42,25 @@ def _list(x: Any) -> list[Any]:
 
 def _brt(ts: datetime | None) -> datetime | None:
     return ts.replace(tzinfo=BRT) if ts and ts.tzinfo is None else ts
+
+
+def event_state(status: str | None) -> str:
+    """Situação oficial -> estado de pauta_events. Câmara: Convocada, Em Andamento, Suspensa, Encerrada (Final)...;
+    Senado: Agendada, Em andamento, Realizada, Cancelada. Sem situação = marcada."""
+    s = (status or "").lower()
+    if s.startswith("cancel"):
+        return "cancelada"
+    if s.startswith(("encerrad", "realizad")):
+        return "encerrada"
+    if "andamento" in s or s.startswith("suspens"):
+        return "em_andamento"
+    return "marcada"
+
+
+def _event(ref: str, status: str | None, stage: str, committee: str | None, when: datetime | None) -> dict[str, Any]:
+    st = event_state(status)
+    return {"event_ref": ref, "state": st, "official_status": nz(status), "loaded": st in ("marcada", "em_andamento"),
+            "stage": stage, "committee": committee, "scheduled_for": when}
 
 
 def resolve_camara_item(it: dict[str, Any]) -> dict[str, Any] | None:
@@ -69,7 +88,9 @@ def run_pauta(conn: psycopg.Connection, *, today: date | None = None) -> None:
     _senado(conn, bodies["senado"], today, end)
 
 
-def _save(conn: psycopg.Connection, r, body_id: str, start: date, end: date, total: int, failed: list[str], items: list[dict[str, Any]]) -> None:
+def _save(conn: psycopg.Connection, r, body_id: str, start: date, end: date, events: list[dict[str, Any]], failed: list[str],
+          items: list[dict[str, Any]]) -> None:
+    total = sum(1 for e in events if e["state"] in ("marcada", "em_andamento"))
     read_id = str(
         conn.execute(
             """insert into pauta_reads (body_id, run_id, window_start, window_end, events_total, events_failed, failed_refs)
@@ -95,6 +116,13 @@ def _save(conn: psycopg.Connection, r, body_id: str, start: date, end: date, tot
          "committee", "scheduled_for", "regime", "rapporteur", "event_ref", "official_url"],
         rows, ["read_id", "prop_type", "prop_number", "prop_year", "event_ref"],
     )
+    upsert(
+        conn, "pauta_events",
+        ["read_id", "body_id", "event_ref", "state", "official_status", "pauta_loaded", "stage", "committee", "scheduled_for"],
+        [(read_id, body_id, e["event_ref"], e["state"], e["official_status"], e["loaded"] and e["event_ref"] not in failed,
+          e["stage"], e["committee"], e["scheduled_for"]) for e in events],
+        ["read_id", "event_ref"],
+    )
     r.add(len(rows))
     if failed:
         r.notes.append(f"{len(failed)} de {total} pautas não carregaram: {', '.join(failed[:20])}")
@@ -104,20 +132,26 @@ def _camara(conn: psycopg.Connection, body_id: str, start: date, end: date) -> N
     with run(conn, "pauta.camara", "camara") as r:
         events = [
             e for e in paginate_camara(f"{CAMARA}/eventos?dataInicio={start}&dataFim={end}&itens=100&ordem=ASC&ordenarPor=dataHoraInicio")
-            if "Deliberativa" in (e.get("descricaoTipo") or "") and "Não Deliberativa" not in e["descricaoTipo"] and e.get("situacao") not in CAMARA_SKIP
+            if "Deliberativa" in (e.get("descricaoTipo") or "") and "Não Deliberativa" not in e["descricaoTipo"]
         ]
         failed: list[str] = []
         items: list[dict[str, Any]] = []
+        seen: list[dict[str, Any]] = []
         themes: dict[int, list[str]] = {}
         for e in events:
+            orgs = [o.get("sigla") for o in e.get("orgaos") or []]
+            plen = "PLEN" in orgs
+            ev = _event(str(e["id"]), e.get("situacao"), "plenario" if plen else "comissao", None if plen else (orgs[0] if orgs else None),
+                        _brt(parse_ts(e.get("dataHoraInicio"))))
+            seen.append(ev)
+            if not ev["loaded"]:
+                continue
             try:
                 pauta = fetch_json(f"{CAMARA}/eventos/{e['id']}/pauta").get("dados", [])
             except (httpx.HTTPError, ValueError, FileNotFoundError) as x:
                 log.warning("pauta do evento %s não carregou: %s", e["id"], x)
                 failed.append(str(e["id"]))
                 continue
-            orgs = [o.get("sigla") for o in e.get("orgaos") or []]
-            plen = "PLEN" in orgs
             for it in pauta:
                 p = resolve_camara_item(it)
                 if not p:
@@ -137,14 +171,14 @@ def _camara(conn: psycopg.Connection, body_id: str, start: date, end: date) -> N
                     "rapporteur": (it.get("relator") or {}).get("nome"), "event_ref": str(e["id"]),
                     "url": f"https://www.camara.leg.br/evento-legislativo/{e['id']}",
                 })
-        _save(conn, r, body_id, start, end, len(events), failed, items)
+        _save(conn, r, body_id, start, end, seen, failed, items)
 
 
 def _senado(conn: psycopg.Connection, body_id: str, start: date, end: date) -> None:
     with run(conn, "pauta.senado", "senado") as r:
         failed: list[str] = []
         items: list[dict[str, Any]] = []
-        total = 0
+        seen: list[dict[str, Any]] = []
         months = sorted({start.replace(day=1), end.replace(day=1)})
         for m in months:
             try:
@@ -157,8 +191,11 @@ def _senado(conn: psycopg.Connection, body_id: str, start: date, end: date) -> N
                 d = date.fromisoformat(s["Data"])
                 if not (start <= d <= end) or "DELIBERATIVA" not in (s.get("TipoSessao") or "") or "NÃO DELIBERATIVA" in s["TipoSessao"]:
                     continue
-                total += 1
                 when = _brt(datetime.fromisoformat(f"{s['Data']}T{(s.get('Hora') or '00:00').strip()}"))
+                ev = _event(str(s["CodigoSessao"]), s.get("SituacaoSessao"), "plenario", None, when)
+                seen.append(ev)
+                if not ev["loaded"]:
+                    continue
                 for mt in _list((s.get("Materias") or {}).get("Materia")):
                     if mt.get("SiglaMateria") not in LAW_TYPES:
                         continue
@@ -175,11 +212,12 @@ def _senado(conn: psycopg.Connection, body_id: str, start: date, end: date) -> N
             failed.append("comissoes")
             reunioes = []
         for re_ in reunioes:
-            if re_.get("situacao") in SENADO_SKIP:
-                continue
-            total += 1
             sigla = (re_.get("colegiadoCriador") or {}).get("sigla")
             when = _brt(parse_ts(re_.get("dataInicio")))
+            ev = _event(f"reuniao:{re_['codigo']}", re_.get("situacao"), "comissao", sigla, when)
+            seen.append(ev)
+            if not ev["loaded"]:
+                continue
             for pt in _list(re_.get("partes")):
                 for it in _list(pt.get("itens") if isinstance(pt, dict) else None):
                     key = parse_senado_name(it.get("nome")) if isinstance(it, dict) else None
@@ -189,4 +227,4 @@ def _senado(conn: psycopg.Connection, body_id: str, start: date, end: date) -> N
                         "prop_type": key[0], "prop_number": key[1], "prop_year": key[2], "stage": "comissao", "committee": sigla,
                         "scheduled_for": when, "event_ref": f"reuniao:{re_['codigo']}",
                     })
-        _save(conn, r, body_id, start, end, total, failed, items)
+        _save(conn, r, body_id, start, end, seen, failed, items)
