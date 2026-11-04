@@ -1,0 +1,43 @@
+# Agenda do ETL em produção (D250). Desligada até o dono configurar:
+#   secret ETL_DATABASE_URL (role de escrita do banco de produção), variável ETL_SCHEDULE_ENABLED=true
+#   e, opcional, secret ETL_ALERT_WEBHOOK (Slack/Discord/Teams compatível com {"text": ...}).
+# run-due decide o que venceu; chamar a cada 3 h basta (Câmara/Senado vencem em 20 h, prazo do site 36 h).
+# O cache de downloads (etl/.cache) é preservado entre execuções para o TSE e o SAPL não baixarem tudo de novo.
+name: etl
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "tarefa única (schedule.TASKS), com --force"
+        required: false
+concurrency: { group: etl, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  run-due:
+    if: vars.ETL_SCHEDULE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    defaults: { run: { working-directory: etl } }
+    env:
+      ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
+      ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/cache@v4
+        with:
+          path: etl/.cache
+          key: etl-cache-${{ github.run_id }}
+          restore-keys: etl-cache-
+      - run: pip install -e .
+      - name: run-due
+        env: { ONLY: "${{ inputs.only }}" }  # via env, nunca interpolado no shell
+        run: |
+          if [ -n "$ONLY" ]; then python -m civico_etl.cli run-due --only "$ONLY" --force
+          else python -m civico_etl.cli run-due; fi
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: last-run, path: etl/.state/last-run.json, if-no-files-found: ignore }

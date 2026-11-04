@@ -72,9 +72,10 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
         )
         if cur.fetchone():
             cur.execute(
-                "insert into ingest_runs (source_id, dataset, status, input_checksum, finished_at) values (%s, %s, 'skipped_unchanged', %s, now())",
+                "insert into ingest_runs (source_id, dataset, status, input_checksum, finished_at) values (%s, %s, 'skipped_unchanged', %s, now()) returning id",
                 (src, dataset, input_checksum),
             )
+            _stamp(conn, dataset, src, str(cur.fetchone()["id"]))
             conn.commit()
             cur.execute("select pg_advisory_unlock(hashtext(%s))", (dataset,))
             conn.commit()
@@ -92,6 +93,7 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
     except SkipUnchanged:
         conn.rollback()
         conn.execute("update ingest_runs set status = 'skipped_unchanged', finished_at = now() where id = %s", (r.id,))
+        _stamp(conn, dataset, src, r.id)
         conn.commit()
         raise
     except Exception as e:  # noqa: BLE001 - registra e propaga
@@ -108,17 +110,23 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
             "update ingest_runs set status = 'succeeded', finished_at = now(), rows_upserted = %s, rows_rejected = %s, error = %s where id = %s",
             (r.rows_upserted, r.rows_rejected, "\n".join(r.notes) or None, r.id),
         )
-        conn.execute(
-            """insert into dataset_stamps (dataset, source_id, refreshed_at, last_run_id)
-               values (%s, %s, now(), %s)
-               on conflict (dataset) do update set refreshed_at = excluded.refreshed_at, last_run_id = excluded.last_run_id, source_id = excluded.source_id""",
-            (dataset, src, r.id),
-        )
+        _stamp(conn, dataset, src, r.id)
         conn.commit()
         log.info("%s: ok em %.0fs, %d upserts, %d rejeitadas", dataset, time.monotonic() - t0, r.rows_upserted, r.rows_rejected)
     finally:
         conn.execute("select pg_advisory_unlock(hashtext(%s))", (dataset,))
         conn.commit()
+
+
+def _stamp(conn: psycopg.Connection, dataset: str, src: str, run_id: str) -> None:
+    """Carimbo = "conferido com a fonte em". Entrada igual (skipped_unchanged) também carimba: a fonte foi lida e não mudou,
+    então o dado está em dia; sem isso uma fonte estável aparece "fora do prazo" para sempre (D250)."""
+    conn.execute(
+        """insert into dataset_stamps (dataset, source_id, refreshed_at, last_run_id)
+           values (%s, %s, now(), %s)
+           on conflict (dataset) do update set refreshed_at = excluded.refreshed_at, last_run_id = excluded.last_run_id, source_id = excluded.source_id""",
+        (dataset, src, run_id),
+    )
 
 
 def source_id(conn: psycopg.Connection, slug: str) -> str:

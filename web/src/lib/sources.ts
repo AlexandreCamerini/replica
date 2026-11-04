@@ -16,13 +16,13 @@ export const SOURCE_META: Record<string, SourceMeta> = {
     maxAgeHours: 60 * 24,
   },
   ibge: { brings: "regiões, estados, municípios, códigos e contornos", cadence: "uma vez por ano", maxAgeHours: 400 * 24 },
-  // W3-A: Assembleias com adaptador. A casa atualiza todo dia; nossa leitura ainda é disparada à mão (meta: semanal)
+  // W3-A: Assembleias com adaptador. A casa atualiza todo dia; nossa leitura é semanal (etl/civico_etl/schedule.py, D250)
   alesp: {
     brings: "deputados estaduais de SP: verba de gabinete por mês e proposituras (projetos de lei, de lei complementar, de resolução, de decreto legislativo e PECs) com autoria. Presença e votos em plenário não são publicados em dado aberto",
     cadence: "uma vez por semana",
     maxAgeHours: 8 * 24,
   },
-  // W3-B (outro agente) criou estas fontes sem metadado; a cadência abaixo é meta editorial provisória (D113), ajustar se a rotina for outra
+  // W3-B: cadência = agenda do ETL (schedule.py, D250). maxAgeHours aqui e MAX_AGE_H lá são a mesma régua (test_schedule.py)
   sapl: { brings: "vereadores de 6 capitais pelo SAPL: projetos com autoria, presença em sessão (sem porcentagem) e votos nominais", cadence: "uma vez por semana", maxAgeHours: 8 * 24 },
   tcu: { brings: "lista de inabilitados para função pública (sem CPF no site)", cadence: "uma vez por mês", maxAgeHours: 35 * 24 },
   alemg: {

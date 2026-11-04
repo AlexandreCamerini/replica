@@ -17,6 +17,7 @@ Exemplos:
   civico-etl identity.fix041 [--apply]                              # BUG-041/042/043: título repetido, reemitido e registro substituído
   civico-etl derive.stats
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
+  civico-etl run-due [--dry-run] [--only TAREFA --force]             # agenda (D250): roda o que venceu, check e alerta; exit 2 = alerta
 """
 
 from __future__ import annotations
@@ -35,6 +36,10 @@ log = logging.getLogger("etl")
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
+    if args and args[0] == "run-due":  # agenda (D250): roda o que venceu, repara identidade, check e alerta
+        from .schedule import main as schedule_main
+
+        return schedule_main(args)
     if args and args[0].startswith("ale."):  # Assembleias Legislativas (W3-A): ale.sp, ale.mg, ale.todas, ale.cobertura
         from .jobs.ale_cli import main as ale_main
 
