@@ -25,6 +25,7 @@ import json
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 import duckdb
@@ -37,7 +38,8 @@ from .tse_candidatos import CARGO, GENDER, muni_index, title_rows, tse_key, writ
 
 log = logging.getLogger("etl.identity.bug038")
 BUG = "BUG-038"
-YEARS = (2012, 2014, 2016, 2018, 2020, 2022, 2024, 2026)
+# eleições de 2012 até a mais recente (a deste ano entra quando o TSE publicar; 404 é tratado por quem lê)
+YEARS = tuple(range(2012, date.today().year + 1, 2))
 SRC_COLS = ["ANO_ELEICAO", "NM_TIPO_ELEICAO", "NR_TURNO", "SG_UF", "SG_UE", "NM_UE", "CD_CARGO", "SQ_CANDIDATO", "NR_CANDIDATO",
             "NM_CANDIDATO", "NM_URNA_CANDIDATO", "DT_NASCIMENTO", "NR_TITULO_ELEITORAL_CANDIDATO", "CD_GENERO", "DS_GRAU_INSTRUCAO",
             "SG_UF_NASCIMENTO", "NM_MUNICIPIO_NASCIMENTO", "DS_SIT_TOT_TURNO", "DS_SITUACAO_CANDIDATURA"]
@@ -74,7 +76,14 @@ def source_by_titles(titles: set[str]) -> list[dict[str, Any]]:
     con.executemany("insert into want values (?)", [(t,) for t in titles])
     out = []
     for y in YEARS:
-        for p in _source_paths(y):
+        try:
+            paths = _source_paths(y)
+        except FileNotFoundError:  # 404: o TSE ainda não publicou a eleição deste ano
+            if y < date.today().year:
+                raise
+            log.info("consulta_cand_%s ainda não publicado; pulando", y)
+            continue
+        for p in paths:
             rel = con.read_csv(str(p), delimiter=";", header=True, quotechar='"', all_varchar=True)
             con.register("t", rel)
             cols = [c for c in SRC_COLS if c in rel.columns]

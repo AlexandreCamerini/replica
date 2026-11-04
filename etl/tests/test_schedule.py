@@ -88,3 +88,32 @@ def test_relatorio_alerta():
     assert not r.alert
     r.ran.append({"task": "x", "args": [], "exit": 1, "secs": 3, "tail": "boom"})
     assert r.alert and "FALHOU x" in r.text()
+
+
+def test_prazo_global_corta_e_adia():
+    assert S.task_timeout_h(5, 0, None) == 5
+    assert S.task_timeout_h(2, 0, 320) == 2  # cabe inteiro
+    assert abs(S.task_timeout_h(5, 0, 320) - 275 / 60) < 1e-9  # cortado ao que resta antes da reserva
+    assert abs(S.task_timeout_h(5, 200, 320) - 75 / 60) < 1e-9  # resta 320-45-200 = 75 min
+    assert S.task_timeout_h(1, 270, 320) is None  # sobram 5 min: adia
+
+
+def test_recusa_pooler_em_modo_transacao():
+    import pytest
+
+    S.check_url("postgres://u@db.x.supabase.co:5432/postgres")
+    for bad in ("postgres://u@aws-0.pooler.supabase.com:6543/postgres", "postgres://u@h:6543?sslmode=require", "postgres://u@h/db?pgbouncer=true"):
+        with pytest.raises(SystemExit):
+            S.check_url(bad)
+
+
+def test_relatorio_alerta_quando_a_agenda_quebra_ou_adia():
+    r = S.Report(started_at=NOW.isoformat())
+    r.deferred.append("sapl.todas")
+    assert not r.alert and "adiadas" in r.text()
+    r.error = "OperationalError: conexão caiu"
+    assert r.alert and "ERRO DA AGENDA" in r.text()
+
+
+def test_descoberta_do_sapl_nao_conta_como_fonte_em_dia():
+    assert "sapl.descoberta" in S.NOT_FRESHNESS

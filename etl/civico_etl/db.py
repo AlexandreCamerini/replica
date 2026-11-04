@@ -67,10 +67,12 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
     src = source_id(conn, source_slug)
     if input_checksum and not force:
         cur.execute(
-            "select 1 from ingest_runs where dataset = %s and status = 'succeeded' and input_checksum = %s limit 1",
-            (dataset, input_checksum),
+            # compara com o ÚLTIMO run bem-sucedido: se a fonte foi de A para B e voltou para A, A precisa ser recarregada
+            "select input_checksum = %s as same from ingest_runs where dataset = %s and status = 'succeeded' order by started_at desc limit 1",
+            (input_checksum, dataset),
         )
-        if cur.fetchone():
+        last = cur.fetchone()
+        if last and last["same"]:
             cur.execute(
                 "insert into ingest_runs (source_id, dataset, status, input_checksum, finished_at) values (%s, %s, 'skipped_unchanged', %s, now()) returning id",
                 (src, dataset, input_checksum),

@@ -3,6 +3,7 @@
 #   e, opcional, secret ETL_ALERT_WEBHOOK (Slack/Discord/Teams compatível com {"text": ...}).
 # run-due decide o que venceu; chamar a cada 3 h basta (Câmara/Senado vencem em 20 h, prazo do site 36 h).
 # O cache de downloads (etl/.cache) é preservado entre execuções para o TSE e o SAPL não baixarem tudo de novo.
+# Pendente antes de ligar: fixar as actions por SHA e travar dependências com hash (pip --require-hashes).
 name: etl
 on:
   schedule:
@@ -20,24 +21,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     defaults: { run: { working-directory: etl } }
-    env:
-      ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
-      ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
           path: etl/.cache
           key: etl-cache-${{ github.run_id }}
           restore-keys: etl-cache-
       - run: pip install -e .
       - name: run-due
-        env: { ONLY: "${{ inputs.only }}" }  # via env, nunca interpolado no shell
+        # segredos só neste passo (não nas actions de terceiros nem no pip); input via env, nunca interpolado no shell
+        env:
+          ONLY: ${{ inputs.only }}
+          ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
+          ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
+          ETL_DEADLINE_MIN: "320"  # abaixo do timeout do job: a agenda adia o que não cabe e sempre alerta
         run: |
           if [ -n "$ONLY" ]; then python -m civico_etl.cli run-due --only "$ONLY" --force
           else python -m civico_etl.cli run-due; fi
+      # exit 2 (alerta) deixa o run vermelho de propósito; o cache e o relatório são salvos mesmo assim
+      - if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: etl/.cache
+          key: etl-cache-${{ github.run_id }}
       - if: always()
         uses: actions/upload-artifact@v4
-        with: { name: last-run, path: etl/.state/last-run.json, if-no-files-found: ignore }
+        with: { name: last-run, path: etl/.state, if-no-files-found: ignore }
