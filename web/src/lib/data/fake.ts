@@ -37,7 +37,9 @@ import type {
   VotingEventDetail,
   VotingEventSummary,
   ActivityItem,
+  PautaEntry,
 } from "./types";
+import { parseProposalKey, uniqueByKey } from "../pauta";
 
 // Camada de dados de DEMONSTRAÇÃO. Pessoas, partidos e números são fictícios e determinísticos (mesma seed, mesmo resultado).
 // Lugares e tamanhos de bancada são reais. Trocar por pg.ts não muda nenhuma tela: o contrato é DataSource.
@@ -830,4 +832,96 @@ export const fakeSource: DataSource = {
   async latestRefresh() {
     return "2026-11-01T06:10:00-03:00";
   },
+
+  // Pauta: dois itens reais da leitura de 04/11/2026, com datas movidas para a semana corrente.
+  async getPautaOverview() {
+    const { starts, ends, readAt } = demoWeek();
+    const all = demoPauta();
+    return {
+      week: { total: all.filter((e) => e.stage === "plenario").length, atLeast: false, readAt, weekStarts: starts, weekEnds: ends },
+      plenary: uniqueByKey(all.filter((e) => e.stage === "plenario")),
+      later: [],
+      committees: uniqueByKey(all.filter((e) => e.stage === "comissao")),
+      exits: [],
+      reads: { camara: { readAt, failed: 0, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
+    };
+  },
+  async getPautaProposal(key) {
+    if (!parseProposalKey(key)) return null;
+    const entry = demoPauta().find((e) => e.key === key);
+    if (!entry) return null;
+    return {
+      entry,
+      status: { kind: "na_pauta" },
+      schedule: [entry],
+      readAt: demoWeek().readAt,
+      fichaUrl: null,
+      presentedOn: null,
+      authors: [],
+      votes: [],
+    };
+  },
+  async listPocketRules() {
+    const terms = ["tributo", "imposto", "alíquota", "contribuição", "salário", "benefício", "aposentadoria", "pensão", "tarifa", "preço", "juros"];
+    const themes = [
+      "Direito e Defesa do Consumidor",
+      "Economia",
+      "Finanças Públicas e Orçamento",
+      "Indústria, Comércio e Serviços",
+      "Previdência e Assistência Social",
+      "Trabalho e Emprego",
+    ];
+    return [
+      { version: 2, themes, terms: [...terms, "linha de crédito", "FGTS", "renda", "dívida"], publishedOn: "2026-11-03" },
+      { version: 1, themes, terms: [...terms, "crédito", "FGTS", "renda", "dívida"], publishedOn: "2026-11-03" },
+    ];
+  },
 };
+
+function demoWeek() {
+  const now = new Date();
+  const dow = (now.getUTCDay() + 6) % 7; // segunda = 0
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dow, 3)); // 00:00 em Brasília
+  return {
+    starts: start.toISOString(),
+    ends: new Date(start.getTime() + 7 * 86400e3).toISOString(),
+    readAt: new Date(now.getTime() - 40 * 60e3).toISOString(),
+    at: (day: number, hour: number) => new Date(start.getTime() + day * 86400e3 + hour * 3600e3).toISOString(),
+  };
+}
+
+function demoPauta(): PautaEntry[] {
+  const { at } = demoWeek();
+  return [
+    {
+      key: "camara-pl-79-2020",
+      body: "camara",
+      type: "PL",
+      number: 79,
+      year: 2020,
+      summary:
+        "Altera o Decreto-Lei nº 1.305, de 8 de janeiro de 1974, e as Leis nºs 5.461, de 25 de junho de 1968, 5.989, de 17 de dezembro de 1973, 7.573, de 23 de dezembro de 1986, 8.706, de 14 de setembro de 1993, e 12.462, de 4 de agosto de 2011, além de dar outras providências, para dispor sobre a destinação das contribuições sociais compulsórias das empresas do setor de transporte aéreo e portuário, incluindo aquelas relativas à contratação do trabalhador portuário avulso (TPA).",
+      stage: "plenario",
+      committee: null,
+      scheduledFor: at(2, 13.9),
+      regime: "Urgência (Art. 155, RICD)",
+      rapporteur: "Arthur Oliveira Maia",
+      reason: { theme: "Indústria, Comércio e Serviços", term: "contribuição" },
+    },
+    {
+      key: "camara-pl-4567-2024",
+      body: "camara",
+      type: "PL",
+      number: 4567,
+      year: 2024,
+      summary:
+        "Inclui na Lei nº 12.933, de 26 de dezembro de 2023, que “dispõe sobre o benefício do pagamento de meia-entrada para estudantes, idosos, pessoas com deficiência e jovens de 15 a 29 anos comprovadamente carentes em espetáculos artístico-culturais e esportivos”, gratuidade para crianças menores de três anos.",
+      stage: "comissao",
+      committee: "CPASF",
+      scheduledFor: at(2, 14),
+      regime: "Ordinário (Art. 151, III, RICD)",
+      rapporteur: "Nely Aquino",
+      reason: { theme: "Indústria, Comércio e Serviços", term: "benefício" },
+    },
+  ];
+}

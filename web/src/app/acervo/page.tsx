@@ -1,5 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { Container } from "@/components/page/page-header";
+import { Container, PageHeader } from "@/components/page/page-header";
 import { BrazilMap } from "@/components/map/brazil-map";
 import { PlaceSearch } from "@/components/people/place-search";
 import { BigNumber, SourceFooter } from "@/components/ui/data";
@@ -7,7 +8,17 @@ import { data } from "@/lib/data";
 import { REGIONS, UF_ROWS } from "@/lib/data/reference";
 import { count } from "@/lib/format";
 
-export default async function Home() {
+export const metadata: Metadata = { title: "Acervo", description: "Quem ocupa cargo eletivo, do vereador ao presidente, com dados oficiais." };
+
+// D12: páginas que já existem e funcionam. Partidos, Governos e Eleições ficam fora: ainda estão em construção.
+const PAGES = [
+  { href: "/representantes", label: "Quem representa sua cidade", lead: "Do vereador ao presidente, a partir da sua cidade." },
+  { href: "/quem", label: "Quem é quem", lead: "Busca por nome, cargo, partido ou estado." },
+  { href: "/comparar", label: "Comparar", lead: "Duas a quatro pessoas lado a lado." },
+  { href: "/congresso", label: "Congresso", lead: "Votações do plenário da Câmara e do Senado." },
+];
+
+export default async function Acervo() {
   const [counters, munis, stamp] = await Promise.all([data.getCounters(), data.listMunicipalities(), data.getStamp("tse.candidatos")]);
   const byLetter = new Map<string, typeof munis>();
   for (const m of munis) {
@@ -16,11 +27,27 @@ export default async function Home() {
   }
   return (
     <Container>
+      <PageHeader title="Acervo" lead="O que já mostramos sobre quem ocupa cargo eletivo, com dados oficiais." />
+      <nav aria-label="Páginas do acervo" className="mb-10">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PAGES.map((p) => (
+            <li key={p.href}>
+              <Link
+                href={p.href}
+                className="flex h-full flex-col gap-1 rounded-md border border-border bg-surface p-4 outline-none hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-focus"
+              >
+                <span className="font-semibold text-fg">{p.label}</span>
+                <span className="text-sm text-muted">{p.lead}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
       <section aria-labelledby="hero-h" className="grid gap-8 py-4 md:grid-cols-[1.1fr_1fr] md:items-end">
         <div className="flex flex-col gap-6">
-          <h1 id="hero-h" className="sr-only">
+          <h2 id="hero-h" className="sr-only">
             Quem representa você
-          </h1>
+          </h2>
           <BigNumber value={counters.total} caption="pessoas no cargo hoje, da câmara da sua cidade a Brasília" />
           <div className="max-w-xl">
             <PlaceSearch label="Onde você mora?" />

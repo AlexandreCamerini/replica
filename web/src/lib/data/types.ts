@@ -196,6 +196,52 @@ export type ExpenseFilter = { year?: number; category?: string; cursor?: string;
 
 export type Agreement = { a: string; b: string; same: number; total: number };
 
+// Pauta "No seu bolso" (db/migrations/0005, 0007). O motivo de entrada sai da regra vigente, nunca de escolha manual.
+export type PautaStage = "plenario" | "comissao";
+export type PautaReason = { theme: string | null; term: string };
+export type PautaEntry = {
+  key: string; // camara-pl-79-2020: o endereço da proposta
+  body: Body;
+  type: string;
+  number: number;
+  year: number;
+  summary: string | null;
+  stage: PautaStage;
+  committee: string | null;
+  scheduledFor: string; // ISO
+  regime: string | null;
+  rapporteur: string | null;
+  reason: PautaReason;
+};
+export type PautaRead = { readAt: string | null; failed: number; total: number };
+export type PocketWeek = { total: number; atLeast: boolean; readAt: string | null; weekStarts: string; weekEnds: string };
+export type PautaOverview = {
+  week: PocketWeek;
+  plenary: PautaEntry[]; // conta no número: plenário nesta semana
+  later: PautaEntry[]; // plenário depois desta semana, dentro dos 14 dias
+  committees: PautaEntry[];
+  exits: (PautaEntry & { leftAt: string })[];
+  reads: Record<Body, PautaRead>;
+};
+export type PautaStatus =
+  | { kind: "na_pauta" }
+  | { kind: "saiu"; at: string }
+  | { kind: "reuniao_encerrada"; at: string }
+  | { kind: "reuniao_cancelada"; at: string }
+  | { kind: "sem_leitura"; lastSeenAt: string };
+export type PautaVote = { id: string; occurredAt: string; description: string; result: string | null; yes: number | null; no: number | null };
+export type PautaProposal = {
+  entry: PautaEntry;
+  status: PautaStatus;
+  schedule: PautaEntry[]; // onde está na última leitura (pode estar em mais de uma reunião)
+  readAt: string | null;
+  fichaUrl: string | null;
+  presentedOn: string | null;
+  authors: { slug: string; name: string; role: "principal" | "coautoria" }[];
+  votes: PautaVote[];
+};
+export type PocketRule = { version: number; themes: string[]; terms: string[]; publishedOn: string };
+
 /** Contrato da camada de dados. A versão fake e a Postgres implementam isto; nenhuma tela importa a implementação. */
 export interface DataSource {
   readonly isDemo: boolean;
@@ -233,4 +279,8 @@ export interface DataSource {
   getContacts(personId: string): Promise<ContactItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
   latestRefresh(): Promise<string>;
+  // R3 · pauta
+  getPautaOverview(): Promise<PautaOverview>;
+  getPautaProposal(key: string): Promise<PautaProposal | null>;
+  listPocketRules(): Promise<PocketRule[]>;
 }

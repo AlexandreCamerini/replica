@@ -1,22 +1,18 @@
 import { CAMPINAS, expect, test } from "./fixtures";
 
 test.describe("Shell e diretório", () => {
-  test("SH-H1 skip link, menu Mais por teclado, tema persiste, aria-current", async ({ page }) => {
+  test("SH-H1 skip link, navegação v1, tema persiste, aria-current", async ({ page }) => {
     await page.goto("/");
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Pular para o conteúdo" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.locator("#conteudo")).toBeFocused();
-    await expect(page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Início" })).toHaveAttribute("aria-current", "page");
-    const more = page.getByRole("button", { name: "Mais" });
-    await more.focus();
-    await page.keyboard.press("Enter");
-    const item = page.getByRole("menuitem", { name: "Quem publica dados" });
-    await expect(item).toBeVisible();
-    await item.click();
-    await expect(page).toHaveURL(/\/dados-abertos/);
-    await expect(page.getByRole("menu")).toBeHidden();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Quem publica dados");
+    const nav = page.getByRole("navigation", { name: "Principal" });
+    await expect(nav.getByRole("link")).toHaveText(["Entrada", "Pauta", "Como escolhemos", "Acervo"]);
+    await expect(nav.getByRole("link", { name: "Entrada" })).toHaveAttribute("aria-current", "page");
+    await nav.getByRole("link", { name: "Pauta" }).click();
+    await expect(page).toHaveURL(/\/pauta$/);
+    await expect(nav.getByRole("link", { name: "Pauta" })).toHaveAttribute("aria-current", "page");
     const dark = page.getByRole("radio", { name: "Tema escuro" });
     await dark.click();
     await expect(dark).toHaveAttribute("aria-checked", "true");

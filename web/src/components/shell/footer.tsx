@@ -9,8 +9,8 @@ export function AppFooter() {
         <div className="flex flex-col gap-3">
           <p className="font-display text-xl font-bold text-fg">quem·representa</p>
           <p className="max-w-[48ch] text-sm text-muted">
-            Mostramos o que os órgãos públicos publicam sobre quem ocupa cargo eletivo. Não damos nota, não fazemos ranking e não
-            recomendamos voto.
+            Mostramos o que Brasília decide sobre dinheiro, trabalho e benefícios, com o texto oficial. Não dizemos se uma proposta é boa
+            ou ruim.
           </p>
           <div className="md:hidden">
             <ThemeToggle />

@@ -18,7 +18,7 @@ const mono = JetBrains_Mono({ variable: "--ds-font-mono", subsets: ["latin"], di
 
 export const metadata: Metadata = {
   title: { default: "Quem representa você", template: "%s · quem·representa" },
-  description: "Quem está no cargo por você, do vereador ao presidente, com dados oficiais.",
+  description: "O que estão decidindo em Brasília que mexe no seu bolso, com o texto oficial e sem opinião.",
 };
 
 // aplica o tema salvo antes da primeira pintura (sem piscar)
