@@ -4,6 +4,7 @@
   civico-etl sapl.carregar  [--ibge CODIGO ...]     por câmara "ok": vereadores, mandatos, projetos, autorias, sessões,
                                                     presença e votos nominais da legislatura atual; casa vereador com o TSE
   civico-etl sapl.todas                             descobrir + carregar (padrão: capitais)
+  Opções: --full (recarrega tudo), --escopo capitais|todas, --lote N [--offset K] (janela de N câmaras), --orcamento-min M.
 
 Descoberta (D126): a fonte da URL é a página "Órgãos atendidos" do Interlegis
 (www12.senado.leg.br/interlegis/orgaosatendidos?uf=..&municipio=..; com &servico= a página dá 500), cartão "Câmara Municipal", linha "SAPL".
@@ -12,6 +13,13 @@ Não se chuta domínio. Depois, GET {url}/api/ precisa devolver o índice da API
 Crawler educado: User-Agent identificado (http.UA), uma câmara por vez, >= 1,1 s entre requisições ao mesmo host,
 robots.txt respeitado (assembleias.allowed), cache em disco (http.fetch; páginas valem 1 dia -> rodar de novo retoma
 de onde parou sem bater na rede). Escopo: só a legislatura atual (D127).
+Carga incremental (padrão): por câmara e entidade (matérias, autorias, presença, votos) fica um cursor em sapl_cursors (maior id
+da fonte visto no início da leitura). A próxima só pede o que veio depois (o=-id até cruzar o cursor menos uma margem) e,
+para matérias, o que foi editado desde a última leitura (data_ultima_atualizacao__gte; se a fonte ignorar o filtro, é detectado
+e só vale o cursor de id). Reabertura: margem de ids relidos abaixo do cursor, sessões plenárias sempre relidas por inteiro
+(poucas páginas; pega `finalizada`), presença/voto lançados depois entram com id novo e por isso caem acima do cursor.
+Carga completa automática se: sem cursor, legislatura mudou, última completa há mais de FULL_EVERY_DAYS, ou --full.
+Sem legislatura vigente cadastrada no SAPL é condição da fonte: vira data_coverage ("desconhecido" + motivo), run skipped_unchanged.
 Matérias: só projetos (tipo cujo nome começa com "Projeto": PL, PLC, PR, PDL, emenda à Lei Orgânica...);
 indicação, requerimento, moção e ofício ficam fora (mesma régua da D101 das Assembleias).
 Casamento (D128): vereador do SAPL -> pessoa do TSE com mandato de vereador no mesmo município e legislatura, por nome
@@ -26,8 +34,9 @@ import html as htmllib
 import logging
 import re
 import sys
-from datetime import date, datetime
-from typing import Any, Iterator
+import time
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Iterator, NamedTuple
 from urllib.parse import quote, urlencode
 
 import psycopg
@@ -43,6 +52,9 @@ MIN_INTERVAL = 1.1
 H.RATE = 1 / MIN_INTERVAL
 PAGE = 100
 DAY = 86400
+FULL_EVERY_DAYS = 30  # rede de segurança: recarga completa de cada entidade a cada 30 dias
+UPDATED_MARGIN_DAYS = 2  # matérias editadas: relê de (última leitura - 2 dias) em diante
+MARGIN = {"materias": 300, "autorias": 300, "presencas": 300, "votos": 1000}  # ids relidos abaixo do cursor
 REGISTRY = "https://www12.senado.leg.br/interlegis/orgaosatendidos"
 
 # Capitais com câmara municipal (Brasília não tem: CF art. 32). IBGE.
@@ -96,15 +108,15 @@ def _get(url: str, max_age: float = DAY) -> Any:
     return H.fetch_json(url, max_age=max_age)
 
 
-def pages(base: str, path: str, params: dict[str, Any] | None = None, *, stop=None, max_pages: int = 2000) -> Iterator[dict[str, Any]]:
+def pages(base: str, path: str, params: dict[str, Any] | None = None, *, stop=None, max_pages: int = 2000, max_age: float = DAY) -> Iterator[dict[str, Any]]:
     """Itera resultados paginados da API do SAPL (DRF). `stop(page_results) -> True` encerra após a página (varredura por id
     decrescente com o=-id). Monta a URL da página (os links `next` da fonte vêm em http://)."""
     q = dict(params or {})
-    q["page_size"] = PAGE
+    q.setdefault("page_size", PAGE)
     for n in range(1, max_pages + 1):
         q["page"] = n
         try:
-            d = _get(f"{base}/api/{path}/?{urlencode(q)}")
+            d = _get(f"{base}/api/{path}/?{urlencode(q)}", max_age=max_age)
         except FileNotFoundError:
             if n == 1:
                 raise
@@ -128,6 +140,102 @@ def _desc_until(key: str, floor: int):
         return bool(vals) and max(vals) < floor
 
     return stop
+
+
+# ------------------------------------------------------------------ incremental (puro, testado)
+
+
+class Plan(NamedTuple):
+    mode: str  # 'full' | 'incremental'
+    floor: int  # incremental: relê ids >= floor
+    since: date | None  # matérias editadas desde
+    why: str
+
+
+def entity_plan(cur: dict[str, Any] | None, leg_number: Any, now: datetime, *, full: bool, margin: int, full_every: int = FULL_EVERY_DAYS) -> Plan:
+    """Decide carga completa ou incremental de uma entidade, a partir do cursor guardado (ou None)."""
+    if full:
+        return Plan("full", 0, None, "--full")
+    if not cur:
+        return Plan("full", 0, None, "sem cursor")
+    if cur.get("legislature_number") != leg_number:
+        return Plan("full", 0, None, "legislatura mudou")
+    if cur.get("full_at") and now - cur["full_at"] > timedelta(days=full_every):
+        return Plan("full", 0, None, f"completa há mais de {full_every} dias")
+    lu = cur.get("last_updated")
+    since = (lu.date() - timedelta(days=UPDATED_MARGIN_DAYS)) if lu else None
+    return Plan("incremental", max(int(cur["last_id"]) - margin, 0), since, "cursor")
+
+
+def pick_legislature(legs: list[dict[str, Any]], today: date) -> dict[str, Any] | None:
+    cur = [x for x in legs if x.get("data_inicio") and x.get("data_fim") and x["data_inicio"] <= today.isoformat() <= x["data_fim"]]
+    return max(cur, key=lambda x: x["data_inicio"]) if cur else None
+
+
+def no_legislature_reason(legs: list[dict[str, Any]], today: date) -> str:
+    """Motivo legível (vai para data_coverage.reason e ingest_runs.error) quando o SAPL não tem legislatura vigente."""
+    if not legs:
+        quando = "nenhuma legislatura cadastrada"
+    else:
+        ult = max(legs, key=lambda x: x.get("data_fim") or "")
+        quando = f"última cadastrada: {ult.get('numero')}ª, {ult.get('data_inicio')} a {ult.get('data_fim')}"
+    return f"o SAPL da Câmara Municipal não tem legislatura vigente cadastrada em {today:%d/%m/%Y} ({quando}); condição da fonte, ainda sem carga"
+
+
+def window(scope: list[str], lote: int | None, offset: int | None) -> list[str]:
+    """Janela fixa [offset, offset+lote) do escopo ordenado."""
+    k = offset or 0
+    return scope[k : k + lote] if lote else scope[k:]
+
+
+def to_discover(scope: list[str], state: dict[str, dict[str, Any]], now: datetime, limit: int | None, retry_days: int = 7) -> list[str]:
+    """Códigos ainda não descobertos, mais os que ficaram fora do ar/sem API há mais de `retry_days`. Ordem do escopo."""
+    out = []
+    for c in scope:
+        st = state.get(c)
+        if st is None or (st["status"] in ("fora_do_ar", "sem_api") and now - st["checked_at"] > timedelta(days=retry_days)):
+            out.append(c)
+    return out[:limit] if limit else out
+
+
+def load_queue(scope: list[str], state: dict[str, dict[str, Any]], limit: int | None) -> list[str]:
+    """Fila de carga: câmaras 'ok' do escopo, nunca tentadas primeiro, depois a tentativa mais antiga."""
+    ok = [c for c in scope if (state.get(c) or {}).get("status") == "ok"]
+    ok.sort(key=lambda c: (state[c]["last_attempt_at"] is not None, state[c]["last_attempt_at"] or datetime.min.replace(tzinfo=timezone.utc), c))
+    return ok[:limit] if limit else ok
+
+
+def scan_desc(base: str, path: str, floor: int, params: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], int | None]:
+    """Varredura por id decrescente (o=-id) sempre na rede, parando na primeira página inteira abaixo de `floor`.
+    Devolve (itens lidos, maior id visto). floor 0 = tudo."""
+    items, mx = [], None
+    for it in pages(base, path, {"o": "-id", **(params or {})}, stop=_desc_until("id", floor) if floor > 0 else None, max_age=0):
+        items.append(it)
+        if isinstance(it.get("id"), int):
+            mx = it["id"] if mx is None else max(mx, it["id"])
+    return items, mx
+
+
+def head_id(base: str, path: str) -> int | None:
+    for it in pages(base, path, {"o": "-id", "page_size": 1}, max_pages=1, max_age=0):
+        return int(it["id"])
+    return None
+
+
+def updated_since(base: str, path: str, since: date, max_pages: int = 50) -> tuple[list[dict[str, Any]], bool]:
+    """Itens editados desde `since` (data_ultima_atualizacao__gte). (itens, filtro_ok). Se a fonte ignora o filtro, a primeira página
+    traz itens bem mais antigos que `since`: para na hora e devolve filtro_ok=False (vale só o cursor de id)."""
+    guard = (since - timedelta(days=1)).isoformat()  # tolera fuso
+    bad = {"v": False}
+
+    def stop(res: list[dict[str, Any]]) -> bool:
+        if any((r.get("data_ultima_atualizacao") or "9999")[:10] < guard for r in res):
+            bad["v"] = True
+        return bad["v"]
+
+    out = [it for it in pages(base, path, {"data_ultima_atualizacao__gte": since.isoformat(), "o": "-data_ultima_atualizacao"}, stop=stop, max_pages=max_pages, max_age=0)
+           if (it.get("data_ultima_atualizacao") or "9999")[:10] >= guard]
+    return out, not bad["v"]
 
 
 # ------------------------------------------------------------------ descoberta
@@ -177,12 +285,6 @@ def discover(conn: psycopg.Connection, codes: list[str]) -> list[dict[str, Any]]
 # ------------------------------------------------------------------ carga de uma câmara
 
 
-def _current_legislature(base: str, today: date) -> dict[str, Any] | None:
-    legs = list(pages(base, "parlamentares/legislatura"))
-    cur = [x for x in legs if x.get("data_inicio") and x.get("data_fim") and x["data_inicio"] <= today.isoformat() <= x["data_fim"]]
-    return max(cur, key=lambda x: x["data_inicio"]) if cur else None
-
-
 def _project_types(base: str) -> dict[int, tuple[str, str]]:
     out = {}
     for t in pages(base, "materia/tipomaterialegislativa"):
@@ -192,50 +294,123 @@ def _project_types(base: str) -> dict[int, tuple[str, str]]:
     return out
 
 
-def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | None = None) -> dict[str, int]:
+def _mat_row(hid: int, base: str, m: dict[str, Any], types: dict[int, tuple[str, str]], tid: int | None = None) -> tuple | None:
+    tid = tid if tid is not None else m.get("tipo")
+    if tid not in types or not (m.get("numero") and m.get("ano")):
+        return None
+    sig, name = types[tid]
+    return (hid, int(m["id"]), sig, name, int(m["numero"]), int(m["ano"]), m.get("data_apresentacao"),
+            (m.get("ementa") or "(sem ementa)").strip()[:4000], m.get("em_tramitacao"), f"{base}/materia/{m['id']}", m.get("texto_original"))
+
+
+def _cursors(conn: psycopg.Connection, hid: int) -> dict[str, dict[str, Any]]:
+    return {r["entity"]: dict(r) for r in conn.execute("select entity, last_id, last_updated, legislature_number, full_at from sapl_cursors where house_id = %s", (hid,))}
+
+
+def _save_cursor(conn: psycopg.Connection, hid: int, entity: str, last_id: int | None, last_updated: datetime | None, leg_number: Any, plan: Plan, now: datetime) -> None:
+    """Grava o cursor na mesma transação das linhas (run() faz o commit). Sem id visto (entidade vazia) não grava: próxima é completa."""
+    if last_id is None:
+        return
+    conn.execute(
+        """insert into sapl_cursors (house_id, entity, last_id, last_updated, legislature_number, full_at) values (%s, %s, %s, %s, %s, %s)
+           on conflict (house_id, entity) do update set last_id = excluded.last_id, last_updated = coalesce(excluded.last_updated, sapl_cursors.last_updated),
+             legislature_number = excluded.legislature_number,
+             full_at = case when %s then excluded.full_at else sapl_cursors.full_at end""",
+        (hid, entity, last_id, last_updated, leg_number, now, plan.mode == "full"))
+
+
+def house_totals(conn: psycopg.Connection, hid: int) -> dict[str, int]:
+    """Totais no banco (a cobertura descreve o que está guardado, não o que este run leu)."""
+    return {k: conn.execute(f"select count(*) as n from {t} where house_id = %s", (hid,)).fetchone()["n"]
+            for k, t in (("materias", "sapl_materias"), ("presencas", "sapl_presencas"), ("votos", "sapl_votos"))}
+
+
+def _no_legislature(conn: psycopg.Connection, house: dict[str, Any], r: Any, legs: list[dict[str, Any]], today: date) -> None:
+    """Condição da fonte, não falha: motivo em data_coverage (se nunca carregou) e em sapl_houses.note; run termina skipped_unchanged."""
+    why = no_legislature_reason(legs, today)
+    log.info("SAPL %s: %s", house["name"], why)
+    conn.execute("update sapl_houses set note = %s, last_attempt_at = now(), last_outcome = 'sem_legislatura' where id = %s", (why[:500], house["id"]))
+    if not house.get("loaded_at"):  # já carregada antes: não rebaixa a cobertura do que está guardado
+        upsert(conn, "data_coverage", ["place_id", "dataset", "status", "reason", "evidence_url", "checked_on"],
+               [(house["place_id"], ds, "desconhecido", why, f"{house['base_url']}/parlamentar/", date.today()) for ds in ("propostas", "presenca", "votos")], ["place_id", "dataset"])
+    conn.execute("update ingest_runs set error = %s where id = %s", (why[:2000], r.id))
+    conn.commit()
+    raise SkipUnchanged(f"sapl.{house['ibge_code']}")
+
+
+def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | None = None, *, full: bool = False) -> dict[str, int]:
     today = today or date.today()
     base, hid = house["base_url"], house["id"]
     stats: dict[str, int] = {}
+    now = datetime.now(timezone.utc)
     with run(conn, f"sapl.{house['ibge_code']}", "sapl") as r:
-        leg = _current_legislature(base, today)
+        legs = list(pages(base, "parlamentares/legislatura", max_age=0))
+        leg = pick_legislature(legs, today)
         if not leg:
-            raise RuntimeError("SAPL sem legislatura vigente cadastrada")
+            _no_legislature(conn, house, r, legs, today)
         y0 = int(leg["data_inicio"][:4])
+        ln = leg.get("numero")
         conn.execute("update sapl_houses set legislature_number = %s, legislature_start = %s, legislature_end = %s where id = %s",
-                     (leg.get("numero"), leg["data_inicio"], leg["data_fim"], hid))
+                     (ln, leg["data_inicio"], leg["data_fim"], hid))
+        cur = _cursors(conn, hid)
+        plans = {e: entity_plan(cur.get(e), ln, now, full=full, margin=MARGIN[e]) for e in MARGIN}
 
-        parl = list(pages(base, "parlamentares/parlamentar"))
+        parl = list(pages(base, "parlamentares/parlamentar", max_age=0))
         upsert(conn, "sapl_parlamentares", ["house_id", "sapl_id", "nome_parlamentar", "nome_completo", "sexo", "ativo", "foto_url"],
                [(hid, int(p["id"]), (p.get("nome_parlamentar") or p.get("nome_completo") or "?").strip(), (p.get("nome_completo") or "").strip() or None,
                  (p.get("sexo") or None) and p["sexo"][:1], p.get("ativo"), p.get("fotografia")) for p in parl], ["house_id", "sapl_id"],
                update=["nome_parlamentar", "nome_completo", "sexo", "ativo", "foto_url"])
-        mand = list(pages(base, "parlamentares/mandato", {"legislatura": leg["id"]}))
+        mand = list(pages(base, "parlamentares/mandato", {"legislatura": leg["id"]}, max_age=0))
         upsert(conn, "sapl_mandatos", ["house_id", "sapl_id", "parlamentar_sapl_id", "legislature_number", "started_on", "ended_on", "titular"],
-               [(hid, int(m["id"]), int(m["parlamentar"]), leg.get("numero"), m.get("data_inicio_mandato"), m.get("data_fim_mandato"), m.get("titular")) for m in mand],
+               [(hid, int(m["id"]), int(m["parlamentar"]), ln, m.get("data_inicio_mandato"), m.get("data_fim_mandato"), m.get("titular")) for m in mand],
                ["house_id", "sapl_id"])
         stats.update(parlamentares=len(parl), mandatos=len(mand))
 
+        # ---- matérias
         types = _project_types(base)
-        mats = []
-        for tid, (sig, name) in sorted(types.items()):
-            for y in range(y0, today.year + 1):
-                for m in pages(base, "materia/materialegislativa", {"tipo": tid, "ano": y}):
-                    if not (m.get("numero") and m.get("ano")):
-                        continue
-                    mats.append((hid, int(m["id"]), sig, name, int(m["numero"]), int(m["ano"]), m.get("data_apresentacao"),
-                                 (m.get("ementa") or "(sem ementa)").strip()[:4000], m.get("em_tramitacao"), f"{base}/materia/{m['id']}", m.get("texto_original")))
+        pl = plans["materias"]
+        mats: list[tuple] = []
+        new_cur: dict[str, tuple[int | None, datetime | None]] = {}
+        if pl.mode == "full":
+            head = head_id(base, "materia/materialegislativa")
+            for tid, (sig, name) in sorted(types.items()):
+                for y in range(y0, today.year + 1):
+                    for m in pages(base, "materia/materialegislativa", {"tipo": tid, "ano": y}, max_age=0):
+                        row = _mat_row(hid, base, m, types, tid)
+                        if row:
+                            mats.append(row)
+            new_cur["materias"] = (head, now)
+        else:
+            items, mx = scan_desc(base, "materia/materialegislativa", pl.floor)
+            seen = {m["id"]: m for m in items}
+            if pl.since:
+                upd, ok = updated_since(base, "materia/materialegislativa", pl.since)
+                if not ok:
+                    log.warning("SAPL %s: fonte ignora data_ultima_atualizacao__gte; matérias editadas só entram pelo cursor de id", house["name"])
+                for m in upd:
+                    seen.setdefault(m["id"], m)
+            mats = [row for m in seen.values() if int(m.get("ano") or 0) >= y0 and (row := _mat_row(hid, base, m, types))]
+            new_cur["materias"] = (mx if mx is not None else cur["materias"]["last_id"], now)
         upsert(conn, "sapl_materias", ["house_id", "sapl_id", "type_sigla", "type_name", "number", "year", "presented_on", "summary", "in_progress", "url", "text_url"],
                mats, ["house_id", "sapl_id"])
         stats["materias"] = len(mats)
 
-        mat_ids = {m[1] for m in mats}
-        autores = {int(a["id"]): a for a in pages(base, "base/autor")}
-        parl_ct = {int(t["id"]) for t in pages(base, "contenttypes/contenttype", {"model": "parlamentar"})}
+        # ---- autorias (completa se as matérias foram completas: matéria antiga nova no banco precisa das suas autorias)
+        pa = plans["autorias"] if pl.mode == "incremental" else Plan("full", 0, None, "matérias completas")
+        known_mat = {x["sapl_id"] for x in conn.execute("select sapl_id from sapl_materias where house_id = %s", (hid,))}  # já inclui as de agora (mesma transação)
+        if pa.mode == "full":
+            head = head_id(base, "materia/autoria")
+            aut_raw = list(pages(base, "materia/autoria", {"o": "-id"}, stop=_desc_until("materia", min(known_mat)), max_age=0)) if known_mat else []
+            new_cur["autorias"] = (head, None)
+        else:
+            aut_raw, mx = scan_desc(base, "materia/autoria", pa.floor)
+            new_cur["autorias"] = (mx if mx is not None else cur["autorias"]["last_id"], None)
         aut_rows = []
-        if mat_ids:
-            for a in pages(base, "materia/autoria", {"o": "-id"}, stop=_desc_until("materia", min(mat_ids))):
-                if a.get("materia") not in mat_ids:
-                    continue
+        aut_raw = [a for a in aut_raw if a.get("materia") in known_mat]
+        if aut_raw:
+            autores = {int(a["id"]): a for a in pages(base, "base/autor", max_age=0)}
+            parl_ct = {int(t["id"]) for t in pages(base, "contenttypes/contenttype", {"model": "parlamentar"})}
+            for a in aut_raw:
                 au = autores.get(int(a["autor"])) or {}
                 pid = au.get("object_id") if au.get("content_type") in parl_ct else None
                 aut_rows.append((hid, int(a["materia"]), int(a["autor"]), (au.get("nome") or "").strip() or None, pid, a.get("primeiro_autor")))
@@ -243,34 +418,57 @@ def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | No
                ["house_id", "materia_sapl_id", "autor_sapl_id"])
         stats["autorias"] = len(aut_rows)
 
-        sess = list(pages(base, "sessao/sessaoplenaria", {"legislatura": leg["id"]}))
+        # ---- sessões (sempre inteiras: poucas páginas, pega `finalizada`) e presença
+        known_sess = {x["sapl_id"] for x in conn.execute("select sapl_id from sapl_sessoes where house_id = %s", (hid,))}
+        sess = list(pages(base, "sessao/sessaoplenaria", {"legislatura": leg["id"]}, max_age=0))
         upsert(conn, "sapl_sessoes", ["house_id", "sapl_id", "starts_on", "starts_time", "name", "type_id", "finished", "url"],
                [(hid, int(s["id"]), s["data_inicio"], s.get("hora_inicio") or None, (s.get("__str__") or "sessão").strip(), s.get("tipo"), s.get("finalizada"), f"{base}/sessao/{s['id']}")
                 for s in sess if s.get("data_inicio")], ["house_id", "sapl_id"])
         stats["sessoes"] = len(sess)
-        sess_ids = {int(s["id"]) for s in sess}
+        sess_ids = {int(s["id"]) for s in sess} | known_sess
+        pp = plans["presencas"]
+        if pp.mode == "incremental" and known_sess and any(int(s["id"]) < max(known_sess) for s in sess if int(s["id"]) not in known_sess):
+            pp = Plan("full", 0, None, "sessão antiga cadastrada depois")  # backfill: presença dela tem id baixo
         pres = []
-        if sess_ids:
-            for p in pages(base, "sessao/sessaoplenariapresenca", {"o": "-id"}, stop=_desc_until("sessao_plenaria", min(sess_ids))):
-                if p.get("sessao_plenaria") in sess_ids and p.get("parlamentar"):
-                    pres.append((hid, int(p["sessao_plenaria"]), int(p["parlamentar"])))
+        if pp.mode == "full":
+            head = head_id(base, "sessao/sessaoplenariapresenca")
+            pres_raw = list(pages(base, "sessao/sessaoplenariapresenca", {"o": "-id"}, stop=_desc_until("sessao_plenaria", min(sess_ids)), max_age=0)) if sess_ids else []
+            new_cur["presencas"] = (head, None)
+        else:
+            pres_raw, mx = scan_desc(base, "sessao/sessaoplenariapresenca", pp.floor)
+            new_cur["presencas"] = (mx if mx is not None else cur["presencas"]["last_id"], None)
+        for p in pres_raw:
+            if p.get("sessao_plenaria") in sess_ids and p.get("parlamentar"):
+                pres.append((hid, int(p["sessao_plenaria"]), int(p["parlamentar"])))
         upsert(conn, "sapl_presencas", ["house_id", "sessao_sapl_id", "parlamentar_sapl_id"], pres, ["house_id", "sessao_sapl_id", "parlamentar_sapl_id"], update=[])
         stats["presencas"] = len(pres)
 
-        votos = []
-        for v in pages(base, "sessao/votoparlamentar", {"o": "-id"},
-                       stop=lambda res: bool(res) and all((x.get("data_hora") or "9999") < leg["data_inicio"] for x in res)):
-            if (v.get("data_hora") or "") >= leg["data_inicio"] and v.get("parlamentar") and v.get("votacao"):
-                votos.append((hid, int(v["id"]), int(v["votacao"]), int(v["parlamentar"]), (v.get("voto") or "?").strip(), v.get("data_hora"), (v.get("__str__") or "")[:2000] or None))
+        # ---- votos nominais
+        pv = plans["votos"]
+        if pv.mode == "full":
+            head = head_id(base, "sessao/votoparlamentar")
+            votos_raw = list(pages(base, "sessao/votoparlamentar", {"o": "-id"}, max_age=0,
+                                   stop=lambda res: bool(res) and all((x.get("data_hora") or "9999") < leg["data_inicio"] for x in res)))
+            new_cur["votos"] = (head, None)
+        else:
+            votos_raw, mx = scan_desc(base, "sessao/votoparlamentar", pv.floor)
+            new_cur["votos"] = (mx if mx is not None else cur["votos"]["last_id"], None)
+        votos = [(hid, int(v["id"]), int(v["votacao"]), int(v["parlamentar"]), (v.get("voto") or "?").strip(), v.get("data_hora"), (v.get("__str__") or "")[:2000] or None)
+                 for v in votos_raw if (v.get("data_hora") or "") >= leg["data_inicio"] and v.get("parlamentar") and v.get("votacao")]
         upsert(conn, "sapl_votos", ["house_id", "sapl_id", "votacao_sapl_id", "parlamentar_sapl_id", "voto", "voted_at", "description"], votos, ["house_id", "sapl_id"])
         stats["votos"] = len(votos)
 
+        final = {"materias": pl, "autorias": pa, "presencas": pp, "votos": pv}
+        for e, (lid, lu) in new_cur.items():
+            _save_cursor(conn, hid, e, lid, lu, ln, final[e], now)
+        log.info("SAPL %s: modos %s", house["name"], {e: f"{p.mode} ({p.why})" for e, p in final.items()})
+
         stats.update(match_vereadores(conn, house, leg))
-        conn.execute("update sapl_houses set loaded_at = now() where id = %s", (hid,))
+        conn.execute("update sapl_houses set loaded_at = now(), last_attempt_at = now(), last_outcome = 'carregada', note = null where id = %s", (hid,))
         r.add(sum(stats.values()))
         if stats.get("ambiguo") or stats.get("sem_candidato"):
             r.reject(stats.get("ambiguo", 0) + stats.get("sem_candidato", 0), "vereadores sem casamento único com o TSE (ver sapl_parlamentares.match_note)")
-    set_coverage(conn, house, stats)
+    set_coverage(conn, house, {**stats, **house_totals(conn, hid)})
     return stats
 
 
@@ -335,33 +533,71 @@ def set_coverage(conn: psycopg.Connection, house: dict[str, Any], stats: dict[st
 # ------------------------------------------------------------------ CLI
 
 
+def _scope(conn: psycopg.Connection, escopo: str) -> list[str]:
+    if escopo == "capitais":
+        return sorted(CAPITAIS)
+    return [r["ibge_code"] for r in conn.execute("select ibge_code from places where kind = 'municipio' and ibge_code is not null order by ibge_code")]
+
+
+def _state(conn: psycopg.Connection, codes: list[str]) -> dict[str, dict[str, Any]]:
+    return {r["ibge_code"]: dict(r) for r in conn.execute(
+        """select pl.ibge_code, h.status, h.checked_at, h.last_attempt_at from sapl_houses h join places pl on pl.id = h.place_id
+           where pl.ibge_code = any(%s)""", (codes,))}
+
+
 def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(prog="civico-etl sapl.*")
     p.add_argument("job", choices=["sapl.descobrir", "sapl.carregar", "sapl.todas"])
-    p.add_argument("--ibge", action="append", help="código IBGE do município (repetível); padrão: capitais")
-    p.add_argument("--max", type=int, default=10, help="carregar no máximo N câmaras 'ok' (padrão 10)")
+    p.add_argument("--ibge", action="append", help="código IBGE do município (repetível); padrão: o escopo")
+    p.add_argument("--escopo", choices=["capitais", "todas"], default="capitais", help="capitais (padrão) ou todos os municípios (descoberta em lotes)")
+    p.add_argument("--lote", type=int, help="no máximo N câmaras por execução (descobrir e carregar); sem --offset segue a fila (nunca tentadas, depois a tentativa mais antiga)")
+    p.add_argument("--offset", type=int, help="com --lote: janela fixa [offset, offset+lote) do escopo ordenado por IBGE")
+    p.add_argument("--max", type=int, default=10, help="carregar no máximo N câmaras 'ok' (padrão 10; --lote tem precedência)")
+    p.add_argument("--full", action="store_true", help="carga completa (ignora os cursores)")
+    p.add_argument("--orcamento-min", type=float, help="não começa nova câmara depois de M minutos")
     a = p.parse_args(argv)
-    codes = a.ibge or CAPITAIS
     conn = db.connect()
     failed = 0
+    t0 = time.monotonic()
     try:
-        if a.job in ("sapl.descobrir", "sapl.todas"):
-            discover(conn, codes)
+        limit = a.lote or a.max
+        now = datetime.now(timezone.utc)
+        if a.ibge:
+            scope = list(a.ibge)
+            todo_discover = scope
+        else:
+            scope = _scope(conn, a.escopo)
+            if a.offset is not None:
+                scope = window(scope, a.lote, a.offset)
+            todo_discover = to_discover(scope, _state(conn, scope), now, None if a.offset is not None else a.lote)
+        if a.job in ("sapl.descobrir", "sapl.todas") and todo_discover:
+            discover(conn, todo_discover)
         if a.job in ("sapl.carregar", "sapl.todas"):
-            houses = conn.execute(
-                """select h.*, pl.ibge_code, pl.name from sapl_houses h join places pl on pl.id = h.place_id
-                   where h.status = 'ok' and pl.ibge_code = any(%s) order by pl.name""", (codes,)).fetchall()
-            for h in houses[: a.max]:  # uma câmara por vez
+            state = _state(conn, scope)
+            order = load_queue(scope, state, limit)
+            if a.ibge:  # explícito: ordem por nome, como antes
+                order = [c for c in scope if (state.get(c) or {}).get("status") == "ok"][:limit]
+            if not order:
+                log.info("SAPL: nenhuma câmara 'ok' na fila deste lote")
+            houses = {h["ibge_code"]: dict(h) for h in conn.execute(
+                """select h.*, pl.ibge_code, pl.name from sapl_houses h join places pl on pl.id = h.place_id where pl.ibge_code = any(%s)""", (order or [""],))}
+            for code in order:  # uma câmara por vez
+                if a.orcamento_min and (time.monotonic() - t0) / 60 > a.orcamento_min:
+                    log.info("SAPL: orçamento de %.0f min esgotado; restantes ficam para o próximo lote", a.orcamento_min)
+                    break
+                h = houses[code]
+                t1 = time.monotonic()
                 try:
-                    s = load_house(conn, dict(h))
-                    log.info("SAPL %s: %s", h["name"], s)
+                    s = load_house(conn, h, full=a.full)
+                    log.info("SAPL %s em %.0fs: %s", h["name"], time.monotonic() - t1, s)
                 except SkipUnchanged:
-                    continue
+                    continue  # condição da fonte (ex.: sem legislatura vigente): já registrada como cobertura
                 except Exception as e:  # noqa: BLE001 - uma câmara fora do ar não derruba as outras
                     failed += 1
                     conn.rollback()
                     log.error("SAPL %s falhou: %s", h["name"], e)
-                    conn.execute("update sapl_houses set note = %s where id = %s", (f"carga falhou em {date.today()}: {e}"[:500], h["id"]))
+                    conn.execute("update sapl_houses set note = %s, last_attempt_at = now(), last_outcome = 'falhou' where id = %s",
+                                 (f"carga falhou em {date.today()}: {e}"[:500], h["id"]))
                     conn.commit()
     finally:
         conn.close()
