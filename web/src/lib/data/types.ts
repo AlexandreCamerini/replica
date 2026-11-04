@@ -212,6 +212,8 @@ export type PautaEntry = {
   regime: string | null;
   rapporteur: string | null;
   reason: PautaReason;
+  reviewedAt?: string | null; // respostas revisadas por pessoa e publicadas
+  plain?: string | null; // "o que propõe", revisado; no lugar da ementa nos cartões
 };
 export type PautaRead = { readAt: string | null; failed: number; total: number };
 export type PocketWeek = { total: number; atLeast: boolean; readAt: string | null; weekStarts: string; weekEnds: string };
@@ -239,7 +241,19 @@ export type PautaProposal = {
   presentedOn: string | null;
   authors: { slug: string; name: string; role: "principal" | "coautoria" }[];
   votes: PautaVote[];
+  answers: PublishedAnswers | null;
 };
+// Regra 3: respostas rascunhadas por IA, publicadas só depois de revisão humana (db/migrations/0009).
+export const ANSWER_FIELDS = ["o_que_propoe", "quem_recebe", "quem_paga", "o_que_muda", "dinheiro", "estimativa_impacto"] as const;
+export type AnswerField = (typeof ANSWER_FIELDS)[number];
+export type AnswerClaim = { says: boolean; text: string; quote: string; page: number; direction?: "entra" | "sai" | "dividido" | "nao_diz" };
+export type PublishedAnswers = {
+  reviewedAt: string;
+  sourceUrl: string;
+  fields: Record<AnswerField, AnswerClaim>;
+  correction: { correctedAt: string; note: string; previous: Record<AnswerField, AnswerClaim> } | null;
+};
+export type Correction = { key: string; label: string; correctedAt: string; note: string; changed: { field: AnswerField; before: AnswerClaim; after: AnswerClaim }[] };
 export type PocketRule = { version: number; themes: string[]; terms: string[]; publishedOn: string };
 
 /** Contrato da camada de dados. A versão fake e a Postgres implementam isto; nenhuma tela importa a implementação. */
@@ -283,4 +297,5 @@ export interface DataSource {
   getPautaOverview(): Promise<PautaOverview>;
   getPautaProposal(key: string): Promise<PautaProposal | null>;
   listPocketRules(): Promise<PocketRule[]>;
+  listCorrections(): Promise<Correction[]>;
 }

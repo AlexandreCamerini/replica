@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/page/page-header";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
+import { Claim, ReviewedBadge } from "@/components/pauta/answers";
 import { AboutData, ReviewBadge, where } from "@/components/pauta/ui";
 import { data, type PautaProposal } from "@/lib/data";
 import { count, date } from "@/lib/format";
@@ -60,13 +61,23 @@ export default async function Proposta({ params }: Props) {
           {bodyFullName(e.body)} · {e.type} · {typeName(e.type)}
         </p>
         <h1 className="font-display text-display text-fg">{label(e)}</h1>
-        <p className="text-base text-fg">
+        {e.plain && <p className="text-xl text-fg text-balance">{e.plain}</p>}
+        <p className={e.plain ? "text-sm text-muted" : "text-base text-fg"}>
           <span className="text-muted">Resumo oficial: </span>
           {e.summary ?? "A pauta da comissão não traz o resumo oficial. Ele está no texto oficial."}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <ReviewBadge />
-          <span className="text-sm text-muted">Por enquanto, só o resumo e o texto oficial.</span>
+          {p.answers ? (
+            <>
+              <ReviewedBadge at={p.answers.reviewedAt} />
+              {p.answers.correction && <span className="text-sm text-muted">Corrigida em {date(p.answers.correction.correctedAt)}.</span>}
+            </>
+          ) : (
+            <>
+              <ReviewBadge />
+              <span className="text-sm text-muted">Por enquanto, só o resumo e o texto oficial.</span>
+            </>
+          )}
         </div>
         <StatusNote p={p} />
         <div className="flex flex-wrap gap-2">
@@ -114,13 +125,37 @@ export default async function Proposta({ params }: Props) {
           {p.presentedOn && <p className="text-sm text-muted">Apresentada em {date(p.presentedOn)}.</p>}
         </Q>
 
-        <Q title="O que propõe? Quem ganha, quem paga e o que muda para mim?">
-          <p>Aguardando revisão. Uma pessoa confere cada resposta, com o trecho do texto oficial ao lado, antes de publicar.</p>
-          <p className="text-sm text-muted">O mesmo vale para a pergunta sobre o dinheiro: se entra, sai ou é dividido.</p>
-          <Link href="/como-escolhemos#revisao" className="text-sm text-accent-text underline underline-offset-2">
-            Como revisamos
-          </Link>
-        </Q>
+        {p.answers ? (
+          <>
+            <Q title="O que propõe?">
+              <Claim claim={p.answers.fields.o_que_propoe} sourceUrl={p.answers.sourceUrl} />
+            </Q>
+            <Q title="Quem ganha, quem paga e o que muda para mim?">
+              <div className="flex flex-col gap-4">
+                <Claim title="Quem recebe algo" claim={p.answers.fields.quem_recebe} sourceUrl={p.answers.sourceUrl} />
+                <Claim title="Quem paga" claim={p.answers.fields.quem_paga} sourceUrl={p.answers.sourceUrl} />
+                <Claim title="O que muda para quem mora no Brasil" claim={p.answers.fields.o_que_muda} sourceUrl={p.answers.sourceUrl} />
+              </div>
+            </Q>
+            <Q title="O dinheiro entra, sai ou é dividido?">
+              <div className="flex flex-col gap-4">
+                <Claim claim={p.answers.fields.dinheiro} sourceUrl={p.answers.sourceUrl} />
+                <Claim title="Estimativa de impacto oficial" claim={p.answers.fields.estimativa_impacto} sourceUrl={p.answers.sourceUrl} />
+              </div>
+              <Link href="/como-escolhemos#revisao" className="text-sm text-accent-text underline underline-offset-2">
+                Como escrevemos e revisamos
+              </Link>
+            </Q>
+          </>
+        ) : (
+          <Q title="O que propõe? Quem ganha, quem paga e o que muda para mim?">
+            <p>Ainda estamos lendo o texto. Por enquanto, veja o resumo e o texto oficial.</p>
+            <p className="text-sm text-muted">Uma pessoa confere cada resposta, com o trecho do texto oficial ao lado, antes de publicar.</p>
+            <Link href="/como-escolhemos#revisao" className="text-sm text-accent-text underline underline-offset-2">
+              Como revisamos
+            </Link>
+          </Q>
+        )}
 
         <Q title="Em que pé está, quando decidem e quem decide?">
           {p.schedule.length > 0 ? (
@@ -206,7 +241,17 @@ export default async function Proposta({ params }: Props) {
         </Q>
       </div>
 
-      <AboutData readAt={p.readAt} />
+      <AboutData
+        readAt={p.readAt}
+        extra={
+          p.answers && (
+            <p className="mt-2 max-w-[65ch] text-sm text-muted">
+              Respostas rascunhadas por IA a partir do texto oficial e revisadas por pessoa em {date(p.answers.reviewedAt)}.
+              {p.answers.correction && <> Corrigidas em {date(p.answers.correction.correctedAt)}: {p.answers.correction.note}</>}
+            </p>
+          )
+        }
+      />
     </Container>
   );
 }

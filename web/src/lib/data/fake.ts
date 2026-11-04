@@ -859,7 +859,11 @@ export const fakeSource: DataSource = {
       presentedOn: null,
       authors: [],
       votes: [],
+      answers: null,
     };
+  },
+  async listCorrections() {
+    return [];
   },
   async listPocketRules() {
     const terms = ["tributo", "imposto", "alíquota", "contribuição", "salário", "benefício", "aposentadoria", "pensão", "tarifa", "preço", "juros"];

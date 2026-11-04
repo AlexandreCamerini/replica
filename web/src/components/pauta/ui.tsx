@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ReviewedBadge } from "./answers";
 import type { PautaEntry, PautaRead } from "@/lib/data";
 import { bodyName, dateTime, dayShort, isStale, label, reasonText, typeName } from "@/lib/pauta";
 
@@ -28,12 +29,17 @@ export function PautaCard({ e, note, showDay = true }: { e: PautaEntry; note?: s
         <span className="text-base font-semibold text-fg">
           {label(e)} <span className="font-normal text-muted">· {typeName(e.type)}</span>
         </span>
-        <span className="line-clamp-3 text-sm text-fg">
-          <span className="text-muted">Resumo oficial: </span>
-          {e.summary ?? "A pauta da comissão não traz o resumo oficial."}
-        </span>
+        {e.plain ? (
+          <span className="text-base text-fg">{e.plain}</span>
+        ) : (
+          <span className="line-clamp-3 text-sm text-fg">
+            <span className="text-muted">Resumo oficial: </span>
+            {e.summary ?? "A pauta da comissão não traz o resumo oficial."}
+          </span>
+        )}
         <span className="text-xs text-muted">{reasonText(e)}</span>
-        {note ? <span className="text-sm text-fg">{note}</span> : <ReviewBadge />}
+        {note && <span className="text-sm text-fg">{note}</span>}
+        {!note && (e.reviewedAt ? <ReviewedBadge at={e.reviewedAt} /> : <ReviewBadge />)}
       </Link>
     </li>
   );

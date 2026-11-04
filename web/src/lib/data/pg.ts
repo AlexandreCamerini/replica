@@ -32,8 +32,13 @@ import type {
   PautaProposal,
   PautaStatus,
   PocketRule,
+  AnswerClaim,
+  AnswerField,
+  Correction,
+  PublishedAnswers,
 } from "./types";
-import { parseProposalKey, proposalKey, termLabel, uniqueByKey } from "../pauta";
+import { ANSWER_FIELDS } from "./types";
+import { label, parseProposalKey, proposalKey, termLabel, uniqueByKey } from "../pauta";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
 // Nenhuma query fora daqui. Listas públicas ordenam por nome (collation pt_br), nunca por métrica: regra de neutralidade.
@@ -652,7 +657,17 @@ export const pgSource: DataSource = {
       weekStarts: isoTs(wk?.week_starts),
       weekEnds: isoTs(wk?.week_ends),
     };
-    const all = rows.map((r) => pautaEntry(r, terms));
+    const published = await sql`
+      select b.kind, a.prop_type, a.prop_number, a.prop_year, a.reviewed_at, a.answers
+      from answer_drafts a join legislative_bodies b on b.id = a.body_id where a.status = 'publicado'`;
+    const pub = new Map(published.map((p) => [proposalKey(p.kind === "senado" ? "senado" : "camara", String(p.prop_type), Number(p.prop_number), Number(p.prop_year)), p]));
+    const withReview = <T extends PautaEntry>(e: T): T => {
+      const p = pub.get(e.key);
+      if (!p) return e;
+      const o = (p.answers as Record<string, { diz: boolean; frase: string }>).o_que_propoe;
+      return { ...e, reviewedAt: isoTs(p.reviewed_at), plain: o?.diz ? o.frase : null };
+    };
+    const all = rows.map((r) => withReview(pautaEntry(r, terms)));
     const inWeek = (e: PautaEntry) => e.scheduledFor >= week.weekStarts && e.scheduledFor < week.weekEnds;
     const read = (kind: string) => {
       const r = reads.find((x) => x.kind === kind);
@@ -666,7 +681,7 @@ export const pgSource: DataSource = {
       exits: uniqueByKey(
         exits
           .filter((r) => r.matched_term && (r.body_kind === "senado" || r.matched_themes))
-          .map((r) => ({ ...pautaEntry(r, terms), leftAt: isoTs(r.decided_at) })),
+          .map((r) => withReview({ ...pautaEntry(r, terms), leftAt: isoTs(r.decided_at) })),
       ),
       reads: { camara: read("camara_deputados"), senado: read("senado") },
     } satisfies PautaOverview;
@@ -723,8 +738,24 @@ export const pgSource: DataSource = {
           select id, occurred_at, description, result, yes_count, no_count from voting_events
           where proposal_id = ${prop.id}::uuid order by occurred_at desc limit 5`
       : [];
+    const [pubRow] = await sql`
+      select a.id, a.answers, a.reviewed_at, a.source_url, a.correction_note, prev.answers as prev_answers
+      from answer_drafts a join legislative_bodies b on b.id = a.body_id
+      left join answer_drafts prev on prev.id = a.replaces_id
+      where b.kind = ${kind} and a.prop_type = ${k.type} and a.prop_number = ${k.number} and a.prop_year = ${k.year} and a.status = 'publicado'`;
+    const answers: PublishedAnswers | null = pubRow
+      ? {
+          reviewedAt: isoTs(pubRow.reviewed_at),
+          sourceUrl: String(pubRow.source_url),
+          fields: claims(pubRow.answers),
+          correction: pubRow.prev_answers
+            ? { correctedAt: isoTs(pubRow.reviewed_at), note: String(pubRow.correction_note), previous: claims(pubRow.prev_answers) }
+            : null,
+        }
+      : null;
     return {
-      entry,
+      entry: answers?.fields.o_que_propoe.says ? { ...entry, reviewedAt: answers.reviewedAt, plain: answers.fields.o_que_propoe.text } : entry,
+      answers,
       status,
       schedule: current.map((r) => pautaEntry(r, terms)),
       readAt: readRow ? isoTs(readRow.read_at) : null,
@@ -742,6 +773,24 @@ export const pgSource: DataSource = {
     } satisfies PautaProposal;
   },
 
+  async listCorrections() {
+    const rows = await sql`
+      select b.kind, a.prop_type, a.prop_number, a.prop_year, a.reviewed_at, a.correction_note, a.answers, prev.answers as prev_answers
+      from answer_drafts a join answer_drafts prev on prev.id = a.replaces_id join legislative_bodies b on b.id = a.body_id
+      where a.status in ('publicado', 'substituido') order by a.reviewed_at desc limit 200`;
+    return rows.map<Correction>((r) => {
+      const after = claims(r.answers);
+      const before = claims(r.prev_answers);
+      const e = { type: String(r.prop_type), number: Number(r.prop_number), year: Number(r.prop_year) };
+      return {
+        key: proposalKey(r.kind === "senado" ? "senado" : "camara", e.type, e.number, e.year),
+        label: label(e),
+        correctedAt: isoTs(r.reviewed_at),
+        note: String(r.correction_note),
+        changed: ANSWER_FIELDS.filter((f) => JSON.stringify(before[f]) !== JSON.stringify(after[f])).map((f) => ({ field: f, before: before[f], after: after[f] })),
+      };
+    });
+  },
   async listPocketRules() {
     const rows = await sql`
       select r.version, r.terms, r.published_on,
@@ -778,4 +827,17 @@ function pautaEntry(r: Record<string, unknown>, terms: string[]): PautaEntry {
     rapporteur: (r.rapporteur as string | null) ?? null,
     reason: { theme: body === "camara" && themes?.length ? [...themes].sort((a, b) => a.localeCompare(b, "pt-BR"))[0] : null, term: termLabel(String(r.matched_term ?? ""), terms) },
   };
+}
+
+/** JSON do rascunho (campos em português, como o ETL grava) para o tipo da tela. Campo ausente = "O texto não diz". */
+function claims(raw: unknown): Record<AnswerField, AnswerClaim> {
+  const src = (raw ?? {}) as Record<string, { diz?: boolean; frase?: string; trecho?: string; pagina?: number; direcao?: string }>;
+  return Object.fromEntries(
+    ANSWER_FIELDS.map((f) => {
+      const a = src[f] ?? {};
+      const c: AnswerClaim = { says: Boolean(a.diz), text: a.frase ?? "", quote: a.trecho ?? "", page: Number(a.pagina ?? 0) };
+      if (f === "dinheiro") c.direction = (a.direcao as AnswerClaim["direction"]) ?? "nao_diz";
+      return [f, c];
+    }),
+  ) as Record<AnswerField, AnswerClaim>;
 }
