@@ -288,3 +288,37 @@ Rodada autônoma autorizada pelo dono do projeto: diff full stack contra politic
   - fila 6 → 19 (+13 linhas ELEITO do BUG-042);
   - `identity_repair_log` +16 (BUG-043) e `identity_split_log` +3 (BUG-041);
   - cota, campanha (782.143), votos por lugar (3.111.403) e observações de partido (6.328) sem mudança.
+
+## D245 · reparos de identidade na rotina: o que é legado e o que fica (replica-backend, 2026-11-04)
+- **D245 · `civico-etl identity.repairs [--apply]` (`etl/civico_etl/jobs/repairs.py`, `run_identity_repairs(conn, *, apply) -> dict[str, int]`).** Para agendar o ETL, cada um dos seis reparos de uma vez só foi conferido contra uma recarga. Critério: o dry-run do reparo, depois da carga, tem de dar 0. Resultado por reparo:
+  - `tse.fix019` (presidente 2x): **legado**. A regra está em `remotezip.pick_members` (D165, testes em `test_tse_bug019`). Dry-run no `civico` (2018, 2022 e 2026, lendo os `…_BR.csv` do CDN): 0 linhas `dobro`. As `divergente` (21 votos por lugar em 2018, 1 receita/despesa e 10 categorias em 2026) são as do D167 (fonte republicada), que o reparo nunca toca.
+  - `tse.fix032` (SQ sem o ano): **legado**. Chave `tse_key(ano, SQ)` (D210). `classify_all` sobre todas as candidaturas: 0 a religar ou remover no banco descartável (183.647 conferidas) e no `civico` (183.036).
+  - `tse.fix035` (2012 `ANO:UE:SQ`): **legado**. `tse_key` exige a UE em 2012 (D224). `restore` 0 e `rekey` 0 chaves antigas e 0 novas nos dois bancos.
+  - `identity.fix033` (+ `.devolver`): **legado** no resolve (D221), mas **a regra não estava inteira na carga**: o `identity.dedupe`, que o cli roda depois de toda carga da Câmara e do Senado, fundia na mesma cadeira e posse por "nome parlamentar igual OU nascimento igual", a regra que o D221 tirou do resolve. Eli Corrêa Filho e Geninho Zuliani (13/01/1976, SP, 01/02/2019) ou Átila Lira pai e filho seriam fundidos de novo se chegassem separados. `PAIRS_SQL` passou a exigir nascimento igual **e** token do nome civil em comum (`identity_name_tokens`, o `seat_match` em SQL) (BUG-046). No `civico`, as duas regras dão 0 pares hoje. Dry-run do `fix033` no `civico`: 9 suspeitos (os vínculos `name_birth_place` do Senado), 9 `ok`, 0 a separar.
+  - `identity.fix038` (nome + nascimento sem lugar): **legado**. `corroborate` (D235). `plan`: 11 casos achados nos dois bancos, 0 candidaturas a mover e 0 títulos errados.
+  - `identity.fix041` (BUG-041/042/043): **legado** nos passos 2 a 4 (`foreign_row`, `reissue`, `registration_rank` no resolve/loader; D240–D242). `plan_041` 0, `plan_043` 0, reemissão 0 nos dois bancos (fila ELEITO de eleição ordinária: 13 no `civico`, as do D241; 20 no descartável, que não tem Câmara/Senado/ALE). O **passo 1 não estava na carga**: o loader só grava em `tse_titulo_candidatura` as linhas que lê (ano e UFs da carga, só eleitos no modo padrão) e só dos títulos que já conhece. Um título que entra em 2024 não ganha as linhas de 2012. No banco descartável, depois da carga completa, faltavam 2.059 linhas. Os checks do BUG-038/039/041/043 e o `reissue` (dois títulos na mesma eleição são duas pessoas) leem essa tabela. Ele vira o passo `titulos` da rotina.
+- **Rotina (ordem fixa, documentada em `repairs.STEPS` e no docstring):** 1. `titulos`. Os seis scripts ficam no cli para resposta a incidente e **não rodam na rotina** (docstring do cli). A detecção de volta do defeito é o `check` (`checks_identity` + D168). O passo é idempotente: conta só linha nova ou com coluna diferente da fonte, e grava com `on conflict … where … is distinct from`. É não-destrutivo: linha que a fonte não tem mais fica e só sai no log. Escreve em lotes de 20.000 com commit. Se um passo falha, ele faz rollback do lote, interrompe os seguintes e propaga a exceção. A próxima execução retoma.
+- **Ordem da carga do TSE (BUG-047).** `run_tse` carrega do ano mais novo para o mais antigo (`tse_candidatos.load_order`). Pela D07, só eleição com mandato atual cria pessoa. Em ordem crescente, numa carga do zero, o histórico não entra. Prova num 2º banco descartável (PA, 2012 e depois 2024): 2012 gravou 0 candidaturas, e o check "título com linha ELEITO sem candidatura eleita" deu 1.857. Com 2012 + 2024 numa chamada só (desc), deu 1.512, todos de anos fora do recorte (2014–2022 e 2026): 0 em 2012 e 0 em 2024. O default do cli continua `[2018, …, 2026]`: a ordem é decidida dentro de `run_tse`.
+- **Prova.**
+  - Banco descartável `civico_rebuild` (migrações via `db/migrate.sh --local` + seed + `ibge.places` + `tse.candidatos --all` de 2012 a 2026, Brasil inteiro, em 7m50s, ordem 2026 → 2012):
+    - reparos legados em dry-run: 0 mudanças nos seis (o `fix019` não se aplica: o banco não tem votação);
+    - `identity.repairs`: dry-run 2.059 → `--apply` 2.059 → `--apply` 0 → dry-run 0;
+    - os 11 checks de identidade: 0.
+    - Totais do descartável (sem Câmara, Senado, ALE nem os fatos curados): 71.380 pessoas, 183.647 candidaturas e 70.854 mandatos em exercício. A diferença para o `civico` não é defeito do TSE: é o que as outras fontes e as separações D227/D236/D240 criam.
+  - Banco `civico`:
+    - snapshot `pg_dump -Fc --data-only` de 21 tabelas antes de tudo: `$TMPDIR` da sessão, `scratchpad/snapshot_pre_reload.dump`;
+    - recargas `tse.candidatos --force`: 2018 SP (Eli/Geninho), 2014 PI (Átila), 2012 PA (Divino, Marcelo Corrêa), eleitos; e 2016 BA `--all` (Nego Bia);
+    - md5 linha a linha de pessoas, candidaturas, mandatos, `person_external_ids`, bens, `tse_titulo_candidatura`, `party_memberships` e fila, antes × depois: idênticos;
+    - reparos legados em dry-run: 0;
+    - `identity.repairs` em dry-run deu 17. Não é defeito: o TSE republicou o `consulta_cand_2024` em 04/11/2026 05:25 GMT, e o cache baixou o zip novo. São 12 linhas novas de suplementares de 2025–2026 (CE 15989, SP 63479/71250, MG 45578, todas #NULO) e 5 resultados revistos em Manaus (02798): epaminondas, izaque-martins e nilson-am "ELEITO POR QP/MÉDIA" → "NÃO ELEITO"; serjao-am e lala "POR MÉDIA" → "POR QP";
+    - `--apply` 17 → 0 → dry-run 0;
+    - `check` 40/40;
+    - totais sem variação: pessoas 71.610, candidaturas 183.036, em exercício 70.834; `tse_titulo_candidatura` 186.488 → 186.500.
+  - pytest: `etl/tests/test_identity_repairs.py` com 9 testes (ordem, contrato, parada na falha, idempotência e não-destruição do `titulos` numa transação desfeita, dedupe com Eli/Geninho, pai/filho e o positivo, e ordem da carga). Os 2 testes do dedupe falham com a regra antiga.
+  - Os bancos descartáveis foram apagados no fim.
+- **Riscos que ficam.**
+  - (1) As candidaturas de 2024 de Manaus seguem com o resultado antigo até a próxima `tse.candidatos --year 2024`. A rotina pega isso pelo checksum novo do zip. Mandato não muda: o TSE não rebaixa status, a casa é dona.
+  - (2) O passo `titulos` lê o `consulta_cand` de 2012 a 2026 inteiro (12 s com o cache quente). Sem cache, baixa os zips (~600 MB).
+  - (3) Pessoa da casa sem nascimento, ou com nascimento diferente do TSE, não funde mais no dedupe e fica duplicada até alguém decidir. Hoje são 0 pares.
+  - (4) BUG-044 (título repetido com token em comum) segue aberto: o resolve e o check usam a mesma regra fraca.
+  - (5) BUG-048: votação e contas por SQ sem a UE em 2012.

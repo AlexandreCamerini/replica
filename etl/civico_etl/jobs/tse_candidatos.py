@@ -191,8 +191,15 @@ def _read(paths: list[Path], cols: list[str], where: str = "") -> list[dict[str,
     return out
 
 
+def load_order(years: list[int]) -> list[int]:
+    """Anos do mais novo para o mais antigo (D245). Pela D07 só a eleição com mandato atual ou a tomar posse cria pessoa; uma
+    eleição antiga só liga a quem já está no diretório. Em ordem crescente, numa carga do zero, 2012-2020 rodam antes de
+    existir a pessoa e a candidatura histórica dela não entra (o check do D238 acusa: título ELEITO sem candidatura eleita)."""
+    return sorted(set(years), reverse=True)
+
+
 def run_tse(conn: psycopg.Connection, *, years: list[int], ufs: list[str] | None, only_elected: bool, with_votes: bool, force: bool) -> None:
-    for year in years:
+    for year in load_order(years):
         try:
             cand = fetch(f"{BASE}/consulta_cand/consulta_cand_{year}.zip")
         except FileNotFoundError:

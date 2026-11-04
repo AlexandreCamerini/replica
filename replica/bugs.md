@@ -863,3 +863,25 @@ Actual: 513 candidaturas com resultado nulo, todas #NULO/#NULO# na fonte (322 e 
 Fix sugerido: não converter null em `nao_eleito` em `getCandidacies`, e deixar o rótulo "Sem resultado publicado" do componente aparecer.
 
 Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não converte mais null em "nao_eleito"; a tabela mostra "Sem resultado publicado". Usos de `result.startsWith` passaram a `result?.`. e2e `b045-resultado-nulo.spec.ts` (Veter Martins 2020) verde.
+
+## Agenda do ETL: reparos de identidade (2026-11-04, D245)
+
+### BUG-046: identity.dedupe ainda fundia na mesma cadeira por "nascimento igual OU nome parlamentar igual" (a regra que o D221 tirou do resolve)
+
+- Severity: S2 latente (0 pares no banco hoje; fusão de duas pessoas quando uma chega só pelo TSE e a outra só pela casa)
+- Flow / case: F03 / identidade · Build: 50ed1d9
+- Steps: duas pessoas com mandato de deputado federal por SP desde 01/02/2019, uma `status_source = 'tse'` e outra `'camara'`, 13/01/1976, nomes civis "Eugenio José Zuliani" e "Adriano Eli Corrêa" (ou "Átila Lira" pai e filho, com o mesmo nome parlamentar). `PAIRS_SQL` as pareia, e `run_dedupe` chama `merge_person`.
+- Expected: só funde com nascimento igual e token do nome civil em comum (D221).
+- Status: fixed (D245). `PAIRS_SQL` usa `identity_name_tokens`. Teste: `test_identity_repairs.py::test_dedupe_*`. Os testes falham com a regra antiga.
+
+### BUG-047: carga do TSE em ordem crescente de ano perde o histórico numa carga do zero
+
+- Severity: S3 (só em recarga do zero ou em banco novo; o `civico` foi carregado de 2026 para trás)
+- Steps: banco vazio, `tse.candidatos --year 2012 --uf PA --all` e depois `--year 2024`. 2012 grava 0 candidaturas, porque pela D07 só a eleição com mandato atual cria pessoa. O check do D238 dá 1.857.
+- Status: fixed (D245). `run_tse` carrega pelo `load_order`, do mais novo para o mais antigo. Recarga desc: 0 em 2012 e 2024 (sobram 1.512 de anos fora do recorte).
+
+### BUG-048: votação e contas do TSE casam a candidatura pelo SQ sem a UE; em 2012 o SQ se repete (BUG-035)
+
+- Severity: S4 latente (votação/contas de 2012 não são carregadas: o default é 2022+, e há 0 candidaturas de 2012 com voto)
+- Onde: `tse_votos_contas.run_votes`/`_apply`/`_finance_entries` e `tse_candidatos._load_votes` agregam por (SQ, turno) e gravam em toda candidatura do ano com o SQ. Nas 91 duplas de 2012, a ordinária e a suplementar de outro município receberiam a soma das duas.
+- Fix sugerido: em `SQ_COM_UE`, agregar por (SG_UE, SQ) e casar pela UE da disputa (como `pick_row`). Não corrigido: fora do escopo dos reparos de identidade.

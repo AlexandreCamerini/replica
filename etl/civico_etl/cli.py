@@ -15,6 +15,11 @@ Exemplos:
   civico-etl tse.fix035 [--apply]                                   # BUG-035: chave 2012 com a UE e restauração das candidaturas
   civico-etl identity.fix038 [--apply]                              # BUG-038: separa pessoas do TSE fundidas por nome + nascimento
   civico-etl identity.fix041 [--apply]                              # BUG-041/042/043: título repetido, reemitido e registro substituído
+  civico-etl identity.repairs [--apply]                             # rotina: reparos ainda necessários depois das cargas (D245)
+
+Os seis reparos de uma vez só acima (tse.fix019, tse.fix032, tse.fix035, identity.fix033[.devolver], identity.fix038 e
+identity.fix041) são legado e NÃO rodam na rotina: a regra deles está na carga (D245) e o `check` acusa se o defeito voltar.
+Ficam para resposta a incidente. A rotina roda `identity.repairs` depois de tse.candidatos e de camara/senado.diario.
   civico-etl derive.stats
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
   civico-etl run-due [--dry-run] [--only TAREFA --force]             # agenda (D250): roda o que venceu, check e alerta; exit 2 = alerta
@@ -53,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
 
         return sapl_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "identity.repairs", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -127,6 +132,11 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.identity_bug041 import run_fix as run_fix041
 
             run_fix041(conn, apply=a.apply)
+        if a.job == "identity.repairs":  # D245: só os reparos que a carga ainda não faz, em ordem fixa (jobs/repairs.py)
+            from .jobs.repairs import run_identity_repairs
+
+            res = run_identity_repairs(conn, apply=a.apply)
+            log.info("identity.repairs (%s): %s", "aplicado" if a.apply else "dry-run", res)
         if a.job in ("camara.diario", "all"):
             from .jobs.camara_diario import run_camara
 
