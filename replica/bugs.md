@@ -607,6 +607,8 @@ Fix sugerido: abrir a consulta `cota-parlamentar/sumarizado` por tipo de despesa
 
 Reverificação 3 2026-11-03: parcial. Não é defeito do clone, e em 6 dos 7 casos não há divergência nenhuma. A página tem duas tabelas "Gasto mensal": a da cota e, logo abaixo, a da **verba de gabinete**. O script da varredura do D230 leu a segunda quando a da cota tinha poucos meses. Com o recorte certo, a cota da página é igual ao arquivo: Santini 01–03/2021 (30.620,57, 27.795,14 e 37.693,44), Marcelo Brum 03/2022 (42.196,88), Bia Cavassa 03/2022 (35.719,58), Pedro Dalua 03/2022 (53.449,11), Jhonatan de Jesus 02/2023 (81.743,13) e Prof. Paulo Fernando 01/2024 (3.671,33). Os números do bug (86.467,45 etc.) são a verba de gabinete. Só Isnaldo Bulhões Jr. 03/2023 diverge de verdade: a página dá 44.926,63, contra 26.412,63 no arquivo. A diferença, 18.514,00, é exatamente 2 × (10.985 − 1.728) na linha de locação 10985/0/1728. É a mesma assinatura "2 × glosa" do BUG-034, com a glosa ausente do arquivo (`vlrGlosa` = 0), e a API não traz o mês. É divergência da fonte e da página, e o clone segue o arquivo, como o D230 decidiu para Félix 07/2024. Proposta: fechar como "não é defeito do clone", com o caso Isnaldo documentado no D230. O D230 também se apoiou nessa varredura ("7 meses diferem de R$ 7 mil a 70 mil"), e o texto deve ser corrigido.
 
+Status: closed, não é defeito do clone (D239). O texto do D230 foi corrigido: 6 dos 7 eram falso positivo, porque a varredura leu a "Verba de gabinete". Só Isnaldo 03/2023 é real, e é divergência da fonte (2 × glosa ausente do arquivo). O clone segue o arquivo.
+
 ### BUG-035: em 2012 o SQ_CANDIDATO não é único na eleição; o `tse.fix032` removeu 8 candidaturas do dono verdadeiro (3 mandatos)
 
 - Severity: S2 (histórico eleitoral verdadeiro apagado de 8 crachás. Alcir Costa perde o mandato de prefeito 2013–2016, e Professor Wander o de vice-prefeito)
@@ -671,6 +673,15 @@ Prováveis, sem a prova da mesma eleição: gordo (Nova Laranjeiras/PR, com a ca
 Cause: `identity.resolve`, ramo `name_birth`. Nome civil (ou nome de exibição) + nascimento únicos no diretório inteiro bastam, sem UF nem município. O título novo é então anexado à pessoa (`link(..., "tse-titulo", ...)`). `tse-titulo` não está em `SINGLE_ID_SOURCES`, então a trava do D221 ("quem já tem outro id da casa não é candidato") não vale para o título. Os outros 18 casos de dois títulos são a mesma pessoa, no mesmo município, com título reemitido.
 Fix sugerido: no `resolve` do TSE, quem já tem um título diferente do da linha não casa por nome + nascimento, e o caso vai para a fila (exceção: título reemitido no mesmo município). Separar as 7 com a trilha do `identity_split_log`. Check novo: pessoa com dois títulos que aparecem na mesma eleição (o CSV é necessário; dá para gravar o par título × ano de cada candidatura e checar em SQL).
 
+Status: fixed (fix ETL, D235–D237).
+- `resolve`: o título passa a ser id forte. Com título diferente, nunca casa. Nome civil + nascimento exige lugar em comum (UF da linha ou de nascimento na trajetória da pessoa). Sem prova, a linha vai para a fila.
+- `link_past_roster`: o nome de urna também ganhou a trava do id único.
+- `civico-etl identity.fix038` separou os 7 casos e os 4 prováveis, todos conferidos no `consulta_cand` 2012–2026. 8 candidaturas, com bens, despesas de campanha e votos por lugar, foram para 7 pessoas criadas a partir da fonte: `antonios-coiffeur`, `joao-batista-corretor`, `nego-bia`, `claudia-da-lagoa-nova`, `moca-mg`, `joao-do-marajoara` e `piqueno-to`. 4 títulos sem fato saíram (cida-da-saude-rn, luciano-dias, paulinho-do-rodolfo e gato-da-corrida). Os slugs dos donos foram mantidos, e tudo está em `identity_split_log`.
+- As candidaturas próprias que a fusão bloqueava foram recarregadas: joaozao 2020, Nego Bia 2016, Corretor 2016 e Claudia de Brejolândia 2024.
+- Check novo sobre `tse_titulo_candidatura` (migração 0065), com 0 hoje; ele pega a fusão do repolhinho de volta.
+- Auditoria da ALESP (216 vínculos) e da ALEMG (24): 0 vínculos errados.
+- Teste: `etl/tests/test_identity_bug038.py`.
+
 ### BUG-039: Divino (São João do Araguaia/PA) perdeu a candidatura eleita de 2012 e o mandato 2013–2016; o banco ficou com o registro INAPTO
 
 - Severity: S3 (histórico errado num crachá: candidatura sem resultado no lugar da eleita)
@@ -685,6 +696,8 @@ Expected: entre um registro substituído e o deferido e eleito, fica o eleito, c
 Actual: o crachá mostra a vereança de 2012 sem resultado e começa os mandatos em 2021. A meta do BUG-036 ("0 sem a candidatura de 2012") fica em 1 de 13.652.
 Cause: a regra de registro substituído (D211, loader e `fix032`) mantém a candidatura que já estava e descarta a outra, sem olhar situação nem resultado. O check novo "chave 2012:UE:SQ sem candidatura" só dispara quando a candidatura existe noutra pessoa, então não pega o caso. Nos outros 4 'conflito' do D211, ficou a certa: Felipe Pessoa, Arnaldo e Romualdo ficaram com a eleita, e Ricardo da Loja não está no diretório. Caso análogo em 2026: `chico-mendes` tem a candidatura #NULO a deputado estadual da PB, e a de 1º suplente de senador, ELEITO (150002549794), não foi carregada.
 Fix sugerido: no registro substituído, preferir APTO/eleito. Restaurar a 140000021364 e o mandato a partir de `identity_repair_log.raw`. O check deve olhar também a chave sem candidatura em ninguém.
+
+Status: fixed (fix ETL, D238). No loader e no `tse.fix032`, entre registros da mesma pessoa, da mesma disputa e com o mesmo número, fica o de maior posto (eleito > foi à urna > INAPTO/#NULO#). O inferior sai inteiro para `identity_repair_log` (BUG-039/`substituido`). A recarga de PA 2012 deixou `divino-pa` com a 140000021364 (ELEITO POR QP) e o mandato 2013–2016. O check novo ("título com linha ELEITO na fonte e pessoa sem candidatura eleita no ano") dava 3 (Divino, e Serafim Corrêa 2014 e 2018, carregados agora) e dá 0. Não tratado: chico-mendes 2026, que não é a mesma disputa (suplente de senador não é carregado).
 
 ### BUG-040: e2e vermelho: FX-024 e B034-3 esperam o vice do AM como lacuna, mas o D228 criou Serafim Corrêa
 
