@@ -488,3 +488,80 @@ Duas observações, sem bug aberto:
 - Se "Roberto Oluran" (Itu 2012) é o Gato da Corrida: mesmo nome e nascimento, título de outra UF. O vínculo saiu e não havia fato na tela.
 - As 2.906 divergências de nome civil uma a uma. Filtrei por tokens em comum (0 ou 1) e por nascimento.
 - Os vice-governadores que aparecem como vagos (11 UFs) e os prefeitos em exercício de Recife e Manaus contra os atos de posse.
+
+# Reverificação 5: BUG-041, BUG-042, BUG-043 e D240–D244, 2026-11-03
+
+- Escopo: commits f49f969 e 616ec23, contra o Postgres local e o 3101 (`next dev`).
+- Fontes: `consulta_cand` 2012–2026 (índice SQLite de 2.110.710 linhas) e `bem_candidato` do cache do ETL.
+
+Nenhum código e nenhum dado foram corrigidos. Rodei `derive.stats` 2 vezes. A única escrita foi uma transação desfeita, para provar que o check do D240 dispara.
+
+## Veredito: entregável
+
+Não há S1 nem S2 aberto. Must 17 de 17 e paridade 86,8. Abri 2 S3:
+
+| # | Sev. | Resumo |
+|---|---|---|
+| BUG-044 | S3 | O "E" do D240 deixa casar pelo título a linha de outra pessoa que tem 1 token em comum: Genilde × Renata Emily "Silva" (Cruzeiro do Sul/AC), Maria Isabel × Silvana Maria (Paty do Alferes 2012, mesma eleição), Djalmiro × Sarah Urbieta, Daora × Kotsario Kanamari. É latente: nenhuma dessas pessoas está no diretório e há 0 fusões no banco. |
+| BUG-045 | S3 | `pg.ts` converte resultado nulo em "nao_eleito". As 513 candidaturas #NULO (491 em crachás de quem está em exercício) aparecem como "Não eleito". |
+
+## Bug × veredito
+
+| Bug | Veredito | Evidência |
+|---|---|---|
+| BUG-041 | confirmado | willya-do-rampa só com 2020/2024 PDT e o título, sem PTB. virginia-go com a 90000003345 (PTB 14222, renúncia, 26/08/1993). O check dá 0 e volta a 1 na transação desfeita. Das 1.680 linhas de nascimento divergente, só 2 são duas pessoas, e as 2 já foram separadas. Regra fraca para o futuro: BUG-044. |
+| BUG-042 | confirmado | Eloisa 2016 (130000040058, PSDB 45666, ELEITO POR QP, R$ 83.500,00) e Nelson 2012 (240000003602, PP 11, ELEITO, R$ 1.694.000,00) batem com o CSV, com mandato e crachá. 5 de 13 itens novos da fila conferidos. A regra fonética não tem falso positivo achado e tem falsos negativos que só vão para a fila. |
+| BUG-043 | confirmado | 6 de 16 trocas batem com o CSV (Ruty, Giovani, Cido, Terezinha, Gil e Veter) em número, situação, partido e bens. Removidos em `identity_repair_log`, sem mandato. |
+| D244 / B034-3 | confirmado | Verde na suíte. |
+
+## BUG-041: amostra dos nascimentos divergentes
+
+Classifiquei as 1.680 linhas da fonte (título do diretório, nascimento diferente do da pessoa, 1.387 pessoas), todas, não por amostra:
+
+| Nome da linha × pessoa | Linhas | Leitura |
+|---|---|---|
+| Nome civil igual | 1.577 | Digitação de data: dia 615, mês 394, ano 406, dia e mês trocados 22, outros 140 |
+| Nome parecido (Jaccard ≥ 0,5) | 98 | Grafia (Edvan × Edivan, Valdecy × Valdecir), mesma pessoa |
+| Nome fraco (0 a 1 token) | 5 | Willya × Virginia e José Carlos × Manoel Juvenil (2 pessoas, 0 token), e Edemar × Edmar, Paparico, Teresinha (mesma pessoa, 1 token) |
+
+Taxa de duas pessoas: 2 em 1.680 (0,12%), as 2 sem token em comum e já separadas. No banco, o "E" não deixou passar nada. Na fonte inteira (12.398 títulos com mais de um nascimento), há pares de duas pessoas com 1 token em comum que o "E" casaria (BUG-044). Isso não acontece hoje, porque nenhuma delas está no diretório. Uma regra pelo primeiro nome (até 2 edições) rejeitaria esses pares. Nas 1.680 linhas, ela rejeita só as 2 fusões e dr-auri (hífen).
+
+## BUG-042: regra fonética
+
+- Falso positivo: nenhum achado. Na fonte, os 6 pares com mesmo município e nascimento, títulos diferentes e fonética igual parecem a mesma pessoa e nunca concorrem juntos: Vilson × Wilson Luiz Martins, Souza × Sousa Rezende, Geise × Geize Leppaus, Ferrreira × Ferreira, Elizabeth × Elisabeth e Cesar × Cezar Felicio. O risco teórico são gêmeos com nomes que só diferem em h, y/i ou letra dobrada (Tais × Thais, Ana × Hana dão a mesma forma).
+- Falso negativo, real: Nei Cristiano Correa × Correia da Silva (UE 04634, 01/10/1976), Maria de Lourdes × Lurdes Dias (92150) e Erika Keinilia × Keinilla (04286). Teórico: Christiane × Cristiane ("ch" fica) e Felipe × Filipe. O custo é a fila, não a fusão.
+- A cautela se justifica: dos 54 pares a até 2 edições com fonética diferente, 23 concorrem na mesma eleição (gêmeos: Diogo × Diego, Mayana × Mayara, Liliana × Liliane).
+- Fila (19), 5 dos 13 novos conferidos na fonte: Evaldo × evandro-dd (provável mesma pessoa, fila justa), Carlinho de Chalé 1963 × carlin-maroba 1977, Fofão 1971 × carlos-da-saude-pe 1979, Zequinha 1960 × bepino 1955 (homônimos) e Caçula Muniz 2016 ('-4', sem nascimento) × cacula-muniz.
+- Os 2 títulos anexados por reemissão ficaram com `match_method` 'exact_id' e confiança 1,000, e não 0,9. Sem efeito na tela.
+
+## Regressão
+
+- `pytest` do ETL: 111 de 111.
+- `derive.stats` + `check`, 2 rodadas: 40 de 40 ok nas 2. `party_memberships` tem 139.147 linhas, com o mesmo md5 antes e depois das 2 rodadas (9aa016d9…, minha fórmula: pessoa, partido, `from_on` e `to_on`).
+- Totais iguais ao "Depois" do D244: pessoas 71.610, candidaturas 183.036, em exercício 70.834. A home bate.
+- e2e completo contra o 3101 com o servidor ocioso (`--output test-results-reverify5`): 181 passed, 4 flaky, 1 skipped e 0 failed, em 7,6 min (454 s de relógio). Os 4 flaky passaram no retry: F01-H1, S22-H2, S18-H3 e FX-AX mobile. Um deles é "Hydration failed", do modo dev.
+
+### Desempenho: 5,9 → 13,4 → 7,6 min
+
+Não é regressão:
+- O código de dados do web não muda desde cf1dcde, o build da Reverificação 3.
+- 5 páginas com o servidor ocioso, em 3 chamadas (TTFB da 1ª → 3ª): `/p/adriana-ventura` 0,76 → 0,30 s, `/representantes?cidade=3509502` 0,69 → 0,40 s, home 0,12 → 0,09 s, `/partidos` 3,96 → 0,52 s (1ª compila a rota) e `/comparar` 0,35 → 0,13 s.
+- EXPLAIN ANALYZE, todas abaixo de 13 ms:
+  - `HOLDER_SELECT` de Ribeirão Preto com `person_current_party`: 2,2 ms;
+  - `listParties`: 13,0 ms, com seq scan paralelo em `mandates`, 70 mil linhas;
+  - `getCandidacies`: 0,14 ms;
+  - `person_current_party`: 0,01 ms;
+  - lacunas de governador: 0,09 ms.
+- O web não lê `tse_titulo_candidatura` nem os logs de identidade.
+
+A diferença está no `next dev`. O worker do 3101 tinha sido reiniciado 1 h antes, e a 1ª visita de cada rota compila. Os testes mais lentos desta rodada são os primeiros a tocar cada rota (F01-H1 6,7 → 22,2 s, SHARE-H1 11,6 → 26,3 s), e a soma dos tempos por teste foi de 693 s para 895 s. Os 13,4 min da Reverificação 4 somam essa compilação a timeouts de 60 s com retry (SH-E2). Recomendação, sem bug aberto: medir a suíte contra `next start`, como o próprio `playwright.config.ts` já faz sem `E2E_BASE_URL`.
+
+- Paridade (`parity.py`): 86,8. Must 17 de 17.
+
+## O que não conferi e por quê
+
+- As outras 10 trocas do BUG-043 e os outros 8 itens novos da fila: conferi 6 e 5.
+- As 80 linhas não eleitas do BUG-042, que só entram na próxima carga `--all`, e as 2 suplementares ELEITO (Gelson, Davino Serrath), que ficaram só no relatório. Os mandatos encerrados delas seguem fora.
+- Votos de Eloisa 2016 e Nelson 2012: `votacao_candidato_munzona` não está em cache.
+- Se Evaldo × Evandro "DD" e Paulo Roberto × Paulette Roberta (Palmares, mesmo título) são a mesma pessoa: a fonte não basta.
+- A filiação aberta de `virginia-go` (PTB desde 2012, sem fim) segue a regra geral do `derive`. Não avaliei se o crachá a mostra como vigente: a página não exibe partido para quem não tem mandato.

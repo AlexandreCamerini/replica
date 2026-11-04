@@ -761,6 +761,8 @@ Status: fixed (fix ETL, D240 e D243).
 - /p/willya-do-rampa: sem 2012 e sem PTB. Depois do `derive.stats`, o `party_memberships` dele tem só o PDT desde 15/11/2020.
 - Varredura das 2.107.128 linhas do `consulta_cand` 2012–2026 com o resolve novo: nenhuma outra linha com título do diretório e identidade de outra pessoa. A classe tinha 1 caso.
 
+Reverificação 5 2026-11-03: confirmado, com a regra fraca (BUG-044). Contra o `consulta_cand`: willya-do-rampa tem só 2020 (90000941318, nº 12222, PDT, SUPLENTE) e 2024 (90001956068, nº 12111, PDT, ELEITO POR MÉDIA), o título 025677851031 e o PDT desde 15/11/2020; o crachá não mostra 2012 nem PTB. virginia-go tem a 90000003345 (Cachoeira de Goiás 2012, nº 14222, PTB, renúncia), 26/08/1993, sexo f, sem título, sem mandato. O check novo dá 0 e volta a 1 numa transação desfeita que devolve a candidatura a willya-do-rampa. Amostra dos nascimentos divergentes: as 1.680 linhas de `tse_titulo_candidatura` com título do diretório e nascimento diferente do da pessoa (1.387 pessoas), todas classificadas. 1.577 têm o mesmo nome civil (dia 615, mês 394, ano 406, dia e mês trocados 22, outros 140), 98 têm nome com Jaccard ≥ 0,5 e 5 têm nome fraco. Só 2 são duas pessoas (Virginia e Manoel Juvenil × ze-galinha, as 2 sem token em comum, já separadas): 2 em 1.680, cerca de 0,1%. Nenhuma fusão com token em comum no banco hoje. Na fonte inteira, porém, o "E" deixa passar duas pessoas com o mesmo título e um token comum, como Genilde dos Santos Silva (1972) × Renata Emily da Silva Corrêa (1985), Cruzeiro do Sul/AC, título 004563082453. Ver BUG-044.
+
 ### BUG-042: título reemitido no mesmo município com grafia diferente do nome: mandato eleito some do crachá sem passar pela fila
 
 - Severity: S3 (histórico incompleto: falta um mandato encerrado. Nada errado é mostrado)
@@ -784,6 +786,8 @@ Status: fixed (fix ETL, D241 e D243).
 - Marcos do Santa Clara 2020 (nascimento 1988 × 1986, título diferente) vai para a fila pela regra nova. A linha é suplente e não foi recarregada.
 - Check: o do D238 ("título com linha ELEITO na fonte e pessoa sem candidatura eleita") passa a cobrir os 2, porque os títulos novos entraram no diretório e em `tse_titulo_candidatura`. Dá 0.
 - `'-4'` (título não divulgável, 1.701 linhas na fonte) deixou de ser tratado como título no `resolve` e no loader. Antes, a primeira pessoa criada com ele receberia todas as outras linhas "-4" pelo título. Não havia nenhuma no banco.
+
+Reverificação 5 2026-11-03: confirmado. Eloisa 2016 confere com o CSV: 130000040058, Sericita, nº 45666, PSDB, ELEITO POR QP, título 065899330248, bens R$ 83.500,00 (2 itens), mandato 2017–2021 no banco e "2016 Vereadora · Sericita · PSDB Eleita por quociente partidário" no crachá. Nelson 2012 confere com o CSV: 240000003602, Vargem, prefeito, nº 11, PP, ELEITO, NELSON GASPERIM JUNIOR, 25/08/1977, título 031866510949, bens R$ 1.694.000,00 (5 itens), mandato 2013–2017 no crachá. Fila: 5 dos 13 novos conferidos na fonte, com a pessoa candidata certa e a decisão de não casar justa. Evaldo × evandro-dd (Flores do Piauí, 17/04/1972, títulos diferentes, provável mesma pessoa). Carlinho (Chalé 1963) × carlin-maroba (1977). Fofão (Toritama 1971) × carlos-da-saude-pe (1979). Zequinha (Ermo 1960) × bepino (1955). Caçula Muniz 2016 (título '-4', sem nascimento) × cacula-muniz (mesmo nome). Os 3 homônimos são pessoas diferentes. A fila só os mostra a um humano e não funde nada. Regra fonética: nenhum falso positivo achado. Na fonte, os 6 pares com mesmo município e nascimento, títulos diferentes e forma fonética igual (Vilson × Wilson Luiz Martins, Souza × Sousa Rezende, Geise × Geize, Ferrreira, Elizabeth × Elisabeth, Cesar × Cezar) nunca concorrem juntos e parecem a mesma pessoa. Dos 54 pares a até 2 edições com fonética diferente, 23 concorrem na mesma eleição (gêmeos), o que confirma a cautela. Há falsos negativos (vão para a fila em vez de casar): Nei Cristiano Correa × Correia da Silva (04634, 1976), Maria de Lourdes × Lurdes Dias (92150, 1953), Erika Keinilia × Keinilla (04286). Teóricos: "ch" não vira "c" (Christiane ≠ Cristiane) e "e" ≠ "i" (Felipe ≠ Filipe). Custo: um mandato encerrado na fila, sem fusão errada. Observação: os 2 títulos anexados têm `match_method` 'exact_id' e confiança 1,000, embora venham da regra fonética (0,9). Sem efeito na tela.
 
 ### BUG-043: 16 disputas ficaram com o registro INAPTO/#NULO# e não com o registro APTO da mesma pessoa (resto do BUG-039)
 
@@ -813,3 +817,47 @@ Status: fixed (fix ETL, D242 e D243).
 - O loader ordenava as linhas por "eleito primeiro". Entre não eleitos, o INAPTO podia vir antes do APTO e barrar o APTO como "pessoa duplicada". Agora a ordem é pelo posto (`registration_rank`).
 - Os bens do registro inferior e os do válido têm a mesma soma nas 14 disputas que tinham bens. O total de bens não mudou com esta parte.
 - Não tratado: as 19 suplementares com os 2 registros no banco (Reverificação 3).
+
+Reverificação 5 2026-11-03: confirmado. 6 das 16 trocas conferidas contra o CSV (número, situação, resultado, partido e bens), e o registro removido está em `identity_repair_log` (BUG-043, 16 linhas, 0 mandato):
+- Ruty Freitas 2020: 250000648544, nº 10500, REPUBLICANOS, APTO/SUPLENTE no lugar do INAPTO/#NULO, bens R$ 14.000,00.
+- Giovani Ratinho 2020: 190000920929, nº 90, PROS, prefeito, APTO/NÃO ELEITO, bens R$ 270.000,00.
+- Cido Reis 2018: 130000627072, nº 40456, PSB, APTO/SUPLENTE, bens R$ 650.000,00, igual ao INAPTO.
+- Terezinha Salesse 2012: 250000102946, nº 14, PTB, INAPTO/NÃO ELEITO (indeferido) contra o #NULO# (renúncia), bens R$ 589.157,51.
+- Gil Bobinho 2016: 170000010867, nº 18018, REDE, INAPTO/NÃO ELEITO contra o #NULO#, bens R$ 22.000,00.
+- Veter Martins 2014: 90000001316, nº 31500, PHS, INAPTO/NÃO ELEITO, bens R$ 416.400,00 (4 itens).
+
+Nos 3 crachás abertos (veter-martins, ruty-freitas e gil-bobinho), a linha bate. O check novo dá 0 nas 2 rodadas. Achado lateral: no mesmo crachá, Veter 2020 (INAPTO/#NULO, resultado nulo no banco) aparece como "Não eleito". Ver BUG-045.
+
+### BUG-044: título repetido pelo TSE com um token de nome em comum ainda casa (o "E" do D240)
+
+- Severity: S3 (latente: nenhuma fusão no banco hoje, 0 de 1.680 linhas. Vira S2 quando uma das pessoas entrar no diretório e a outra linha vier na carga)
+- Flow / case: F03 / identidade · Screen: S05 · Build: 616ec23
+- Browser / device: `consulta_cand` 2012–2026 do cache do ETL (índice SQLite) e Postgres local
+
+Steps
+1. Na fonte, agrupar por título as linhas com nascimentos diferentes (12.398 títulos) e procurar pares com nome civil de token fraco (primeiro nome diferente e Jaccard < 0,5).
+2. Pares que são duas pessoas e têm 1 token em comum:
+   - 004563082453, Cruzeiro do Sul/AC: GENILDE DOS SANTOS SILVA, 22/10/1972 (2020) × RENATA EMILY DA SILVA CORRÊA, 27/06/1985 (2024). Token "silva".
+   - 037966060353, Paty do Alferes/RJ 2012: MARIA ISABEL DE SA MAMEDIR, 1943 × SILVANA MARIA DA ROCHA MARQUES, 1970. Token "maria", e as duas na mesma eleição.
+   - 049983051090, Itumbiara/GO: DJALMIRO ALVES URBIETA FILHO × SARAH MAGALHÃES URBIETA. Outro sexo, token "urbieta".
+   - 030588382232, Itamarati/AM: DAORA KANAMARI, 1982 × KOTSARIO PEDRO KANAMARI, 1999. Token "kanamari".
+3. `foreign_row` só rejeita com nascimento diferente E nenhum token em comum. Nos 4 casos há 1 token, e `resolve` daria `exact_id` à pessoa que já tivesse o título.
+
+Expected: a linha de outra pessoa com o título repetido não casa pelo título (D240).
+Actual: um sobrenome comum ou "Maria" basta para casar. Hoje nenhuma das 8 pessoas está no diretório, e por isso o check do D240 dá 0. Ele usa a mesma regra e também não veria o caso.
+Cause: a regra trata "algum token em comum" como prova de compatibilidade. Silva, Santos, Maria e sobrenomes de família ou de etnia são compartilhados por pessoas diferentes.
+Fix sugerido: no ramo do título, com nascimento diferente, exigir que o primeiro nome bata (ou distância ≤ 2) ou que a cobertura de tokens seja alta. Recusar sempre quando o mesmo título aparece em 2 SQ da mesma eleição para nomes diferentes (Paty do Alferes, Axixá, Campos dos Goytacazes, Caroebe). Simulei nas 1.680 linhas do banco a regra "primeiro nome a até 2 edições do primeiro nome civil ou do de exibição". Ela rejeita 3: as 2 fusões reais e dr-auri ("AURI-WULANGE"), que deixa de ser rejeitado se o hífen separar os tokens. Os 4 pares do passo 2 ficam a 3 ou mais edições no primeiro nome e seriam rejeitados.
+
+### BUG-045: candidatura sem resultado (#NULO) aparece como "Não eleito" no crachá
+
+- Severity: S3 (fato errado na tela: a candidatura não foi à urna, e o crachá diz que a pessoa perdeu)
+- Flow / case: F03 / candidaturas · Screen: S05 · Build: 616ec23
+
+Steps
+1. /p/veter-martins: "2020 Prefeito · Aparecida de Goiânia · GO PSD Não eleito".
+2. Fonte: `consulta_cand_2020`, SQ 90001177599, INAPTO, DS_SIT_TOT_TURNO "#NULO". No banco, `candidacies.result` é NULL.
+3. `web/src/lib/data/pg.ts:553`: `result: (r.result as Candidacy["result"]) ?? "nao_eleito"`. O fallback "Sem resultado publicado" de `sections.tsx` nunca é usado.
+
+Expected: "Sem resultado publicado", ou o motivo (indeferida, cancelada).
+Actual: 513 candidaturas com resultado nulo, todas #NULO/#NULO# na fonte (322 e 191), em 507 pessoas, aparecem como "Não eleito/Não eleita". 491 estão em crachás de quem está em exercício. Desde e07184b.
+Fix sugerido: não converter null em `nao_eleito` em `getCandidacies`, e deixar o rótulo "Sem resultado publicado" do componente aparecer.
