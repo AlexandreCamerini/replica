@@ -355,3 +355,136 @@ Só o de Isnaldo é real: +18.514,00 = 2 × (10.985 − 1.728), na locação 109
 - A regra do D230 em 2026: o ano corrente muda todo mês.
 - Se a página da Câmara corrige de fato o Isnaldo 03/2023: a consulta `cota-parlamentar/sumarizado` não foi aberta.
 - O pai do Bacelar (74131) segue sem crachá, pela D34. Não conferi se alguma página do clone ainda o cita.
+
+# Reverificação 4: BUG-038, BUG-039, BUG-040 e D235–D239, 2026-11-03
+
+- Escopo: commits 6ab7fa8, 9656d8b e 3da7ef4, contra o build 3da7ef4 servido no 3101 e o Postgres local.
+- Fontes:
+  - `consulta_cand` 2012–2026 e `bem_candidato` do cache do ETL. Os 8 arquivos BRASIL viraram um índice SQLite de 2.110.710 linhas, só para leitura.
+  - Resultados oficiais de 2024 em `resultados.tse.jus.br`.
+  - Página do deputado na Câmara (`camara.leg.br/deputados/{id}?ano=2025`).
+  - CEAPS do Senado (`adm.senado.gov.br`, cache do ETL).
+
+Nenhum código e nenhum dado foram corrigidos. Rodei `derive.stats` 2 vezes, e ele é idempotente.
+
+## Veredito: não entregável
+
+Há 1 S2 aberto (BUG-041). Não achei S1.
+
+| # | Sev. | Resumo |
+|---|---|---|
+| BUG-041 | S2 | willya-do-rampa (vereador em exercício) mostra a candidatura de 2012 e o PTB de 2012–2020 de Virginia Pereira de Oliveira. O TSE repetiu o título e o `resolve` casa pelo título antes de olhar nome e nascimento. |
+| BUG-042 | S3 | Título reemitido no mesmo município com uma letra diferente no nome: o mandato eleito some sem passar pela fila (Eloisa Cardoso 2016, Nelson Gasperin 2012). |
+| BUG-043 | S3 | 16 disputas com o registro INAPTO/#NULO# no lugar do APTO da mesma pessoa. Nenhum eleito perdido. |
+
+## Bug × veredito
+
+| Bug | Veredito | Evidência |
+|---|---|---|
+| BUG-038 | confirmado | 18 crachás × CSV: 35 candidaturas certas em nome, nascimento, título, município, cargo, partido e resultado. Os pares separados são pessoas diferentes pela fonte (mesma eleição, ou UF de nascimento diferente). Nenhuma separação errada. A mesma família segue aberta pelo título repetido: BUG-041. |
+| BUG-039 | parcial | Divino certo. Na amostra de 5, 4 certas e 1 suplementar duplicada (já conhecida). Na varredura de 151 disputas, 16 ficaram com o registro inferior: BUG-043. |
+| BUG-040 | confirmado | FX-024 e B034-3 passam nas 2 rodadas completas. O B034-3 ficou fraco: `getByText(/Vice-governador/)` genérico, sem a data de posse. |
+
+## BUG-038
+
+### Os 11 casos
+
+| Dono (slug mantido) | Título do dono | Criado / removido | Fonte do criado |
+|---|---|---|---|
+| repolhinho | 009924220418 (Rio Grande/RS 2012–2024) | antonios-coiffeur, 000597921198 | MA 2012 São Luís (vereador, suplente), dep. est. MA 2014/2018. Nascido no PI |
+| joaozao | 021510272704 (Bernardo Sayão/TO 2012–2024) | joao-batista-corretor, 020994100698 | Mauá da Serra/PR 2016 e 2020, suplente. A linha de 2016 diz 1956 e a de 2020 diz 1958 |
+| malufao | 165845370167 (Gabriel Monteiro/SP 2016, 2024) | nego-bia, 040578540523 | Pojuca/BA 2012, 2016, 2020, suplente. 2012 não é carregado |
+| claudia-do-severino | 102234550281 (Paineiras/MG 2024) | claudia-da-lagoa-nova, 072163270558 | Brejolândia/BA 2020 (INAPTO, não eleita) e 2024 |
+| cida-da-saude-rn | 228178420183 | título 198317130116 removido | Jandira/SP 2020 e 2024 |
+| luciano-dias | 023580461414 | título 133460340272 removido | São José da Varginha/MG 2024 (LUCIANO DIAS, sem o "da Silva Neto") |
+| paulinho-do-rodolfo | 086808580230 | título 118317660213 removido | Carangola/MG 2024 |
+| gordo | 052328560620 (nasc. PR) | moca-mg, 124118810205 | Bom Jardim de Minas/MG 2016 (nasc. MG) |
+| joao-preto | 020752921309 (nasc. PR) | joao-do-marajoara, 078272520310 | Japeri/RJ 2020 (nasc. ES) |
+| gato-da-corrida | 023409750248 | título 003788960124 removido | Itu/SP 2012 "Roberto Oluran". Mesmo nome e nascimento, a 250 km. Não há prova de que seja outra pessoa, mas também não havia fato no crachá. Sem efeito na tela |
+| ze-galinha | 029985402747 e 037087402712 | piqueno-to, sem título | Araguacema/TO 2016: Manoel Juvenil Pereira de Sousa, 30/11/1983, com o título 037087402712 que o TSE também põe em Zé Galinha 2020 |
+
+### Varredura de fusões que sobraram
+
+Liguei cada candidatura do banco à linha da fonte por ano, SQ, tipo de eleição e município. Ficaram 442 sem par, por grafia de município (Camacan × Camacã, Espigão D'Oeste × do Oeste). O primeiro cruzamento, só por ano e SQ, dava 6 falsos positivos. Em 2012, o SQ de uma suplementar repete o de uma ordinária (alcir-costa × "Junior do Bacabal").
+
+| Critério | Pessoas | Resultado |
+|---|---|---|
+| Candidaturas em UFs diferentes | 62 | Mesmo título em todas as linhas: mudança de domicílio |
+| Títulos diferentes | 20 | Mesmo município, nome e nascimento: reemissão |
+| Nascimento divergente | 1.313 | Mesmo título. Erros de digitação do TSE (dia, mês ou ano trocados) |
+| Nome civil divergente | 2.906 | Mesmo título. Grafia, nome social e casamento |
+| Nome sem nenhum token em comum | 5 | 4 são nome social ou grafia. 1 é fusão: willya-do-rampa (BUG-041) |
+| Homônimos no banco | 7 pares | Só os do D236 |
+
+### Regra nova (D235)
+
+- Simulação do `resolve` sem gravar, contra o banco:
+  - Eloisa 2016 e Nelson Gasperin 2012 (reemissão no mesmo município), com a grafia do banco: `queued`, como prometido.
+  - As mesmas, com a grafia da fonte: `new`, e a linha é descartada (BUG-042).
+  - Virginia 2012 (título repetido): `exact_id` na pessoa errada (BUG-041).
+- Mandatos atuais: em 2022–2026, todo ELEITO da fonte está no banco, fora os 162 suplentes de senador (54 de 2022 e 108 de 2026). A regra não barrou nenhum mandato em curso.
+- Caso real de pessoa legítima separada pela regra "título diferente sem lugar em comum": não achei. Os 26 grupos da fonte com mesmo nome e nascimento, títulos diferentes e nenhuma eleição em comum se dividem assim:
+  - reemissão no mesmo município: ainda juntos;
+  - pares do D236, com UF de nascimento diferente;
+  - os 3 do BUG-042, que faltam mas não foram separados.
+
+## BUG-039
+
+- Divino: confere com o CSV (140000021364, APTO, ELEITO POR QP, nº 13233, mandato 2013–2016, bens de R$ 148.500,00).
+- Varredura (título, disputa e número com mais de um SQ, ao menos um no banco), 151 disputas:
+  - 116 com o maior posto;
+  - 19 suplementares com os 2 registros (conhecidas);
+  - 16 com o registro inferior (BUG-043).
+
+## Varredura S1/S2 na tela
+
+15 crachás, sorteados com `setseed(0.20261103)` entre mandatos em exercício:
+- 3 deputados estaduais: alexandre-curi, veter-martins e prof-josemar;
+- 3 deputados federais: yandra-de-andre, carlos-sampaio e covatti-filho;
+- 1 governador: eduardo-riedel;
+- 3 prefeitos: vidal-sc, silvinho-vaz e netto-donato;
+- 2 senadores: paulo-paim e daniella-ribeiro;
+- 3 vereadores: zelau, zoi-da-borracharia e emilio-da-ambulancia.
+
+| Bloco | Conferido | Resultado |
+|---|---|---|
+| Mandato (cargo, lugar e período) | 15 × TSE e casa | 15 ok |
+| "Eleito N vezes" | 15 × ELEITO da fonte pelo título | 15 ok |
+| Candidaturas (cargo, UE, resultado) | 54 linhas × `consulta_cand` | 54 ok, exceto veter-martins 2014 (BUG-043). Partido: 6 linhas mostram a sigla atual da legenda (MDB × PMDB, PODE × PTN, SOLIDARIEDADE × SD, MOBILIZA × PMN), pelo alias, não a da época |
+| Patrimônio declarado | 15 × `bem_candidato` | 15 ok, ao real |
+| Votos | 6 prefeitos e vereadores de 2024 × `resultados.tse.jus.br` | 6 ok (2.656, 2.554, 68.178, 323, 659, 375) |
+| Cota da Câmara | 3 deputado-ano 2025 × página da Câmara | 520.409,83, 567.816,43 e 567.656,08: 3 ok |
+| Cota do Senado (CEAPS) | Paim e Daniella, 2024 e 2025 | 4 ok |
+
+Home: 70.834 em exercício, igual ao banco. A soma dos cargos fecha: 596 em Brasília, 1.058 nos estados e 69.180 nas cidades.
+
+/representantes de Porto Alegre (S), Recife (NE) e Manaus (N): os vereadores eleitos (35, 37 e 41) e o prefeito e o vice batem com o TSE 2024. Recife mostra Victor Marques prefeito e Manaus mostra Renato Junior, os 2 sem vice. Senadores: 3 em cada UF.
+
+Duas observações, sem bug aberto:
+- 4 senadores aparecem com o nome em caixa alta (LUIS CARLOS HEINZE, HUMBERTO COSTA, EDUARDO BRAGA e PLÍNIO VALÉRIO).
+- Eduardo Leite aparece com PSDB, a última observação que o site tem (TSE 2022). O site não lê nenhuma fonte de filiação do governador (D32).
+
+## Regressão
+
+- `pytest` do ETL: 103 de 103.
+- `derive.stats` + `check`, 2 rodadas: 38 de 38 ok nas 2. `party_memberships` tem 139.146 linhas e o mesmo md5 (pessoa, partido, de, até) nas 2 rodadas: 885862e019338c74d51184f472c03152.
+- Totais contra o "Depois" do D239, todos iguais:
+  - pessoas 71.609;
+  - candidaturas 183.034;
+  - mandatos em exercício 70.834 e encerrados 71.054;
+  - bens 149.221;
+  - `person_external_ids` 255.288;
+  - fila 6.
+- e2e completo contra o 3101:
+  - 1ª rodada (`--output test-results-reverify4`), com o servidor dividindo carga com as minhas leituras de crachá: 157 passed, 5 failed, 24 flaky, em 29,5 min. Os erros foram timeout de 60 s, ERR_EMPTY_RESPONSE e "Request context disposed". Os 5 que falharam (F04-E5, S22-H2, W3A-H1, W3A-H2 e F01-E6) passaram isolados, 9 de 9.
+  - 2ª rodada (`test-results-reverify4c`), com o servidor ocioso: 181 passed, 1 failed, 3 flaky e 1 skipped, em 13,4 min. A falha é SH-E2, timeout no `page.goto`: passou nas 3 repetições isoladas, só no retry. A suíte está mais lenta que na Reverificação 3 (5,9 min). Não é defeito de dado, mas a instabilidade cresceu.
+- Paridade (`parity.py`): 86,8. Must 17 de 17.
+
+## O que não conferi e por quê
+
+- Votos de 2014–2022 e 2026: a fonte (`votacao_candidato_munzona`, cerca de 550 MB por ano) não está em cache. Conferi os 6 de 2024 pelos resultados oficiais.
+- Arrecadação de campanha e salário: a prestação de contas não está em cache.
+- Presença e propostas dos 3 deputados federais: a Reverificação 3 já conferiu presença pelo arquivo.
+- Se "Roberto Oluran" (Itu 2012) é o Gato da Corrida: mesmo nome e nascimento, título de outra UF. O vínculo saiu e não havia fato na tela.
+- As 2.906 divergências de nome civil uma a uma. Filtrei por tokens em comum (0 ou 1) e por nascimento.
+- Os vice-governadores que aparecem como vagos (11 UFs) e os prefeitos em exercício de Recife e Manaus contra os atos de posse.
