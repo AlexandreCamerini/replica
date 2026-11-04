@@ -54,6 +54,8 @@ PAGE = 100
 DAY = 86400
 FULL_EVERY_DAYS = 30  # rede de segurança: recarga completa de cada entidade a cada 30 dias
 UPDATED_MARGIN_DAYS = 2  # matérias editadas: relê de (última leitura - 2 dias) em diante
+STALE_DAYS = 6  # câmara carregada há mais que isso volta à fila (incremental, barata) antes de qualquer câmara nova
+MAX_PENDING_OK = 60  # não descobre mais enquanto houver tantas câmaras "ok" ainda nunca carregadas (cada uma custa ~10 min)
 MARGIN = {"materias": 300, "autorias": 300, "presencas": 300, "votos": 1000}  # ids relidos abaixo do cursor
 REGISTRY = "https://www12.senado.leg.br/interlegis/orgaosatendidos"
 
@@ -198,11 +200,38 @@ def to_discover(scope: list[str], state: dict[str, dict[str, Any]], now: datetim
     return out[:limit] if limit else out
 
 
-def load_queue(scope: list[str], state: dict[str, dict[str, Any]], limit: int | None) -> list[str]:
-    """Fila de carga: câmaras 'ok' do escopo, nunca tentadas primeiro, depois a tentativa mais antiga."""
+def load_queue(scope: list[str], state: dict[str, dict[str, Any]], limit: int | None, now: datetime | None = None) -> list[str]:
+    """Fila de carga. 1º: câmaras 'ok' já carregadas com loaded_at mais velho que STALE_DAYS (incrementais, baratas), rodízio pela
+    tentativa mais antiga (uma que estourou o tempo vai para o fim); 2º: as nunca carregadas (cargas completas), nunca tentadas primeiro."""
+    now = now or datetime.now(timezone.utc)
+    floor = datetime.min.replace(tzinfo=timezone.utc)
     ok = [c for c in scope if (state.get(c) or {}).get("status") == "ok"]
-    ok.sort(key=lambda c: (state[c]["last_attempt_at"] is not None, state[c]["last_attempt_at"] or datetime.min.replace(tzinfo=timezone.utc), c))
-    return ok[:limit] if limit else ok
+    stale = [c for c in ok if state[c].get("loaded_at") and now - state[c]["loaded_at"] > timedelta(days=STALE_DAYS)]
+    new = [c for c in ok if not state[c].get("loaded_at")]
+    stale.sort(key=lambda c: (state[c]["last_attempt_at"] or floor, state[c]["loaded_at"], c))
+    new.sort(key=lambda c: (state[c]["last_attempt_at"] is not None, state[c]["last_attempt_at"] or floor, c))
+    out = stale + new
+    return out[:limit] if limit else out
+
+
+def discover_budget(limit: int | None, state: dict[str, dict[str, Any]], max_pending: int = MAX_PENDING_OK) -> int | None:
+    """Quantas câmaras ainda podem ser descobertas: o acúmulo de 'ok' nunca carregadas não passa de max_pending."""
+    pending = sum(1 for st in state.values() if st["status"] == "ok" and not st.get("loaded_at"))
+    room = max(max_pending - pending, 0)
+    return room if limit is None else min(limit, room)
+
+
+def min_discarded(items: list[dict[str, Any]], known: set[int], key: str, boundary: int | None) -> int | None:
+    """Menor id de item descartado por ainda não conhecermos o pai (`key` fora de `known`) E o pai ser mais novo que `boundary`
+    (criado durante o run). O cursor não pode passar dele. Pai desconhecido mais antigo (tipo que não carregamos) não conta."""
+    if boundary is None:
+        return None
+    ids = [int(i["id"]) for i in items if i.get(key) not in known and isinstance(i.get(key), int) and i[key] > boundary and isinstance(i.get("id"), int)]
+    return min(ids) if ids else None
+
+
+def cap_cursor(last_id: int | None, discarded: int | None) -> int | None:
+    return last_id if discarded is None or last_id is None else min(last_id, discarded)
 
 
 def scan_desc(base: str, path: str, floor: int, params: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], int | None]:
@@ -223,19 +252,24 @@ def head_id(base: str, path: str) -> int | None:
 
 
 def updated_since(base: str, path: str, since: date, max_pages: int = 50) -> tuple[list[dict[str, Any]], bool]:
-    """Itens editados desde `since` (data_ultima_atualizacao__gte). (itens, filtro_ok). Se a fonte ignora o filtro, a primeira página
+    """Itens editados desde `since` (data_ultima_atualizacao__gte). (itens, completo). completo=False se a fonte ignora o filtro ou se bateu em max_pages. Se a fonte ignora o filtro, a primeira página
     traz itens bem mais antigos que `since`: para na hora e devolve filtro_ok=False (vale só o cursor de id)."""
     guard = (since - timedelta(days=1)).isoformat()  # tolera fuso
     bad = {"v": False}
+    n = {"pages": 0}
 
     def stop(res: list[dict[str, Any]]) -> bool:
+        n["pages"] += 1
         if any((r.get("data_ultima_atualizacao") or "9999")[:10] < guard for r in res):
             bad["v"] = True
         return bad["v"]
 
     out = [it for it in pages(base, path, {"data_ultima_atualizacao__gte": since.isoformat(), "o": "-data_ultima_atualizacao"}, stop=stop, max_pages=max_pages, max_age=0)
            if (it.get("data_ultima_atualizacao") or "9999")[:10] >= guard]
-    return out, not bad["v"]
+    truncated = n["pages"] >= max_pages and not bad["v"]
+    if truncated:
+        log.warning("%s: edições de matéria truncadas em %d páginas; last_updated não avança (a próxima relê a janela)", base, max_pages)
+    return out, not bad["v"] and not truncated
 
 
 # ------------------------------------------------------------------ descoberta
@@ -325,17 +359,18 @@ def house_totals(conn: psycopg.Connection, hid: int) -> dict[str, int]:
             for k, t in (("materias", "sapl_materias"), ("presencas", "sapl_presencas"), ("votos", "sapl_votos"))}
 
 
-def _no_legislature(conn: psycopg.Connection, house: dict[str, Any], r: Any, legs: list[dict[str, Any]], today: date) -> None:
-    """Condição da fonte, não falha: motivo em data_coverage (se nunca carregou) e em sapl_houses.note; run termina skipped_unchanged."""
+def _no_legislature(conn: psycopg.Connection, house: dict[str, Any], legs: list[dict[str, Any]], today: date) -> None:
+    """Condição da fonte, não falha: motivo em data_coverage (se nunca carregou) e em sapl_houses.note. O run é gravado direto em
+    ingest_runs como skipped_unchanged (com o motivo) SEM passar por db.run: não carimba dataset_stamps (não há dado por trás)."""
     why = no_legislature_reason(legs, today)
     log.info("SAPL %s: %s", house["name"], why)
     conn.execute("update sapl_houses set note = %s, last_attempt_at = now(), last_outcome = 'sem_legislatura' where id = %s", (why[:500], house["id"]))
     if not house.get("loaded_at"):  # já carregada antes: não rebaixa a cobertura do que está guardado
         upsert(conn, "data_coverage", ["place_id", "dataset", "status", "reason", "evidence_url", "checked_on"],
                [(house["place_id"], ds, "desconhecido", why, f"{house['base_url']}/parlamentar/", date.today()) for ds in ("propostas", "presenca", "votos")], ["place_id", "dataset"])
-    conn.execute("update ingest_runs set error = %s where id = %s", (why[:2000], r.id))
+    conn.execute("insert into ingest_runs (source_id, dataset, status, finished_at, error) values (%s, %s, 'skipped_unchanged', now(), %s)",
+                 (db.source_id(conn, "sapl"), f"sapl.{house['ibge_code']}", why[:2000]))
     conn.commit()
-    raise SkipUnchanged(f"sapl.{house['ibge_code']}")
 
 
 def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | None = None, *, full: bool = False) -> dict[str, int]:
@@ -343,11 +378,12 @@ def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | No
     base, hid = house["base_url"], house["id"]
     stats: dict[str, int] = {}
     now = datetime.now(timezone.utc)
+    legs = list(pages(base, "parlamentares/legislatura", max_age=0))
+    leg = pick_legislature(legs, today)
+    if not leg:
+        _no_legislature(conn, house, legs, today)
+        return stats
     with run(conn, f"sapl.{house['ibge_code']}", "sapl") as r:
-        legs = list(pages(base, "parlamentares/legislatura", max_age=0))
-        leg = pick_legislature(legs, today)
-        if not leg:
-            _no_legislature(conn, house, r, legs, today)
         y0 = int(leg["data_inicio"][:4])
         ln = leg.get("numero")
         conn.execute("update sapl_houses set legislature_number = %s, legislature_start = %s, legislature_end = %s where id = %s",
@@ -370,6 +406,7 @@ def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | No
         types = _project_types(base)
         pl = plans["materias"]
         mats: list[tuple] = []
+        keep_updated = False
         new_cur: dict[str, tuple[int | None, datetime | None]] = {}
         if pl.mode == "full":
             head = head_id(base, "materia/materialegislativa")
@@ -386,11 +423,12 @@ def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | No
             if pl.since:
                 upd, ok = updated_since(base, "materia/materialegislativa", pl.since)
                 if not ok:
-                    log.warning("SAPL %s: fonte ignora data_ultima_atualizacao__gte; matérias editadas só entram pelo cursor de id", house["name"])
+                    log.warning("SAPL %s: edições de matéria incompletas (filtro ignorado ou truncado); last_updated não avança", house["name"])
+                    keep_updated = True
                 for m in upd:
                     seen.setdefault(m["id"], m)
             mats = [row for m in seen.values() if int(m.get("ano") or 0) >= y0 and (row := _mat_row(hid, base, m, types))]
-            new_cur["materias"] = (mx if mx is not None else cur["materias"]["last_id"], now)
+            new_cur["materias"] = (mx if mx is not None else cur["materias"]["last_id"], None if keep_updated else now)
         upsert(conn, "sapl_materias", ["house_id", "sapl_id", "type_sigla", "type_name", "number", "year", "presented_on", "summary", "in_progress", "url", "text_url"],
                mats, ["house_id", "sapl_id"])
         stats["materias"] = len(mats)
@@ -406,6 +444,10 @@ def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | No
             aut_raw, mx = scan_desc(base, "materia/autoria", pa.floor)
             new_cur["autorias"] = (mx if mx is not None else cur["autorias"]["last_id"], None)
         aut_rows = []
+        lost = min_discarded(aut_raw, known_mat, "materia", new_cur["materias"][0])  # autoria de matéria criada durante o run
+        if lost is not None:
+            log.warning("SAPL %s: autoria %d de matéria criada durante o run; cursor de autorias não passa dela", house["name"], lost)
+            new_cur["autorias"] = (cap_cursor(new_cur["autorias"][0], lost), None)
         aut_raw = [a for a in aut_raw if a.get("materia") in known_mat]
         if aut_raw:
             autores = {int(a["id"]): a for a in pages(base, "base/autor", max_age=0)}
@@ -437,6 +479,10 @@ def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | No
         else:
             pres_raw, mx = scan_desc(base, "sessao/sessaoplenariapresenca", pp.floor)
             new_cur["presencas"] = (mx if mx is not None else cur["presencas"]["last_id"], None)
+        lost = min_discarded(pres_raw, sess_ids, "sessao_plenaria", max(sess_ids) if sess_ids else None)  # sessão criada durante o run
+        if lost is not None:
+            log.warning("SAPL %s: presença %d de sessão criada durante o run; cursor de presenças não passa dela", house["name"], lost)
+            new_cur["presencas"] = (cap_cursor(new_cur["presencas"][0], lost), None)
         for p in pres_raw:
             if p.get("sessao_plenaria") in sess_ids and p.get("parlamentar"):
                 pres.append((hid, int(p["sessao_plenaria"]), int(p["parlamentar"])))
@@ -541,7 +587,7 @@ def _scope(conn: psycopg.Connection, escopo: str) -> list[str]:
 
 def _state(conn: psycopg.Connection, codes: list[str]) -> dict[str, dict[str, Any]]:
     return {r["ibge_code"]: dict(r) for r in conn.execute(
-        """select pl.ibge_code, h.status, h.checked_at, h.last_attempt_at from sapl_houses h join places pl on pl.id = h.place_id
+        """select pl.ibge_code, h.status, h.checked_at, h.last_attempt_at, h.loaded_at from sapl_houses h join places pl on pl.id = h.place_id
            where pl.ibge_code = any(%s)""", (codes,))}
 
 
@@ -569,12 +615,16 @@ def main(argv: list[str]) -> int:
             scope = _scope(conn, a.escopo)
             if a.offset is not None:
                 scope = window(scope, a.lote, a.offset)
-            todo_discover = to_discover(scope, _state(conn, scope), now, None if a.offset is not None else a.lote)
+            st0 = _state(conn, scope)
+            lim = None if a.offset is not None else a.lote
+            todo_discover = to_discover(scope, st0, now, lim if a.offset is not None else discover_budget(lim, st0))
+            if not todo_discover and any(c not in st0 for c in scope):
+                log.info("SAPL: descoberta pausada (>= %d câmaras 'ok' ainda sem carga); a fila de carga drena primeiro", MAX_PENDING_OK)
         if a.job in ("sapl.descobrir", "sapl.todas") and todo_discover:
             discover(conn, todo_discover)
         if a.job in ("sapl.carregar", "sapl.todas"):
             state = _state(conn, scope)
-            order = load_queue(scope, state, limit)
+            order = load_queue(scope, state, limit, now)
             if a.ibge:  # explícito: ordem por nome, como antes
                 order = [c for c in scope if (state.get(c) or {}).get("status") == "ok"][:limit]
             if not order:
@@ -587,6 +637,8 @@ def main(argv: list[str]) -> int:
                     break
                 h = houses[code]
                 t1 = time.monotonic()
+                conn.execute("update sapl_houses set last_attempt_at = now() where id = %s", (h["id"],))
+                conn.commit()  # se o processo for morto no timeout, a câmara vai para o fim da fila, não para a cabeça
                 try:
                     s = load_house(conn, h, full=a.full)
                     log.info("SAPL %s em %.0fs: %s", h["name"], time.monotonic() - t1, s)

@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 from civico_etl.jobs import sapl
 from civico_etl.jobs.sapl import (
     _desc_until, entity_plan, is_sapl_api, load_queue, match_names, no_legislature_reason, parse_registry, pick_legislature,
-    scan_desc, to_discover, updated_since, window,
+    scan_desc, to_discover, updated_since, window, discover_budget, min_discarded, cap_cursor,
 )
 
 CARD = """<div class="orgao-atendido">
@@ -165,20 +165,49 @@ def test_filtro_de_atualizacao_ignorado_pela_fonte_e_detectado(monkeypatch):
     assert ok and [i["id"] for i in itens] == [2]
 
 
-def _st(status="ok", attempt=None, checked=NOW):
-    return {"status": status, "last_attempt_at": attempt, "checked_at": checked}
+def _st(status="ok", attempt=None, checked=NOW, loaded=None):
+    return {"status": status, "last_attempt_at": attempt, "checked_at": checked, "loaded_at": loaded}
 
 
-def test_fila_nunca_tentada_primeiro_depois_a_mais_antiga():
+def test_fila_velhas_carregadas_primeiro_depois_novas():
+    d = timedelta(days=1)
     state = {
-        "1": _st(attempt=NOW - timedelta(days=1)),
-        "2": _st(attempt=None),
-        "3": _st(attempt=NOW - timedelta(days=9)),
+        "1": _st(loaded=NOW - 2 * d, attempt=NOW - 2 * d),   # em dia (2 dias): fora da fila
+        "2": _st(attempt=None),                               # nova, nunca tentada
+        "3": _st(loaded=NOW - 30 * d, attempt=NOW - 9 * d),   # velha, tentada há mais tempo
         "4": _st(status="sem_sapl_no_registro"),
-        "5": _st(attempt=NOW - timedelta(days=9)),
+        "5": _st(loaded=NOW - 20 * d, attempt=NOW - 1 * d),   # velha, mas tentada ontem (estourou tempo?): vai depois da 3
+        "6": _st(attempt=NOW - 3 * d),                        # nova já tentada
     }
-    assert load_queue(["1", "2", "3", "4", "5", "6"], state, None) == ["2", "3", "5", "1"]  # 4 não é ok, 6 não descoberta
-    assert load_queue(["1", "2", "3", "4", "5"], state, 2) == ["2", "3"]
+    assert load_queue(["1", "2", "3", "4", "5", "6", "7"], state, None, NOW) == ["3", "5", "2", "6"]
+    assert load_queue(["1", "2", "3", "4", "5", "6"], state, 2, NOW) == ["3", "5"]  # orçamento curto: as novas esperam
+
+
+def test_descoberta_limitada_pelo_acumulo_de_ok_sem_carga():
+    state = {str(i): _st() for i in range(55)}  # 55 ok nunca carregadas
+    state["x"] = _st(loaded=NOW)
+    assert discover_budget(150, state, max_pending=60) == 5
+    assert discover_budget(3, state, max_pending=60) == 3
+    assert discover_budget(150, {str(i): _st() for i in range(70)}, max_pending=60) == 0
+    assert discover_budget(150, {}, max_pending=60) == 60
+
+
+def test_cursor_nao_passa_de_autoria_descartada_por_materia_nova():
+    aut = [{"id": 90, "materia": 500}, {"id": 80, "materia": 1005}, {"id": 70, "materia": 10}]  # 1005 criada depois do head 1000; 10 = tipo que não carregamos
+    assert min_discarded(aut, {500}, "materia", 1000) == 80
+    assert min_discarded(aut, {500, 1005}, "materia", 1000) is None
+    assert min_discarded(aut, {500}, "materia", None) is None
+    assert cap_cursor(90, 80) == 80 and cap_cursor(90, None) == 90 and cap_cursor(None, 80) is None
+
+
+def test_atualizacao_truncada_em_max_pages_avisa_e_nao_e_completa(monkeypatch, caplog):
+    def fake(url, max_age=0):
+        return {"results": [{"id": 1, "data_ultima_atualizacao": "2026-11-03T10:00:00-03:00"}], "pagination": {"next_page": 2}}
+
+    monkeypatch.setattr(sapl, "_get", fake)
+    with caplog.at_level("WARNING", logger="etl.sapl"):
+        itens, ok = updated_since("https://x", "materia/materialegislativa", date(2026, 11, 1), max_pages=3)
+    assert not ok and len(itens) == 3 and "truncadas" in caplog.text
 
 
 def test_descoberta_so_do_que_falta_ou_esta_velho():
