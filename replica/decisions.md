@@ -346,3 +346,36 @@ Rodada autônoma autorizada pelo dono do projeto: diff full stack contra politic
     - o plist do launchd guarda a URL do banco em texto claro (com permissão 600), aceitável só para o Postgres local;
     - o risco S4 de fundir dois homônimos com mesmo nascimento, mesma cadeira e sobrenome comum no dedupe.
 - **Para revisar (dono).** Ligar em produção depende do secret `ETL_DATABASE_URL` e da variável `ETL_SCHEDULE_ENABLED=true`. Ligar localmente: `etl/deploy/launchd-install.sh install`.
+
+## D251 · BUG-049: retotalização do TSE e cadeiras de vereador (replica-backend, 2026-11-04)
+- **D251 · mandato só do TSE cuja candidatura a fonte rebaixou sai do exercício (passo `mandatos_tse` do `identity.repairs`).** O TSE republicou o `consulta_cand_2024` em 04/11/2026 com a retotalização de Tapauá/AM (UE 02798). A recarga `--all` da agenda fez duas coisas. Criou os 3 eleitos novos com mandato (haroldo-zuza, ju-do-rivaldo e raimundo-do-haroldo). Gravou NÃO ELEITO nas candidaturas de epaminondas, izaque-martins e nilson-am, mas não mexeu nos mandatos deles: o upsert de mandato do TSE só promove `eleito_aguardando_posse`, porque a casa é dona do status. Resultado: 14 vereadores em exercício para 11 cadeiras.
+- **Regra.** O mandato entra quando:
+  - é de vereador, prefeito ou vice-prefeito;
+  - tem `status_source = 'tse'` (os da Câmara, do Senado, das ALE com adaptador e os curados não entram);
+  - está em exercício ou aguardando posse;
+  - a candidatura ligada a ele está com `nao_eleito` ou `suplente`.
+
+  Esse mandato passa a `encerrado`, com `ends_on` na data de publicação do arquivo revisto (Last-Modified do zip no cache; sem cache, hoje). O motivo vai em `vacancy_note`, a coluna da 0055 que o D202/D228 usam para o motivo com fonte, no formato "retotalização do TSE publicada em DD/MM/AAAA: a candidatura de AAAA (SQ …) passou a NÃO ELEITO no consulta_cand; o mandato sai do exercício". Nada é apagado: a linha anterior vai inteira para `identity_split_log` (bug BUG-049, `alterado`).
+  - Se a Câmara Municipal confirma o vereador no SAPL (parlamentar `casado` com a pessoa, na câmara do município, com mandato não encerrado), a casa vence e o mandato fica.
+  - Rebaixado antes da posse não tem `ends_on` válido: o passo relata em erro e não mexe.
+  - É idempotente: o filtro de status não pega de novo o que já está encerrado.
+- **Onde entra: no `identity.repairs`, e não no `tse.candidatos`.**
+  - (1) Cruza duas fontes que carregam em horas diferentes (TSE e SAPL), e "a casa vence" só se decide depois das duas.
+  - (2) No modo padrão (só eleitos), o loader nem lê a linha rebaixada. A regra lê o resultado já gravado, que vem do `--all` da agenda.
+  - (3) A agenda já roda `identity.repairs --apply` depois de toda carga de pessoas, e assim o banco atual é corrigido sem recarga.
+  - O que pago: entre a carga e o passo, o banco fica alguns minutos com os dois conjuntos em exercício. Onde quebra: carga só de eleitos de um ano retotalizado não atualiza o resultado antigo, e o rebaixado só aparece no próximo `--all`. O check abaixo acusa quando o número passa das cadeiras.
+- **Invariante nova em `checks.py`.** "vereador: em exercício por município ≤ cadeiras da CF art. 29, IV". As faixas da EC 58/2009 estão em `VEREADOR_FAIXAS` e são aplicadas à população do IBGE em `places.population`. Não havia teto de cadeiras no seed: os tetos de lá são de subsídio.
+  - Exceções em `VEREADOR_EXCECOES` (25 municípios, com motivo e com o próprio teto, que é o número de eleitos do TSE 2024): municípios que encolheram de faixa entre a população da eleição e a estimativa de 2026 do IBGE. A Lei Orgânica fixou as cadeiras com a população da época. Em todos os 25, os em exercício são exatamente os eleitos do TSE.
+  - Manacapuru (21 eleitos, 113.042 hab., 17 pela CF) está acima do teto até pela população do Censo. É o que o TSE publicou e fica anotado.
+  - O check avisa quando uma exceção vence (município volta a caber no teto).
+- **Prova (banco `civico`).**
+  - Snapshot de `mandates` e `identity_split_log`: `scratchpad/snapshot_pre_bug049.dump`.
+  - O check novo, antes do passo, deu FALHOU (1, Tapauá).
+  - `identity.repairs`: dry-run `{titulos: 0, mandatos_tse: 3}` → `--apply` 3 → `--apply` 0 → dry-run 0. Os 3 são do banco inteiro, e são só os de Tapauá.
+  - Tapauá voltou a 11. O check passa (41/41, inclusive depois de `derive.stats`).
+  - Totais: pessoas 71.613, candidaturas 183.055 e mandatos 143.744 sem mudança; em exercício 70.837 → 70.834. O md5 linha a linha de pessoas, candidaturas, ids externos, bens, títulos, filiações e fila ficou igual. Só os 3 mandatos mudaram, e `identity_split_log` ganhou 3 linhas.
+  - Varredura do banco inteiro: nenhum outro município acima do teto fora das 25 exceções explicadas.
+  - pytest com 150 de 150. São 4 testes novos em `test_identity_repairs.py`: faixas, rebaixamento idempotente com log, SAPL vence e o check pegando vereador a mais.
+- **Riscos.**
+  - Os 3 eleitos novos de Tapauá ficaram com início em 01/01/2025, a posse regular. A data real da posse após a retotalização não está no `consulta_cand`.
+  - Prefeito ou vice rebaixado por retotalização passa pela mesma regra, mas cassação (indeferido, renúncia) não: esses têm outro status e outra fonte.

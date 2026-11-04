@@ -10,6 +10,13 @@ Ordem (fixa; um passo só lê o que os anteriores deixaram):
      conhece naquele momento: um título que entra na carga de 2024 não ganha as linhas de 2012, já carregado. Os checks do
      BUG-038/039/041/043 e o `reissue` do resolve (BUG-042: dois títulos na mesma eleição são duas pessoas) leem essa tabela.
      Antes, só o `--apply` do identity.fix038/fix041 a completava.
+  2. `mandatos_tse`: mandato de vereador, prefeito ou vice cuja única fonte é a candidatura do TSE (`status_source = 'tse'`)
+     e cuja candidatura a fonte rebaixou para NÃO ELEITO ou suplente (retotalização) sai do exercício: `encerrado`, com
+     `ends_on` na data em que o TSE publicou o arquivo revisto e o motivo em `vacancy_note`. Nada é apagado; a linha anterior
+     vai inteira para identity_split_log (BUG-049). Se a Câmara Municipal confirma o vereador no SAPL (parlamentar casado com
+     mandato da legislatura em curso), a casa vence e o mandato fica. Roda depois de `titulos` porque lê o resultado já
+     gravado pela carga. Fica aqui, e não no loader, porque cruza duas fontes (TSE e SAPL) que carregam em horas diferentes, e o
+     loader no modo padrão (só eleitos) nem lê a linha rebaixada (D251).
 
 Os seis reparos de uma vez só (D245). Nenhum entra na rotina: a regra de cada um está na carga, e o `check` (checks_identity e
 o invariante de presidente do D168) acusa se o defeito voltar. Os jobs continuam no cli para resposta a incidente.
@@ -89,9 +96,90 @@ def sync_titles(conn: psycopg.Connection, *, apply: bool, source: Callable[[set[
     return n
 
 
+DEMOTE_OFFICES = ("vereador", "prefeito", "vice_prefeito")
+DEMOTE_RESULTS = ("nao_eleito", "suplente")
+BUG_049 = "BUG-049"
+
+_DEMOTE_SQL = """
+select m.*, c.result, c.tse_sequencial, e.year, e.kind as election_kind, ct.place_id as contest_place, o.slug as office
+from mandates m join candidacies c on c.id = m.candidacy_id join elections e on e.id = c.election_id
+join contests ct on ct.id = c.contest_id join offices o on o.id = m.office_id
+where m.status_source = 'tse' and m.status in ('em_exercicio', 'eleito_aguardando_posse')
+  and o.slug = any(%(offices)s) and c.result = any(%(results)s)
+"""
+# a casa confirma: parlamentar do SAPL casado com a pessoa, na câmara do município, com mandato que não acabou
+_SAPL_CONFIRMA = """
+select 1 from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id
+join sapl_mandatos sm on sm.house_id = sp.house_id and sm.parlamentar_sapl_id = sp.sapl_id
+where sp.person_id = %(person)s and sp.match_status = 'casado' and h.place_id = %(place)s
+  and (sm.ended_on is null or sm.ended_on > current_date) and (sm.started_on is null or sm.started_on <= current_date)
+limit 1
+"""
+
+
+def _published_on(year: int):
+    """Data em que o TSE publicou o consulta_cand do ano que está no cache (Last-Modified); sem cache, hoje."""
+    import json
+    from datetime import date
+    from email.utils import parsedate_to_datetime
+
+    from ..http import _paths
+    from .tse_candidatos import BASE
+
+    _, meta = _paths(f"{BASE}/consulta_cand/consulta_cand_{year}.zip")
+    try:
+        lm = json.loads(meta.read_text()).get("last_modified")
+        return parsedate_to_datetime(lm).date() if lm else date.today()
+    except (OSError, ValueError, TypeError):
+        return date.today()
+
+
+def demote_tse_mandates(conn: psycopg.Connection, *, apply: bool, published_on: Callable[[int], Any] = _published_on,
+                        commit: bool = True) -> int:
+    """Passo `mandatos_tse` (BUG-049). Devolve quantos mandatos saem do exercício."""
+    import json
+
+    rows = conn.execute(_DEMOTE_SQL, {"offices": list(DEMOTE_OFFICES), "results": list(DEMOTE_RESULTS)}).fetchall()
+    n = kept = waiting = 0
+    for m in rows:
+        if conn.execute(_SAPL_CONFIRMA, {"person": m["person_id"], "place": m["place_id"]}).fetchone():
+            kept += 1
+            log.info("mandatos_tse: %s fica: a Câmara Municipal confirma no SAPL (a casa vence)", m["id"])
+            continue
+        when = published_on(m["year"])
+        if when <= m["started_on"]:
+            # rebaixado antes da posse: não há data de fim válida (ends_on > started_on); relata e não mexe
+            waiting += 1
+            log.error("mandatos_tse: %s rebaixado antes da posse (%s); decidir à mão", m["id"], m["started_on"])
+            continue
+        when = min(when, m["ends_on"])
+        note = (f"retotalização do TSE publicada em {when:%d/%m/%Y}: a candidatura de {m['year']} (SQ {m['tse_sequencial']}) passou a "
+                f"{'NÃO ELEITO' if m['result'] == 'nao_eleito' else 'SUPLENTE'} no consulta_cand; o mandato sai do exercício (D251)")
+        n += 1
+        log.info("mandatos_tse: %s %s -> encerrado em %s", m["id"], m["office"], when)
+        if not apply:
+            continue
+        raw = {k: v for k, v in m.items() if k not in ("result", "tse_sequencial", "year", "election_kind", "contest_place", "office")}
+        conn.execute(
+            """insert into identity_split_log (bug, source, external_id, person_id, table_name, action, row_key, raw, note)
+               values (%s, 'tse', %s, %s, 'mandates', 'alterado', %s, %s, %s)
+               on conflict (bug, source, external_id, table_name, row_key) do nothing""",
+            (BUG_049, f"{m['year']}:{m['tse_sequencial']}", m["person_id"], str(m["id"]), json.dumps(raw, default=str, ensure_ascii=False), note))
+        conn.execute(
+            """update mandates set status = 'encerrado', ends_on = %s, vacancy_note = %s, updated_at = now()
+               where id = %s and status in ('em_exercicio', 'eleito_aguardando_posse') and status_source = 'tse'""",
+            (when, note, m["id"]))
+    if apply and commit:
+        conn.commit()
+    if kept or waiting:
+        log.info("mandatos_tse: %d mantidos pelo SAPL, %d rebaixados antes da posse (não mexidos)", kept, waiting)
+    return n
+
+
 # ordem fixa da rotina: (nome, passo). Novo passo entra aqui, com a justificativa no docstring do módulo e uma decisão.
 STEPS: tuple[tuple[str, Callable[..., int]], ...] = (
     ("titulos", sync_titles),
+    ("mandatos_tse", demote_tse_mandates),
 )
 
 

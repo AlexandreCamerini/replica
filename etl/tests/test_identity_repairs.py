@@ -18,7 +18,7 @@ from civico_etl.jobs.tse_candidatos import load_order
 
 def test_ordem_fixa_e_documentada():
     names = [n for n, _ in repairs.STEPS]
-    assert names == ["titulos"]
+    assert names == ["titulos", "mandatos_tse"]
     # o docstring numera os passos na mesma ordem
     doc = [m for m in re.findall(r"^\s+\d+\. `([a-z_]+)`", repairs.__doc__, re.M)]
     assert doc == names
@@ -165,3 +165,73 @@ def test_dedupe_funde_a_mesma_pessoa(conn):
         _mandate(conn, a, seat, "tse")
         _mandate(conn, b, seat, "camara")
         assert _pairs(conn, {a, b}) == {(a, b)}
+
+
+# ---------- BUG-049 / D251: retotalização rebaixa eleito; mandato só do TSE sai do exercício ----------
+
+from civico_etl.jobs.checks import VEREADOR_EXCECOES, VEREADORES_ACIMA_DO_TETO, vereador_seats  # noqa: E402
+
+
+def test_cadeiras_de_vereador_pela_populacao():
+    assert [vereador_seats(p) for p in (1_000, 15_000, 15_001, 20_849, 30_001, 113_042, 12_000_000)] == [9, 9, 11, 11, 13, 17, 55]
+    assert all(n > 0 and motivo for n, motivo in VEREADOR_EXCECOES.values())
+
+
+def _vereador_rebaixado(conn) -> tuple[str, str, str]:
+    """Pessoa + candidatura NÃO ELEITO de 2024 + mandato em exercício só do TSE num município pequeno. Devolve (pessoa, mandato, lugar)."""
+    ct = conn.execute(
+        """select ct.id, ct.election_id, ct.office_id, ct.place_id from contests ct join elections e on e.id = ct.election_id
+           join offices o on o.id = ct.office_id join places pl on pl.id = ct.place_id
+           where e.year = 2024 and e.kind = 'municipal' and o.slug = 'vereador' and pl.population < 15000 order by pl.ibge_code limit 1""").fetchone()
+    pid = _person(conn, "teste-retotalizacao", "Teste Retotalização da Silva", "Teste Retotalização", date(1970, 1, 1))
+    cid = conn.execute("""insert into candidacies (contest_id, election_id, person_id, tse_sequencial, ballot_name, result, currency)
+                          values (%s, %s, %s, '999999999049', 'Teste', 'nao_eleito', 'BRL') returning id""",
+                       (ct["id"], ct["election_id"], pid)).fetchone()["id"]
+    mid = conn.execute("""insert into mandates (person_id, office_id, place_id, candidacy_id, status, started_on, ends_on, status_source, elected_by)
+                          values (%s, %s, %s, %s, 'em_exercicio', '2025-01-01', '2029-01-01', 'tse', 'TSE 2024') returning id""",
+                       (pid, ct["office_id"], ct["place_id"], cid)).fetchone()["id"]
+    return pid, str(mid), str(ct["place_id"])
+
+
+def test_mandato_rebaixado_sai_do_exercicio_idempotente(conn):
+    when = lambda y: date(2026, 11, 4)  # noqa: E731
+    with conn.transaction(force_rollback=True):
+        base = repairs.demote_tse_mandates(conn, apply=False, published_on=when, commit=False)
+        pid, mid, _ = _vereador_rebaixado(conn)
+        assert repairs.demote_tse_mandates(conn, apply=False, published_on=when, commit=False) == base + 1
+        assert repairs.demote_tse_mandates(conn, apply=True, published_on=when, commit=False) == base + 1
+        m = conn.execute("select status, ends_on, vacancy_note from mandates where id = %s", (mid,)).fetchone()
+        assert m["status"] == "encerrado" and m["ends_on"] == date(2026, 11, 4) and "retotalização do TSE" in m["vacancy_note"]
+        log = conn.execute("select raw from identity_split_log where bug = 'BUG-049' and row_key = %s", (mid,)).fetchone()
+        assert log and log["raw"]["status"] == "em_exercicio"  # a linha anterior inteira, nada apagado
+        assert repairs.demote_tse_mandates(conn, apply=True, published_on=when, commit=False) == 0  # segunda execução
+
+
+def test_casa_vence_quando_o_sapl_confirma(conn):
+    when = lambda y: date(2026, 11, 4)  # noqa: E731
+    with conn.transaction(force_rollback=True):
+        base = repairs.demote_tse_mandates(conn, apply=False, published_on=when, commit=False)
+        pid, mid, place = _vereador_rebaixado(conn)
+        h = conn.execute("""insert into sapl_houses (place_id, registry_url, status) values (%s, 'https://teste', 'ok')
+                            on conflict (place_id) do update set status = sapl_houses.status returning id""", (place,)).fetchone()["id"]
+        conn.execute("""insert into sapl_parlamentares (house_id, sapl_id, nome_parlamentar, person_id, match_status)
+                        values (%s, 990049, 'Teste', %s, 'casado')""", (h, pid))
+        conn.execute("""insert into sapl_mandatos (house_id, sapl_id, parlamentar_sapl_id, started_on, ended_on, titular)
+                        values (%s, 990049, 990049, '2025-01-01', null, true)""", (h,))
+        assert repairs.demote_tse_mandates(conn, apply=True, published_on=when, commit=False) == base
+        assert conn.execute("select status from mandates where id = %s", (mid,)).fetchone()["status"] == "em_exercicio"
+
+
+def test_check_de_cadeiras_pega_vereador_a_mais(conn):
+    q = f"select count(*) n from ({VEREADORES_ACIMA_DO_TETO}) x"
+    with conn.transaction(force_rollback=True):
+        before = conn.execute(q).fetchone()["n"]
+        ct = conn.execute(
+            """select pl.id place, o.id office, pl.population from places pl cross join offices o
+               where pl.kind = 'municipio' and o.slug = 'vereador' and pl.population < 15000 and pl.ibge_code <> all(%s)
+               order by pl.ibge_code limit 1""", (sorted(VEREADOR_EXCECOES),)).fetchone()
+        for i in range(10):  # 10 a mais garante passar de 9 cadeiras, com qualquer número já em exercício
+            pid = _person(conn, f"teste-cadeira-{i}", f"Teste Cadeira {i}", f"Teste Cadeira {i}", date(1970, 1, 1 + i))
+            conn.execute("""insert into mandates (person_id, office_id, place_id, status, started_on, ends_on, status_source)
+                            values (%s, %s, %s, 'em_exercicio', '2025-01-01', '2029-01-01', 'tse')""", (pid, ct["office"], ct["place"]))
+        assert conn.execute(q).fetchone()["n"] == before + 1

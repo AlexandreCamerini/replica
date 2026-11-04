@@ -137,6 +137,61 @@ _PREFEITOS_POR_MUNICIPIO = f"""
                             and m.started_on <= current_date and m.ends_on > current_date) as n
     from places pl where pl.kind = 'municipio'"""
 
+# BUG-049 / D251: vereadores em exercício por município <= cadeiras da CF art. 29, IV (EC 58/2009), pela população do IBGE.
+# O teto é calculado com a população de hoje (places.population); a Câmara fixa as cadeiras pela Lei Orgânica com a população
+# da época da eleição, então município que encolheu de faixa elege mais do que o teto de hoje. Esses ficam aqui, com o número
+# de eleitos do TSE como teto deles (não passa sem limite) e o motivo. Conferido em 04/11/2026: os 25 têm exatamente os
+# eleitos do TSE 2024 em exercício. Manacapuru (21) está acima do teto da CF até pela população do Censo; é o que o TSE publicou.
+VEREADOR_FAIXAS: list[tuple[int, int]] = [
+    (15_000, 9), (30_000, 11), (50_000, 13), (80_000, 15), (120_000, 17), (160_000, 19), (300_000, 21), (450_000, 23), (600_000, 25),
+    (750_000, 27), (900_000, 29), (1_050_000, 31), (1_200_000, 33), (1_350_000, 35), (1_500_000, 37), (1_800_000, 39), (2_400_000, 41),
+    (3_000_000, 43), (4_000_000, 45), (5_000_000, 47), (6_000_000, 49), (7_000_000, 51), (8_000_000, 53), (2_147_483_647, 55),
+]
+VEREADOR_EXCECOES: dict[str, tuple[int, str]] = {
+    "1302504": (21, "Manacapuru/AM: o TSE elegeu 21 em 2024; IBGE 2026 = 113.042 hab."),
+    "1303569": (13, "Rio Preto da Eva/AM: o TSE elegeu 13 em 2024; IBGE 2026 = 25.342 hab."),
+    "1303601": (11, "Santa Isabel do Rio Negro/AM: o TSE elegeu 11 em 2024; IBGE 2026 = 13.724 hab."),
+    "1503457": (13, "Ipixuna do Pará/PA: o TSE elegeu 13 em 2024; IBGE 2026 = 28.403 hab."),
+    "1506708": (13, "Santana do Araguaia/PA: o TSE elegeu 13 em 2024; IBGE 2026 = 29.273 hab."),
+    "2100477": (13, "Alto Alegre do Pindaré/MA: o TSE elegeu 13 em 2024; IBGE 2026 = 26.241 hab."),
+    "2102077": (11, "Bom Lugar/MA: o TSE elegeu 11 em 2024; IBGE 2026 = 12.333 hab."),
+    "2102358": (11, "Buritirana/MA: o TSE elegeu 11 em 2024; IBGE 2026 = 13.098 hab."),
+    "2102408": (11, "Cajapió/MA: o TSE elegeu 11 em 2024; IBGE 2026 = 10.331 hab."),
+    "2103307": (19, "Codó/MA: o TSE elegeu 19 em 2024; IBGE 2026 = 118.272 hab."),
+    "2106300": (11, "Magalhães de Almeida/MA: o TSE elegeu 11 em 2024; IBGE 2026 = 13.873 hab."),
+    "2106904": (13, "Monção/MA: o TSE elegeu 13 em 2024; IBGE 2026 = 28.526 hab."),
+    "2110278": (11, "Santo Amaro do Maranhão/MA: o TSE elegeu 11 em 2024; IBGE 2026 = 14.294 hab."),
+    "2111029": (11, "São João do Carú/MA: o TSE elegeu 11 em 2024; IBGE 2026 = 12.305 hab."),
+    "2112704": (15, "Vargem Grande/MA: o TSE elegeu 15 em 2024; IBGE 2026 = 44.359 hab."),
+    "2114007": (15, "Zé Doca/MA: o TSE elegeu 15 em 2024; IBGE 2026 = 41.704 hab."),
+    "2300705": (11, "Alto Santo/CE: o TSE elegeu 11 em 2024; IBGE 2026 = 14.327 hab."),
+    "2801504": (11, "Carmópolis/SE: o TSE elegeu 11 em 2024; IBGE 2026 = 14.226 hab."),
+    "2804201": (11, "Monte Alegre de Sergipe/SE: o TSE elegeu 11 em 2024; IBGE 2026 = 14.829 hab."),
+    "2805406": (13, "Poço Redondo/SE: o TSE elegeu 13 em 2024; IBGE 2026 = 29.352 hab."),
+    "2905156": (11, "Caetanos/BA: o TSE elegeu 11 em 2024; IBGE 2026 = 11.370 hab."),
+    "3134004": (11, "Itinga/MG: o TSE elegeu 11 em 2024; IBGE 2026 = 13.928 hab."),
+    "3145307": (13, "Novo Cruzeiro/MG: o TSE elegeu 13 em 2024; IBGE 2026 = 27.094 hab."),
+    "5007935": (11, "Sonora/MS: o TSE elegeu 11 em 2024; IBGE 2026 = 14.804 hab."),
+    "5107701": (11, "Rosário Oeste/MT: o TSE elegeu 11 em 2024; IBGE 2026 = 14.848 hab."),
+}
+
+
+def vereador_seats(population: int) -> int:
+    """Cadeiras máximas de vereador pela população (CF art. 29, IV)."""
+    return next(s for lim, s in VEREADOR_FAIXAS if population <= lim)
+
+
+_VER_FAIXAS = ", ".join(f"({l}, {s})" for l, s in VEREADOR_FAIXAS)
+_VER_EXC = ", ".join(f"('{k}', {n})" for k, (n, _) in sorted(VEREADOR_EXCECOES.items()))
+VEREADORES_ACIMA_DO_TETO = f"""
+    with f(lim, seats) as (values {_VER_FAIXAS}),
+         exc(ibge_code, seats) as (values {_VER_EXC}),
+         cad as (select pl.id, pl.ibge_code, coalesce(x.seats, (select min(f.seats) from f where pl.population <= f.lim)) seats
+                 from places pl left join exc x on x.ibge_code = pl.ibge_code where pl.kind = 'municipio' and pl.population is not null),
+         ex as (select m.place_id, count(*) n from mandates m join offices o on o.id = m.office_id and o.slug = 'vereador'
+                where m.status = 'em_exercicio' and m.started_on <= current_date and m.ends_on > current_date group by 1)
+    select cad.ibge_code, cad.seats, ex.n from cad join ex on ex.place_id = cad.id where ex.n > cad.seats"""
+
 CHECKS: list[tuple[str, str]] = [
     (
         # BUG-019: presidente contado 2x (…_BRASIL.csv + …_BR.csv). O diretório tem só parte dos candidatos, então a soma
@@ -392,6 +447,11 @@ CHECKS: list[tuple[str, str]] = [
              and not exists (select 1 from mandates m join legislative_bodies b on b.id = m.body_id
                              where m.person_id = s.person_id and b.adapter in ('camara_api','senado_api','ale_custom'))""",
     ),
+    (
+        # BUG-049 / D251: retotalização do TSE rebaixou eleitos e o loader criou os novos sem encerrar os antigos (Tapauá: 14 de 11)
+        "vereador: em exercício por município <= cadeiras da CF art. 29, IV (exceções em VEREADOR_EXCECOES, com motivo)",
+        f"select count(*) from ({VEREADORES_ACIMA_DO_TETO}) x",
+    ),
 ]
 
 
@@ -408,6 +468,13 @@ def run_checks(conn: psycopg.Connection) -> int:
     if stale:
         log.warning("exceção vencida (o município já tem prefeito; tirar de PREFEITO_EXCECOES): %s", ", ".join(sorted(stale)))
     log.info("prefeito: %d município(s) em exceção listada (PREFEITO_EXCECOES, com motivo)", len(PREFEITO_EXCECOES))
+    sobra = [r["ibge_code"] for r in conn.execute(
+        """select pl.ibge_code, pl.population, (select count(*) from mandates m join offices o on o.id = m.office_id and o.slug = 'vereador'
+                  where m.place_id = pl.id and m.status = 'em_exercicio' and m.started_on <= current_date and m.ends_on > current_date) n
+           from places pl where pl.kind = 'municipio' and pl.ibge_code = any(%s)""", (sorted(VEREADOR_EXCECOES),))
+             if r["population"] is not None and r["n"] <= vereador_seats(r["population"])]
+    if sobra:
+        log.warning("exceção de vereador vencida (o município já cabe no teto pela população; tirar de VEREADOR_EXCECOES): %s", ", ".join(sorted(sobra)))
     failed += run_identity_checks(conn)
     if failed:
         log.error("%d invariante(s) quebrada(s)", failed)

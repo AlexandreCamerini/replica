@@ -885,3 +885,11 @@ Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não conve
 - Severity: S4 latente (votação/contas de 2012 não são carregadas: o default é 2022+, e há 0 candidaturas de 2012 com voto)
 - Onde: `tse_votos_contas.run_votes`/`_apply`/`_finance_entries` e `tse_candidatos._load_votes` agregam por (SQ, turno) e gravam em toda candidatura do ano com o SQ. Nas 91 duplas de 2012, a ordinária e a suplementar de outro município receberiam a soma das duas.
 - Fix sugerido: em `SQ_COM_UE`, agregar por (SG_UE, SQ) e casar pela UE da disputa (como `pick_row`). Não corrigido: fora do escopo dos reparos de identidade.
+
+### BUG-049: retotalização do TSE em Tapauá/AM deixa 14 vereadores em exercício para 11 cadeiras
+
+- Severity: S2 (três crachás com mandato em exercício que a fonte não reconhece; câmara acima do teto constitucional)
+- Flow / case: agenda `run-due --only tse.candidatos.recentes --force` · Build: 22f4206
+- Steps: o TSE republica o `consulta_cand_2024` (04/11/2026) com a retotalização de Tapauá (UE 02798). A recarga `--all` cria os mandatos dos 3 eleitos novos e grava NÃO ELEITO em epaminondas, izaque-martins e nilson-am, mas os mandatos deles seguem `em_exercicio` (o TSE só promove `eleito_aguardando_posse`). O `check` deu 40/40, porque não havia invariante de cadeiras.
+- Expected: os rebaixados saem do exercício, com motivo e sem apagar; Tapauá com 11.
+- Status: fixed (D251). Passo `mandatos_tse` do `identity.repairs` (3 → 0) e check "vereador em exercício ≤ cadeiras da CF art. 29, IV" (falhava com 1, agora passa). Tapauá 11. Testes em `test_identity_repairs.py`.
