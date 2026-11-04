@@ -106,14 +106,14 @@ def _save(conn: psycopg.Connection, r, body_id: str, start: date, end: date, eve
         (
             read_id, body_id, props.get((i["prop_type"], i["prop_number"], i["prop_year"])), i["prop_type"], i["prop_number"], i["prop_year"],
             i.get("summary"), i.get("themes") or [], i["stage"], i.get("committee"), i["scheduled_for"], i.get("regime"),
-            i.get("rapporteur"), i["event_ref"], i.get("url"),
+            i.get("rapporteur"), i["event_ref"], i.get("url"), i.get("proposal_url"),
         )
         for i in items
     ]
     upsert(
         conn, "pauta_items",
         ["read_id", "body_id", "proposal_id", "prop_type", "prop_number", "prop_year", "summary_official", "official_themes", "stage",
-         "committee", "scheduled_for", "regime", "rapporteur", "event_ref", "official_url"],
+         "committee", "scheduled_for", "regime", "rapporteur", "event_ref", "official_url", "proposal_url"],
         rows, ["read_id", "prop_type", "prop_number", "prop_year", "event_ref"],
     )
     upsert(
@@ -170,6 +170,7 @@ def _camara(conn: psycopg.Connection, body_id: str, start: date, end: date) -> N
                     "scheduled_for": _brt(parse_ts(e["dataHoraInicio"])), "regime": nz(it.get("regime")),
                     "rapporteur": (it.get("relator") or {}).get("nome"), "event_ref": str(e["id"]),
                     "url": f"https://www.camara.leg.br/evento-legislativo/{e['id']}",
+                    "proposal_url": f"https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao={pid}",
                 })
         _save(conn, r, body_id, start, end, seen, failed, items)
 
@@ -204,6 +205,7 @@ def _senado(conn: psycopg.Connection, body_id: str, start: date, end: date) -> N
                         "summary": nz(mt.get("Ementa")), "stage": "plenario", "scheduled_for": when,
                         "regime": nz(mt.get("Apreciacao")), "event_ref": str(s["CodigoSessao"]),
                         "url": f"https://www25.senado.leg.br/web/atividade/materias/-/materia/{mt['CodigoMateria']}",
+                        "proposal_url": f"https://www25.senado.leg.br/web/atividade/materias/-/materia/{mt['CodigoMateria']}",
                     })
         try:
             reunioes = _list((fetch_json(f"{SENADO}/comissao/agenda/{start:%Y%m%d}/{end:%Y%m%d}.json").get("AgendaReuniao") or {}).get("reunioes", {}).get("reuniao"))
