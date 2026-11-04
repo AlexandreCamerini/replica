@@ -22,10 +22,15 @@ test.describe("B034 cota com glosa dupla e motivo da sucessão", () => {
     await expect(page.getByTestId("sucessao")).toContainText("o governador renunciou em 02/04/2026");
   });
 
-  // D228: Serafim Corrêa virou mandato (fonte ALEAM), não mais motivo de vaga
-  test("B034-3 vice do AM: Serafim Corrêa aparece como vice com a ALEAM como fonte", async ({ page }) => {
+  // D228: Serafim Corrêa virou mandato (fonte ALEAM), não mais motivo de vaga. Reverificação 4 (BUG-040): o teste prende o
+  // mandato em exercício de vice-governador com a posse de 04/05/2026, e não qualquer menção a vice-governador no crachá.
+  test("B034-3 vice do AM: Serafim Corrêa em exercício desde 04/05/2026, com a ALEAM como fonte", async ({ page }) => {
     await page.goto("/p/serafim-correa");
-    await expect(page.getByText(/Vice-governador/).first()).toBeVisible();
-    await expect(page.getByText("situação segundo a Assembleia Legislativa do Amazonas").first()).toBeVisible();
+    const vice = page.locator('section[aria-labelledby="mandatos-h"] li[data-status="em_exercicio"]').filter({ hasText: "Vice-governador" });
+    await expect(vice).toHaveCount(1);
+    await expect(vice).toContainText("Em exercício");
+    await expect(vice).toContainText("Amazonas");
+    await expect(vice).toContainText("de 04/05/2026");
+    await expect(vice).toContainText("situação segundo a Assembleia Legislativa do Amazonas");
   });
 });

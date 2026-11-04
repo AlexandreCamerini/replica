@@ -728,10 +728,14 @@ Expected: os testes acompanham o dado (D228 e cf1dcde).
 Actual: 2 falhas, nas 2 tentativas. O D229 só rodou pytest e `check`, e o D234 rodou o B034 antes do D228.
 Fix sugerido: trocar as duas asserções para "vice-governador Serafim Corrêa, situação segundo a Assembleia Legislativa do Amazonas". A lacuna do vice pode ser exercitada em outra UF com vaga (DF ou RR).
 
+Status: fixed (6ab7fa8, testes acompanham o D228)
+
 Reverificação 4 2026-11-03: confirmado. Na suíte inteira contra o 3101, FX-024 (`fixui.spec.ts:31`) e B034-3 (`b034-cota-sucessao.spec.ts:26`) passaram nas 2 rodadas completas, sem retry. Os testes ainda servem para algo. O FX-024 prende o que o D228 mudou: Serafim Corrêa aparece em Manaus e não há lacuna de vice. A lacuna "—" do vice segue coberta pelo FX-031 (DF, "quem era vice assumiu o governo"). Ressalvas:
 - O B034-3 ficou fraco. `getByText(/Vice-governador/).first()` passa com qualquer menção a vice-governador no crachá, e o teste não confere a posse de 04/05/2026 nem se é um mandato em exercício. O motivo da sucessão do AM saiu da suíte sem substituto.
 - O B034-3 roda sem `test.skip(!PG)`, ao contrário do FX-024.
 - O BUG-040 não recebeu linha de Status no 3da7ef4.
+
+Ressalva do B034-3 tratada (fix ETL, D244): o teste agora prende o mandato em exercício de vice-governador do AM, com "de 04/05/2026" e a ALEAM como fonte, no item `li[data-status="em_exercicio"]` da seção de mandatos, e não qualquer menção a vice-governador. O `test.skip(!PG)` já valia para o B034-3, porque está no `describe`. Verde contra o 3101 (`--output test-results-b041`).
 
 ### BUG-041: fusão pelo título repetido do TSE: willya-do-rampa mostra a candidatura de 2012 e a filiação ao PTB de outra pessoa (Virginia Pereira de Oliveira)
 
@@ -750,6 +754,13 @@ Cause: título é tratado como prova suficiente. O TSE repete o título de outra
 Como achei: liguei as 183.034 candidaturas à linha da fonte e procurei pessoas cujas linhas têm nomes civis sem nenhum token em comum. Saíram 5: 4 são nome social ou grafia (Erika Hilton, Benny Briolly, Sarita, Dionisio) e 1 é este. Em nascimento divergente com no máximo 1 token em comum, saíram mais 3, todos da mesma pessoa.
 Fix sugerido: no ramo do título, exigir que nome civil ou nascimento batam com a pessoa (um dos dois). Sem isso, a linha vai para a fila. Mover a candidatura de 2012 e a filiação ao PTB para fora de willya-do-rampa, com trilha no `identity_split_log`. O check pode usar `tse_titulo_candidatura` se ela passar a guardar nome civil e nascimento da linha.
 
+Status: fixed (fix ETL, D240 e D243).
+- `resolve`: título igual com nascimento diferente E nome civil sem nenhum token em comum com a pessoa não casa. A linha segue sem o título pelos outros ramos e entra como pessoa nova só se for eleita para mandato atual (D34); fora isso, é rejeitada com o motivo no run. Um dos dois divergente continua casando (1.594 nascimentos e 6 nomes divergentes no banco, todos da mesma pessoa).
+- `tse_titulo_candidatura` (migração 0066) guarda nome civil, nascimento e número de cada linha da fonte. Check novo: "candidatura cuja linha da fonte tem outro nascimento e nome civil sem token em comum com a pessoa". Antes dava 1 (Virginia), e agora dá 0. Volta a 1 numa transação desfeita que devolve a candidatura a willya-do-rampa (teste).
+- `civico-etl identity.fix041` separou o caso no padrão do fix038: a candidatura 2012 (SQ 90000003345, nº 14222, PTB, #NULO#/renúncia) e a chave `tse:2012:92835:90000003345` foram para `virginia-go` (Virginia Pereira de Oliveira, 26/08/1993, criada da linha da fonte, sem o título). Não havia mandato, bens nem despesa de campanha. Tudo está em `identity_split_log` (BUG-041, 3 linhas). O título 025677851031 ficou com willya-do-rampa (2020 e 2024 na fonte).
+- /p/willya-do-rampa: sem 2012 e sem PTB. Depois do `derive.stats`, o `party_memberships` dele tem só o PDT desde 15/11/2020.
+- Varredura das 2.107.128 linhas do `consulta_cand` 2012–2026 com o resolve novo: nenhuma outra linha com título do diretório e identidade de outra pessoa. A classe tinha 1 caso.
+
 ### BUG-042: título reemitido no mesmo município com grafia diferente do nome: mandato eleito some do crachá sem passar pela fila
 
 - Severity: S3 (histórico incompleto: falta um mandato encerrado. Nada errado é mostrado)
@@ -764,6 +775,15 @@ Steps
 Expected: título reemitido no mesmo lugar vai para a fila (D235).
 Actual: só vai para a fila quando o nome civil bate letra a letra. Uma letra diferente (S/Z, M/N) já faz a linha sumir sem rastro. O check "título com linha ELEITO e pessoa sem candidatura eleita" não vê esses casos, porque o título novo não está no diretório.
 Fix sugerido: no `resolve`, com título desconhecido e mesmo município, comparar nome por tokens (como o `seat_match`) e não só a forma dobrada, e mandar o caso para a fila. Ou passar `seat` no loader do TSE. Reprocessar MG 2016 e SC 2012 depois.
+
+Status: fixed (fix ETL, D241 e D243).
+- `resolve`: com título desconhecido, mesmo município da trajetória, mesmo nascimento e nome civil a no máximo 2 edições, e com a diferença só de grafia (forma fonética igual: s/z, m/n final, y/i, letra dobrada, h mudo), a linha casa. O log e a nota do run dizem por quê. Mais fraco que isso vai para a fila: grafia a 2 edições que não é só fonética, só a mesma UF, ou mesmo município e mesmo nome com outro nascimento. Com um título da pessoa concorrendo na mesma eleição da linha, são duas pessoas, e a linha não casa nem vai para a fila.
+- Desvio do pedido (distância ≤ 2 bastaria): a fonte tem pares no mesmo município, com o mesmo nascimento, a 2 edições, que são pessoas diferentes ou não dá para saber. Exemplos: Marcos × Márcio Pereira da Silva (Araranguá/SC, 18/01/1981, urna "Mano" nos dois), Eliseo × Elino Ferreira da Silva (Juruá/AM, títulos quase consecutivos) e Kassâmio × Kássio Leal Paraíba (Inhuma/PI, os dois concorreram em 2016). Com ≤ 2 puro, os dois primeiros seriam fundidos.
+- `civico-etl identity.fix041` recuperou Eloisa Cardoso 2016 (SQ 130000040058, vereadora de Sericita/MG, ELEITO POR QP, PSDB 45666, mandato 2017–2020, bens R$ 83.500,00) e Nelson Gasperin 2012 (SQ 240000003602, prefeito de Vargem/SC, ELEITO, PP 11, mandato 2013–2016, bens R$ 1.694.000,00). Os títulos 065899330248 e 031866510949 foram anexados às pessoas. Tudo conferido no CSV.
+- Classe inteira (varredura de toda a fonte com o resolve novo, sem gravar): 2 casam por reemissão (os 2 acima) e 95 linhas ficam entre "casa" e "outra pessoa", 15 delas ELEITO. As 13 ELEITO de eleição ordinária foram recarregadas e estão na fila (6 → 19), entre elas Evaldo × Evandro "DD" (prefeito de Flores do Piauí/PI 2012, provável mesma pessoa, que a regra fonética não prova), Carlinho de Chalé/MG (1963, homônimo de carlin-maroba, 1977) e 6 linhas sem título nem nascimento ("-4"). As 2 ELEITO de eleição suplementar (Gelson, Joaquim Távora/PR 2012, e Davino Serrath, Guajará-Mirim/RO 2016) ficaram só no relatório, porque a recarga de suplementar mexe no mandato da cadeira. As 80 não eleitas entram na fila na próxima carga `--all`.
+- Marcos do Santa Clara 2020 (nascimento 1988 × 1986, título diferente) vai para a fila pela regra nova. A linha é suplente e não foi recarregada.
+- Check: o do D238 ("título com linha ELEITO na fonte e pessoa sem candidatura eleita") passa a cobrir os 2, porque os títulos novos entraram no diretório e em `tse_titulo_candidatura`. Dá 0.
+- `'-4'` (título não divulgável, 1.701 linhas na fonte) deixou de ser tratado como título no `resolve` e no loader. Antes, a primeira pessoa criada com ele receberia todas as outras linhas "-4" pelo título. Não havia nenhuma no banco.
 
 ### BUG-043: 16 disputas ficaram com o registro INAPTO/#NULO# e não com o registro APTO da mesma pessoa (resto do BUG-039)
 
@@ -785,3 +805,11 @@ Steps
 Expected: D238, fica o registro de maior posto.
 Actual: a regra só vale para o que o loader ou o `fix032` processaram depois do D238. O check novo só olha ELEITO.
 Fix sugerido: aplicar o `registration_rank` uma vez sobre o banco inteiro, a partir de `tse_titulo_candidatura` (ano, UE, cargo e título com mais de um SQ). Estender o check do D238 a "existe registro de posto maior na fonte para a mesma disputa".
+
+Status: fixed (fix ETL, D242 e D243).
+- Check novo, em SQL sobre `tse_titulo_candidatura` (número na urna da 0066): "registro substituído no banco com registro de posto maior na fonte para a mesma disputa e número". Antes dava 16 e agora dá 0.
+- `civico-etl identity.fix041` refez a varredura das 151 disputas: 116 com o maior posto, 19 suplementares com os 2 registros e 16 com o inferior (os mesmos 16 da Reverificação 4). As 16 foram recarregadas só nas linhas das 2 SQ de cada disputa. O loader do D238 trocou o registro e mandou o inferior inteiro para `identity_repair_log` (BUG-043, `removido`/`substituido`, 16 linhas, com 14 declarações de bens e nenhum mandato).
+- Conferido contra o CSV, 16 de 16 em número, resultado, partido e bens. Exemplos: Veter Martins 2014 é dep. estadual GO, PHS 31500, NÃO ELEITO (90000001316), bens R$ 416.400,00, e /p/veter-martins mostra "2014 Deputado estadual · Goiás PHS Não eleito". Elisete Duarte 2012 é suplente (60000016248). Doutor Leitão 2022 é suplente (60001723726).
+- O loader ordenava as linhas por "eleito primeiro". Entre não eleitos, o INAPTO podia vir antes do APTO e barrar o APTO como "pessoa duplicada". Agora a ordem é pelo posto (`registration_rank`).
+- Os bens do registro inferior e os do válido têm a mesma soma nas 14 disputas que tinham bens. O total de bens não mudou com esta parte.
+- Não tratado: as 19 suplementares com os 2 registros no banco (Reverificação 3).
