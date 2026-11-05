@@ -379,3 +379,34 @@ Rodada autônoma autorizada pelo dono do projeto: diff full stack contra politic
 - **Riscos.**
   - Os 3 eleitos novos de Tapauá ficaram com início em 01/01/2025, a posse regular. A data real da posse após a retotalização não está no `consulta_cand`.
   - Prefeito ou vice rebaixado por retotalização passa pela mesma regra, mas cassação (indeferido, renúncia) não: esses têm outro status e outra fonte.
+
+## D252 · carga inicial de produção por dump do local (orquestrador, 2026-11-05)
+- **D252 · o banco de produção (Supabase Pro, projeto `bigdata`) nasce de um dump só de dados do Postgres local, não de uma recarga pelo ETL.** O local tem 5,2 GB carregados e validados, incluindo os reparos de identidade (15.836 em `identity_repair_log`) e 30 câmaras do SAPL. Reconstruir pelo ETL no GitHub Actions levaria dias, gastaria minutos pagos (o repositório é privado) e esbarraria no teto de 6 h por job e de 10 GB de cache.
+- **`etl/deploy/prod-restore.sh` (assistente).**
+  1. Pausa `ETL_SCHEDULE_ENABLED`, relê a variável para confirmar e espera qualquer execução não concluída. Erro do `gh` bloqueia. Se o script sair antes de religar, avisa com o comando.
+  2. Recebe a URI oculta. As `PG*` só existem no subshell de cada `psql` de produção: nada vai para argv, arquivo ou para o ambiente do shell. Assim o `sslmode=require` de produção não vaza para o Postgres local.
+  3. Exige migrações iguais pelo checksum, `session_replication_role` permitido e produção vazia, salvo o seed (`sources`, `offices`, `topics`, `salaries`, `ingest_runs`, `dataset_stamps`) e as tabelas de usuário. Consulta que falha aborta; nunca vale como "vazio".
+  4. Faz `pg_dump --data-only` sob um snapshot `repeatable read`, junto com as contagens.
+  5. Uma transação com `begin` explícito:
+     - trava as tabelas e confere de novo que estão vazias;
+     - apaga o seed e carrega com as FKs da sessão desligadas;
+     - confere contagens contra o snapshot e toda FK de uma coluna;
+     - só então manda `commit`, e o `commit` só sai se o `pg_restore` terminou com 0.
+
+     Erro, Ctrl-C ou queda deixam a transação sem `commit`, e o servidor desfaz.
+  6. Roda `vacuum analyze`, que é tolerante a falha, o `check` do ETL (opcional) e religa a agenda.
+- **Fica de fora:** tabelas de usuário (`profiles`, `follows`, `digest_deliveries`, `suggestions`, `corrections`, `page_views`, `page_view_hourly`, que no local são de teste), `schema_migrations` e `etl_schedule_attempts`.
+- **Prova (banco descartável `civico_restore_test`: migrate `--local` e seed).**
+  - Carga de 11 tabelas, entre elas `places`, que tem FK circular, e `party_observations`, que tem identity, mais o seed: contagens e FKs conferidas, sequência ajustada.
+  - FK órfã proposital (sem `parties` e `places`): exceção antes do `commit`, `people` = 0 e seed intacto (`salaries` 30, `sources` 15).
+  - `pg_restore` cortado no meio de um COPY: rollback e seed intacto.
+  - Rodar de novo após a carga é recusado. Destino igual à origem é recusado. URI vazia ou EOF para.
+  - Dump completo com 75 tabelas: 10,1 milhões de linhas, 321 MB e 29 s.
+  - Em produção (leitura): `postgres` aceita `session_replication_role = replica`, e o md5 das 20 migrações é igual ao do local.
+  - A carga completa não rodou localmente, porque o disco do Mac tem 15 GB livres.
+  - Revisão independente por subagente: 14 itens. Corrigidos os de atomicidade, vazamento de `PGSSLMODE`, pausa da agenda que falhava aberta e consultas que falhavam como "vazio".
+- **Riscos.**
+  - Disco do Supabase: 8 GB iniciais, e o autoscale só cresce uma vez a cada 6 h. O assistente manda subir para 16 GB antes.
+  - Uma transação de 30 a 90 min pelo Session pooler: não verifiquei timeout do lado do Supavisor. Se a conexão cair, tudo é desfeito e é só rodar de novo.
+  - `sslmode=require` não verifica o certificado.
+  - Se a agenda já rodou em produção, o banco não está mais vazio e o assistente recusa. Aí é preciso esvaziar produção à mão antes.
