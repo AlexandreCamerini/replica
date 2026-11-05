@@ -37,6 +37,8 @@ jobs:
           ONLY: ${{ inputs.only }}
           ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
           ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
+          REVALIDATE_URL: ${{ vars.REVALIDATE_URL }}        # derive.stats avisa o site (etl/deploy/vercel-env-setup.sh grava os dois)
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
           ETL_DEADLINE_MIN: "320"  # abaixo do timeout do job: a agenda adia o que não cabe e sempre alerta
         run: |
           if [ -n "$ONLY" ]; then python -m civico_etl.cli run-due --only "$ONLY" --force
