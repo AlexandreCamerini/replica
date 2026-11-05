@@ -262,11 +262,15 @@ stage "Banco de produção: conexão de administrador"
 say "Usada só aqui, para liberar o login dos usuários do app. Não é gravada em lugar nenhum."
 open_url "https://supabase.com/dashboard/projects"
 step "Projeto de produção → botão Connect (topo) → Connection String → 'Session pooler' (porta 5432)."
-step "Copie a URI (usuário postgres.<ref>) e troque [YOUR-PASSWORD] pela senha do banco."
+step "Copie a URI como está (usuário postgres.<ref>, com [YOUR-PASSWORD]); a senha é pedida em seguida."
+note "Senha do banco = a definida ao criar o projeto. Esqueceu: Project Settings → Database → Reset database password."
 while :; do
-  ask_secret ADMIN_URL "Cole a URI (entrada oculta):"
+  ask_secret ADMIN_URL "Cole a URI como o Supabase mostra, com [YOUR-PASSWORD] (entrada oculta):"
   if [[ ! "$ADMIN_URL" =~ ^postgres(ql)?:// ]]; then warn "não começa com postgres:// ou postgresql://"; continue; fi
-  if [[ "$ADMIN_URL" == *YOUR-PASSWORD* ]]; then warn "ainda tem [YOUR-PASSWORD]; troque pela senha"; continue; fi
+  if [[ "$ADMIN_URL" == *"[YOUR-PASSWORD]"* ]]; then
+    ask_secret DB_PASS "Senha do banco (entrada oculta; caracteres especiais são codificados aqui):"
+    ADMIN_URL=$(U="$ADMIN_URL" P="$DB_PASS" python3 -c 'import os, urllib.parse as u; print(os.environ["U"].replace("[YOUR-PASSWORD]", u.quote(os.environ["P"], safe="")))')
+  fi
   ENVL=$(url_env "$ADMIN_URL") || { warn "URI ilegível (senha com / ? # precisa de %-encoding)"; continue; }
   HOST=$(sed -n 's/^PGHOST=//p' <<<"$ENVL"); USER_=$(sed -n 's/^PGUSER=//p' <<<"$ENVL")
   if [[ "$HOST" != *.pooler.supabase.com || "$USER_" != postgres.* ]]; then warn "não é o pooler do Supabase (host *.pooler.supabase.com, usuário postgres.<ref>)"; continue; fi
