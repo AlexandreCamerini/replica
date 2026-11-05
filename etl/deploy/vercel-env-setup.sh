@@ -270,6 +270,11 @@ while :; do
   if [[ "$ADMIN_URL" == *"[YOUR-PASSWORD]"* ]]; then
     ask_secret DB_PASS "Senha do banco (entrada oculta; caracteres especiais são codificados aqui):"
     ADMIN_URL=$(U="$ADMIN_URL" P="$DB_PASS" python3 -c 'import os, urllib.parse as u; print(os.environ["U"].replace("[YOUR-PASSWORD]", u.quote(os.environ["P"], safe="")))')
+  else
+    # senha colada crua (com # / ? @): codifica tudo entre o primeiro ":" do usuário e o último "@"
+    ADMIN_URL=$(U="$ADMIN_URL" python3 -c 'import os, re, urllib.parse as u
+s = os.environ["U"]; m = re.match(r"^(postgres(?:ql)?://[^:/@]+):(.*)@([^@]+)$", s)
+print(f"{m[1]}:{u.quote(u.unquote(m[2]), safe=str())}@{m[3]}" if m else s)')
   fi
   ENVL=$(url_env "$ADMIN_URL") || { warn "URI ilegível (senha com / ? # precisa de %-encoding)"; continue; }
   HOST=$(sed -n 's/^PGHOST=//p' <<<"$ENVL"); USER_=$(sed -n 's/^PGUSER=//p' <<<"$ENVL")
@@ -283,7 +288,11 @@ done
 PEOPLE=$(upsql "$ADMIN_URL" -c "select count(*) from people" 2>/dev/null || echo "?")
 REGION=$(sed -E 's/^aws-[0-9]+-([a-z0-9-]+)\.pooler\.supabase\.com$/\1/' <<<"$HOST")
 say "Projeto $REF · região $REGION · $PEOPLE pessoas carregadas"
-[[ "$REGION" == sa-east-1 ]] || warn "o banco não está em São Paulo; as funções da Vercel estão em gru1 (troque uma das duas)"
+case "$REGION" in   # funções da Vercel na região do banco: cada consulta paga a distância
+  sa-east-1) FN_REGION=gru1 ;; us-east-1) FN_REGION=iad1 ;; us-east-2) FN_REGION=cle1 ;; us-west-1) FN_REGION=sfo1 ;;
+  us-west-2) FN_REGION=pdx1 ;; eu-central-1) FN_REGION=fra1 ;; eu-west-1) FN_REGION=dub1 ;; eu-west-2) FN_REGION=lhr1 ;; *) FN_REGION="" ;;
+esac
+[[ -n "$FN_REGION" ]] && note "Região das funções na Vercel deve ser $FN_REGION (Settings → Functions → Function Region)."
 [[ "$PEOPLE" =~ ^[1-9] ]] || warn "people vazia: o site sobe sem dados até rodar etl/deploy/prod-restore.sh"
 pause "Enter para seguir"
 
