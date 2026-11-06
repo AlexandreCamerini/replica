@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Proposta PL 79/2020 · celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Barlow+Condensed:wght@600;700&amp;display=swap">
+<style>
+body{margin:0;background:#f3efe6}
+.root{--paper:#f3efe6;--sheet:#fbf9f4;--ink:#1c2226;--rule:#bdb6a6;--muted:#545a5e;--grid:rgba(28,34,38,.045);--tint:#9a9d9b;--ok:#1f6f4a;--warn:#8a5a00;--err:#9b2c2c;
+  width:390px;padding:0 16px;box-sizing:border-box;font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;color:var(--ink);background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.root.t-dark{--paper:#121518;--sheet:#1a1e22;--ink:#ebe6dc;--rule:#4a4f54;--muted:#a8a397;--tint:#6e7270;--grid:rgba(235,230,220,.05)}
+.serif{font-family:Newsreader,Georgia,serif;font-optical-sizing:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.disp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;line-height:.9}
+.lbl{font:500 11px/1.4 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.plate{background:var(--sheet);border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:5px;margin:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--ink);background:var(--sheet);font:500 14px "IBM Plex Sans",sans-serif;text-decoration:none;color:var(--ink);cursor:pointer;text-align:center}
+.btn.main{background:var(--ink);color:var(--paper)}
+.btn:hover{box-shadow:0 0 0 2px var(--ink)}
+.chip{display:flex;flex-direction:column;gap:3px;min-height:44px;padding:8px 12px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink)}
+.chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--paper)}
+.chip b{font:600 13px "IBM Plex Mono",monospace}
+.chip span{font-size:12.5px;line-height:1.3;color:var(--muted)}
+.chip.on span{color:var(--ink)}
+.sq{display:inline-block;width:14px;height:14px;border:1.5px solid var(--ink);box-sizing:border-box;flex:none;background:var(--sheet)}
+.vS{background:var(--ink)}
+.vN{background:repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px)}
+.vA{background:var(--sheet);border-style:dotted;border-width:2px}
+.vX{background:var(--sheet)}
+.bar{display:block;height:22px;border:1px solid var(--ink);box-sizing:border-box}
+.stamp{display:inline-block;font:600 11px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;border:1.5px solid var(--ink);padding:7px 9px;transform:rotate(-2deg);color:var(--ink)}
+.money{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:4px 12px;border:1px solid var(--ink);background:var(--sheet);font:500 14px "IBM Plex Sans",sans-serif}
+.ttag{display:inline-flex;align-items:center;min-height:32px;padding:2px 10px;border:1px solid var(--rule);background:var(--paper);font:500 12.5px "IBM Plex Mono",monospace;color:var(--ink)}
+.quote{display:flex;flex-direction:column;gap:6px;padding:12px 14px;background:var(--paper);border-left:2px solid var(--ink);margin:0}
+.quote blockquote{margin:0;font-family:Newsreader,Georgia,serif;font-style:italic;font-size:17px;line-height:1.45}
+.crumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.crumb a{min-height:44px;display:inline-flex;align-items:center;padding:0 4px;font:500 14px "IBM Plex Sans",sans-serif;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.crumb .here{min-height:44px;display:inline-flex;align-items:center;padding:0 4px;font:600 14px "IBM Plex Sans",sans-serif;color:var(--ink)}
+.hdr{display:flex;flex-direction:column;gap:2px;padding:10px 0 8px;border-bottom:1px solid var(--ink)}
+.nav{display:flex;gap:0 12px;flex-wrap:wrap}
+.nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 2px;font-size:13.5px;font-weight:500;color:var(--muted);text-decoration:none}
+.nav a.cur{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+.kv{display:flex;flex-direction:column;gap:4px;padding:12px 0;border-top:1px solid var(--rule)}
+.kv:first-child{border-top:0;padding-top:0}
+.kv .v{font-size:15px;line-height:1.4}
+.acc{display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+.acc:first-child{border-top:0}
+.acc-h{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:8px 0;border:0;background:transparent;text-align:left;color:var(--ink);cursor:pointer;font-family:Newsreader,Georgia,serif;font-size:21px;line-height:1.2;font-weight:500}
+.acc-h svg{flex:none}
+.acc-h .ic.open{transform:rotate(180deg)}
+.acc-b{display:flex;flex-direction:column;gap:12px;padding:2px 0 18px}
+.sel{min-height:44px;padding:0 12px;border:1px solid var(--ink);background:var(--sheet);font:500 15px "IBM Plex Sans",sans-serif;color:var(--ink);width:100%}
+.lnk{display:inline-flex;align-items:center;min-height:44px;color:var(--ink);font-weight:600}
+a{color:var(--ink)}
+h1,h2,h3,p{margin:0}
+</style>
+</helmet>
+<div class="root {{theme}}">
+  <header class="hdr">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+      <a class="serif" href="EntradaCelular.dc.html" style="font-size: 22px; font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center">quem·representa</a>
+      <span class="mono" style="font-size: 11px; color: var(--muted); text-align: right">Pauta lida em<br>05/11/2026, 00:02</span>
+    </div>
+    <nav aria-label="Principal" class="nav">
+      <a href="JaDecididoCelular.dc.html">Já decidido</a>
+      <a href="PautaCelular.dc.html" class="cur">Vem aí</a>
+      <a href="QuemVoteiCelular.dc.html">Quem eu votei</a>
+      <a href="ComoEscolhemos.dc.html">Como escolhemos</a>
+      <a href="Correcoes.dc.html">Correções</a>
+    </nav>
+  </header>
+
+  <main style="display: flex; flex-direction: column; gap: 22px; padding: 8px 0 32px">
+    <nav class="crumb" aria-label="Onde você está">
+      <a href="PautaCelular.dc.html">Vem aí</a><span aria-hidden="true" style="color: var(--muted)">›</span>
+      <a href="PautaCelular.dc.html">Quinta 05/11</a><span aria-hidden="true" style="color: var(--muted)">›</span>
+      <span class="here">PL 79/2020</span>
+    </nav>
+
+    <section aria-label="A proposta" style="display: flex; flex-direction: column; gap: 12px">
+      <span class="lbl">Projeto de lei · Câmara · Plenário</span>
+      <h1 class="serif" style="font-size: 56px; line-height: 1; font-weight: 500">PL 79/2020</h1>
+      <span class="mono" style="font-size: 12.5px; color: var(--muted)">PL = projeto de lei</span>
+      <h2 class="serif" style="font-size: 25px; line-height: 1.2; font-weight: 500">Muda para onde vão contribuições de empresas de transporte aéreo e portuário.</h2>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+        <span class="money"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"></circle><path d="M8 4.5v7M6 6.5h3a1.2 1.2 0 0 1 0 2.4H7a1.2 1.2 0 0 0 0 2.4h3"></path></svg>Mexe com dinheiro: contribuição de empresas</span>
+        <span class="stamp">Revisado por pessoa · 04/11/2026</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span class="lbl">Temas · lidos por IA · aguardando revisão</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <span class="ttag">Trabalho e aposentadoria</span>
+          <span class="ttag">Dinheiro e impostos</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="plate" aria-label="Quando e quem decide" style="padding: 16px 16px; display: flex; flex-direction: column">
+      <div class="kv"><span class="lbl">Próxima decisão</span><span class="v">Câmara · Plenário · quinta 05/11 · 10:00</span></div>
+      <div class="kv"><span class="lbl">Quem decide</span><span class="v">513 deputados; aprova com maioria dos presentes; precisa de 257 presentes.</span></div>
+      <div class="kv"><span class="lbl">Relator (quem sugere a versão final)</span><span class="v">Arthur Oliveira Maia</span></div>
+      <div class="kv"><span class="lbl">Urgência</span><span class="v">Tem urgência: pedido aprovado para votar mais rápido.</span></div>
+      <div class="kv"><span class="lbl">Texto oficial</span><span class="v">6 páginas, site da Câmara</span><a class="btn" href="#" style="align-self: flex-start; margin-top: 6px"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 2.5h7l3 3v8H3z"></path><path d="M10 2.5v3h3M5.5 8h5M5.5 10.5h5"></path></svg>Abrir o texto oficial</a></div>
+      <div class="kv"><span class="lbl">Quem fez</span><span class="v" style="color: var(--muted)">Ainda não carregado (está no texto oficial).</span></div>
+    </aside>
+
+    <section aria-label="As respostas" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="lbl">Seis perguntas · toque para abrir</span>
+      <h2 class="serif" style="font-size: 32px; line-height: 1.1; font-weight: 500">As respostas</h2>
+      <p style="font-size: 14px; color: var(--muted)">Cada resposta vem com o trecho do texto oficial.</p>
+      <div class="plate" style="padding: 4px 16px; display: flex; flex-direction: column">
+        <sc-for list="{{answers}}" as="a" hint-placeholder-count="6">
+          <div class="acc">
+            <button class="acc-h" onClick="{{a.pick}}" aria-expanded="{{a.open}}">
+              <span>{{a.q}}</span>
+              <svg class="{{a.icls}}" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7l6 6 6-6"></path></svg>
+            </button>
+            <sc-if value="{{a.open}}" hint-placeholder-val="{{true}}">
+              <div class="acc-b">
+                <p style="font-size: 16px; line-height: 1.5">{{a.a}}</p>
+                <sc-if value="{{a.has}}" hint-placeholder-val="{{true}}">
+                  <figure class="quote">
+                    <figcaption class="mono" style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted)">{{a.pg}}</figcaption>
+                    <blockquote>“{{a.t}}”</blockquote>
+                  </figure>
+                </sc-if>
+                <sc-if value="{{a.none}}" hint-placeholder-val="{{false}}">
+                  <figure class="quote">
+                    <figcaption class="mono" style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted)">Texto oficial · sem trecho</figcaption>
+                    <blockquote style="font-style: normal; font-size: 15px; color: var(--muted)">Lemos as 6 páginas. Nenhum trecho responde a isto.</blockquote>
+                  </figure>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section class="plate" aria-label="Quem vota isto no seu estado" style="padding: 16px; display: flex; flex-direction: column; gap: 10px">
+      <h2 class="serif" style="font-size: 24px; line-height: 1.15; font-weight: 500">Quem vota isto no seu estado</h2>
+      <label for="uf" class="lbl">Seu estado</label>
+      <select id="uf" class="sel">
+        <sc-for list="{{ufs}}" as="u" hint-placeholder-count="27">
+          <option value="{{u.uf}}" selected="{{u.sel}}">{{u.nome}}</option>
+        </sc-for>
+      </select>
+      <p style="font-size: 17px; line-height: 1.4">Os 70 deputados de São Paulo votam. <a class="lnk" href="JaDecididoCelular.dc.html">Veja quem são.</a></p>
+    </section>
+
+    <section aria-label="Falar com quem decide" style="display: flex; flex-direction: column; gap: 10px">
+      <h2 class="serif" style="font-size: 24px; line-height: 1.15; font-weight: 500">Falar com quem decide</h2>
+      <a class="btn main" href="#"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3.5h12v9H2z"></path><path d="M2 4l6 4.5L14 4"></path></svg>Mensagem ao gabinete do relator</a>
+      <a class="btn" href="JaDecididoCelular.dc.html"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="5.5" r="2.5"></circle><path d="M1.5 13.5c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4M10.5 3.5a2.5 2.5 0 0 1 0 4M12 9.8c1.6.5 2.5 1.8 2.5 3.7"></path></svg>Deputados do seu estado</a>
+      <a class="btn" href="#"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 1.5a6.5 6.5 0 0 0-5.6 9.8L1.5 14.5l3.3-.9A6.5 6.5 0 1 0 8 1.5z"></path><path d="M5.8 6.2c.2 1.9 2.1 3.8 4 4l1-1-1.5-.9-.7.6c-.6-.3-1.2-.9-1.5-1.5l.6-.7-.9-1.5z"></path></svg>Compartilhar no WhatsApp</a>
+      <p style="font-size: 14.5px; color: var(--muted); padding-top: 4px">Depois da votação, mostramos aqui como cada deputado votou.</p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px">
+        <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vS"></i>Sim</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vN"></i>Não</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vA"></i>Abstenção</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vX"></i>Sem voto registrado</span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="mono" style="display: flex; flex-direction: column; gap: 4px; padding: 14px 0 24px; border-top: 1px solid var(--ink); font-size: 11px; color: var(--muted); line-height: 1.6">
+    <span>Fonte: Câmara dos Deputados, Senado Federal · cadeiras: TSE</span>
+    <span>Pauta lida em 05/11/2026, 00:02 · texto oficial lido em 04/11/2026</span>
+    <span>Temas lidos por IA, aguardando revisão por pessoa</span>
+    <a href="Correcoes.dc.html" style="min-height: 44px; display: inline-flex; align-items: center; align-self: flex-start">Correções</a>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":3200},"tema":{"editor":"enum","options":["claro","escuro"],"default":"claro"}}'>
+const QS = [
+  {k: 'propoe', q: 'O que propõe?', a: 'Muda a destinação das contribuições sociais das empresas de transporte aéreo e portuário.', p: 1, t: 'para dispor sobre a destinação das contribuições sociais compulsórias das empresas do setor de transporte aéreo e portuário, incluindo aquelas relativas à contratação do trabalhador portuário avulso (TPA).'},
+  {k: 'recebe', q: 'Quem recebe algo?', a: 'Destina ao Sest e ao Senat contribuições ligadas a serviços portuários.', p: 1, t: 'serão destinadas ao Serviço Social do Transporte (Sest) e ao Serviço Nacional de Aprendizagem do Transporte (Senat)…'},
+  {k: 'paga', q: 'Quem paga?', a: 'Muda o destino das contribuições pagas por empresas privadas de transporte aéreo.', p: 3, t: 'arrecadadas de empresas privadas de transporte aéreo regular e não regular, de táxi aéreo'},
+  {k: 'muda', q: 'O que muda?', a: 'Muda o recolhimento das cooperativas de transporte, que passam a pagar ao Sescoop.', p: 5, t: 'As cooperativas de transporte recolherão ao Serviço Nacional de Aprendizagem do Cooperativismo (Sescoop) a contribuição compulsória sobre a remuneração dos seus empregados'},
+  {k: 'fluxo', q: 'O dinheiro entra, sai ou é dividido?', a: 'O texto não diz.', p: null, t: ''},
+  {k: 'impacto', q: 'Estimativa oficial de impacto', a: 'O texto não diz. O projeto não traz.', p: null, t: ''}
+];
+const UFS = [['AC','Acre'],['AL','Alagoas'],['AP','Amapá'],['AM','Amazonas'],['BA','Bahia'],['CE','Ceará'],['DF','Distrito Federal'],['ES','Espírito Santo'],['GO','Goiás'],['MA','Maranhão'],['MT','Mato Grosso'],['MS','Mato Grosso do Sul'],['MG','Minas Gerais'],['PA','Pará'],['PB','Paraíba'],['PR','Paraná'],['PE','Pernambuco'],['PI','Piauí'],['RJ','Rio de Janeiro'],['RN','Rio Grande do Norte'],['RS','Rio Grande do Sul'],['RO','Rondônia'],['RR','Roraima'],['SC','Santa Catarina'],['SP','São Paulo'],['SE','Sergipe'],['TO','Tocantins']];
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = {q: 'propoe'}; }
+  renderVals() {
+    const q = this.state.q;
+    const theme = (this.props.tema ?? 'claro') === 'escuro' ? 't-dark' : 't-light';
+    const answers = QS.map(x => { const open = x.k === q;
+      return {q: x.q, a: x.a, t: x.t, open, icls: 'ic' + (open ? ' open' : ''), has: x.p !== null, none: x.p === null,
+        pg: x.p === null ? 'Sem trecho' : 'Texto oficial · p. ' + x.p,
+        pick: () => this.setState({q: open ? null : x.k})}; });
+    const ufs = UFS.map(([uf, nome]) => ({uf, nome, sel: uf === 'SP'}));
+    return {theme, answers, ufs};
+  }
+}
+</script>
+</body>
+</html>

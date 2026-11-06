@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Já decidido · celular</title>
+<script src="./support.js"></script>
+<script src="dados.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Barlow+Condensed:wght@600;700&amp;display=swap">
+<style>
+body{margin:0}
+.root{--paper:#f3efe6;--sheet:#fbf9f4;--ink:#1c2226;--rule:#bdb6a6;--muted:#545a5e;--tint:color-mix(in srgb,var(--ink) 42%,var(--sheet));--light:color-mix(in srgb,var(--ink) 7%,var(--sheet));
+  width:390px;min-height:1640px;box-sizing:border-box;font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background:var(--sheet)}
+.serif{font-family:Newsreader,Georgia,serif;font-optical-sizing:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.disp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;line-height:.9}
+.lbl{font:500 11px/1.4 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--ink);background:var(--sheet);font:500 14px "IBM Plex Sans",sans-serif;text-decoration:none;color:var(--ink);cursor:pointer}
+.btn.main{background:var(--ink);color:var(--paper)}
+.sq{display:inline-block;width:14px;height:14px;border:1.5px solid var(--ink);box-sizing:border-box;flex:none;background:var(--sheet)}
+.vS{background:var(--ink)}
+.vN{background:repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px)}
+.vA{background:var(--sheet);border-style:dotted;border-width:2px}
+.vX,.vP{background:var(--sheet)}
+.crumb{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:0 16px}
+.crumb button{min-height:44px;padding:0 6px;border:0;background:transparent;font:500 14px "IBM Plex Sans",sans-serif;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.crumb .here{min-height:44px;display:inline-flex;align-items:center;padding:0 6px;font:600 14px "IBM Plex Sans",sans-serif;color:var(--ink)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 6px}
+.chip{flex:none;display:flex;flex-direction:column;gap:2px;min-height:44px;width:150px;padding:7px 10px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink);box-sizing:border-box}
+.chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--paper)}
+.chip b{font:600 12px "IBM Plex Mono",monospace}
+.chip span{font-size:11.5px;line-height:1.25;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.p4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--ink)}
+.p4 > div{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-left:1px solid var(--rule)}
+.p4 > div:first-child{border-left:0}
+.p4 .lbl{display:flex;align-items:center;gap:5px;color:var(--ink);font-size:10px}
+.bar{display:block;height:18px;border:1px solid var(--ink);box-sizing:border-box}
+/* mapa escalado: 886 px viram 358 px */
+.mapbox{width:358px;overflow:hidden;margin:0 16px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);background:var(--paper)}
+.bmap{position:relative;width:886px;transform:scale(.404);transform-origin:0 0}
+.bmap svg{display:block}
+.st{fill:var(--f);stroke:var(--ink);stroke-width:1.4;stroke-linejoin:round}
+.lb{position:absolute;display:flex;align-items:center;justify-content:center;padding:0;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.lb .u{font:600 26px/1 "IBM Plex Mono",monospace}
+.zoom{display:flex;gap:14px;align-items:center;padding:4px 16px 0}
+.zoom svg{flex:none;width:130px;height:130px;overflow:visible}
+.zoom .st{stroke-width:2}
+.ug{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;padding:0 16px}
+.ub{min-height:48px;border:1px solid var(--rule);background:var(--sheet);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0;cursor:pointer;color:var(--ink)}
+.ub b{font:600 12.5px "IBM Plex Mono",monospace}
+.ub span{font:700 16px/1 "Barlow Condensed","Arial Narrow",sans-serif}
+.copo{width:120px;height:120px;border:2px solid var(--ink);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:none;
+  background:linear-gradient(to top,var(--tint) var(--lv),var(--sheet) var(--lv))}
+.grp{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-top:1px solid var(--rule)}
+.grp .hd{display:flex;align-items:center;gap:10px}
+.dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.dep{display:flex;align-items:center;gap:8px;min-height:48px;padding:4px 8px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink)}
+.dep .n{font-size:13px;font-weight:500;line-height:1.2}
+.dep .pt{font:500 10.5px "IBM Plex Mono",monospace;color:var(--muted)}
+.hrow{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-top:1px solid var(--rule)}
+.hrow.on{background:var(--paper);margin:0 -16px;padding:12px 16px}
+.mk{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+a{color:var(--ink)}
+</style>
+</helmet>
+<div class="root" style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 32px">
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--ink)">
+    <a href="EntradaCelular.dc.html" class="serif" style="font-size: 20px; font-weight: 600; text-decoration: none; color: var(--ink)">quem·representa</a>
+    <button class="btn" style="min-height: 40px; padding: 0 10px; font-size: 13px" aria-label="Abrir o menu">Menu</button>
+  </header>
+
+  <nav class="crumb" aria-label="Onde você está">
+    <sc-if value="{{lvl0}}" hint-placeholder-val="{{true}}"><span class="here">Brasil</span></sc-if>
+    <sc-if value="{{lvlUp}}" hint-placeholder-val="{{false}}"><button onClick="{{goBR}}">Brasil</button><span aria-hidden="true" style="color: var(--muted)">›</span></sc-if>
+    <sc-if value="{{lvl1}}" hint-placeholder-val="{{false}}"><span class="here">{{ufName}}</span></sc-if>
+    <sc-if value="{{lvl2}}" hint-placeholder-val="{{false}}"><button onClick="{{goUF}}">{{ufSigla}}</button><span aria-hidden="true" style="color: var(--muted)">›</span><span class="here">{{dep.nome}}</span></sc-if>
+  </nav>
+
+  <div class="chips" aria-label="Votação escolhida">
+    <sc-for list="{{votes}}" as="v" hint-placeholder-count="6">
+      <button class="{{v.cls}}" onClick="{{v.pick}}" aria-pressed="{{v.on}}"><b>{{v.c}}</b><span>{{v.f}}</span></button>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{lvl0}}" hint-placeholder-val="{{true}}">
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 4px 16px 0">
+      <span class="lbl">Nível 1 de 3 · Brasil · {{V.d}}</span>
+      <h1 class="serif" style="margin: 0; font-size: 24px; line-height: 1.15; font-weight: 500">{{V.f}}</h1>
+    </div>
+    <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 8px">
+      <div class="p4">
+        <div><span class="lbl"><i class="sq vS"></i>Sim</span><span class="disp" style="font-size: 30px">{{pl.s}}</span></div>
+        <div><span class="lbl"><i class="sq vN"></i>Não</span><span class="disp" style="font-size: 30px">{{pl.n}}</span></div>
+        <div><span class="lbl"><i class="sq vA"></i>Abst.</span><span class="disp" style="font-size: 30px">{{pl.a}}</span></div>
+        <div><span class="lbl"><i class="sq vX"></i>Fora</span><span class="disp" style="font-size: 30px">{{pl.x}}</span></div>
+      </div>
+      <span class="bar" style="{{pl.bar}}" aria-hidden="true"></span>
+    </div>
+    <p style="margin: 0; padding: 0 16px; font-size: 14px; line-height: 1.45; color: var(--muted)">Cada estado enche, de baixo para cima, até a parte que votou Sim. Toque no seu estado.</p>
+    <div class="mapbox" style="height: {{mapHs}}px">
+      <div class="bmap" style="height: {{mapH}}px">
+        <svg width="886" height="{{mapH}}" viewBox="0 0 886 {{mapH}}" aria-hidden="true">
+          <defs>
+            <sc-for list="{{states}}" as="s" hint-placeholder-count="27">
+              <linearGradient id="{{s.gid}}" x1="0" y1="1" x2="0" y2="0"><stop offset="{{s.off}}" style="stop-color: var(--tint)"></stop><stop offset="{{s.off}}" style="stop-color: var(--sheet)"></stop></linearGradient>
+            </sc-for>
+          </defs>
+          <sc-for list="{{states}}" as="s" hint-placeholder-count="27">
+            <path class="st" d="{{s.d}}" style="{{s.fill}}"></path>
+          </sc-for>
+        </svg>
+        <sc-for list="{{labels}}" as="l" hint-placeholder-count="27">
+          <button class="lb" style="{{l.st}}" onClick="{{l.pick}}" aria-label="{{l.aria}}"><span class="u">{{l.u}}</span></button>
+        </sc-for>
+      </div>
+    </div>
+    <span class="lbl" style="padding: 6px 16px 0">Toque na sigla para abrir · do maior para o menor</span>
+    <div class="ug" aria-label="Estados">
+      <sc-for list="{{ufChips}}" as="u" hint-placeholder-count="27">
+        <button class="ub" onClick="{{u.pick}}" aria-label="{{u.aria}}"><b>{{u.u}}</b><span>{{u.p}}</span></button>
+      </sc-for>
+    </div>
+    <p class="mono" style="margin: 0; padding: 0 16px; font-size: 11.5px; line-height: 1.5; color: var(--muted)">% só entre quem votou. Em 14 estados com até 10 deputados, 1 voto muda o % em 10 pontos ou mais.</p>
+  </sc-if>
+
+  <sc-if value="{{lvl1}}" hint-placeholder-val="{{false}}">
+    <div class="zoom">
+      <svg viewBox="{{zoom.vb}}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <defs><linearGradient id="g-zoom" x1="0" y1="1" x2="0" y2="0"><stop offset="{{zoom.off}}" style="stop-color: var(--tint)"></stop><stop offset="{{zoom.off}}" style="stop-color: var(--sheet)"></stop></linearGradient></defs>
+        <path class="st" d="{{zoom.d}}" style="--f: url(#g-zoom)"></path>
+      </svg>
+      <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+        <span class="lbl">Nível 2 de 3 · {{ufSeats}} deputados</span>
+        <span class="disp" style="font-size: 44px">{{ufPct}} <span style="font: 500 13px 'IBM Plex Sans', sans-serif; color: var(--muted)">de Sim</span></span>
+      </div>
+    </div>
+    <h1 class="serif" style="margin: 0; padding: 0 16px; font-size: 22px; line-height: 1.2; font-weight: 500">{{frase}}</h1>
+    <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 6px">
+      <span class="bar" style="{{ufBar}}" aria-hidden="true"></span>
+      <span class="mono" style="font-size: 12px; color: var(--muted)">{{ufLine}} · toque num nome</span>
+    </div>
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+      <div class="grp">
+        <div class="hd"><i class="{{g.sw}}"></i><span class="serif" style="font-size: 18px; font-weight: 500">{{g.title}}</span></div>
+        <div class="dl">
+          <sc-for list="{{g.list}}" as="d" hint-placeholder-count="6">
+            <button class="dep" onClick="{{d.pick}}"><i class="{{d.sw}}"></i><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span class="n">{{d.nome}}</span><span class="pt">{{d.partido}}</span></span></button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+    <sc-if value="{{temNV}}" hint-placeholder-val="{{true}}">
+      <div class="grp">
+        <div class="hd"><i class="sq vX"></i><span class="serif" style="font-size: 18px; font-weight: 500">{{nvTitle}}</span></div>
+        <p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted)">A Câmara publica só os votos registrados, então não há nome para mostrar aqui.</p>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{lvl2}}" hint-placeholder-val="{{false}}">
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 4px 16px 0">
+      <span class="lbl">Nível 3 de 3 · {{dep.partido}} · {{ufName}}</span>
+      <h1 class="serif" style="margin: 0; font-size: 32px; line-height: 1.05; font-weight: 500">{{dep.nome}}</h1>
+      <span class="mk" style="font-size: 18px; padding-top: 4px"><i class="{{dep.sw}}" style="width: 20px; height: 20px"></i>{{dep.voto}} · {{V.c}}</span>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; padding-top: 6px">
+        <a class="btn main" href="#" style="flex: 1 1 100%">Acompanhar esta pessoa</a>
+        <a class="btn" href="{{dep.url}}" target="_blank" rel="noopener" style="flex: 1 1 40%">Página na Câmara</a>
+        <a class="btn" href="#" style="flex: 1 1 40%">Mensagem ao gabinete</a>
+      </div>
+    </div>
+    <div style="padding: 8px 16px 0; display: flex; flex-direction: column; gap: 8px">
+      <span class="lbl" style="color: var(--ink)">Nas 6 votações sobre dinheiro público</span>
+      <div style="display: flex; flex-direction: column">
+        <sc-for list="{{hist}}" as="h" hint-placeholder-count="6">
+          <div class="{{h.cls}}">
+            <span style="display: flex; justify-content: space-between; gap: 10px"><b class="mono" style="font-size: 12.5px; font-weight: 600">{{h.c}}</b><span class="mono" style="font-size: 11px; color: var(--muted)">{{h.d}}</span></span>
+            <span style="font-size: 14px; line-height: 1.35">{{h.f}}</span>
+            <span class="mk"><i class="{{h.sw}}"></i>{{h.voto}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <p class="mono" style="margin: 0; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 11.5px; color: var(--muted); line-height: 1.6">Fonte: Câmara dos Deputados. “Sem voto registrado” inclui ausência, licença e obstrução.</p>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1640}}'>
+const Q = window.QR;
+const vot = c => c[0] + c[1] + c[2];
+const pct = c => vot(c) ? Math.floor(c[0] / vot(c) * 100) : null;
+const nk = (n, um, vs) => n === 1 ? `1 ${um}` : `${n} ${vs}`;
+const VL = {S:'Votou Sim', N:'Votou Não', A:'Abstenção', P:'Presidia a sessão', X:'Sem voto registrado'};
+function frase(c, u) {
+  const p = [];
+  if (c[0]) p.push(nk(c[0], 'votou Sim', 'votaram Sim'));
+  if (c[1]) p.push(nk(c[1], 'votou Não', 'votaram Não'));
+  if (c[2]) p.push(nk(c[2], 'se absteve', 'se abstiveram'));
+  if (c[4]) p.push(nk(c[4], 'não registrou voto', 'não registraram voto'));
+  if (c[3]) p.push('1 presidia a sessão');
+  const j = p.length > 1 ? p.slice(0, -1).join(', ') + ' e ' + p[p.length - 1] : p[0];
+  return `Dos ${Q.SEATS[u]} deputados federais ${Q.DE[u]} ${Q.NAMES[u]}, ${j}.` + (c[1] ? '' : ' Nenhum votou Não.');
+}
+const bar = (c, tot) => { const w = k => (c[k] / tot * 100).toFixed(2) + '%';
+  return `background:linear-gradient(90deg,var(--ink) 0 ${w(0)},transparent ${w(0)}),repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px);background-size:100% 100%,calc(${w(0)} + ${w(1)}) 100%;background-repeat:no-repeat;background-color:var(--sheet)`; };
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = {vote: 1, uf: null, dep: null}; }
+  renderVals() {
+    const st = this.state, V = Q.VOTES[st.vote], uf = st.uf, depId = st.dep;
+    const lvl = depId ? 2 : uf ? 1 : 0;
+    const votes = Q.VOTES.map((v, i) => ({c: v.c, d: v.d, f: v.f, on: i === st.vote, cls: 'chip' + (i === st.vote ? ' on' : ''), pick: () => this.setState({vote: i})}));
+    const t = V.t;
+    const pl = {s: t[0], n: t[1], a: t[2], x: t[4] + t[3], bar: bar(t, 513)};
+    const states = Object.keys(Q.PATHS).map(u => { const p = pct(V.uf[u]);
+      return {u, d: Q.PATHS[u], gid: 'g-' + u, off: (p === null ? 0 : p) + '%', fill: `--f: url(#g-${u})`}; });
+    // no celular só os estados grandes levam sigla sobre o mapa; os demais abrem pela grade de siglas
+    const labels = Object.keys(Q.LAB).filter(u => !Q.LAB[u][4] && Q.BOX[u][2] > 60).map(u => { const l = Q.LAB[u], c = V.uf[u];
+      return {u, st: `left:${l[5] - 40}px;top:${l[6] - 40}px;width:80px;height:80px`,
+        aria: `${Q.NAMES[u]}: ${c[0]} Sim, ${c[1]} Não. Abrir o estado`, pick: () => this.setState({uf: u, dep: null})}; });
+    const zoomOf = u => { const b = Q.BOX[u], m = Math.max(b[2], b[3]) * .08; return `${b[0] - m} ${b[1] - m} ${b[2] + 2 * m} ${b[3] + 2 * m}`; };
+    const ufChips = Object.keys(Q.SEATS).sort((a, z) => Q.SEATS[z] - Q.SEATS[a] || a.localeCompare(z)).map(u => { const c = V.uf[u], p = pct(c);
+      return {u, p: p === null ? '–' : p + '%', aria: `${Q.NAMES[u]}: ${c[0]} Sim, ${c[1]} Não. Abrir o estado`, pick: () => this.setState({uf: u, dep: null})}; });
+    const out = {lvl0: lvl === 0, lvl1: lvl === 1, lvl2: lvl === 2, lvlUp: lvl > 0, V, votes, pl, states, labels, ufChips, mapH: Q.H, mapHs: Math.round(Q.H * .404),
+      goBR: () => this.setState({uf: null, dep: null}), goUF: () => this.setState({dep: null}),
+      ufName: '', ufSigla: '', dep: {}, zoom: {}, groups: [], hist: [], temNV: false};
+    if (!uf) return out;
+    const c = V.uf[uf], p = pct(c);
+    out.ufName = Q.NAMES[uf]; out.ufSigla = uf; out.ufSeats = Q.SEATS[uf]; out.ufPct = p === null ? '–' : p + '%';
+    out.zoom = {vb: zoomOf(uf), d: Q.PATHS[uf], off: (p === null ? 0 : p) + '%'};
+    out.frase = frase(c, uf); out.ufBar = bar(c, Q.SEATS[uf]);
+    out.ufLine = `${c[0]} Sim · ${c[1]} Não · ${c[2]} abst. · ${c[4] + c[3]} fora`;
+    const deps = V.dep.filter(d => d[3] === uf);
+    out.groups = [['S', 'votou Sim', 'votaram Sim'], ['N', 'votou Não', 'votaram Não'], ['A', 'se absteve', 'se abstiveram'], ['P', 'presidia a sessão', 'presidiam a sessão']]
+      .map(([k, um, vs]) => { const list = deps.filter(d => d[4] === k).map(d => ({id: d[0], nome: d[1], partido: d[2], sw: 'sq v' + k, pick: () => this.setState({dep: d[0]})}));
+        return {k, sw: 'sq v' + k, title: nk(list.length, um, vs), list}; }).filter(g => g.list.length);
+    out.temNV = c[4] > 0; out.nvTitle = nk(c[4], 'não registrou voto', 'não registraram voto');
+    if (!depId) return out;
+    let d = V.dep.find(x => x[0] === depId);
+    for (const v of Q.VOTES) { if (d) break; d = v.dep.find(x => x[0] === depId); }
+    const k = (V.dep.find(x => x[0] === depId) || [])[4] || 'X';
+    out.dep = {nome: d[1], partido: d[2], voto: VL[k], sw: 'sq v' + k, url: `https://www.camara.leg.br/deputados/${depId}`};
+    out.hist = Q.VOTES.map((v, i) => { const x = v.dep.find(y => y[0] === depId), kk = x ? x[4] : 'X';
+      return {c: v.c, d: v.d, f: v.f, voto: VL[kk], sw: 'sq v' + kk, cls: 'hrow' + (i === st.vote ? ' on' : '')}; });
+    return out;
+  }
+}
+</script>
+</body>
+</html>
