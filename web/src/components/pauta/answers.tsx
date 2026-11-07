@@ -3,11 +3,7 @@ import { date } from "@/lib/format";
 
 /** Selo neutro da Regra 3: diz que uma pessoa conferiu, não que a proposta é boa. */
 export function ReviewedBadge({ at }: { at: string }) {
-  return (
-    <span className="inline-flex h-6 items-center rounded-pill bg-surface-inverse px-2.5 text-xs font-semibold text-on-inverse">
-      Revisado por pessoa em {date(at)}
-    </span>
-  );
+  return <span className="stamp">Revisado por pessoa {date(at)}</span>;
 }
 
 const DIRECTION: Record<NonNullable<AnswerClaim["direction"]>, string> = {
@@ -21,30 +17,30 @@ const DIRECTION: Record<NonNullable<AnswerClaim["direction"]>, string> = {
 export function Claim({ claim, sourceUrl, title }: { claim: AnswerClaim; sourceUrl: string; title?: string }) {
   return (
     <div className="flex flex-col gap-1">
-      {title && <h3 className="text-sm font-semibold text-muted">{title}</h3>}
+      {title && <h3 className="font-sans text-sm font-semibold text-muted">{title}</h3>}
       {claim.says ? (
         <>
           {claim.direction && claim.direction !== "nao_diz" && <p className="font-semibold text-fg">{DIRECTION[claim.direction]}</p>}
-          <p className="text-fg">{claim.text}</p>
+          <p className="font-serif text-[19px] leading-snug text-fg">{claim.text}</p>
           <details className="group text-sm">
-            <summary className="cursor-pointer text-accent-text underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-focus">
-              <span className="group-open:hidden">Ver trecho do texto oficial</span>
-              <span className="hidden group-open:inline">Esconder trecho</span>
+            <summary className="inline-flex min-h-11 cursor-pointer items-center border border-fg bg-surface px-3 text-sm font-medium text-fg outline-none focus-visible:outline-2 focus-visible:outline-focus">
+              <span className="group-open:hidden">Ver o trecho</span>
+              <span className="hidden group-open:inline">Esconder o trecho</span>
             </summary>
-            <figure className="mt-2 rounded-md border-l-4 border-border bg-surface-sunken px-3 py-2">
-              <figcaption className="mb-1 font-mono text-xs uppercase tracking-wide text-muted">
+            <figure className="mt-2 border-l-2 border-fg bg-bg px-3 py-2">
+              <figcaption className="lbl mb-1">
                 Texto oficial ·{" "}
                 <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
                   {claim.page > 0 ? `p. ${claim.page}` : "inteiro teor"}
                 </a>
               </figcaption>
-              <blockquote className="text-fg">&quot;{claim.quote}&quot;</blockquote>
+              <blockquote className="font-serif text-base italic text-fg">&quot;{claim.quote}&quot;</blockquote>
             </figure>
           </details>
         </>
       ) : (
         <>
-          <p className="text-fg">O texto não diz.</p>
+          <p className="font-serif text-[19px] leading-snug text-fg">O texto não diz.</p>
           <p className="text-sm text-muted">Nenhum trecho do texto oficial responde isso.</p>
         </>
       )}

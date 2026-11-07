@@ -8,7 +8,7 @@ import { count } from "@/lib/format";
 import { dateTime, dayKey, dayLong, dayShort, weekLastDay } from "@/lib/pauta";
 
 export const metadata: Metadata = {
-  title: "Pauta",
+  title: "Vem aí",
   description: "Propostas sobre dinheiro, trabalho e benefícios marcadas na Câmara e no Senado, por dia.",
 };
 export const revalidate = 600;
@@ -20,6 +20,13 @@ function byDay(rows: PautaEntry[]) {
   for (const r of rows) days.set(dayKey(r.scheduledFor), [...(days.get(dayKey(r.scheduledFor)) ?? []), r]);
   return [...days.values()];
 }
+
+const STAMPS: [string, string][] = [
+  ["Aguardando revisão", "a IA leu o texto; nenhuma pessoa conferiu ainda. A página mostra só o resumo e o texto oficial."],
+  ["Revisado por pessoa dd/mm", "uma pessoa conferiu frase por frase, com o trecho do texto oficial ao lado."],
+  ["Pauta desatualizada", "a última leitura da pauta tem mais de 24 horas."],
+  ["Leitura incompleta", "parte da pauta não carregou; o número aparece como \"pelo menos\"."],
+];
 
 export default async function Pauta({ searchParams }: Props) {
   const { casa } = await searchParams;
@@ -34,9 +41,10 @@ export default async function Pauta({ searchParams }: Props) {
     { href: "/pauta?casa=senado", label: "Senado", n: o.plenary.filter((r) => r.body === "senado").length, on: body === "senado" },
   ];
   return (
-    <Container>
-      <header className="mb-6 flex max-w-2xl flex-col gap-3">
-        <h1 className="font-display text-display text-fg">
+    <Container className="max-w-[1320px]">
+      <header className="mb-6 flex max-w-3xl flex-col gap-3">
+        <p className="lbl">Vem aí · a pauta · plenário até {until}</p>
+        <h1 className="font-serif text-[32px] leading-[1.1] font-medium text-fg md:text-[40px]">
           {o.week.atLeast && "Pelo menos "}
           {count(o.week.total)} no plenário nesta semana
         </h1>
@@ -52,8 +60,8 @@ export default async function Pauta({ searchParams }: Props) {
                 href={t.href}
                 aria-current={t.on ? "page" : undefined}
                 className={clsx(
-                  "inline-flex h-10 items-center rounded-pill px-4 text-sm font-semibold outline-none focus-visible:outline-2 focus-visible:outline-focus",
-                  t.on ? "bg-surface-inverse text-on-inverse" : "bg-surface-sunken text-fg hover:underline",
+                  "inline-flex h-11 items-center border px-4 text-sm font-semibold outline-none focus-visible:outline-2 focus-visible:outline-focus",
+                  t.on ? "border-fg bg-surface-inverse text-on-inverse" : "border-border bg-surface text-fg hover:border-fg",
                 )}
               >
                 {t.label} · {count(t.n)}
@@ -68,11 +76,11 @@ export default async function Pauta({ searchParams }: Props) {
           No plenário nesta semana
         </h2>
         {plenary.length === 0 ? (
-          <p className="text-base text-fg">Nenhuma proposta deste tipo na pauta do plenário até {until}.</p>
+          <p className="plate p-4 font-serif text-[19px] text-fg">Nenhuma proposta deste tipo na pauta do plenário até {until}.</p>
         ) : (
           byDay(plenary).map((day) => (
             <div key={day[0].key} className="mb-6">
-              <h3 className="mb-2 text-lg font-semibold text-fg">{dayLong(day[0].scheduledFor)}</h3>
+              <h3 className="lbl mb-2 font-sans">{dayLong(day[0].scheduledFor)}</h3>
               <ul className="grid gap-3 md:grid-cols-2">
                 {day.map((e) => (
                   <PautaCard key={e.key} e={e} showDay={false} />
@@ -111,6 +119,22 @@ export default async function Pauta({ searchParams }: Props) {
         </Section>
       )}
 
+      <section aria-labelledby="selos-h" className="mt-10 scroll-mt-28">
+        <h2 id="selos-h" className="lbl mb-2 font-sans">
+          O que os selos dizem
+        </h2>
+        <dl className="grid gap-3 md:grid-cols-2">
+          {STAMPS.map(([s, t]) => (
+            <div key={s} className="flex flex-col gap-2 border-t border-border pt-3">
+              <dt>
+                <span className="stamp">{s}</span>
+              </dt>
+              <dd className="text-sm text-muted">{t}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
       <AboutData readAt={o.week.readAt} />
     </Container>
   );
@@ -119,7 +143,7 @@ export default async function Pauta({ searchParams }: Props) {
 function Section({ id, title, note, children }: { id: string; title: string; note: string; children: React.ReactNode }) {
   return (
     <section id={id} aria-labelledby={`${id}-h`} className="mt-10 scroll-mt-28">
-      <h2 id={`${id}-h`} className="text-xl font-semibold text-fg">
+      <h2 id={`${id}-h`} className="font-serif text-[24px] font-medium text-fg">
         {title}
       </h2>
       <p className="mb-3 text-sm text-muted">{note}</p>

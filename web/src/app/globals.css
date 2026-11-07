@@ -2,17 +2,40 @@
 @import "../styles/tokens.css";
 @import "../styles/tailwind-theme.css";
 
+/* Design v1 "papel e tinta, uma cor só" (design/v1/DIRECAO.md): grade de 24 px no fundo, raio 0, sem sombra,
+   elevação por borda dupla (.plate), selos (.stamp) e voto como padrão, nunca cor (.sq .vS .vN .vA .vX). */
 @layer base {
   html {
-    background: var(--bg);
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
     color: var(--text);
     font-family: var(--ds-font-sans);
     -webkit-text-size-adjust: 100%;
+    --grid: rgba(28, 34, 38, 0.045);
+    --tint: var(--seat);
+  }
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+      --grid: rgba(235, 230, 220, 0.05);
+    }
+  }
+  html[data-theme="dark"] {
+    --grid: rgba(235, 230, 220, 0.05);
   }
   body {
     min-height: 100dvh;
     font-size: var(--ds-text-base);
     line-height: var(--ds-leading-base);
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--ds-font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
   }
   :focus-visible {
     outline: 2px solid var(--focus);
@@ -33,9 +56,69 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* prancha: borda dupla como elevação (nunca sombra) */
+@utility plate {
+  background: var(--surface);
+  border: 1px solid var(--text);
+  outline: 1px solid var(--text);
+  outline-offset: 5px;
+  margin: 6px;
+}
+
+/* rótulo mono: datas, códigos, nomes de seção */
+@utility lbl {
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* selo carimbado: estado de revisão, sistema ou exemplo */
+@utility stamp {
+  display: inline-block;
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border: 1.5px solid currentColor;
+  color: var(--text);
+  transform: rotate(-2deg);
+  white-space: nowrap;
+}
+
+/* quadradinho de voto: cheio = Sim, hachura = Não, pontilhado = abstenção, vazio = sem voto registrado */
+@utility sq {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--text);
+  box-sizing: border-box;
+  flex: none;
+  background: var(--surface);
+  vertical-align: -2px;
+}
+@utility vS {
+  background: var(--text);
+}
+@utility vN {
+  background: repeating-linear-gradient(45deg, var(--text) 0 1.3px, var(--surface) 0 3.4px);
+}
+@utility vA {
+  background: var(--surface);
+  border-style: dotted;
+  border-width: 2px;
+}
+@utility vX {
+  background: var(--surface);
+}
+
 @utility skeleton {
   background: var(--surface-sunken);
-  border-radius: var(--ds-radius-sm);
   animation: ds-pulse 1.2s ease-in-out infinite;
   @media (prefers-reduced-motion: reduce) {
     animation: none;

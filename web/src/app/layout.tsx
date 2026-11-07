@@ -1,46 +1,55 @@
 import type { Metadata } from "next";
-import { Barlow_Condensed, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { DataFreshnessBar, DemoBanner } from "@/components/shell/bars";
+import { DemoBanner } from "@/components/shell/bars";
 import { CompareProvider } from "@/components/shell/compare";
 import { AppFooter } from "@/components/shell/footer";
 import { AppHeader } from "@/components/shell/header";
+import { data } from "@/lib/data";
 
-// next/font sobrescreve as variáveis do tokens.css com a família hospedada + fallback métrico
-const sans = Inter({ variable: "--ds-font-sans", subsets: ["latin"], display: "swap" });
-const display = Barlow_Condensed({
-  variable: "--ds-font-display",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  display: "swap",
-});
-const mono = JetBrains_Mono({ variable: "--ds-font-mono", subsets: ["latin"], display: "swap" });
+// Design v1 (design/v1/DIRECAO.md): Newsreader para títulos e frases, IBM Plex Sans no corpo, IBM Plex Mono em rótulos,
+// datas e códigos, Barlow Condensed nos números grandes. Fontes empacotadas (Fontsource, subset latin, só os pesos usados):
+// o build não depende de rede nem do Google Fonts. As famílias já estão em --ds-font-* no tokens.css.
+import "@fontsource/ibm-plex-sans/latin-400.css";
+import "@fontsource/ibm-plex-sans/latin-500.css";
+import "@fontsource/ibm-plex-sans/latin-600.css";
+import "@fontsource/newsreader/latin-400.css";
+import "@fontsource/newsreader/latin-400-italic.css";
+import "@fontsource/newsreader/latin-500.css";
+import "@fontsource/newsreader/latin-500-italic.css";
+import "@fontsource/newsreader/latin-600.css";
+import "@fontsource/newsreader/latin-600-italic.css";
+import "@fontsource/barlow-condensed/latin-600.css";
+import "@fontsource/barlow-condensed/latin-700.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
+import "@fontsource/ibm-plex-mono/latin-500.css";
+import "@fontsource/ibm-plex-mono/latin-600.css";
 
 export const metadata: Metadata = {
-  title: { default: "Quem representa você", template: "%s · quem·representa" },
+  title: { default: "O que estão decidindo em Brasília que mexe no seu bolso", template: "%s · quem·representa" },
   description: "O que estão decidindo em Brasília que mexe no seu bolso, com o texto oficial e sem opinião.",
 };
 
 // aplica o tema salvo antes da primeira pintura (sem piscar)
 const themeScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // "Pauta lida em" fica no cabeçalho de toda página (Regra 2): a hora da leitura nunca sai de vista.
+  const readAt = await data.getPautaOverview().then((o) => o.week.readAt, () => null);
   return (
-    <html lang="pt-BR" className={`${sans.variable} ${display.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased">
         <a
           href="#conteudo"
-          className="sr-only z-50 rounded-sm bg-surface-inverse px-4 py-2 text-on-inverse focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+          className="sr-only z-50 bg-surface-inverse px-4 py-2 text-on-inverse focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
         >
           Pular para o conteúdo
         </a>
         <CompareProvider>
           <DemoBanner />
-          <AppHeader />
-          <DataFreshnessBar />
+          <AppHeader readAt={readAt} />
           <main id="conteudo" tabIndex={-1} className="pb-16 outline-none">
             {children}
           </main>

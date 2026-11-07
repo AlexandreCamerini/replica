@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Container, PageHeader } from "@/components/page/page-header";
+import { Container } from "@/components/page/page-header";
 import { data, type AnswerClaim, type AnswerField } from "@/lib/data";
 import { date } from "@/lib/format";
 
@@ -21,16 +21,20 @@ const said = (c: AnswerClaim) => (c.says ? c.text : "O texto não diz.");
 export default async function Correcoes() {
   const rows = await data.listCorrections();
   return (
-    <Container className="max-w-3xl">
-      <PageHeader title="Correções" lead="Toda resposta corrigida aparece aqui, com data e motivo." />
+    <Container className="max-w-[880px]">
+      <header className="mb-6 flex flex-col gap-3">
+        <p className="lbl">Correções · registro público</p>
+        <h1 className="font-serif text-[32px] leading-[1.1] font-medium text-fg md:text-[40px]">Correções</h1>
+        <p className="text-base text-muted">Toda resposta corrigida aparece aqui, com data e motivo. Nada é apagado sem rastro.</p>
+      </header>
       {rows.length === 0 ? (
-        <p className="text-base text-fg">Nenhuma correção publicada até agora.</p>
+        <p className="plate p-4 font-serif text-[19px] text-fg">Nenhuma correção publicada até agora.</p>
       ) : (
         <ul className="flex flex-col gap-6">
           {rows.map((c) => (
-            <li key={`${c.key}-${c.correctedAt}`} className="border-t border-border pt-4">
-              <p className="font-mono text-xs uppercase tracking-wide text-muted">Corrigido em {date(c.correctedAt)}</p>
-              <h2 className="text-lg font-semibold text-fg">
+            <li key={`${c.key}-${c.correctedAt}`} className="border-t border-fg pt-4">
+              <p className="lbl">Corrigido em {date(c.correctedAt)}</p>
+              <h2 className="font-mono text-lg font-semibold text-fg">
                 <Link href={`/proposta/${c.key}`} className="underline underline-offset-2">
                   {c.label}
                 </Link>
@@ -40,7 +44,9 @@ export default async function Correcoes() {
                 {c.changed.map((x) => (
                   <div key={x.field}>
                     <dt className="font-semibold text-fg">{FIELD[x.field]}</dt>
-                    <dd className="text-muted">Antes dizia: {said(x.before)}</dd>
+                    <dd className="text-muted">
+                      Antes dizia: <s>{said(x.before)}</s>
+                    </dd>
                     <dd className="text-fg">Agora diz: {said(x.after)}</dd>
                   </div>
                 ))}
@@ -49,11 +55,21 @@ export default async function Correcoes() {
           ))}
         </ul>
       )}
-      <p className="mt-6 text-sm text-muted">
-        <Link href="/como-escolhemos#revisao" className="text-accent-text underline underline-offset-2">
-          Como revisamos
-        </Link>
-      </p>
+
+      <section aria-labelledby="erro-h" className="plate mt-10 flex flex-col gap-3 p-4">
+        <h2 id="erro-h" className="font-serif text-[24px] leading-tight font-medium text-fg">
+          Viu um erro?
+        </h2>
+        <p className="text-base text-fg">Diga qual proposta, qual frase e o que o texto oficial diz. Conferimos e, se for erro, corrigimos aqui com data e motivo.</p>
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <Link href="/sugestoes" className="inline-flex min-h-11 items-center border border-fg bg-surface-inverse px-4 font-semibold text-on-inverse">
+            Apontar um erro
+          </Link>
+          <Link href="/como-escolhemos#revisao" className="inline-flex min-h-11 items-center text-fg underline underline-offset-2">
+            Como revisamos
+          </Link>
+        </p>
+      </section>
     </Container>
   );
 }

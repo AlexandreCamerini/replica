@@ -32,13 +32,13 @@ function StatusNote({ p }: { p: PautaProposal }) {
     : s.kind === "reuniao_encerrada" ? `A reunião de ${dayShort(p.entry.scheduledFor)} já aconteceu. O resultado aparece aqui quando a Casa publicar a votação.`
     : s.kind === "reuniao_cancelada" ? `A reunião de ${dayShort(p.entry.scheduledFor)} foi cancelada. A proposta não está em outra pauta lida até agora.`
     : `Não está na última pauta lida. Foi vista na pauta pela última vez em ${dateTime(s.lastSeenAt)}.`;
-  return <p className="rounded-md border border-border bg-surface-sunken px-4 py-3 text-base text-fg">{text}</p>;
+  return <p className="flex flex-wrap items-center gap-3 border border-fg bg-surface px-4 py-3 text-base text-fg"><span className="stamp">{s.kind === "saiu" ? "Saiu da pauta" : s.kind === "reuniao_cancelada" ? "Reunião cancelada" : s.kind === "reuniao_encerrada" ? "Reunião já aconteceu" : "Fora da última leitura"}</span>{text}</p>;
 }
 
 function Q({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id ?? title}-h`} className="scroll-mt-28 border-t border-border py-5">
-      <h2 id={`${id ?? title}-h`} className="mb-2 text-lg font-semibold text-fg">
+    <section id={id} aria-labelledby={`${id ?? title}-h`} className="scroll-mt-28 border-t border-fg py-5">
+      <h2 id={`${id ?? title}-h`} className="mb-2 font-serif text-[24px] leading-tight font-medium text-fg">
         {title}
       </h2>
       <div className="flex flex-col gap-2 text-base text-fg">{children}</div>
@@ -55,13 +55,13 @@ export default async function Proposta({ params }: Props) {
   const d = deciders(next ?? e);
   const path = `/proposta/${e.key}`;
   return (
-    <Container className="max-w-3xl">
+    <Container className="max-w-[880px]">
       <header className="flex flex-col gap-3">
-        <p className="font-mono text-xs uppercase tracking-wide text-muted">
+        <p className="lbl">
           {bodyFullName(e.body)} · {e.type} · {typeName(e.type)}
         </p>
-        <h1 className="font-display text-display text-fg">{label(e)}</h1>
-        {e.plain && <p className="text-xl text-fg text-balance">{e.plain}</p>}
+        <h1 className="font-mono text-[28px] font-semibold text-fg md:text-[32px]">{label(e)}</h1>
+        {e.plain && <p className="font-serif text-[28px] leading-[1.15] font-medium text-fg text-balance md:text-[36px]">{e.plain}</p>}
         <p className={e.plain ? "text-sm text-muted" : "text-base text-fg"}>
           <span className="text-muted">Resumo oficial: </span>
           {e.summary ?? "A pauta da comissão não traz o resumo oficial. Ele está no texto oficial."}
@@ -86,14 +86,14 @@ export default async function Proposta({ params }: Props) {
               href={p.fichaUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-8 items-center rounded-pill bg-surface-inverse px-3 text-sm font-semibold text-on-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              className="inline-flex h-11 items-center border border-fg bg-surface-inverse px-4 text-sm font-semibold text-on-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
               Texto oficial
             </a>
           )}
           <ShareButton title={label(e)} path={path} />
           <WhatsAppLink text={`${label(e)}, ${typeName(e.type)}, na pauta ${ofBody(e.body)}.`} path={path} />
-          <a href="#quem-decide" className="inline-flex h-8 items-center px-2 text-sm font-semibold text-accent-text underline underline-offset-2">
+          <a href="#quem-decide" className="inline-flex h-11 items-center px-2 text-sm font-semibold text-fg underline underline-offset-2">
             Falar com quem decide
           </a>
         </div>
@@ -102,7 +102,7 @@ export default async function Proposta({ params }: Props) {
       <div className="mt-6">
         <Q title="Por que esta proposta está aqui">
           <p>{reasonText(e)}</p>
-          <Link href="/como-escolhemos" className="text-sm text-accent-text underline underline-offset-2">
+          <Link href="/como-escolhemos" className="text-sm text-fg underline underline-offset-2">
             Ver a regra
           </Link>
         </Q>
@@ -142,7 +142,7 @@ export default async function Proposta({ params }: Props) {
                 <Claim claim={p.answers.fields.dinheiro} sourceUrl={p.answers.sourceUrl} />
                 <Claim title="Estimativa de impacto oficial" claim={p.answers.fields.estimativa_impacto} sourceUrl={p.answers.sourceUrl} />
               </div>
-              <Link href="/como-escolhemos#revisao" className="text-sm text-accent-text underline underline-offset-2">
+              <Link href="/como-escolhemos#revisao" className="text-sm text-fg underline underline-offset-2">
                 Como escrevemos e revisamos
               </Link>
             </Q>
@@ -151,7 +151,7 @@ export default async function Proposta({ params }: Props) {
           <Q title="O que propõe? Quem ganha, quem paga e o que muda para mim?">
             <p>Ainda estamos lendo o texto. Por enquanto, veja o resumo e o texto oficial.</p>
             <p className="text-sm text-muted">Uma pessoa confere cada resposta, com o trecho do texto oficial ao lado, antes de publicar.</p>
-            <Link href="/como-escolhemos#revisao" className="text-sm text-accent-text underline underline-offset-2">
+            <Link href="/como-escolhemos#revisao" className="text-sm text-fg underline underline-offset-2">
               Como revisamos
             </Link>
           </Q>
@@ -160,7 +160,7 @@ export default async function Proposta({ params }: Props) {
         <Q title="Em que pé está, quando decidem e quem decide?">
           {p.schedule.length > 0 ? (
             <>
-              <p className="text-sm text-muted">Próxima decisão</p>
+              <p className="lbl">Próxima decisão</p>
               <ul className="flex flex-col gap-1">
                 {p.schedule.map((s) => (
                   <li key={`${s.scheduledFor}-${s.committee}`}>
@@ -174,13 +174,13 @@ export default async function Proposta({ params }: Props) {
           ) : (
             <p>Não há data marcada na última pauta lida.</p>
           )}
-          <p className="mt-2 text-sm text-muted">Quem decide</p>
+          <p className="lbl mt-2">Quem decide</p>
           <p>
             {d.who} {d.needs}
           </p>
           {p.votes.length > 0 && (
             <>
-              <p className="mt-2 text-sm text-muted">Votações registradas</p>
+              <p className="lbl mt-2">Votações registradas</p>
               <ul className="flex flex-col gap-2">
                 {p.votes.map((v) => (
                   <li key={v.id}>
@@ -223,7 +223,7 @@ export default async function Proposta({ params }: Props) {
             </p>
           )}
           <p>
-            <Link href="/representantes" className="font-semibold text-accent-text underline underline-offset-2">
+            <Link href="/representantes" className="font-semibold text-fg underline underline-offset-2">
               Ver quem representa sua cidade
             </Link>
             <span className="text-muted"> · deputados federais e senadores do seu estado, com contato oficial, em ordem alfabética.</span>

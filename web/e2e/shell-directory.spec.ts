@@ -8,11 +8,11 @@ test.describe("Shell e diretório", () => {
     await page.keyboard.press("Enter");
     await expect(page.locator("#conteudo")).toBeFocused();
     const nav = page.getByRole("navigation", { name: "Principal" });
-    await expect(nav.getByRole("link")).toHaveText(["Entrada", "Pauta", "Como escolhemos", "Acervo"]);
+    await expect(nav.getByRole("link")).toHaveText(["Entrada", "Vem aí", "Já decidido", "Quem eu votei", "Como escolhemos", "Correções"]);
     await expect(nav.getByRole("link", { name: "Entrada" })).toHaveAttribute("aria-current", "page");
-    await nav.getByRole("link", { name: "Pauta" }).click();
+    await nav.getByRole("link", { name: "Vem aí" }).click();
     await expect(page).toHaveURL(/\/pauta$/);
-    await expect(nav.getByRole("link", { name: "Pauta" })).toHaveAttribute("aria-current", "page");
+    await expect(nav.getByRole("link", { name: "Vem aí" })).toHaveAttribute("aria-current", "page");
     const dark = page.getByRole("radio", { name: "Tema escuro" });
     await dark.click();
     await expect(dark).toHaveAttribute("aria-checked", "true");

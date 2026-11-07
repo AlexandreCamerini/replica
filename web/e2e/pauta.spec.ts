@@ -7,12 +7,12 @@ test.describe("Pauta no seu bolso", () => {
   test("PA-H1 número com definição e hora da leitura; igual à lista do plenário", async ({ page, axe }) => {
     await page.goto("/");
     const h1 = page.getByRole("heading", { level: 1 });
-    await expect(h1).toContainText("na pauta do plenário nesta semana");
+    await expect(h1).toContainText(/propostas? pode(m)? mexer no que você paga ou recebe nesta semana/);
     const n = Number((await h1.locator("span.font-display").innerText()).trim());
     await expect(page.getByText(/^Contamos propostas sobre dinheiro, trabalho e benefícios/)).toBeVisible();
     await expect(page.getByText(/Pauta lida em \d{2}\/\d{2}, \d{2}:\d{2}/).first()).toBeVisible();
     await axe();
-    await page.getByRole("link", { name: /Ver a pauta inteira/ }).click();
+    await page.getByRole("link", { name: /Ver tudo o que vem aí/ }).click();
     await expect(page.locator("section[aria-labelledby=semana-h] li")).toHaveCount(n);
     await expect(page.locator("main")).not.toContainText(FORBIDDEN);
   });
