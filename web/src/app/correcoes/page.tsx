@@ -5,7 +5,8 @@ import { data, type AnswerClaim, type AnswerField } from "@/lib/data";
 import { date } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Correções", description: "Toda resposta corrigida, com data e motivo." };
-export const revalidate = 600;
+// dinâmica: consulta o banco a cada pedido; prerender no build falharia sem DATABASE_URL (deploy da Vercel)
+export const dynamic = "force-dynamic";
 
 const FIELD: Record<AnswerField, string> = {
   o_que_propoe: "O que propõe",
