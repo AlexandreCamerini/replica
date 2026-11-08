@@ -25,10 +25,12 @@ run() { if (( DRY )); then echo "[dry-run] $*"; else "$@"; fi; }
 command -v npx >/dev/null || { echo "npx não encontrado (instale Node)"; exit 1; }
 vs whoami >/dev/null 2>&1 || { echo "Faça login antes: npx vercel login"; exit 1; }
 
-DB_URL=""
-if (( ! DRY )); then
+DB_URL="${DB_URL:-}"   # pode vir do ambiente (vercel-preview-prod-db.sh); senão, pede
+if (( ! DRY )) && [[ -z "$DB_URL" ]]; then
   echo "Cole a DATABASE_URL de leitura (postgres://web_reader:...). Nada será exibido."
   read -r -s DB_URL; echo
+fi
+if (( ! DRY )); then
   [[ "$DB_URL" =~ ^postgres(ql)?:// ]] || { echo "Não parece uma URL postgres://. Abortado."; exit 1; }
   [[ "$DB_URL" == *web_reader* ]] || echo "Aviso: a URL não usa o usuário web_reader; o preview teria mais permissão que o necessário."
 fi
