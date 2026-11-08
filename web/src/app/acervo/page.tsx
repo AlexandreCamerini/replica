@@ -8,9 +8,6 @@ import { data } from "@/lib/data";
 import { REGIONS, UF_ROWS } from "@/lib/data/reference";
 import { count } from "@/lib/format";
 
-// dinâmica: consulta o banco a cada pedido; prerender no build falharia sem DATABASE_URL (deploy da Vercel)
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = { title: "Acervo", description: "Quem ocupa cargo eletivo, do vereador ao presidente, com dados oficiais." };
 
 // D12: páginas que já existem e funcionam. Partidos, Governos e Eleições ficam fora: ainda estão em construção.

@@ -24,6 +24,10 @@ import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-500.css";
 import "@fontsource/ibm-plex-mono/latin-600.css";
 
+// Tudo dinâmico: o cabeçalho mostra "Pauta lida em" ao vivo (Regra 2) e nenhuma página consulta o banco no build.
+// Na Vercel o build roda com DATA_SOURCE=pg e sem DATABASE_URL; o prerender de qualquer rota com dados quebraria.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   // URL absoluta do og:image (WhatsApp exige). SITE_URL na publicação; sem ela, o Next usa a origem local.
   ...(process.env.SITE_URL && /^https?:\/\//.test(process.env.SITE_URL) ? { metadataBase: new URL(process.env.SITE_URL) } : {}),

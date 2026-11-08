@@ -9,9 +9,6 @@ export const metadata: Metadata = {
   title: "Como escolhemos",
   description: "As regras fixas e públicas que decidem quais propostas aparecem, como as respostas são escritas e como mostramos o voto.",
 };
-// dinâmica: consulta o banco a cada pedido; prerender no build falharia sem DATABASE_URL (deploy da Vercel)
-export const dynamic = "force-dynamic";
-
 // O que mudou em cada versão. A regra em si vem do banco (pocket_rules); esta nota é o motivo, escrito por pessoa.
 const CHANGES: Record<number, string> = {
   1: "Primeira versão.",
