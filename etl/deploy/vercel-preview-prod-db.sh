@@ -31,7 +31,8 @@ psql "$ADMIN_URL" -X -q -At -c "select 1 from pg_roles where rolname = 'web_read
 # senha nova: 32 caracteres alfanuméricos (sem símbolo, para não precisar escapar na URL)
 NEWPW="$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 32)"
 echo "Redefinindo a senha do web_reader..."
-psql "$ADMIN_URL" -X -q -v ON_ERROR_STOP=1 -v pw="$NEWPW" -c "alter role web_reader with login password :'pw'" >/dev/null
+# -c não interpola variáveis; com -f - (stdin) o :'pw' vira literal escapado
+psql "$ADMIN_URL" -X -q -v ON_ERROR_STOP=1 -v pw="$NEWPW" -f - <<<"alter role web_reader with login password :'pw';" >/dev/null
 
 # monta a URL de leitura a partir da URI admin: mesmo host, porta e banco; usuário web_reader
 # (no pooler do Supabase o usuário leva o sufixo do projeto: postgres.<ref> → web_reader.<ref>)
