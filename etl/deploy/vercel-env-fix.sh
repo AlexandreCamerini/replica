@@ -39,8 +39,8 @@ echo "1/5 DATABASE_URL: Production e Preview"
 run v env rm DATABASE_URL production --yes >/dev/null 2>&1 || true
 run v env rm DATABASE_URL preview --yes >/dev/null 2>&1 || true
 if (( ! DRY )); then
-  printf '%s' "$DB_URL" | v env add DATABASE_URL production --sensitive >/dev/null
-  printf '%s' "$DB_URL" | v env add DATABASE_URL preview --sensitive >/dev/null
+  # --yes evita o prompt "Git branch?" do Preview (que engolia o valor); uma chamada cobre os dois ambientes
+  printf '%s' "$DB_URL" | v env add DATABASE_URL --environment production,preview --sensitive --yes >/dev/null
 fi
 
 echo "2/5 DATABASE_WRITE_URL: só Production"
@@ -49,7 +49,7 @@ run v env rm DATABASE_WRITE_URL preview --yes >/dev/null 2>&1 || true
 echo "3/5 Preview: DATA_SOURCE=pg, sem ALLOW_DEMO_DATA"
 run v env rm DATA_SOURCE preview --yes >/dev/null 2>&1 || true
 run v env rm ALLOW_DEMO_DATA preview --yes >/dev/null 2>&1 || true
-if (( ! DRY )); then printf 'pg' | v env add DATA_SOURCE preview >/dev/null; fi
+if (( ! DRY )); then printf 'pg' | v env add DATA_SOURCE --environment preview --no-sensitive --yes >/dev/null; fi
 unset DB_URL
 
 echo "4/5 Conferência"
@@ -57,9 +57,9 @@ v env ls 2>/dev/null | grep -E "^ (DATA_SOURCE|DATABASE_URL|DATABASE_WRITE_URL|A
 
 echo "5/5 Deploys"
 if (( ! DRY )); then
-  PREV=$(vs ls "$PROJECT" 2>/dev/null | awk -v b="$PREVIEW_BRANCH" '/Preview/ && /Ready/ {print $3; exit}')
+  PREV=$(vs ls "$PROJECT" 2>/dev/null | grep -E 'Ready +Preview' | grep -oE 'https://replica-[a-z0-9]+-[a-z0-9]+\.vercel\.app' | head -1)
   [[ -n "$PREV" ]] && vs redeploy "$PREV" >/dev/null && echo "preview refeito: https://replica-git-${PREVIEW_BRANCH//\//-}-${SCOPE}.vercel.app"
-  PROD=$(vs ls "$PROJECT" 2>/dev/null | awk '/Production/ && /Ready/ {print $3; exit}')
+  PROD=$(vs ls "$PROJECT" --prod 2>/dev/null | grep -oE 'https://replica-[a-z0-9]+-[a-z0-9]+\.vercel\.app' | head -1)
   [[ -n "$PROD" ]] && vs redeploy "$PROD" >/dev/null && echo "produção refeita a partir de $PROD"
 fi
 echo "Pronto. Preview exige login da Vercel na primeira abertura."
