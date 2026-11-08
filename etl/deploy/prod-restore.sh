@@ -229,11 +229,16 @@ use_prod_url() {
   out=$(PROD_URL="$1" python3 - <<'PYEOF'
 import os
 from urllib.parse import urlsplit, unquote, parse_qs
-u = urlsplit(os.environ["PROD_URL"])
+raw = os.environ["PROD_URL"]
+# A senha pode ter ':' ou '@' sem escape (o psql aceita; urlsplit não): separa credenciais no último '@' antes de parsear.
+scheme, _, rest = raw.partition("://")
+creds, sep, hostpart = rest.rpartition("@")
+user, _, pw = creds.partition(":") if sep else ("", "", "")
+u = urlsplit(f"{scheme}://{hostpart}")
 q = {k: v[-1] for k, v in parse_qs(u.query).items()}
 local = u.hostname in ("localhost", "127.0.0.1", "::1")
-env = {"PGHOST": u.hostname or "", "PGPORT": str(u.port or 5432), "PGUSER": unquote(u.username or ""),
-       "PGPASSWORD": unquote(u.password or ""), "PGDATABASE": unquote(u.path.lstrip("/")) or "postgres",
+env = {"PGHOST": u.hostname or "", "PGPORT": str(u.port or 5432), "PGUSER": unquote(user),
+       "PGPASSWORD": unquote(pw) if "%" in pw else pw, "PGDATABASE": unquote(u.path.lstrip("/")) or "postgres",
        "PGSSLMODE": q.get("sslmode", "prefer" if local else "require"),
        "PGCONNECT_TIMEOUT": "15", "PGAPPNAME": "prod-restore"}
 assert all("\n" not in v for v in env.values())
