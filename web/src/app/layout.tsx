@@ -25,6 +25,8 @@ import "@fontsource/ibm-plex-mono/latin-500.css";
 import "@fontsource/ibm-plex-mono/latin-600.css";
 
 export const metadata: Metadata = {
+  // URL absoluta do og:image (WhatsApp exige). SITE_URL na publicação; sem ela, o Next usa a origem local.
+  ...(process.env.SITE_URL && /^https?:\/\//.test(process.env.SITE_URL) ? { metadataBase: new URL(process.env.SITE_URL) } : {}),
   title: { default: "O que estão decidindo em Brasília que mexe no seu bolso", template: "%s · quem·representa" },
   description: "O que estão decidindo em Brasília que mexe no seu bolso, com o texto oficial e sem opinião.",
 };

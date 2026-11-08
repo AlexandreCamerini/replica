@@ -1,0 +1,48 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 390,
+    "height": 844
+  },
+  "clone": {
+    "width": 390,
+    "height": 844
+  },
+  "compared_at": {
+    "width": 390,
+    "height": 844
+  },
+  "height_delta_pct": 0.0,
+  "score": 31.7,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 0,
+      "w": 384,
+      "h": 844,
+      "cells": 217,
+      "where": "middle centre"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "w": 192,
+      "h": 64,
+      "cells": 7,
+      "where": "top left"
+    },
+    {
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 32,
+      "cells": 2,
+      "where": "top centre"
+    }
+  ],
+  "files": {
+    "original": "replica/screens/final-congresso-390.png",
+    "clone": "replica/clone-screens/final-congresso-390.png"
+  }
+}

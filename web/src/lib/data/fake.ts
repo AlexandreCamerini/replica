@@ -1,3 +1,4 @@
+import { fakeW4 } from "./fake-w4";
 import {
   EXPENSE_CATEGORIES,
   MUNICIPALITY_ROWS,
@@ -20,6 +21,7 @@ import type {
   ElectionResult,
   Expense,
   Level,
+  CoverageStatus,
   Mandate,
   MandateStatus,
   MissingDataset,
@@ -40,6 +42,8 @@ import type {
   PautaEntry,
 } from "./types";
 import { parseProposalKey, uniqueByKey } from "../pauta";
+
+import { houseName } from "./assembleias";
 
 // Camada de dados de DEMONSTRAÇÃO. Pessoas, partidos e números são fictícios e determinísticos (mesma seed, mesmo resultado).
 // Lugares e tamanhos de bancada são reais. Trocar por pg.ts não muda nenhuma tela: o contrato é DataSource.
@@ -524,6 +528,7 @@ function salaryFor(m: Mandate): { cents: number | null; ceiling: boolean } {
 // ---------- implementação ----------
 export const fakeSource: DataSource = {
   isDemo: true,
+  ...fakeW4,
 
   async searchPlaces(q, limit = 10) {
     const f = fold(q);
@@ -573,6 +578,29 @@ export const fakeSource: DataSource = {
   },
   async getCoverage(place) {
     return coverageFor(place.ibge);
+  },
+  async getTopVotedInPlace() {
+    return null; // a demo não simula votos por município
+  },
+  async getCityCouncil() {
+    return null; // a demo não simula Câmaras Municipais
+  },
+  async getAssembly(uf) {
+    // a demo não simula Assembleias: toda casa aparece como não lida, com o motivo (nunca número inventado)
+    const u = uf.toUpperCase();
+    if (!UF_ROWS.some((r) => r[1] === u)) return null;
+    const why = "dados de demonstração: Assembleias não são simuladas";
+    const items = (["presenca", "votos", "propostas", "gastos_gabinete"] as const).map((d) => ({
+      dataset: d,
+      label: { presenca: "Presença no plenário", votos: "Votos no plenário", propostas: "Propostas apresentadas", gastos_gabinete: "Verba de gabinete" }[d],
+      status: "desconhecido" as const,
+      reason: why,
+      evidenceUrl: null,
+      checkedOn: null,
+      refreshedAt: null,
+      stampDataset: null,
+    }));
+    return { uf: u, houseName: houseName(u), read: false, source: null, items };
   },
   async getCounters() {
     const byLevel: Record<Level, number> = { federal: 0, estadual: 0, municipal: 0 };
@@ -631,7 +659,7 @@ export const fakeSource: DataSource = {
   },
   async getMandates(personId) {
     const person = store().personById.get(personId)!;
-    const rank: Record<MandateStatus, number> = { em_exercicio: 0, eleito_aguardando_posse: 1, licenciado: 2, encerrado: 3 };
+    const rank: Record<MandateStatus, number> = { em_exercicio: 0, eleito_aguardando_posse: 1, licenciado: 2, afastado: 2, encerrado: 3, renunciou: 3, cassado: 3 };
     return (store().mandatesByPerson.get(personId) ?? [])
       .map((m) => ({ ...m, party: partyById[m.partyId], officeName: officeName(m.office, person.gender), placeLabel: placeLabel(m.placeIbge) }))
       .sort((a, b) => rank[a.status] - rank[b.status] || b.startedOn.localeCompare(a.startedOn));
@@ -641,6 +669,13 @@ export const fakeSource: DataSource = {
     return (store().candidaciesByPerson.get(personId) ?? [])
       .map((c) => ({ ...c, party: partyById[c.partyId], officeName: officeName(c.office, person.gender), placeLabel: placeLabel(c.placeIbge) }))
       .sort((a, b) => b.year - a.year);
+  },
+  async getPartyProvenance(personId) {
+    const m = mainMandate(personId);
+    if (!m) return { kind: "none", reason: "sem filiação registrada nas fontes" };
+    if (m.office === "deputado_federal") return { kind: "camara", since: m.startedOn };
+    if (m.office === "senador") return { kind: "senado", since: m.startedOn };
+    return { kind: "tse", since: m.startedOn, electionYear: Number(m.startedOn.slice(0, 4)) - 1 };
   },
   async getStats(personId, period) {
     const m = mainMandate(personId);
@@ -689,6 +724,38 @@ export const fakeSource: DataSource = {
   async getActiveYears(personId) {
     return mandateYears(personId);
   },
+  async getPresenceByMonth(personId, year) {
+    const out: { month: number; present: number; total: number }[] = [];
+    for (const v of votesOf(personId)) {
+      if (yearOf(v.event.occurredAt) !== year) continue;
+      const m = Number(v.event.occurredAt.slice(5, 7));
+      const row = out.find((x) => x.month === m) ?? (out.push({ month: m, present: 0, total: 0 }), out[out.length - 1]);
+      row.total++;
+      if (v.value !== "nao_votou") row.present++;
+    }
+    return out.sort((a, b) => a.month - b.month);
+  },
+  async getSalaryAccrued() {
+    return null; // a demo não guarda a série histórica do subsídio
+  },
+  async getCampaignFinance() {
+    return []; // a demo não simula a prestação de contas por categoria
+  },
+  async listStaff() {
+    return []; // a demo não inventa nome de servidor
+  },
+  async countSecretVotes() {
+    return 0; // a demo não simula votação secreta
+  },
+  async getYearlyStats(personId) {
+    const years = [...mandateYears(personId)].sort((a, b) => a - b);
+    return Promise.all(
+      years.map(async (y) => {
+        const st = await fakeSource.getStats(personId, String(y) as `${number}`);
+        return { year: y, presencePresent: st.presencePresent, presenceTotal: st.presenceTotal, proposalsPrincipal: st.proposalsPrincipal, proposalsCosigned: st.proposalsCosigned, votesRegistered: st.votesRegistered, expensesCents: st.expensesCents };
+      }),
+    );
+  },
 
   async listProposals(personId, f) {
     const q = f.q ? fold(f.q) : "";
@@ -696,7 +763,7 @@ export const fakeSource: DataSource = {
       (p) =>
         (!f.year || p.year === f.year) &&
         (!f.topic || p.topics.includes(f.topic)) &&
-        (!f.type || (f.type === "lei") === p.canBecomeLaw) &&
+        (!f.type || (f.type === "emenda" ? false : (f.type === "lei") === p.canBecomeLaw)) &&
         (!f.role || p.role === f.role) &&
         (!q || fold(p.summary).includes(q) || `${p.type} ${p.number}`.toLowerCase().includes(q)),
     );
@@ -744,6 +811,17 @@ export const fakeSource: DataSource = {
         out.push({ a: personIds[i], b: personIds[j], same, total });
       }
     return out;
+  },
+  async listDisagreements(a, b, f) {
+    const va = new Map(votesOf(a).map((v) => [v.event.id, v]));
+    const ok = (x: string) => ["sim", "nao", "abstencao", "obstrucao"].includes(x);
+    const all = votesOf(b)
+      .filter((v) => va.has(v.event.id) && ok(v.value) && ok(va.get(v.event.id)!.value) && v.value !== va.get(v.event.id)!.value && (!f.year || yearOf(v.event.occurredAt) === f.year))
+      .map((v) => ({ event: { ...v.event, proposalLabel: null }, a: va.get(v.event.id)!.value, b: v.value }));
+    const topics = new Map<string, number>();
+    for (const d of all) if (d.event.topic) topics.set(d.event.topic, (topics.get(d.event.topic) ?? 0) + 1);
+    const items = all.filter((d) => !f.topic || d.event.topic === f.topic);
+    return { ...page(items, undefined, f.limit ?? 20), topics: [...topics].map(([slug, count]) => ({ slug, count })).sort((x, y) => x.slug.localeCompare(y.slug)) };
   },
   async listTopics() {
     return TOPICS;
@@ -815,11 +893,23 @@ export const fakeSource: DataSource = {
   async getLaws() {
     return [];
   },
+  async getAgenda() {
+    return { events: [], total: 0, source: null }; // a demo não simula agenda
+  },
+  async listLaws() {
+    return { items: [], nextCursor: null, total: 0, years: [] }; // a demo não simula leis
+  },
   async getCommittees() {
     return [];
   },
   async listSpeeches() {
     return { items: [], nextCursor: null, total: 0 };
+  },
+  async getSalarySources() {
+    return [{ name: "Decreto Legislativo nº 172/2022 (demonstração)", url: "https://www2.camara.leg.br/", updatedAt: "2026-11-01T06:10:00-03:00" }];
+  },
+  async listStampYears(prefix) {
+    return prefix.startsWith("tse") ? [2018, 2020, 2022, 2024, 2026] : [2023, 2024, 2025, 2026];
   },
   async getContacts() {
     return [];
@@ -828,6 +918,32 @@ export const fakeSource: DataSource = {
     const src = dataset.startsWith("camara") ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;
     const refreshedAt = dataset.startsWith("camara") || dataset.startsWith("senado") ? "2026-11-01T06:10:00-03:00" : dataset.startsWith("ibge") ? "2026-01-15T03:00:00-03:00" : "2026-10-31T05:40:00-03:00";
     return { dataset, source: src.name, sourceUrl: src.url, refreshedAt };
+  },
+  async listSourceStatus() {
+    const mk = (slug: keyof typeof SOURCES, datasets: string[]) => {
+      const refreshedAt = slug === "ibge" ? "2026-01-15T03:00:00-03:00" : slug === "tse" ? "2026-10-31T05:40:00-03:00" : "2026-11-01T06:10:00-03:00";
+      return { slug, name: SOURCES[slug].name, url: SOURCES[slug].url, datasets: datasets.map((dataset) => ({ dataset, refreshedAt })), lastRefreshedAt: refreshedAt };
+    };
+    return [mk("camara", ["camara.deputados", "camara.votacoes.2026"]), mk("ibge", ["ibge.places"]), mk("senado", ["senado.senadores", "senado.votacoes.2026"]), mk("tse", ["tse.candidatos.2024"])];
+  },
+  async getCoverageMatrix() {
+    const keys = ["salario", "presenca", "votos", "propostas", "gastos_gabinete"] as const;
+    const rows = UF_ROWS.map((u) => ({ uf: u[1], name: u[2], cities: 0, cells: {} as Record<string, Partial<Record<CoverageStatus, number>>> })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    const byUf = new Map(rows.map((r) => [r.uf, r]));
+    const total = { cities: 0, cells: {} as Record<string, Partial<Record<CoverageStatus, number>>> };
+    for (const m of MUNICIPALITY_ROWS) {
+      const row = byUf.get(m[2]);
+      if (!row) continue;
+      row.cities++;
+      total.cities++;
+      const present = new Map(coverageFor(m[0]).map((c) => [c.dataset, c.status]));
+      for (const k of keys) {
+        const st: CoverageStatus = present.get(k) ?? "no_site";
+        row.cells[k] = { ...row.cells[k], [st]: (row.cells[k]?.[st] ?? 0) + 1 };
+        total.cells[k] = { ...total.cells[k], [st]: (total.cells[k]?.[st] ?? 0) + 1 };
+      }
+    }
+    return { datasets: keys.map((k) => ({ key: k, label: DATASET_LABEL[k] })), rows, total, checkedOn: "2026-11-01" };
   },
   async latestRefresh() {
     return "2026-11-01T06:10:00-03:00";

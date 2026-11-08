@@ -6,6 +6,7 @@ import hashlib
 import re
 import unicodedata
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 from typing import Iterable, Iterator, TypeVar
 
@@ -81,6 +82,22 @@ def parse_ts(s: str | None) -> datetime | None:
         except ValueError:
             continue
     return None
+
+
+BRT = ZoneInfo("America/Sao_Paulo")
+
+
+def parse_ts_br(s: str | None) -> datetime | None:
+    """Como parse_ts, para fonte que publica hora de Brasília sem fuso (Câmara: dataHoraInicio, dataHoraRegistro).
+    Devolve datetime com fuso America/Sao_Paulo. Sem isso o psycopg grava o relógio local como UTC
+    (conexão do ETL usa timezone UTC) e a sessão das 14:34 aparece 11:34 (BUG-017)."""
+    ts = parse_ts(s)
+    return ts.replace(tzinfo=BRT) if ts else None
+
+
+def midnight_br(d: date) -> datetime:
+    """Meia-noite de Brasília do dia (fato que a fonte só data, sem hora)."""
+    return datetime(d.year, d.month, d.day, tzinfo=BRT)
 
 
 def cents(v: str | float | int | Decimal | None) -> int | None:

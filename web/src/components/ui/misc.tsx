@@ -120,35 +120,61 @@ export function EmailField({ errorMessage }: { errorMessage?: string }) {
   );
 }
 
-export function OnboardingDialog() {
+/**
+ * Boas-vindas em 3 passos. Sem props é a vitrine (/design): botão que abre. Com `open`, é controlado
+ * (primeira visita): sem trigger, "Pular" e Esc fecham, e `onStart` leva ao primeiro passo do fluxo.
+ */
+export function OnboardingDialog({
+  open,
+  onOpenChange,
+  onStart,
+}: { open?: boolean; onOpenChange?: (open: boolean) => void; onStart?: () => void } = {}) {
+  const controlled = open !== undefined;
+  const modal = (
+    <ModalOverlay
+      isOpen={controlled ? open : undefined}
+      onOpenChange={controlled ? onOpenChange : undefined}
+      isDismissable
+      className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_srgb,var(--surface-inverse),transparent_45%)] p-4"
+    >
+      <Modal className="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-pop">
+        <Dialog className="outline-none" aria-labelledby="onb-title">
+          {({ close }) => (
+            <>
+              <Heading slot="title" id="onb-title" className="font-display text-display text-fg">
+                Quem trabalha por você?
+              </Heading>
+              <ol className="mt-4 flex flex-col gap-3 text-sm text-fg">
+                <li><strong>1. Diga onde mora.</strong> Cidade ou estado, no mapa ou na busca.</li>
+                <li><strong>2. Veja quem está no cargo.</strong> Do vereador ao presidente.</li>
+                <li><strong>3. Abra o perfil.</strong> Votos, presença, gastos e patrimônio, com a fonte oficial.</li>
+              </ol>
+              <p className="mt-4 rounded-sm bg-surface-sunken p-3 text-xs text-muted">
+                Sem nota, sem ranking, sem opinião. Só o que os órgãos públicos publicam.
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <Button variant="ghost" onPress={close}>Pular</Button>
+                <Button
+                  variant="primary"
+                  onPress={() => {
+                    onStart?.();
+                    close();
+                  }}
+                >
+                  Achar minha cidade
+                </Button>
+              </div>
+            </>
+          )}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+  if (controlled) return modal;
   return (
     <DialogTrigger>
       <Button variant="secondary">Abrir boas-vindas</Button>
-      <ModalOverlay className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_srgb,var(--surface-inverse),transparent_45%)] p-4">
-        <Modal className="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-pop">
-          <Dialog className="outline-none">
-            {({ close }) => (
-              <>
-                <Heading slot="title" className="font-display text-display text-fg">
-                  Quem trabalha por você?
-                </Heading>
-                <ol className="mt-4 flex flex-col gap-3 text-sm text-fg">
-                  <li><strong>1. Diga onde mora.</strong> Cidade ou estado, no mapa ou na busca.</li>
-                  <li><strong>2. Veja quem está no cargo.</strong> Do vereador ao presidente.</li>
-                  <li><strong>3. Abra o perfil.</strong> Votos, presença, gastos e patrimônio, com a fonte oficial.</li>
-                </ol>
-                <p className="mt-4 rounded-sm bg-surface-sunken p-3 text-xs text-muted">
-                  Sem nota, sem ranking, sem opinião. Só o que os órgãos públicos publicam.
-                </p>
-                <div className="mt-6 flex justify-end gap-2">
-                  <Button variant="ghost" onPress={close}>Agora não</Button>
-                  <Button variant="primary" onPress={close}>Achar minha cidade</Button>
-                </div>
-              </>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+      {modal}
     </DialogTrigger>
   );
 }

@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Flag } from "lucide-react";
+import { ArrowLeft, Bell, Flag, MessageSquareReply } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -8,18 +8,43 @@ import { currentUser } from "@/lib/auth";
 import { isFollowing } from "@/lib/follows";
 import { Avatar } from "@/components/people/holder-card";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
-import { Assets, Committees, Contact, Elections, Expenses, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Votes } from "@/components/profile/sections";
+import { Assets, CampaignMoney, Committees, Contact, Elections, Expenses, HowToReach, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Staff, Votes } from "@/components/profile/sections";
 import { LinkChip, hrefWith, type Params } from "@/components/profile/ui";
+import { YearByYear } from "@/components/profile/yearly";
 import { CompareToggle } from "@/components/shell/compare";
+import { NumerosFontes, type SourceLine } from "@/components/profile/numeros-fontes";
 import { MissingDataNote, StatTile } from "@/components/ui/data";
 import { ListenButton } from "@/components/ui/misc";
-import { data, type MandateStatus, type PeriodStats } from "@/lib/data";
+import { data, type MandateStatus, type PeriodStats, type YearStats } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
+import { campaignTotals, joinYears } from "@/lib/campaign";
+import { Assembly, stampOf } from "./assembleia";
+import { CityCouncil } from "./camara-municipal";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Params> };
 
 const FULL_DATA = new Set(["deputado_federal", "senador"]);
+const STATE_LEG = new Set(["deputado_estadual", "deputado_distrital"]);
 const LEGISLATIVE = new Set(["senador", "deputado_federal", "deputado_estadual", "deputado_distrital", "vereador"]);
+const EXECUTIVE = new Set(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
+// D197: origem que não é sigla de casa ou tribunal ganha nome por extenso
+// D202: origens da lista curada do executivo (BUG-031)
+const STATUS_SOURCE_LABEL: Record<string, string> = {
+  "governo-am": "o site do Governo do Amazonas (Governadoria)",
+  "governo-ac": "a Agência de Notícias do Governo do Acre",
+  "governo-es": "o site do Governo do Espírito Santo",
+  "governo-go": "o site do Governo de Goiás",
+  "governo-mg": "a Agência Minas, do Governo de Minas Gerais",
+  "governo-pb": "o jornal A União, do Governo da Paraíba",
+  almt: "a Assembleia Legislativa de Mato Grosso",
+  alepa: "a Assembleia Legislativa do Pará",
+  cldf: "a Câmara Legislativa do DF",
+  alerj: "a Assembleia Legislativa do RJ",
+  "ale-rr": "a Assembleia Legislativa de Roraima",
+  aleam: "a Assembleia Legislativa do Amazonas",
+  stf: "o STF",
+  imprensa: "a imprensa (o ato não foi localizado em fonte oficial)",
+};
 
 async function load(slug: string) {
   if (!/^[a-z0-9-]{1,120}$/.test(slug)) return null;
@@ -45,22 +70,34 @@ export default async function Page({ params, searchParams }: Props) {
   if (!person) notFound();
   const sp = await searchParams;
 
-  const [mandates, candidacies, years] = await Promise.all([data.getMandates(person.id), data.getCandidacies(person.id), data.getActiveYears(person.id)]);
+  const [mandates, candidacies, years, partyFrom] = await Promise.all([data.getMandates(person.id), data.getCandidacies(person.id), data.getActiveYears(person.id), data.getPartyProvenance(person.id)]);
   const main = mandates.find((m) => m.status === "em_exercicio") ?? mandates[0];
   const yearParam = sp.ano && years.includes(Number(sp.ano)) ? Number(sp.ano) : null;
   const period: PeriodStats["period"] = yearParam ? (String(yearParam) as `${number}`) : "career";
-  const stats = await data.getStats(person.id, period);
+  const rawStats = await data.getStats(person.id, period);
+  // W3-B/D129: vereador de câmara lida pelo SAPL. Os números ficam no bloco próprio (sem porcentagem); o cartão diz onde estão
+  const council = main && main.office === "vereador" ? await data.getCityCouncil(person.id) : null;
+  const SAPL_NOTE = "está no bloco Câmara Municipal, lido do SAPL (sem porcentagem: a fonte não publica o total de sessões de cada mandato)";
+  const stats = council
+    ? { ...rawStats, missing: rawStats.missing.map((x) => (["presenca", "propostas"].includes(x.dataset) || (x.dataset === "votos" && council.votes) ? { ...x, reason: SAPL_NOTE } : x)) }
+    : rawStats;
 
   const legislative = !!main && LEGISLATIVE.has(main.office);
   const full = !!main && FULL_DATA.has(main.office);
   const base = `/p/${person.slug}`;
-  const elected = candidacies.find((c) => c.result.startsWith("eleito"));
+  const elected = candidacies.find((c) => c.result?.startsWith("eleito"));
   const withAssets = candidacies.find((c) => c.assetsCents !== null);
   const missingOf = (d: string) => stats.missing.find((m) => m.dataset === d);
   const f = person.gender === "f";
   const yrs = age(person.birthDate);
   const [birthplace] = person.birthplaceIbge ? await Promise.all([data.getPlace(person.birthplaceIbge)]) : [null];
-  const periodLabel = yearParam ? `em ${yearParam}` : "na carreira";
+  // "na carreira" diz a janela real: o primeiro ano com dado carregado de cada número (D02 da auditoria de dados)
+  const yearly = await data.getYearlyStats(person.id);
+  const sinceOf = (k: Exclude<keyof YearStats, "year">) => yearly.find((y) => y[k] !== null)?.year ?? null;
+  const firstYear = yearly.find((y) => y.presenceTotal !== null || y.proposalsPrincipal !== null || y.votesRegistered !== null || y.expensesCents !== null)?.year ?? null;
+  const labelOf = (k: Exclude<keyof YearStats, "year">) => (yearParam ? `em ${yearParam}` : sinceOf(k) ? `desde ${sinceOf(k)}` : firstYear ? `desde ${firstYear}` : "na carreira");
+  const periodLabel = yearParam ? `em ${yearParam}` : firstYear ? `desde ${firstYear}` : "na carreira";
+  const executive = !!main && EXECUTIVE.has(main.office);
   // meses de mandato no período (para o custo): ano escolhido ou soma dos mandatos já exercidos
   const months = mandates
     .filter((m) => m.status !== "eleito_aguardando_posse")
@@ -71,8 +108,39 @@ export default async function Page({ params, searchParams }: Props) {
       const b = yearParam ? new Date(Math.min(end.getTime(), Date.UTC(yearParam, 11, 31))) : end;
       return acc + Math.max(0, (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth() + 1);
     }, 0);
-  const wins = [...new Set(candidacies.filter((c) => c.result.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
+  const camp = campaignTotals(candidacies);
+  const accrued = await data.getSalaryAccrued(person.id, yearParam ?? undefined);
+  const mmYYYY = (d: string) => `${d.slice(5, 7)}/${d.slice(0, 4)}`;
+  const financeYears = await data.listStampYears("tse.contas");
+  const wins = [...new Set(candidacies.filter((c) => c.result?.startsWith("eleito")).map((c) => c.year))].sort((a, b) => a - b);
   const placeUf = main ? (await data.getPlace(main.placeIbge))?.uf : null;
+  // W3-A: deputado estadual/distrital lê a Assembleia da UF (o que é lido, com fonte e data, e o motivo de cada "—")
+  const assembly = main && STATE_LEG.has(main.office) && placeUf ? await data.getAssembly(placeUf) : null;
+  // fonte e data de cada número do bloco “Números” (BUG-026)
+  const stampLine = async (label: string, dataset: string): Promise<SourceLine> => {
+    const st = await data.getStamp(dataset);
+    return { label, source: st.source, href: st.sourceUrl, updatedAt: st.refreshedAt };
+  };
+  const numberSources: SourceLine[] = [];
+  if (main && (stats.salaryMonthlyCents || accrued)) {
+    for (const src of await data.getSalarySources(main.office)) numberSources.push({ label: stats.salaryIsCeiling ? "Teto do salário" : "Salário", source: src.name, href: src.url, updatedAt: src.updatedAt });
+  }
+  numberSources.push(await stampLine("Patrimônio e votos recebidos", "tse.candidatos"), await stampLine("Arrecadação de campanha", "tse.contas"));
+  if (main?.office === "deputado_federal") {
+    numberSources.push(
+      await stampLine("Presença", "camara.presenca"),
+      await stampLine("Propostas", "camara.proposicoes"),
+      await stampLine("Votos em plenário", "camara.votacoes"),
+      await stampLine("Gastos do gabinete", "camara.despesas"),
+    );
+  } else if (main?.office === "senador") {
+    numberSources.push(await stampLine("Propostas", "senado.autorias"), await stampLine("Votos em plenário", "senado.votacoes"), await stampLine("Gastos do gabinete", "senado.despesas"));
+  } else if (assembly?.read) {
+    const labels: Record<string, string> = { presenca: "Presença", votos: "Votos em plenário", propostas: "Propostas", gastos_gabinete: "Gastos do gabinete" };
+    for (const it of assembly.items) if (it.stampDataset) numberSources.push(await stampLine(labels[it.dataset] ?? it.label, it.stampDataset));
+  } else if (council) {
+    numberSources.push({ label: "Presença, propostas e votos", source: `SAPL da Câmara Municipal de ${council.city}`, href: council.baseUrl, updatedAt: council.loadedAt });
+  }
   const user = await currentUser();
   const following = user ? await isFollowing(user.id, person.id).catch(() => false) : false;
 
@@ -100,7 +168,30 @@ export default async function Page({ params, searchParams }: Props) {
                 </abbr>
               </p>
             )}
+            {main && (
+              <p className="mt-0.5 text-xs text-muted" data-testid="partido-fonte">
+                {partyFrom.kind === "none"
+                  ? main.party.id
+                    ? `Partido na posse do mandato, em ${date(main.startedOn)}. Filiação atual: — (${partyFrom.reason}).`
+                    : `Partido: — (${partyFrom.reason}).`
+                  : `Partido segundo ${partyFrom.kind === "camara" ? "a Câmara" : partyFrom.kind === "senado" ? "o Senado" : `o TSE (candidatura de ${partyFrom.electionYear})`}, vigente desde ${date(partyFrom.since)}.`}
+              </p>
+            )}
             <h1 className="mt-1 font-display text-hero leading-none break-words text-fg">{person.displayName}</h1>
+            {main && main.status !== "em_exercicio" && main.status !== "eleito_aguardando_posse" && (
+              <p className="mt-2 text-sm text-fg" data-testid="fora-do-cargo">
+                {main.status === "renunciou"
+                  ? `Renunciou ao cargo em ${date(main.endsOn)}.`
+                  : main.status === "cassado"
+                    ? `Mandato cassado em ${date(main.endsOn)}, segundo o TSE.`
+                    : main.status === "encerrado"
+                      ? `Mandato encerrado em ${date(main.endsOn)}.`
+                      : main.status === "licenciado" || main.status === "afastado"
+                        ? `${f ? "Licenciada ou afastada" : "Licenciado ou afastado"} do cargo segundo a casa.`
+                        : null}{" "}
+                {(main.status === "renunciou" || main.status === "cassado" || main.status === "encerrado") && "Os números abaixo são do período em que exerceu."}
+              </p>
+            )}
             {wins.length > 0 && (
               <p className="mt-3 flex flex-wrap gap-2">
                 <span className="inline-flex h-7 items-center rounded-pill bg-surface-sunken px-3 text-xs font-semibold text-fg">
@@ -146,21 +237,34 @@ export default async function Page({ params, searchParams }: Props) {
         <h2 id="mandatos-h" className="sr-only">
           Mandatos
         </h2>
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {mandates
             .filter((m) => m.status !== "encerrado")
-            .map((m) => (
-              <li key={m.id} className="flex flex-col gap-1 rounded-md border border-border bg-surface p-4">
-                <StatusBadge status={m.status} f={f} startedOn={m.startedOn} />
-                <span className="font-semibold text-fg">
-                  {m.officeName} · {m.placeLabel}
-                </span>
-                <span className="text-sm text-muted">
-                  {m.party.name} · de {date(m.startedOn)} a {date(m.endsOn)}
-                </span>
-                <span className="text-xs text-muted">situação segundo o {m.statusSource.toUpperCase()}</span>
-              </li>
-            ))}
+            .map((m) => {
+              const ended = m.status === "renunciou" || m.status === "cassado";
+              const succession = !!m.electedBy && m.electedBy.startsWith("sucessão");
+              return (
+                <li key={m.id} className="flex flex-col gap-1 rounded-md border border-border bg-surface p-4" data-status={m.status}>
+                  <StatusBadge status={m.status} f={f} startedOn={m.startedOn} endsOn={m.endsOn} />
+                  <span className="font-semibold text-fg">
+                    {m.officeName} · {m.placeLabel}
+                  </span>
+                  <span className="text-sm text-muted">
+                    {m.party.name} · {ended ? `de ${date(m.startedOn)} até ${date(m.endsOn)}` : `de ${date(m.startedOn)} a ${date(m.endsOn)}`}
+                  </span>
+                  {succession && (
+                    <span className="text-sm text-fg" data-testid="sucessao">
+                      {/* D232: o motivo vem do dado. Sucessão da lista curada (fonte oficial) traz o fato com a data; a da regra D06 (TSE) diz de onde vem a renúncia. */}
+                      Assumiu o cargo em {date(m.startedOn)} por sucessão: era {f ? "a vice" : "o vice"};{" "}
+                      {m.statusSource === "tse"
+                        ? "a renúncia do titular é deduzida da candidatura dele a outro cargo no TSE (Constituição, art. 14, § 6º)."
+                        : `${m.electedBy!.replace(/^sucessão:\s*/, "")}.`}
+                    </span>
+                  )}
+                  <span className="text-xs text-muted">situação segundo {STATUS_SOURCE_LABEL[m.statusSource] ?? `o ${m.statusSource.toUpperCase()}`}{m.status === "renunciou" && m.statusSource === "tse" ? ", com a renúncia deduzida pela regra da Constituição (candidatura a outro cargo ou posse em cargo incompatível)" : ""}</span>
+                </li>
+              );
+            })}
         </ul>
       </section>
 
@@ -185,7 +289,7 @@ export default async function Page({ params, searchParams }: Props) {
       {/* números */}
       <section aria-labelledby="numeros-h" className="mt-4">
         <h2 id="numeros-h" className="sr-only">
-          Números {periodLabel}
+          Números {legislative ? periodLabel : ""}
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile
@@ -193,13 +297,26 @@ export default async function Page({ params, searchParams }: Props) {
             kind="money"
             ceiling={stats.salaryIsCeiling}
             label={stats.salaryIsCeiling ? "teto do salário" : "salário por mês"}
-            sub={stats.salaryIsCeiling ? "o valor pago não é publicado" : stats.salaryMonthlyCents ? "valor bruto" : missingOf("salario")?.reason}
+            sub={stats.salaryIsCeiling ? "limite fixado pela Constituição para o cargo" : stats.salaryMonthlyCents ? "valor bruto" : missingOf("salario")?.reason}
             help={
               stats.salaryIsCeiling
-                ? "Limite que a Constituição permite para este cargo neste lugar. O órgão não publica quanto paga de fato."
+                ? "Limite que a Constituição permite para este cargo neste lugar (art. 27, § 2º, para deputado estadual; art. 29, VI, para vereador, pela população do município). Quanto a casa paga de fato ainda não está no site."
                 : "Subsídio bruto mensal, antes de descontos, conforme o órgão publica."
             }
           />
+          {accrued && (
+            <StatTile
+              value={accrued.cents}
+              kind="money"
+              label={yearParam ? `salário recebido em ${yearParam}` : `salário recebido desde ${mmYYYY(accrued.coveredFrom ?? accrued.firstMonth)}`}
+              sub={
+                accrued.coveredMonths === accrued.months
+                  ? `${count(accrued.months)} ${accrued.months === 1 ? "mês" : "meses"} no cargo${yearParam ? "" : ` desde ${mmYYYY(accrued.firstMonth)}`}`
+                  : `${count(accrued.coveredMonths)} de ${count(accrued.months)} meses no cargo (desde ${mmYYYY(accrued.firstMonth)}); antes de ${mmYYYY(accrued.coveredFrom!)} o valor do subsídio ainda não está carregado`
+              }
+              help="Soma do subsídio bruto de cada mês no cargo, com o valor vigente naquele mês, como a lei publica. É antes de descontos; não inclui 13º nem auxílios."
+            />
+          )}
           <StatTile
             value={withAssets?.assetsCents ?? null}
             kind="money"
@@ -209,68 +326,111 @@ export default async function Page({ params, searchParams }: Props) {
           />
           <StatTile value={elected?.votes ?? null} kind="count" label="votos recebidos" sub={elected ? `eleição de ${elected.year}` : undefined} />
           <StatTile
-            value={elected?.raisedCents ?? null}
+            value={camp.raisedCents}
             kind="money"
-            label="arrecadou na campanha"
-            sub={elected?.spentCents != null ? `gastou ${money(elected.spentCents)}` : elected ? "gastos não publicados" : undefined}
+            label={camp.years.length > 1 ? `arrecadou em ${camp.years.length} campanhas` : "arrecadou na campanha"}
+            sub={
+              camp.raisedCents === null
+                ? financeYears.length
+                  ? `sem prestação de contas no TSE entre ${financeYears[0]} e ${financeYears[financeYears.length - 1]}`
+                  : "prestação de contas do TSE ainda não carregada"
+                : `${joinYears(camp.years)}${camp.spentCents !== null ? ` · gastou ${money(camp.spentCents)}` : ""}`
+            }
+            help="Soma do que a pessoa declarou ao TSE em cada campanha, uma vez por eleição (o 2º turno não conta de novo). Despesa = valor pago."
           />
           {legislative && (
             <>
               <StatTile
                 value={stats.presenceTotal ? Math.round(((stats.presencePresent ?? 0) / stats.presenceTotal) * 100) : null}
                 kind="percent"
-                label={`presença ${periodLabel}`}
-                sub={stats.presenceTotal ? `${count(stats.presencePresent ?? 0)} de ${count(stats.presenceTotal)} dias com votação` : missingOf("presenca")?.reason}
-                help="Dias com votação nominal em plenário em que a pessoa registrou voto. Ausência justificada conta como ausência na fonte."
+                label={`presença ${labelOf("presencePresent")}`}
+                sub={stats.presenceTotal ? `${count(stats.presencePresent ?? 0)} de ${count(stats.presenceTotal)} sessões deliberativas` : missingOf("presenca")?.reason}
+                help="Contamos sessões deliberativas do plenário em que o nome está na lista oficial de presença da Câmara, entre as realizadas enquanto a pessoa estava em exercício. A página da Câmara conta dias de presença e separa as ausências justificadas; por isso o número dela pode ser diferente do nosso. A lista que lemos não traz justificativa: ausência justificada conta como ausência. O Senado não publica lista de presença por senador."
               />
               <StatTile
                 value={stats.proposalsPrincipal}
                 kind="count"
-                label={`propostas ${periodLabel}`}
+                label={`propostas ${labelOf("proposalsPrincipal")}`}
                 sub={stats.proposalsPrincipal !== null ? `+ ${count(stats.proposalsCosigned ?? 0)} como ${f ? "coautora" : "coautor"}` : missingOf("propostas")?.reason}
               />
               <StatTile
                 value={stats.votesRegistered}
                 kind="count"
-                label={`votos em plenário ${periodLabel}`}
+                label={`votos em plenário ${labelOf("votesRegistered")}`}
                 sub={stats.votesRegistered === null ? missingOf("votos")?.reason : undefined}
               />
               <StatTile
                 value={stats.expensesCents}
                 kind="money"
-                label={`gastos do gabinete ${periodLabel}`}
-                sub={stats.expensesCents === null ? missingOf("gastos_gabinete")?.reason : "cota para exercício do mandato"}
+                label={`gastos do gabinete ${labelOf("expensesCents")}`}
+                sub={stats.expensesCents === null ? missingOf("gastos_gabinete")?.reason : main && STATE_LEG.has(main.office) ? "verba de gabinete da Assembleia" : "cota para exercício do mandato"}
               />
             </>
           )}
         </div>
+        <NumerosFontes lines={numberSources} />
       </section>
 
-      {stats.missing.length > 0 && (
+      {executive && (
+        <p className="mt-4 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-fg" data-testid="executivo">
+          {main?.officeName} é cargo do Executivo: não tem presença em plenário, votos nem propostas como as de parlamentar, por isso esses números não aparecem aqui.
+          {" "}O que o governo ou a prefeitura gasta vem das contas públicas, que ainda não estão no site.
+        </p>
+      )}
+
+      {stats.missing.some((m) => m.reason !== SAPL_NOTE) && (
         <div className="mt-6">
-          <MissingDataNote items={stats.missing.map((m) => ({ what: m.label, why: m.reason }))} />
+          <MissingDataNote items={stats.missing.filter((m) => m.reason !== SAPL_NOTE).map((m) => ({ what: m.label, why: m.reason }))} />
         </div>
       )}
 
-      {full && <YearSummary stats={stats} periodLabel={periodLabel} f={f} />}
+      {full && <YearSummary stats={stats} periodLabel={periodLabel} f={f} senado={main.office === "senador"} />}
 
       <div className="mt-8 flex flex-col gap-6">
         {full && (
+          <YearByYear personId={person.id} yearly={yearly} year={yearParam} base={base} sp={sp} senado={main.office === "senador"} presenceReason={missingOf("presenca")?.reason} />
+        )}
+        {full && (
           <>
-            <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} />
-            <Votes personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} />
-            <Expenses personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} />
+            <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("propostas")?.reason} />
+            <Votes personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("votos")?.reason} />
+            <Expenses personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("gastos_gabinete")?.reason} />
             <Laws personId={person.id} f={f} />
             <Committees personId={person.id} />
+            <Staff personId={person.id} body={main.office === "senador" ? "senado" : "camara"} />
             <Speeches personId={person.id} base={base} sp={sp} year={yearParam} />
+          </>
+        )}
+        {council && <CityCouncil info={council} f={f} />}
+        {assembly && placeUf && (
+          <>
+            <Assembly uf={placeUf} stats={stats} periodLabel={periodLabel} f={f} since={{ propostas: labelOf("proposalsPrincipal"), gastos_gabinete: labelOf("expensesCents") }} />
+            {stampOf(assembly.items, "propostas") && (
+              <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} stamp={stampOf(assembly.items, "propostas")!} onlyBills />
+            )}
+            {stampOf(assembly.items, "gastos_gabinete") && (
+              <Expenses
+                personId={person.id}
+                base={base}
+                sp={sp}
+                year={yearParam}
+                body="camara"
+                stamp={stampOf(assembly.items, "gastos_gabinete")!}
+                title="Verba de gabinete"
+                intro={`Verba da ${assembly.houseName} para despesas do mandato, como a casa publica`}
+              />
+            )}
           </>
         )}
         <Assets candidacies={candidacies} />
         <Elections candidacies={candidacies} f={f} />
+        <CampaignMoney personId={person.id} />
         {main && main.status === "em_exercicio" && <Contact personId={person.id} />}
+        {main && main.status === "em_exercicio" && <HowToReach office={main.office} hasContact={(await data.getContacts(person.id)).length > 0} f={f} />}
         {full && (
           <MandateCost
             salaryMonthlyCents={stats.salaryIsCeiling ? null : stats.salaryMonthlyCents}
+            accrued={accrued}
             months={months}
             expensesCents={stats.expensesCents}
             periodLabel={periodLabel}
@@ -280,17 +440,37 @@ export default async function Page({ params, searchParams }: Props) {
           <NotLoadedYet
             items={[
               { what: "Emendas parlamentares", why: "vêm do Portal da Transparência, que exige chave de acesso cadastrada; entra quando a chave for configurada" },
-              { what: "Viagens oficiais", why: "a casa publica por missão, em formato que ainda não carregamos" },
-              { what: "Equipe do gabinete", why: "nomes e salários dos assessores entram na próxima fase" },
+              { what: "Viagens oficiais", why: "— a casa publica por missão, em formato que ainda não carregamos; nenhuma viagem está no site" },
             ]}
           />
         )}
       </div>
+
+      <footer aria-labelledby="resposta-h" className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-sunken p-4">
+        <div className="max-w-[62ch]">
+          <h2 id="resposta-h" className="text-base font-semibold text-fg">
+            {f ? "É ela e discorda de algo aqui?" : "É ele e discorda de algo aqui?"}
+          </h2>
+          <p className="text-sm text-muted">
+            Quem é citado, ou quem o representa, pode contestar um dado ou o jeito como ele aparece. Como tratamos o pedido:{" "}
+            <Link href="/sobre#s-resposta" className="font-semibold text-fg underline underline-offset-2">
+              direito de resposta
+            </Link>
+            .
+          </p>
+        </div>
+        <Link
+          href={`/sugestoes?tipo=resposta&p=${person.slug}`}
+          className="inline-flex h-10 items-center gap-2 rounded-pill border-[1.5px] border-border-input bg-surface px-4 text-sm font-semibold text-fg outline-none hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <MessageSquareReply aria-hidden className="size-4" /> Direito de resposta
+        </Link>
+      </footer>
     </Container>
   );
 }
 
-async function YearSummary({ stats, periodLabel, f }: { stats: PeriodStats; periodLabel: string; f: boolean }) {
+async function YearSummary({ stats, periodLabel, f, senado }: { stats: PeriodStats; periodLabel: string; f: boolean; senado: boolean }) {
   const topics = await data.listTopics();
   const name = Object.fromEntries(topics.map((t) => [t.slug, t.name]));
   const share = stats.partyAlignmentTotal ? Math.round(((stats.partyAligned ?? 0) / stats.partyAlignmentTotal) * 100) : null;
@@ -313,7 +493,15 @@ async function YearSummary({ stats, periodLabel, f }: { stats: PeriodStats; peri
             ))}
           </ol>
         ) : (
-          <p className="text-sm text-muted">Nenhuma proposta com tema classificado {periodLabel}.</p>
+          <p className="text-sm text-muted">
+            {senado ? (
+              <>
+                <span aria-label="não carregado">—</span> as matérias do Senado ainda não têm tema classificado no site.
+              </>
+            ) : (
+              `Nenhuma proposta com tema classificado ${periodLabel}.`
+            )}
+          </p>
         )}
         <p className="mt-2 text-xs text-muted">Tema segundo a classificação oficial da casa, agrupada em 17 temas.</p>
       </div>
@@ -324,7 +512,7 @@ async function YearSummary({ stats, periodLabel, f }: { stats: PeriodStats; peri
             <span aria-label="não publicado pela fonte" title="A fonte oficial não publica este dado">
               —
             </span>{" "}
-            sem votação com orientação do partido {periodLabel}.
+            {senado ? "a orientação de bancada do Senado ainda não está carregada." : `sem votação com orientação do partido ${periodLabel}.`}
           </p>
         ) : (
           <p className="text-sm text-fg">
@@ -349,12 +537,15 @@ function Fact({ term, value }: { term: string; value: string }) {
   );
 }
 
-function StatusBadge({ status, f, startedOn }: { status: MandateStatus; f: boolean; startedOn: string }) {
+function StatusBadge({ status, f, startedOn, endsOn }: { status: MandateStatus; f: boolean; startedOn: string; endsOn: string }) {
   const label: Record<MandateStatus, string> = {
     em_exercicio: "Em exercício",
     eleito_aguardando_posse: `${f ? "Eleita" : "Eleito"}, toma posse em ${date(startedOn)}`,
     licenciado: f ? "Licenciada" : "Licenciado",
+    afastado: f ? "Afastada" : "Afastado",
     encerrado: "Encerrado",
+    renunciou: `Renunciou em ${date(endsOn)}`,
+    cassado: `Mandato cassado em ${date(endsOn)}`,
   };
   return (
     <span

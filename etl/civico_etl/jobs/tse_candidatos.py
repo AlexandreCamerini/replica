@@ -22,6 +22,8 @@ from typing import Any
 import duckdb
 import psycopg
 
+import json
+
 from ..db import Run, SkipUnchanged, run, upsert
 from ..http import CACHE_DIR, fetch
 from ..identity import PersonResolver
@@ -41,6 +43,25 @@ RESULT = {
     "SUPLENTE": "suplente", "NÃO ELEITO": "nao_eleito", "2º TURNO": "segundo_turno",
 }
 ELECTED = {"eleito", "eleito_qp", "eleito_media"}
+
+
+def registration_rank(result: str | None) -> int:
+    """Entre dois registros da mesma pessoa na mesma disputa (registro substituído), fica o de maior posto: eleito > foi à
+    urna (suplente, não eleito, 2º turno) > sem resultado (#NULO#, INAPTO, indeferido, renúncia). BUG-039, D238."""
+    if result in ELECTED:
+        return 2
+    if result in ("suplente", "nao_eleito", "segundo_turno"):
+        return 1
+    return 0
+
+
+def row_result(x: dict[str, Any]) -> str | None:
+    """Resultado da linha do consulta_cand no vocabulário de candidacies.result."""
+    result = RESULT.get((x.get("DS_SIT_TOT_TURNO") or "").strip().upper())
+    if result is None:
+        detail = (x.get("DS_DETALHE_SITUACAO_CAND") or "").upper()
+        result = "indeferido" if "INDEFERIDO" in detail else "renuncia" if "RENÚNCIA" in detail or "RENUNCIA" in detail else None
+    return result
 GENDER = {"2": "m", "4": "f"}
 BODY_KIND = {
     "deputado_federal": "camara_deputados", "senador": "senado", "deputado_estadual": "assembleia",
@@ -61,7 +82,28 @@ TSE_TO_IBGE = {
     ("MG", "sao thome das letras"): "sao tome das letras",
     ("RN", "boa saude"): "januario cicco",
     ("MG", "barao de monte alto"): "barao do monte alto",
+    # grafias do consulta_cand_2012 que o IBGE mudou depois (BUG-036, D226): sem isto a linha era rejeitada sem lugar
+    ("RO", "machadinho do oeste"): "machadinho d'oeste",
+    ("RO", "alta floresta do oeste"): "alta floresta d'oeste",
+    ("RO", "nova brasilandia do oeste"): "nova brasilandia d'oeste",
+    ("RO", "santa luzia do oeste"): "santa luzia d'oeste",
+    ("RO", "sao felipe do oeste"): "sao felipe d'oeste",
+    ("CE", "itapage"): "itapaje",
+    ("RJ", "trajano de morais"): "trajano de moraes",
+    ("TO", "couto de magalhaes"): "couto magalhaes",
+    ("TO", "sao valerio da natividade"): "sao valerio",
+    ("TO", "fortaleza do tabocao"): "tabocao",
+    ("PE", "belem de sao francisco"): "belem do sao francisco",
+    ("PE", "iguaraci"): "iguaracy",
+    ("SC", "luis alves"): "luiz alves",
+    ("SC", "presidente castelo branco"): "presidente castello branco",
+    ("RN", "ares"): "arez",
+    ("BA", "quinjingue"): "quijingue",
+    ("PB", "sao domingos de pombal"): "sao domingos",
 }
+# Anos em que o SQ_CANDIDATO NÃO é único na eleição do arquivo: em 2012, 91 SQ aparecem numa linha da eleição ordinária e
+# noutra de uma suplementar (2013-2015) de outro município, de pessoas diferentes (BUG-035, D224). Neles a chave leva a UE.
+SQ_COM_UE = {2012}
 COLS = [
     "ANO_ELEICAO", "NM_TIPO_ELEICAO", "NR_TURNO", "DT_ELEICAO", "SG_UF", "SG_UE", "NM_UE", "CD_CARGO",
     "SQ_CANDIDATO", "NR_CANDIDATO", "NM_CANDIDATO", "NM_URNA_CANDIDATO", "NR_PARTIDO", "SG_PARTIDO", "NM_PARTIDO",
@@ -70,15 +112,40 @@ COLS = [
 ]
 
 
+def tse_key(year: int, sq: str, ue: str | None = None) -> str:
+    """Chave da pessoa no TSE em person_external_ids: (ano da eleição, SQ_CANDIDATO). O SQ só é único dentro da eleição e o TSE
+    reaproveita os números entre anos (BUG-032: o "Dinelci" de Fonte Boa 2012 tem o mesmo SQ do Roberto Cidade em Manaus 2016).
+    Candidaturas de anos diferentes só se ligam à mesma pessoa pelo título de eleitor ou por nome civil + nascimento (D210).
+    Em 2012 o SQ se repete entre a eleição ordinária e as suplementares do mesmo arquivo: a chave é ANO:UE:SQ (D224)."""
+    if int(year) in SQ_COM_UE:
+        if not (ue or "").strip():
+            raise ValueError(f"chave do TSE de {year} exige a UE (SQ {sq})")
+        return f"{int(year)}:{ue.strip()}:{sq.strip()}"
+    return f"{int(year)}:{sq.strip()}"
+
+
+def muni_index(conn: psycopg.Connection):
+    """(UF, nome do município no TSE) -> place_id, com as grafias do TSE que o IBGE escreve diferente."""
+    muni = {(row["uf"], fold(row["name"])): str(row["id"]) for row in conn.execute("select uf, name, id from places where kind = 'municipio'")}
+    # 2º critério: só letras e dígitos (hífen e apóstrofo variam: "Olhos-d'Água" x "OLHOS D'ÁGUA"); 3º: grafias que o TSE e o IBGE escrevem diferente
+    muni_alnum = {(uf, re.sub(r"[^a-z0-9]", "", name)): pid for (uf, name), pid in muni.items()}
+
+    def muni_lookup(uf: str, name: str | None) -> str | None:
+        f = fold(name)
+        return muni.get((uf, f)) or muni_alnum.get((uf, re.sub(r"[^a-z0-9]", "", f))) or muni.get((uf, TSE_TO_IBGE.get((uf, f), "")))
+
+    return muni_lookup
+
+
 def term_dates(office: str, year: int) -> tuple[date, date]:
     """Posse e fim previsto (exclusivo). EC 111/2021: a partir de 2027 presidente toma posse em 5/1 e governador em 6/1."""
     y = year + 1
     if office in ("presidente", "vice_presidente"):
-        start = date(y, 1, 1) if year <= 2022 else date(y, 1, 5)
-        end = date(y + 4, 1, 5)
+        posse = lambda yy: date(yy, 1, 1) if yy <= 2023 else date(yy, 1, 5)  # noqa: E731 - EC 111/2021 vale a partir de 2027
+        start, end = posse(y), posse(y + 4)
     elif office in ("governador", "vice_governador"):
-        start = date(y, 1, 1) if year <= 2022 else date(y, 1, 6)
-        end = date(y + 4, 1, 6)
+        posse = lambda yy: date(yy, 1, 1) if yy <= 2023 else date(yy, 1, 6)  # noqa: E731
+        start, end = posse(y), posse(y + 4)
     elif office in ("prefeito", "vice_prefeito", "vereador"):
         start, end = date(y, 1, 1), date(y + 4, 1, 1)
     elif office == "senador":
@@ -124,8 +191,15 @@ def _read(paths: list[Path], cols: list[str], where: str = "") -> list[dict[str,
     return out
 
 
+def load_order(years: list[int]) -> list[int]:
+    """Anos do mais novo para o mais antigo (D245). Pela D07 só a eleição com mandato atual ou a tomar posse cria pessoa; uma
+    eleição antiga só liga a quem já está no diretório. Em ordem crescente, numa carga do zero, 2012-2020 rodam antes de
+    existir a pessoa e a candidatura histórica dela não entra (o check do D238 acusa: título ELEITO sem candidatura eleita)."""
+    return sorted(set(years), reverse=True)
+
+
 def run_tse(conn: psycopg.Connection, *, years: list[int], ufs: list[str] | None, only_elected: bool, with_votes: bool, force: bool) -> None:
-    for year in years:
+    for year in load_order(years):
         try:
             cand = fetch(f"{BASE}/consulta_cand/consulta_cand_{year}.zip")
         except FileNotFoundError:
@@ -147,25 +221,25 @@ def run_tse(conn: psycopg.Connection, *, years: list[int], ufs: list[str] | None
             _load_votes(conn, year, ufs, force)
 
 
-def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens_zip: Path | None, ufs: list[str] | None, only_elected: bool) -> None:
+def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | None, bens_zip: Path | None, ufs: list[str] | None, only_elected: bool,
+               *, cand_paths: list[Path] | None = None, bens_paths: list[Path] | None = None, only: set[tuple[str, str]] | None = None,
+               bug: str = "BUG-039") -> None:
+    """Carga de um ano. `cand_paths`/`bens_paths`: CSVs já extraídos (reparos, sem rede). `only`: só as linhas (SG_UE, SQ)
+    pedidas, com todas as situações (reparos BUG-042/BUG-043, identity.fix041). `bug`: rótulo do registro substituído no log."""
     where = ""
-    if only_elected:
+    if only_elected and only is None:
         where = "where DS_SIT_TOT_TURNO in ('ELEITO','ELEITO POR QP','ELEITO POR MÉDIA') or (NR_TURNO = '1' and DS_SIT_TOT_TURNO = '2º TURNO')"
-    rows = _read(_extract(cand_zip, year, ufs, "consulta_cand"), COLS, where)
-    log.info("tse %d: %d candidaturas lidas (%s)", year, len(rows), "eleitos" if only_elected else "todas")
+    rows = _read(cand_paths or _extract(cand_zip, year, ufs, "consulta_cand"), COLS, where)
+    if only is not None:
+        rows = [x for x in rows if ((x["SG_UE"] or "").strip(), (x["SQ_CANDIDATO"] or "").strip()) in only]
+    log.info("tse %d: %d candidaturas lidas (%s)", year, len(rows), "eleitos" if only_elected and only is None else "todas" if only is None else "pedidas")
 
     people = PersonResolver(conn)
     parties = PartyResolver(conn)
     offices = {o["slug"]: str(o["id"]) for o in conn.execute("select slug, id from offices")}
     places = {row["ibge_code"]: str(row["id"]) for row in conn.execute("select ibge_code, id from places")}
     by_uf = {row["uf"]: str(row["id"]) for row in conn.execute("select uf, id from places where kind = 'uf'")}
-    muni = {(row["uf"], fold(row["name"])): str(row["id"]) for row in conn.execute("select uf, name, id from places where kind = 'municipio'")}
-    # 2º critério: só letras e dígitos (hífen e apóstrofo variam: "Olhos-d'Água" x "OLHOS D'ÁGUA"); 3º: grafias que o TSE e o IBGE escrevem diferente
-    muni_alnum = {(uf, re.sub(r"[^a-z0-9]", "", name)): pid for (uf, name), pid in muni.items()}
-
-    def muni_lookup(uf: str, name: str | None) -> str | None:
-        f = fold(name)
-        return muni.get((uf, f)) or muni_alnum.get((uf, re.sub(r"[^a-z0-9]", "", f))) or muni.get((uf, TSE_TO_IBGE.get((uf, f), "")))
+    muni_lookup = muni_index(conn)
 
     bodies = {(row["kind"], str(row["place_id"])): str(row["id"]) for row in conn.execute("select kind, place_id, id from legislative_bodies")}
     today = date.today()
@@ -226,7 +300,22 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
     seen_person_election: set[tuple[str, str]] = set()
     mandate_rows: list[tuple] = []
     supplementary: list[tuple[str, str, date]] = []  # (office_slug, place_id, data da eleição suplementar)
-    sq_round1: dict[str, tuple[str, str]] = {}  # SQ -> (contest_id, person_id) do 1º turno, para bens
+    sq_round1: dict[tuple[str, str], tuple[str, str]] = {}  # (SQ, UE) -> (contest_id, person_id) do 1º turno, para bens (SQ repete em 2012)
+    not_in_dir = 0
+    # mesma pessoa com duas candidaturas na mesma eleição (registro substituído, renúncia e novo registro): fica a que já está no
+    # banco ou, no lote, a eleita primeiro
+    # (a chave inclui o SQ: na mesma disputa, o registro substituído e o novo têm SQ diferentes; BUG-036, D226)
+    # registro substituído na mesma disputa e com o mesmo número: fica o de maior posto (eleito > foi à urna > INAPTO/#NULO#),
+    # e não o que chegou primeiro (BUG-039, D238). O que sai vai inteiro para identity_repair_log (bug BUG-039).
+    db_person_election: dict[tuple[str, str], tuple[str, str]] = {}
+    db_cand: dict[tuple[str, str], dict[str, Any]] = {}
+    for r_ in conn.execute("select * from candidacies where election_id = any(%s::uuid[])", (list(elections.values()),)):
+        db_person_election[(str(r_["person_id"]), str(r_["election_id"]))] = (str(r_["contest_id"]), r_["tse_sequencial"])
+        db_cand[(str(r_["person_id"]), str(r_["election_id"]))] = r_
+    superseded: list[dict[str, Any]] = []
+    # maior posto primeiro (eleito > foi à urna > INAPTO/#NULO#): o registro substituído nunca chega antes do válido da mesma
+    # disputa, senão o válido era rejeitado como "pessoa duplicada" (BUG-043, D242)
+    parsed.sort(key=lambda x: -registration_rank(row_result(x)))
     for x in parsed:
         sq = nz(x["SQ_CANDIDATO"])
         if not sq:
@@ -237,33 +326,61 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
         birth = parse_date(x["DT_NASCIMENTO"])
         birth_uf = (nz(x["SG_UF_NASCIMENTO"]) or "").upper() or None
         titulo = nz(x["NR_TITULO_ELEITORAL_CANDIDATO"])
-        m = people.resolve(source="tse", external_id=sq, civil_name=civil, birth_date=birth, birth_uf=birth_uf, titulo=titulo,
-                           raw={"ano": year, "nome": civil, "urna": urna, "cargo": x["office"], "uf": x["SG_UF"]})
+        titulo = titulo if titulo and titulo.isdigit() else None  # '-4': título não divulgável, não é id
+        result = row_result(x)
+        # D07: só cria pessoa nova no diretório quem tem mandato atual ou a tomar posse; o resto (derrotados, eleições antigas)
+        # só se liga a quem já está no diretório (histórico, patrimônio, campanhas). O diretório não vira lista de candidatos.
+        s0, e0 = term_dates(x["office"], year)
+        if x["kind"] == "suplementar":
+            s0 = x["held"]
+        may_create = result in ELECTED and e0 > today
+        m = people.resolve(source="tse", external_id=tse_key(year, sq, x["SG_UE"]), civil_name=civil, birth_date=birth, birth_uf=birth_uf, titulo=titulo,
+                           uf=x["SG_UF"], place_id=x["place"], year=year,
+                           raw={"ano": year, "nome": civil, "urna": urna, "cargo": x["office"], "uf": x["SG_UF"], "ue": x["NM_UE"], "sq": sq,
+                                "titulo": titulo, "nascimento": str(birth) if birth else None, "situacao": x["DS_SIT_TOT_TURNO"]})
+        if m.why:
+            r.notes.append(f"{civil} ({sq}): {m.why}")
         if m.method == "queued":
             r.reject(1)
+            continue
+        if m.title_foreign:
+            # BUG-041 (D240): o título é de outra pessoa do diretório; esta linha só entra como pessoa nova e sem o título
+            titulo = None
+            if m.person_id is None and not may_create:
+                r.reject(1, f"título repetido pelo TSE na linha de outra pessoa, fora do diretório: {civil} {birth} ({sq})")
+                continue
+        if m.person_id is None and not may_create:
+            not_in_dir += 1
             continue
         pid = m.person_id or people.create(
             display_name=urna, civil_name=civil, gender=GENDER.get((x["CD_GENERO"] or "").strip()), birth_date=birth,
             birthplace_place_id=muni_lookup(birth_uf, x["NM_MUNICIPIO_NASCIMENTO"]) if birth_uf else None,
             education=(lambda e: e[0].upper() + e[1:].lower() if e else None)(nz(x["DS_GRAU_INSTRUCAO"]) or ""),
             slug_hints=((x["SG_UF"] or "").lower() or None, x["office"].replace("_", "-")),
-            source="tse", external_id=sq, titulo=titulo,
+            source="tse", external_id=tse_key(year, sq, x["SG_UE"]), titulo=titulo, uf=x["SG_UF"], place_id=x["place"],
         )
         el_id = elections[(x["kind"], year, x["turno"], x["held"])]
+        contest_id = contests[(el_id, offices[x["office"]], x["place"])]
+        if db_person_election.get((pid, el_id), (contest_id, sq)) != (contest_id, sq):
+            old_c = db_cand[(pid, el_id)]
+            number = int(x["NR_CANDIDATO"]) if (x["NR_CANDIDATO"] or "").isdigit() else None
+            if (str(old_c["contest_id"]) == contest_id and old_c["ballot_number"] == number
+                    and registration_rank(result) > registration_rank(old_c["result"]) and (pid, el_id) not in seen_person_election):
+                superseded.append(old_c)
+                db_person_election[(pid, el_id)] = (contest_id, sq)
+            else:
+                r.reject(1, f"outra candidatura da mesma pessoa na eleição: {civil} ({sq})")
+                continue
         if (pid, el_id) in seen_person_election:
             r.reject(1, f"pessoa duplicada na mesma eleição: {civil} ({sq})")
             continue
         seen_person_election.add((pid, el_id))
         contest_id = contests[(el_id, offices[x["office"]], x["place"])]
         party_id = parties.get(x["SG_PARTIDO"], x["NM_PARTIDO"], x["NR_PARTIDO"])
-        result = RESULT.get((x["DS_SIT_TOT_TURNO"] or "").strip().upper())
-        detail = (x["DS_DETALHE_SITUACAO_CAND"] or "").upper()
-        if result is None:
-            result = "indeferido" if "INDEFERIDO" in detail else "renuncia" if "RENÚNCIA" in detail or "RENUNCIA" in detail else None
         cand_rows.append((contest_id, el_id, pid, party_id, sq, urna, int(x["NR_CANDIDATO"]) if (x["NR_CANDIDATO"] or "").isdigit() else None,
                           nz(x["NM_COLIGACAO"]), result, "BRL"))
         if x["turno"] == 1:
-            sq_round1[sq] = (contest_id, pid)
+            sq_round1[(sq, (x["SG_UE"] or "").strip())] = (contest_id, pid)
         if result in ELECTED:
             start, end = term_dates(x["office"], year)
             if x["kind"] == "suplementar":
@@ -274,6 +391,14 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
             body = bodies.get((BODY_KIND[x["office"]], x["place"])) if x["office"] in BODY_KIND else None
             mandate_rows.append((pid, offices[x["office"]], x["place"], body, party_id, "titular", status, start, end, f"TSE {year}", "tse", sq, contest_id))
     people.flush()
+    # BUG-038: a linha da fonte de cada título do diretório (inclusive as que não viram candidatura) para os checks de fusão
+    known = {ext for (src_id, ext) in people.external if src_id == people.sources.get("tse-titulo")}
+    write_title_rows(conn, title_rows(rows, known))
+    if superseded:
+        _drop_superseded(conn, r, superseded, year, bug)
+    if not_in_dir:
+        r.notes.append(f"{not_in_dir} candidaturas de quem não está no diretório (sem mandato atual): não criam pessoa")
+        log.info("tse %d: %d candidaturas sem pessoa no diretório, ignoradas", year, not_in_dir)
     upserted = upsert(
         conn, "candidacies",
         ["contest_id", "election_id", "person_id", "party_id", "tse_sequencial", "ballot_name", "ballot_number", "coalition_name", "result", "currency"],
@@ -310,6 +435,20 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
                 [(held, o, pl, held, held) for (o, pl), held in supp_by_seat.items()],
             )
             r.notes.append(f"{len(supp_by_seat)} cadeira(s) com eleição suplementar")
+        # mandato que a casa (ou outra carga) já registrou com outra data de início para a mesma pessoa e cargo: fica o existente
+        # (ex.: senador eleito em suplementar que o Senado registra desde o início da legislatura)
+        have: dict[tuple[str, str], list[tuple[date, date]]] = defaultdict(list)
+        for row in conn.execute("select person_id, office_id, started_on, ends_on from mandates where person_id = any(%s::uuid[])", (list({x[0] for x in rows_m}),)):
+            have[(str(row["person_id"]), str(row["office_id"]))].append((row["started_on"], row["ends_on"]))
+        kept = []
+        for row in rows_m:
+            spans = have[(row[0], row[1])]
+            if any(s_ != row[8] and s_ < row[9] and row[8] < e_ for s_, e_ in spans):
+                r.reject(1, f"mandato sobreposto a um já registrado: pessoa {row[0]} desde {row[8]}")
+                continue
+            spans.append((row[8], row[9]))
+            kept.append(row)
+        rows_m = kept
         n = len(upsert(
             conn, "mandates",
             ["person_id", "office_id", "place_id", "body_id", "party_id", "candidacy_id", "role", "status", "started_on", "ends_on", "elected_by", "status_source"],
@@ -319,21 +458,70 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path, bens
         r.add(n)
 
     # 5) bens declarados (soma por candidatura do 1º turno)
-    if bens_zip:
-        brows = _read(_extract(bens_zip, year, ufs, "bem_candidato"), ["SQ_CANDIDATO", "VR_BEM_CANDIDATO"])
-        total: dict[str, int] = defaultdict(int)
+    if bens_zip or bens_paths:
+        brows = _read(bens_paths or _extract(bens_zip, year, ufs, "bem_candidato"), ["SQ_CANDIDATO", "SG_UE", "VR_BEM_CANDIDATO"])
+        total: dict[tuple[str, str], int] = defaultdict(int)
         for b in brows:
             v = cents(b["VR_BEM_CANDIDATO"])
-            if b["SQ_CANDIDATO"] in sq_round1 and v is not None:
-                total[b["SQ_CANDIDATO"]] += v
+            k = (b["SQ_CANDIDATO"], (b["SG_UE"] or "").strip())
+            if k in sq_round1 and v is not None:
+                total[k] += v
         decl = []
-        for sq, tot in total.items():
-            contest_id, pid = sq_round1[sq]
+        for (sq, _ue), tot in total.items():
+            contest_id, pid = sq_round1[(sq, _ue)]
             cid = cand_id.get((sq, contest_id))
             if cid:
                 decl.append((pid, cid, year, tot, "BRL"))
         r.add(len(upsert(conn, "asset_declarations", ["person_id", "candidacy_id", "year", "total_cents", "currency"], decl, ["candidacy_id"], returning=["id"])))
     log.info("tse %d: %d pessoas no resolver, %d candidaturas, %d mandatos", year, len(people.slugs), len(cand_rows), len(mandate_rows))
+
+
+def title_rows(rows: list[dict[str, Any]], known: set[str] | None) -> list[tuple]:
+    """Linhas de tse_titulo_candidatura (migração 0065) dos títulos em `known` (None: todos). 2º turno é a mesma linha."""
+    out = {}
+    for x in rows:
+        t = nz(x.get("NR_TITULO_ELEITORAL_CANDIDATO"))
+        sq, ue = nz(x.get("SQ_CANDIDATO")), (x.get("SG_UE") or "").strip()
+        tipo = (x.get("NM_TIPO_ELEICAO") or "").upper()
+        kind = "suplementar" if "SUPLEMENTAR" in tipo else "ordinaria" if "ORDIN" in tipo else None
+        if not (t and sq and ue and kind) or (known is not None and t not in known):
+            continue
+        k = (t, int(x["ANO_ELEICAO"]), ue, sq)
+        if k in out and (x.get("NR_TURNO") or "1") != "1":
+            continue
+        nr = (x.get("NR_CANDIDATO") or "").strip()
+        out[k] = (*k, kind, (x.get("SG_UF") or "").strip() or None, CARGO.get((x.get("CD_CARGO") or "").strip(), (x.get("CD_CARGO") or "").strip()),
+                  (x.get("DS_SIT_TOT_TURNO") or "").strip() or None,
+                  # BUG-041/043 (migração 0066): nome civil, nascimento e número da linha, para os checks de fusão e de registro substituído
+                  nz(x.get("NM_CANDIDATO")), parse_date(x.get("DT_NASCIMENTO")), int(nr) if nr.isdigit() else None)
+    return list(out.values())
+
+
+def write_title_rows(conn: psycopg.Connection, trows: list[tuple]) -> int:
+    if not trows:
+        return 0
+    return len(upsert(conn, "tse_titulo_candidatura",
+                      ["titulo", "year", "ue", "tse_sequencial", "kind", "uf", "cargo", "result", "civil_name", "birth_date", "ballot_number"], trows,
+                      ["titulo", "year", "ue", "tse_sequencial"], update=["kind", "uf", "cargo", "result", "civil_name", "birth_date", "ballot_number"],
+                      returning=["titulo"]))
+
+
+def _drop_superseded(conn: psycopg.Connection, r: Run, olds: list[dict[str, Any]], year: int, bug: str = "BUG-039") -> None:
+    """Tira o registro substituído (INAPTO/#NULO#) que perdeu para o deferido/eleito da mesma disputa e número. Antes de sair,
+    a candidatura, os mandatos e os bens vão inteiros para identity_repair_log (bug BUG-039, 'removido'/'substituido')."""
+    for c in olds:
+        ms = [dict(m) for m in conn.execute("select * from mandates where candidacy_id = %s", (c["id"],))]
+        bens = [dict(b) for b in conn.execute("select * from asset_declarations where candidacy_id = %s", (c["id"],))]
+        conn.execute(
+            """insert into identity_repair_log (bug, candidacy_id, year, tse_sequencial, action, reason, from_person_id, mandates_removed, raw)
+               values (%s, %s, %s, %s, 'removido', 'substituido', %s, %s, %s) on conflict (bug, candidacy_id) do nothing""",
+            (bug, c["id"], year, c["tse_sequencial"], c["person_id"], len(ms),
+             json.dumps({"candidacy": dict(c), "mandates": ms, "asset_declarations": bens}, ensure_ascii=False, default=str)))
+        conn.execute("delete from asset_declarations where candidacy_id = %s", (c["id"],))
+        conn.execute("delete from mandates where candidacy_id = %s", (c["id"],))
+        conn.execute("delete from candidacies where id = %s", (c["id"],))
+        r.notes.append(f"registro substituído {c['tse_sequencial']} saiu para o deferido/eleito da mesma disputa ({bug})")
+        log.info("tse %d: registro substituído %s (%s) saiu para o deferido/eleito da mesma disputa", year, c["tse_sequencial"], c["result"])
 
 
 def _load_votes(conn: psycopg.Connection, year: int, ufs: list[str] | None, force: bool) -> None:

@@ -1,0 +1,80 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 390,
+    "height": 844
+  },
+  "clone": {
+    "width": 390,
+    "height": 844
+  },
+  "compared_at": {
+    "width": 390,
+    "height": 844
+  },
+  "height_delta_pct": 0.0,
+  "score": 28.0,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 0,
+      "w": 384,
+      "h": 736,
+      "cells": 172,
+      "where": "middle centre"
+    },
+    {
+      "x": 0,
+      "y": 672,
+      "w": 224,
+      "h": 172,
+      "cells": 21,
+      "where": "bottom left"
+    },
+    {
+      "x": 224,
+      "y": 736,
+      "w": 160,
+      "h": 96,
+      "cells": 12,
+      "where": "bottom right"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "w": 192,
+      "h": 64,
+      "cells": 7,
+      "where": "top left"
+    },
+    {
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 32,
+      "cells": 2,
+      "where": "top centre"
+    },
+    {
+      "x": 0,
+      "y": 640,
+      "w": 32,
+      "h": 32,
+      "cells": 1,
+      "where": "bottom left"
+    },
+    {
+      "x": 0,
+      "y": 800,
+      "w": 32,
+      "h": 32,
+      "cells": 1,
+      "where": "bottom left"
+    }
+  ],
+  "files": {
+    "original": "replica/screens/final-comparar-390.png",
+    "clone": "replica/clone-screens/final-comparar-390.png"
+  }
+}

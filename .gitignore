@@ -27,3 +27,8 @@ web/test-results/
 # conversões das capturas do original: referência, nunca publicadas
 replica/diffs/src/
 replica/diffs/*.png
+
+# builds e resultados de e2e por agente (W3-A)
+web/.next-e2e-*/
+web/test-results-*/
+etl/.state/
