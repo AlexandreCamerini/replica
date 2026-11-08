@@ -35,21 +35,13 @@ echo "Redefinindo a senha do web_reader..."
 psql "$ADMIN_URL" -X -q -v ON_ERROR_STOP=1 -v pw="$NEWPW" -f - <<<"alter role web_reader with login password :'pw';" >/dev/null
 
 # monta a URL de leitura a partir da URI admin: mesmo host, porta e banco; usuário web_reader
-# (no pooler do Supabase o usuário leva o sufixo do projeto: postgres.<ref> → web_reader.<ref>)
-read -r HOSTPART USERPART <<<"$(python3 -I - "$ADMIN_URL" <<'PY'
-import sys
-from urllib.parse import urlsplit
-u = urlsplit(sys.argv[1])
-host = u.hostname or ""
-port = f":{u.port}" if u.port else ""
-path = u.path or "/postgres"
-q = f"?{u.query}" if u.query else ""
-user = u.username or "postgres"
-ref = user.split(".", 1)[1] if "." in user else ""
-reader = f"web_reader.{ref}" if ref else "web_reader"
-print(f"{host}{port}{path}{q}", reader)
-PY
-)"
+# (no pooler do Supabase o usuário leva o sufixo do projeto: postgres.<ref> → web_reader.<ref>).
+# Sem urlsplit: a senha do postgres pode ter ':' ou '@' sem escape (o psql aceita, o parser de URL não).
+REST="${ADMIN_URL#*://}"
+HOSTPART="${REST##*@}"                 # tudo depois do último '@': host:porta/banco?query
+CREDS="${REST%@*}"                     # usuário:senha
+ADMIN_USER="${CREDS%%:*}"
+if [[ "$ADMIN_USER" == *.* ]]; then USERPART="web_reader.${ADMIN_USER#*.}"; else USERPART="web_reader"; fi
 DB_URL="postgresql://${USERPART}:${NEWPW}@${HOSTPART}"
 unset ADMIN_URL NEWPW
 
