@@ -18,16 +18,20 @@ PROJECT="replica"
 PREVIEW_BRANCH="claude/design-consent-63af20"
 DRY=0; [[ "${1:-}" == "--dry-run" ]] && DRY=1
 
-v() { npx --yes vercel@latest "$@" --scope "$SCOPE" --project "$PROJECT"; }
+vs() { npx --yes vercel "$@" --scope "$SCOPE"; }                 # comandos de conta/deploy
+v() { npx --yes vercel "$@" --scope "$SCOPE" --project "$PROJECT"; }  # comandos de env (checkout não linkado)
 run() { if (( DRY )); then echo "[dry-run] $*"; else "$@"; fi; }
 
 command -v npx >/dev/null || { echo "npx não encontrado (instale Node)"; exit 1; }
-v whoami >/dev/null 2>&1 || { echo "Faça login antes: npx vercel login"; exit 1; }
+vs whoami >/dev/null 2>&1 || { echo "Faça login antes: npx vercel login"; exit 1; }
 
-echo "Cole a DATABASE_URL de leitura (postgres://web_reader:...). Nada será exibido."
-read -r -s DB_URL; echo
-[[ "$DB_URL" =~ ^postgres(ql)?:// ]] || { echo "Não parece uma URL postgres://. Abortado."; exit 1; }
-[[ "$DB_URL" == *web_reader* ]] || echo "Aviso: a URL não usa o usuário web_reader; o preview teria mais permissão que o necessário."
+DB_URL=""
+if (( ! DRY )); then
+  echo "Cole a DATABASE_URL de leitura (postgres://web_reader:...). Nada será exibido."
+  read -r -s DB_URL; echo
+  [[ "$DB_URL" =~ ^postgres(ql)?:// ]] || { echo "Não parece uma URL postgres://. Abortado."; exit 1; }
+  [[ "$DB_URL" == *web_reader* ]] || echo "Aviso: a URL não usa o usuário web_reader; o preview teria mais permissão que o necessário."
+fi
 
 echo "1/5 DATABASE_URL: Production e Preview"
 run v env rm DATABASE_URL production --yes >/dev/null 2>&1 || true
@@ -51,9 +55,9 @@ v env ls 2>/dev/null | grep -E "^ (DATA_SOURCE|DATABASE_URL|DATABASE_WRITE_URL|A
 
 echo "5/5 Deploys"
 if (( ! DRY )); then
-  PREV=$(v ls "$PROJECT" 2>/dev/null | awk -v b="$PREVIEW_BRANCH" '/Preview/ && /Ready/ {print $3; exit}')
-  [[ -n "$PREV" ]] && v redeploy "$PREV" >/dev/null && echo "preview refeito: https://replica-git-${PREVIEW_BRANCH//\//-}-${SCOPE}.vercel.app"
-  PROD=$(v ls "$PROJECT" 2>/dev/null | awk '/Production/ && /Ready/ {print $3; exit}')
-  [[ -n "$PROD" ]] && v redeploy "$PROD" >/dev/null && echo "produção refeita a partir de $PROD"
+  PREV=$(vs ls "$PROJECT" 2>/dev/null | awk -v b="$PREVIEW_BRANCH" '/Preview/ && /Ready/ {print $3; exit}')
+  [[ -n "$PREV" ]] && vs redeploy "$PREV" >/dev/null && echo "preview refeito: https://replica-git-${PREVIEW_BRANCH//\//-}-${SCOPE}.vercel.app"
+  PROD=$(vs ls "$PROJECT" 2>/dev/null | awk '/Production/ && /Ready/ {print $3; exit}')
+  [[ -n "$PROD" ]] && vs redeploy "$PROD" >/dev/null && echo "produção refeita a partir de $PROD"
 fi
 echo "Pronto. Preview exige login da Vercel na primeira abertura."
