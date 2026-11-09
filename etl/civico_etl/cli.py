@@ -21,6 +21,10 @@ Os seis reparos de uma vez só acima (tse.fix019, tse.fix032, tse.fix035, identi
 identity.fix041) são legado e NÃO rodam na rotina: a regra deles está na carga (D245) e o `check` acusa se o defeito voltar.
 Ficam para resposta a incidente. A rotina roda `identity.repairs` depois de tse.candidatos e de camara/senado.diario.
   civico-etl derive.stats
+  civico-etl pauta                                                   # pauta de hoje a +14 dias; rodar várias vezes ao dia
+  civico-etl check                                                  # invariantes; exit 1 se alguma quebrar
+  civico-etl rascunho --limit 5                                     # IA rascunha as respostas (custa API); nada publica
+  civico-etl revisar [chave] [--aprovar|--reprovar] --revisor "Nome"  # fila, leitura e publicação por pessoa
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
   civico-etl run-due [--dry-run] [--only TAREFA --force]             # agenda (D250): roda o que venceu, check e alerta; exit 2 = alerta
 """
@@ -58,7 +62,8 @@ def main(argv: list[str] | None = None) -> int:
 
         return sapl_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "identity.repairs", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "check", "all", "governos.indicadores", "receita.arrecadacao"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "identity.repairs", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "pauta", "rascunho", "revisar", "check", "all", "governos.indicadores", "receita.arrecadacao"])
+    p.add_argument("key", nargs="?", help="rascunho/revisar: chave da proposta, ex. camara-pl-79-2020")
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -66,6 +71,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, help="Câmara/Senado: no máximo N parlamentares (desenvolvimento)")
     p.add_argument("--no-expenses", action="store_true", help="Câmara: pular a cota parlamentar")
     p.add_argument("--force", action="store_true", help="ignorar checksum e reprocessar")
+    p.add_argument("--model", help="rascunho: modelo (padrão claude-sonnet-5-5 ou RASCUNHO_MODEL)")
+    p.add_argument("--aprovar", action="store_true", help="revisar: publica o último rascunho")
+    p.add_argument("--reprovar", action="store_true", help="revisar: reprova o último rascunho")
+    p.add_argument("--revisor", help="revisar: nome de quem revisou (aparece como 'Revisado por pessoa')")
+    p.add_argument("--motivo", help="revisar: motivo da reprovação ou da correção")
+    p.add_argument("--nao-diz", action="append", default=[], metavar="CAMPO", help="revisar: troca o campo por 'O texto não diz' (repetível)")
+    p.add_argument("--conferido", metavar="CÓDIGO", help="revisar: código mostrado ao ler o rascunho; obrigatório para aprovar")
+    p.add_argument("--frase", action="append", default=[], metavar='CAMPO="TEXTO"', help="revisar: reescreve a frase do campo; o trecho fica (repetível)")
     p.add_argument("--apply", action="store_true", help="tse.fix019/tse.fix032/tse.fix035/identity.fix033/identity.fix038/identity.fix041: gravar a correção (sem isto, dry-run)")
     a = p.parse_args(argv)
 
@@ -173,6 +186,20 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.derive_stats import run_derive
 
             run_derive(conn)
+        if a.job in ("pauta", "all"):
+            from .jobs.pauta import run_pauta
+
+            run_pauta(conn)
+        if a.job == "rascunho":
+            from .jobs.rascunho import run_rascunho
+
+            run_rascunho(conn, key=a.key, limit=a.limit or 5, model=a.model, force=a.force)
+        if a.job == "revisar":
+            from .jobs.revisar import run_revisar
+
+            if a.aprovar and a.reprovar:
+                p.error("use --aprovar ou --reprovar, não os dois")
+            return run_revisar(conn, a.key, approve=a.aprovar, reject=a.reprovar, reviewer=a.revisor, note=a.motivo, not_said=a.nao_diz, phrases=a.frase, checked=a.conferido)
         # W4: fora do "all" (fontes novas, independentes das legislativas)
         if a.job == "governos.indicadores":
             from .jobs.governos_indicadores import run_governos

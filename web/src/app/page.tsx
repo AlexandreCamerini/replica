@@ -1,142 +1,121 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/page/page-header";
-import { BrazilMap } from "@/components/map/brazil-map";
-import { PlaceSearch } from "@/components/people/place-search";
-import { BigNumber, SourceFooter } from "@/components/ui/data";
+import { AboutData, PautaCard, ReadStamp } from "@/components/pauta/ui";
+import { AtalhoQuemVotei } from "@/components/votos/lembrar";
+import { MapaBrasil } from "@/components/votos/mapa-brasil";
+import { Barra513, Sq } from "@/components/votos/ui";
 import { data } from "@/lib/data";
-import { REGIONS, UF_ROWS } from "@/lib/data/reference";
 import { count } from "@/lib/format";
+import { dayShort, weekLastDay } from "@/lib/pauta";
+import { VOTES, fora, jaDecididoHref } from "@/lib/votacoes";
 
-export default async function Home() {
-  const [counters, munis, stamp] = await Promise.all([data.getCounters(), data.listMunicipalities(), data.getStamp("tse.candidatos")]);
-  const byLetter = new Map<string, typeof munis>();
-  for (const m of munis) {
-    const l = m.name.normalize("NFD").replace(/[^A-Za-z]/g, "")[0]?.toUpperCase() ?? "#";
-    byLetter.set(l, [...(byLetter.get(l) ?? []), m]);
-  }
+export const metadata: Metadata = {
+  title: { absolute: "O que estão decidindo em Brasília que mexe no seu bolso" },
+  description: "Propostas sobre dinheiro, trabalho e benefícios na pauta da Câmara e do Senado, com o texto oficial.",
+};
+
+// A pauta muda ao longo do dia: a página nunca fica parada mais que 10 minutos.
+export const revalidate = 600;
+
+export default async function Entrada() {
+  const o = await data.getPautaOverview();
+  const until = dayShort(weekLastDay(o.week.weekEnds));
+  const n = o.week.total;
+  const V = VOTES[0];
   return (
-    <Container>
-      <section aria-labelledby="hero-h" className="grid gap-8 py-4 md:grid-cols-[1.1fr_1fr] md:items-end">
-        <div className="flex flex-col gap-6">
-          <h1 id="hero-h" className="sr-only">
-            Quem representa você
-          </h1>
-          <BigNumber value={counters.total} caption="pessoas no cargo hoje, da câmara da sua cidade a Brasília" />
-          <div className="max-w-xl">
-            <PlaceSearch label="Onde você mora?" />
-          </div>
+    <Container className="max-w-[1320px]">
+      {/* Interação-assinatura 1: o contador do bolso. Número grande, frase curta, a lista logo abaixo. */}
+      <section aria-labelledby="numero-h" className="grid gap-6 py-2 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-end">
+        <h1 id="numero-h" className="flex flex-col gap-2">
+          <span className="lbl">No seu bolso · plenário da Câmara e do Senado · até {until}</span>
+          {o.week.atLeast && <span className="font-mono text-sm text-muted">Pelo menos</span>}
+          <span className="font-display text-hero text-fg tabular">{count(n)}</span>
+          <span className="font-serif text-[28px] leading-[1.15] font-medium text-fg text-balance md:text-[36px]">
+            {n === 1 ? "proposta pode mexer no que você paga ou recebe" : "propostas podem mexer no que você paga ou recebe"} nesta semana.
+          </span>
+        </h1>
+        <div className="flex flex-col gap-3">
+          <p className="text-base text-muted">
+            Contamos propostas sobre dinheiro, trabalho e benefícios marcadas para votação no plenário até {until}. Dizemos o que acontece, nunca se
+            é bom ou ruim.
+          </p>
+          <ReadStamp readAt={o.week.readAt} reads={o.reads} />
         </div>
-        <ul className="grid grid-cols-3 gap-2">
-          {(["municipal", "estadual", "federal"] as const).map((lvl) => (
-            <li key={lvl} className="flex flex-col rounded-md border border-border bg-surface p-3">
-              <span className="font-display text-xl tabular text-fg">{count(counters.byLevel[lvl])}</span>
-              <span className="text-xs text-muted">{lvl === "municipal" ? "nas cidades" : lvl === "estadual" ? "nos estados" : "em Brasília"}</span>
-            </li>
-          ))}
-        </ul>
       </section>
 
-      <section aria-labelledby="cargos-h" className="mt-6">
-        <h2 id="cargos-h" className="sr-only">
-          Pessoas por cargo
+      <section aria-labelledby="proximas-h" className="mt-8">
+        <h2 id="proximas-h" className="lbl mb-3 font-sans">
+          As próximas
         </h2>
-        <ul className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
-          {counters.byOffice.map((o) => (
-            <li key={o.office} className="shrink-0">
-              <Link
-                href={`/quem?cargo=${o.office}`}
-                className="inline-flex h-9 items-center gap-2 rounded-pill bg-surface-sunken px-3 text-sm text-fg outline-none hover:underline focus-visible:outline-2 focus-visible:outline-focus"
-              >
-                {o.label} <span className="font-semibold tabular">{o.expected != null ? `${count(o.count)} de ${count(o.expected)}` : count(o.count)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-        {counters.byOffice.some((o) => o.why) && (
-          <ul className="mt-2 flex flex-col gap-1 text-xs text-muted" data-testid="lacunas-cargos">
-            {counters.byOffice.filter((o) => o.why).map((o) => (
-              <li key={o.office}>
-                <span className="font-semibold text-fg">{o.label}:</span> <span aria-hidden>—</span> {o.why}.
-              </li>
+        {n === 0 ? (
+          <p className="plate p-4 font-serif text-[19px] text-fg">
+            {o.week.readAt
+              ? <>Nenhuma proposta mexe no bolso nesta semana. A pauta foi lida; não há item deste tipo até {until}.</>
+              : <>A pauta ainda não foi lida. Quando for, o número aparece aqui.</>}
+          </p>
+        ) : (
+          <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {o.plenary.slice(0, 3).map((e) => (
+              <PautaCard key={e.key} e={e} />
             ))}
           </ul>
         )}
-        <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
-      </section>
-
-      <section id="mapa" aria-labelledby="mapa-h" className="mt-10 grid scroll-mt-28 gap-8 md:grid-cols-2">
-        <div>
-          <h2 id="mapa-h" className="mb-1 text-xl text-fg">
-            Pelo mapa
-          </h2>
-          <p className="mb-4 text-sm text-muted">Toque num estado para ver os municípios, e num município para ver quem representa quem mora lá.</p>
-          <BrazilMap />
-        </div>
-        <div>
-          <h2 className="mb-3 text-xl text-fg">Por região</h2>
-          <div className="flex flex-col gap-4">
-            {REGIONS.map((r) => (
-              <div key={r.ibge}>
-                <h3 className="mb-1.5 text-sm font-semibold text-fg">{r.name}</h3>
-                <ul className="flex flex-wrap gap-1.5">
-                  {UF_ROWS.filter((u) => u[3] === r.ibge)
-                    .sort((a, b) => a[2].localeCompare(b[2], "pt-BR"))
-                    .map(([, uf, name]) => (
-                      <li key={uf}>
-                        <Link href={`/representantes?uf=${uf}`} className="text-sm text-accent-text underline underline-offset-2">
-                          {name}
-                        </Link>
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="az-h" className="mt-10">
-        <h2 id="az-h" className="mb-1 text-xl text-fg">
-          Cidades de A a Z
-        </h2>
-        <p className="mb-4 text-sm text-muted">
-          {count(munis.length)} {munis.length === 1 ? "cidade" : "cidades"}
-          {data.isDemo ? " nesta versão de demonstração." : ". Escolha a letra."}
+        <p className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+          <Link href="/pauta" className="inline-flex min-h-11 items-center border border-fg bg-surface px-4 font-semibold text-fg hover:bg-surface-sunken">
+            Ver tudo o que vem aí ({count(n)})
+          </Link>
+          {o.committees.length > 0 && (
+            <Link href="/pauta#comissoes" className="inline-flex min-h-11 items-center text-fg underline underline-offset-2">
+              {o.committees.length === 1 ? "1 proposta andando nas comissões" : `${count(o.committees.length)} propostas andando nas comissões`}
+            </Link>
+          )}
         </p>
-        {/* poucas cidades (demo): lista inteira; com as 5.570, só o índice e uma página por letra */}
-        {munis.length <= 80 ? (
-          <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[...byLetter.entries()].map(([l, ms]) => (
-              <div key={l} className="flex gap-3">
-                <dt className="w-5 font-display text-lg text-muted">{l}</dt>
-                <dd className="flex flex-wrap gap-x-3 gap-y-1">
-                  {ms.map((m) => (
-                    <Link key={m.ibge} href={`/representantes?cidade=${m.ibge}`} className="text-sm text-fg underline-offset-2 hover:underline">
-                      {m.name} <span className="text-muted">{m.uf}</span>
-                    </Link>
-                  ))}
-                </dd>
+      </section>
+
+      <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+        {/* Interação-assinatura 2: o estado que enche. */}
+        <section aria-labelledby="decidido-h" className="plate flex flex-col gap-3 p-4">
+          <h2 id="decidido-h" className="lbl font-sans">
+            Já decidido · {V.label} · {V.date}
+          </h2>
+          <p className="font-serif text-[22px] leading-snug text-fg">{V.what}</p>
+          <div className="px-2">
+            <MapaBrasil byUf={V.uf} hrefFor={(u) => jaDecididoHref(0, u)} />
+          </div>
+          <dl className="grid grid-cols-4 gap-2">
+            {[
+              ["Sim", V.total[0], "S"],
+              ["Não", V.total[1], "N"],
+              ["Abst.", V.total[2], "A"],
+              ["Fora", fora(V.total), "X"],
+            ].map(([l, k2, k]) => (
+              <div key={String(l)} className="flex flex-col gap-1">
+                <dt className="flex items-center gap-1.5 text-xs text-muted">
+                  <Sq k={k as "S"} /> {l}
+                </dt>
+                <dd className="font-display text-[32px] leading-none font-bold text-fg tabular">{k2}</dd>
               </div>
             ))}
           </dl>
-        ) : (
-          <nav aria-label="Cidades por letra">
-            <ul className="flex flex-wrap gap-2">
-              {[...byLetter.entries()].map(([l, ms]) => (
-                <li key={l}>
-                  <Link
-                    href={`/cidades/${l.toLowerCase()}`}
-                    className="inline-flex h-11 min-w-11 flex-col items-center justify-center rounded-sm border border-border bg-surface px-2 outline-none hover:border-border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  >
-                    <span className="font-display text-lg leading-none text-fg">{l}</span>
-                    <span className="text-[length:var(--ds-text-xs)] leading-none tabular text-muted">{count(ms.length)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-      </section>
+          <Barra513 c={V.total} />
+          <p className="text-sm text-muted">Cada estado enche até o % de Sim. Toque num estado para ver quem votou, nome por nome.</p>
+          <Link href="/ja-decidido" className="inline-flex min-h-11 w-fit items-center border border-fg bg-surface px-4 text-sm font-semibold text-fg hover:bg-surface-sunken">
+            Ver as 6 votações
+          </Link>
+        </section>
+
+        <section aria-labelledby="votei-h" className="plate flex flex-col gap-3 p-4">
+          <h2 id="votei-h" className="lbl font-sans">
+            Quem eu votei
+          </h2>
+          <p className="font-serif text-[22px] leading-snug text-fg">Escolha a pessoa em quem votou e veja como ela votou nas 6 decisões sobre dinheiro público.</p>
+          <p className="text-sm text-muted">A escolha fica só no seu aparelho. Nada vai para o servidor.</p>
+          <AtalhoQuemVotei />
+        </section>
+      </div>
+
+      <AboutData readAt={o.week.readAt} />
     </Container>
   );
 }

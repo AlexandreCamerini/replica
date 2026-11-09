@@ -13,7 +13,7 @@ test.describe("S14 · /eleicoes", () => {
     await page.getByRole("link", { name: "Governador" }).first().click();
     await expect(page).toHaveURL(/cargo=governador/);
     await expect(page.getByTestId("disputas")).toBeVisible();
-    await expect(page.getByText(/^Fonte:/)).toBeVisible();
+    await expect(page.locator("main").getByText(/^Fonte:/)).toBeVisible();
     await page.getByTestId("ufs").getByRole("link", { name: "SP" }).click();
     await expect(page.getByTestId("disputa").first()).toContainText("São Paulo");
     await axe();
@@ -84,7 +84,7 @@ test.describe("S12 · /governos", () => {
     await expect(page.locator("[data-term]")).toHaveCount(9);
     await expect(page.locator("[data-term='itamar']")).toContainText("29/12/1992");
     await expect(page.locator("#como")).toContainText("SIDRA");
-    await expect(page.getByText(/^Fonte:/)).toBeVisible();
+    await expect(page.locator("main").getByText(/^Fonte:/)).toBeVisible();
     // ano de troca lista os dois presidentes
     await expect(page.locator("tr[data-year='2016']")).toContainText("Dilma Rousseff");
     await expect(page.locator("tr[data-year='2016']")).toContainText("Michel Temer");
@@ -135,7 +135,7 @@ test.describe("S16 · /impostos", () => {
     await expect(page).toHaveURL(/uf=/);
     await expect(page.getByTestId("por-mes").locator("tbody tr")).toHaveCount(12);
     await expect(page.locator("#regra")).toContainText("recolhido");
-    await expect(page.getByText(/^Fonte:/)).toBeVisible();
+    await expect(page.locator("main").getByText(/^Fonte:/)).toBeVisible();
   });
 
   test("IM-PG1 totais conferidos com a Receita e ano parcial com mês vazio “—”", async ({ page }) => {
@@ -174,7 +174,7 @@ test.describe("S11 · /partidos", () => {
     const body = await page.locator("main").innerText();
     expect(body).not.toMatch(/\b(extrema|centro-direita|centro-esquerda|ranking dos|melhor|pior)\b/i);
     await expect(page.locator("#alinhamento")).toContainText("orientação");
-    await expect(page.getByText(/^Fonte:/)).toBeVisible();
+    await expect(page.locator("main").getByText(/^Fonte:/)).toBeVisible();
   });
 
   test("PA-E1 poucas votações ou sem orientação viram “—” com motivo, nunca 0%", async ({ page }) => {

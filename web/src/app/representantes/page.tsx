@@ -156,7 +156,7 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
             </li>
           )}
           <li>
-            <Chip href={`/?mapa=${place.uf}#mapa`}>Ver no mapa</Chip>
+            <Chip href={`/acervo?mapa=${place.uf}#mapa`}>Ver no mapa</Chip>
           </li>
           <li>
             <Chip href="/eleicoes">Eleições</Chip>

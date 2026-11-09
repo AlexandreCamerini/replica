@@ -1,0 +1,80 @@
+# IA rascunha as respostas das propostas da pauta (D13). Nada aqui publica: publicar é `civico-etl revisar`, por pessoa.
+#
+# Custo: uma chamada por proposta nova ou PDF novo (o mesmo PDF na mesma versão do prompt não é refeito).
+# Teto por dia = disparos × limite × custo por proposta. Medido no PL 79/2020: ~US$ 0,03 (6 páginas).
+# Com 2 disparos e limite 10: no máximo 20 chamadas/dia. PDF grande custa mais; acima de 80 páginas é recusado.
+# Precisa de ETL_DATABASE_URL e ANTHROPIC_API_KEY. Sem algum deles, o run termina com aviso e não falha.
+# O limite padrão vem da variável de repositório RASCUNHO_LIMITE (padrão 10); o modelo, de RASCUNHO_MODEL.
+name: etl · rascunho
+
+on:
+  schedule:
+    - cron: "30 11 * * 1-5" # seg–sex 08:30 em Brasília, depois da primeira leitura da pauta
+    - cron: "30 17 * * 1-5" # seg–sex 14:30, pega o que entrou na pauta de manhã
+  workflow_dispatch:
+    inputs:
+      chave:
+        description: "Só esta proposta (ex. camara-pl-79-2020). Vazio = fila da pauta."
+        required: false
+      limite:
+        description: "No máximo N chamadas à API neste run"
+        required: false
+        default: "10"
+
+concurrency:
+  group: etl-rascunho
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rascunho:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: etl
+    env:
+      ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      RASCUNHO_MODEL: ${{ vars.RASCUNHO_MODEL }}
+      LIMITE: ${{ inputs.limite || vars.RASCUNHO_LIMITE || '10' }}
+      CHAVE: ${{ inputs.chave }}
+    steps:
+      - name: Credenciais configuradas?
+        id: gate
+        run: |
+          missing=""
+          [ -z "$ETL_DATABASE_URL" ] && missing="$missing ETL_DATABASE_URL"
+          [ -z "$ANTHROPIC_API_KEY" ] && missing="$missing ANTHROPIC_API_KEY"
+          case "$LIMITE" in ''|*[!0-9]*) echo "::error::limite inválido: '$LIMITE'"; exit 1;; esac
+          if [ "$LIMITE" -gt 50 ]; then echo "::error::limite $LIMITE acima de 50; rode em partes"; exit 1; fi
+          if [ -n "$CHAVE" ] && ! printf '%s' "$CHAVE" | grep -Eq '^camara-[a-z]+-[0-9]+-[0-9]{4}$'; then
+            echo "::error::chave inválida: '$CHAVE'"; exit 1
+          fi
+          if [ -n "$missing" ]; then
+            echo "::notice::faltam secrets:$missing; rascunho não rodou."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ok == 'true'
+      - uses: astral-sh/setup-uv@v6
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          enable-cache: true
+          cache-dependency-glob: etl/uv.lock
+      - uses: actions/cache@v4
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          path: etl/.cache
+          key: etl-http-rascunho-${{ github.run_id }}
+          restore-keys: etl-http-rascunho-
+      - name: Rascunhar
+        if: steps.gate.outputs.ok == 'true'
+        run: uv run --frozen civico-etl rascunho $CHAVE --limit "$LIMITE"
+      - name: Fila de revisão
+        if: steps.gate.outputs.ok == 'true'
+        run: uv run --frozen civico-etl revisar >> "$GITHUB_STEP_SUMMARY"

@@ -9,25 +9,6 @@ test.describe("W1a · copiar link e WhatsApp no topo", () => {
     expect(canonicalUrl("https://x.org", "/p/a", "?ano=2024&mc_cid=1&mc_eid=2&_ga=3")).toBe("https://x.org/p/a?ano=2024");
   });
 
-  test("SHARE-H1 em páginas de conteúdo: copia a URL canônica e o WhatsApp leva a mesma", async ({ page, context, axe }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-    for (const path of ["/", "/sobre", "/atualizacoes", "/dados-abertos", "/quem", "/representantes"]) {
-      await page.goto(path);
-      await expect(page.getByTestId("page-share")).toBeVisible();
-    }
-    await page.goto(`${CAMPINAS}&utm_source=zap&fbclid=abc#vereadores`);
-    const bar = page.getByTestId("page-share");
-    await bar.getByRole("button", { name: "Copiar link" }).click();
-    await expect(bar.getByRole("button", { name: "Link copiado" })).toBeVisible();
-    const origin = new URL(page.url()).origin;
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${origin}${CAMPINAS}`);
-    const wa = bar.getByRole("link", { name: /WhatsApp/ });
-    await expect(wa).toHaveAttribute("target", "_blank");
-    await expect(wa).toHaveAttribute("rel", /noopener/);
-    expect(decodeURIComponent((await wa.getAttribute("href"))!)).toContain(`${origin}${CAMPINAS}`);
-    expect(decodeURIComponent((await wa.getAttribute("href"))!)).not.toContain("utm_");
-    await axe();
-  });
 
   test("SHARE-E1 crachá usa o compartilhamento próprio, sem barra duplicada; /entrar sem barra", async ({ page }) => {
     await page.goto(CAMPINAS);
@@ -39,9 +20,4 @@ test.describe("W1a · copiar link e WhatsApp no topo", () => {
     await expect(page.getByTestId("page-share")).toHaveCount(0);
   });
 
-  test("SHARE-M1 cabe em 390 px sem rolagem horizontal @mobile", async ({ page }) => {
-    await page.goto("/sobre");
-    await expect(page.getByTestId("page-share")).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  });
 });

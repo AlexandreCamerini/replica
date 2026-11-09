@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entrada · computador</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Barlow+Condensed:wght@600;700&amp;display=swap">
+<style>
+body{margin:0}
+.root{box-sizing:border-box;font:400 15px/1.5 "IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.root.t-light{--paper:#f3efe6;--sheet:#fbf9f4;--ink:#1c2226;--rule:#bdb6a6;--muted:#545a5e;--tint:#9a9d9b;--ok:#1f6f4a;--warn:#8a5a00;--err:#9b2c2c;--grid:rgba(28,34,38,.045)}
+.root.t-dark{--paper:#121518;--sheet:#1a1e22;--ink:#ebe6dc;--rule:#4a4f54;--muted:#a8a397;--tint:#6e7270;--ok:#5fc48f;--warn:#e0a53a;--err:#e08080;--grid:rgba(235,230,220,.06)}
+.wrap{max-width:1320px;margin:0 auto;padding:0 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px}
+.serif{font-family:Newsreader,Georgia,serif;font-optical-sizing:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.disp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;line-height:.9}
+.lbl{font:500 11px/1.4 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.plate{background:var(--sheet);border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:5px;margin:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--ink);background:var(--sheet);font:500 14px "IBM Plex Sans",sans-serif;text-decoration:none;color:var(--ink);cursor:pointer}
+.btn.main{background:var(--ink);color:var(--paper)}
+.btn:hover{box-shadow:0 0 0 2px var(--ink)}
+.chip{display:flex;flex-direction:column;gap:3px;min-height:44px;padding:8px 12px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink)}
+.chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--paper)}
+.chip b{font:600 13px "IBM Plex Mono",monospace}
+.chip span{font-size:12.5px;line-height:1.3;color:var(--muted)}
+.chip.on span{color:var(--ink)}
+.sq{display:inline-block;width:14px;height:14px;border:1.5px solid var(--ink);box-sizing:border-box;flex:none;background:var(--sheet)}
+.vS{background:var(--ink)}
+.vN{background:repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px)}
+.vA{background:var(--sheet);border-style:dotted;border-width:2px}
+.vX,.vP{background:var(--sheet)}
+.bar{display:block;height:22px;border:1px solid var(--ink);box-sizing:border-box}
+.stamp{display:inline-block;font:500 11px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;padding:6px 8px;border:1.5px solid currentColor;color:var(--ink);transform:rotate(-2deg);white-space:nowrap}
+.stamp.warn{color:var(--warn)}
+.stamp.err{color:var(--err)}
+.money{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border:1px solid var(--ink);background:var(--sheet);font:500 13px "IBM Plex Sans",sans-serif}
+.ttag{display:inline-block;padding:3px 8px;border:1px solid var(--rule);background:var(--paper);font:500 12px/1.3 "IBM Plex Mono",ui-monospace,monospace;color:var(--ink)}
+.ttags{display:flex;flex-wrap:wrap;gap:6px}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--ink)}
+.brand{font-size:24px;font-weight:600;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
+.nav{display:flex;gap:2px;flex-wrap:wrap}
+.nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;font:500 14px "IBM Plex Sans",sans-serif;color:var(--muted);text-decoration:none}
+.nav a:hover{color:var(--ink)}
+.sec{display:flex;flex-direction:column;gap:14px;padding:20px 22px}
+.h2{margin:0;font-family:Newsreader,Georgia,serif;font-size:28px;line-height:1.15;font-weight:500}
+.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:24px 40px;padding:24px 22px}
+.cards{display:flex;flex-direction:column;gap:14px}
+.card{display:flex;flex-direction:column;gap:12px;padding:16px 18px;border:1px solid var(--ink);background:var(--sheet)}
+.card h3{margin:0;font-family:Newsreader,Georgia,serif;font-size:24px;line-height:1.2;font-weight:500}
+.ctop{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.row{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)}
+.row .code{flex:0 0 120px;font:600 13px/1.5 "IBM Plex Mono",ui-monospace,monospace;padding-top:3px}
+.row .rf{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.row .f{font-size:16px;line-height:1.4}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:18px}
+.step{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border:1px solid var(--rule);background:var(--sheet)}
+.step .n{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:40px;line-height:.9}
+.step .t{font-family:Newsreader,Georgia,serif;font-size:20px;line-height:1.25;font-weight:500}
+.ft{display:flex;flex-wrap:wrap;gap:4px 24px;align-items:center;padding:12px 0 28px;border-top:1px solid var(--ink);font:400 11px/1.6 "IBM Plex Mono",ui-monospace,monospace;color:var(--muted)}
+.ft a{display:inline-flex;align-items:center;min-height:44px;color:var(--ink)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+a{color:var(--ink)}
+</style>
+</helmet>
+<div class="root {{theme}}">
+  <div class="wrap">
+    <header class="hd">
+      <a class="serif brand" href="EntradaDesktop.dc.html">quem·representa</a>
+      <nav class="nav" aria-label="Principal">
+        <a href="JaDecididoDesktop.dc.html">Já decidido</a>
+        <a href="PautaDesktop.dc.html">Vem aí</a>
+        <a href="QuemVoteiDesktop.dc.html">Quem eu votei</a>
+        <a href="ComoEscolhemos.dc.html">Como escolhemos</a>
+        <a href="Correcoes.dc.html">Correções</a>
+      </nav>
+      <span class="mono" style="font-size: 12px; color: var(--muted)">Pauta lida em 05/11/2026, 00:02</span>
+    </header>
+
+    <section class="plate hero" aria-label="No seu bolso">
+      <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
+        <span class="lbl">No seu bolso · 05/11 a 19/11</span>
+        <span class="disp" style="font-size: 160px">{{n}}</span>
+        <h1 class="serif" style="margin: 0; font-size: 40px; line-height: 1.1; font-weight: 500; max-width: 520px">propostas na pauta podem mexer no que você paga ou recebe.</h1>
+        <p style="margin: 0; font-size: 15px; color: var(--muted); max-width: 520px">PL = projeto de lei. A IA marcou o que mexe com dinheiro; uma pessoa confere cada marcação.</p>
+      </div>
+      <div class="cards">
+        <sc-for list="{{bolso}}" as="p" hint-placeholder-count="2">
+          <article class="card">
+            <div class="ctop"><span class="mono" style="font-size: 13px; font-weight: 600">{{p.c}}</span><span class="stamp">{{p.selo}}</span></div>
+            <h3>{{p.f}}</h3>
+            <div class="ttags"><span class="money">{{p.money}}</span></div>
+            <div class="ttags">
+              <sc-for list="{{p.temas}}" as="t" hint-placeholder-count="2"><span class="ttag">{{t.n}}</span></sc-for>
+            </div>
+            <div><a class="btn main" href="PropostaDesktop.dc.html">Ver a proposta</a></div>
+          </article>
+        </sc-for>
+      </div>
+    </section>
+
+    <section class="plate sec" aria-label="Tudo que está na pauta esta semana">
+      <span class="lbl">Quinta, 05/11 · Câmara · Plenário · 10:00 e Congresso · Comissão mista · 14:00</span>
+      <h2 class="h2">Tudo que está na pauta esta semana</h2>
+      <p style="margin: 0; font-size: 14px; color: var(--muted)">As 2 propostas que mexem com dinheiro estão acima. Aqui, as outras {{resto}}.</p>
+      <div class="chips" role="group" aria-label="Filtrar por tema">
+        <sc-for list="{{chips}}" as="t" hint-placeholder-count="8">
+          <button class="{{t.cls}}" onClick="{{t.pick}}" aria-pressed="{{t.on}}"><b>{{t.n}}</b><span>{{t.nome}}</span></button>
+        </sc-for>
+      </div>
+      <span class="mono" style="font-size: 12px; color: var(--muted)">Mostrando {{mostrando}} · {{temaSel}}</span>
+      <ul class="list" aria-live="polite">
+        <sc-for list="{{itens}}" as="i" hint-placeholder-count="12">
+          <li class="row">
+            <span class="code">{{i.c}}</span>
+            <span class="rf">
+              <span class="f">{{i.f}}</span>
+              <span class="ttags">
+                <sc-for list="{{i.temas}}" as="t" hint-placeholder-count="2"><span class="ttag">{{t.n}}</span></sc-for>
+              </span>
+            </span>
+            <sc-if value="{{i.temSelo}}" hint-placeholder-val="{{true}}"><span class="stamp" style="margin-top: 4px">{{i.selo}}</span></sc-if>
+          </li>
+        </sc-for>
+      </ul>
+      <div><a class="btn" href="PautaDesktop.dc.html">Ver a pauta completa</a></div>
+    </section>
+
+    <section class="plate sec" aria-label="Já decidido">
+      <span class="lbl">Já decidido · votações nominais na Câmara</span>
+      <h2 class="h2" style="max-width: 760px">6 votações sobre dinheiro público em 2026. Veja como votou quem representa o seu estado.</h2>
+      <div style="display: flex; flex-direction: column; gap: 8px; max-width: 760px">
+        <span class="mono" style="font-size: 13px"><b>{{plp.c}}</b> · votada em {{plp.d}} · PLP = projeto de lei complementar</span>
+        <span class="bar" style="{{plp.bar}}" aria-hidden="true"></span>
+        <span class="mono" style="font-size: 12.5px">{{plp.linha}}</span>
+        <div class="legend" aria-hidden="true">
+          <span><i class="sq vS"></i>Sim</span>
+          <span><i class="sq vN"></i>Não</span>
+          <span><i class="sq vA"></i>Abstenção</span>
+          <span><i class="sq vX"></i>Sem voto registrado</span>
+        </div>
+      </div>
+      <div><a class="btn main" href="JaDecididoDesktop.dc.html">Abrir o mapa</a></div>
+    </section>
+
+    <section class="plate sec" aria-label="Quem eu votei">
+      <span class="lbl">Quem eu votei</span>
+      <h2 class="h2" style="max-width: 760px">Diga em quem votou. Mostramos como essa pessoa votou nas 6 votações.</h2>
+      <div><a class="btn" href="QuemVoteiDesktop.dc.html">Escolher quem eu votei</a></div>
+    </section>
+
+    <section class="plate sec" aria-label="Como funciona">
+      <span class="lbl">Como funciona</span>
+      <div class="steps">
+        <div class="step"><span class="n">1</span><span class="t">Lemos a pauta oficial a cada 30 minutos.</span><span style="font-size: 14px; color: var(--muted)">Câmara, Senado e Congresso. Última leitura: 05/11/2026, 00:02.</span></div>
+        <div class="step"><span class="n">2</span><span class="t">A IA resume e marca o que mexe com dinheiro.</span><span style="font-size: 14px; color: var(--muted)">Toda marcação vem com o trecho do texto oficial ou "O texto não diz".</span></div>
+        <div class="step"><span class="n">3</span><span class="t">Uma pessoa revisa antes de aparecer como revisado.</span><span style="font-size: 14px; color: var(--muted)">Até lá, o selo diz: Aguardando revisão.</span></div>
+      </div>
+      <div><a class="btn" href="ComoEscolhemos.dc.html">Como escolhemos o que mostrar</a></div>
+    </section>
+
+    <footer class="ft">
+      <span>Fonte: Câmara dos Deputados, Senado Federal · cadeiras: TSE</span>
+      <span>Temas lidos por IA, aguardando revisão por pessoa</span>
+      <a href="Correcoes.dc.html">Correções</a>
+    </footer>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2200},"tema":{"editor":"enum","options":["claro","escuro"],"default":"claro"}}'>
+const TEMAS = ['Dinheiro e impostos', 'Trabalho e aposentadoria', 'Saúde', 'Educação', 'Segurança e justiça', 'Cidade e trânsito', 'Direitos', 'Assistência social', 'Turismo e comércio', 'Cultura e homenagens'];
+const PAUTA = [
+  {c: 'PL 79/2020', f: 'Muda para onde vão contribuições de empresas de transporte aéreo e portuário.', t: ['Trabalho e aposentadoria', 'Dinheiro e impostos'], m: 'contribuição de empresas', rev: '04/11'},
+  {c: 'PL 2374/2023', f: 'Muda regras da alimentação escolar e do Fundeb.', t: ['Educação', 'Dinheiro e impostos'], m: 'verba da educação'},
+  {c: 'PL 1932/2021', f: 'Muda regras de abastecimento de remédios nos estados e cidades.', t: ['Saúde']},
+  {c: 'PL 565/2020', f: 'Trata da educação em saúde feita por profissionais do SUS.', t: ['Saúde']},
+  {c: 'PL 5086/2026', f: 'Cria regras para associações sem fins lucrativos com sistemas de beneficência.', t: ['Saúde', 'Assistência social']},
+  {c: 'PL 5542/2026', f: 'Define garantias para a tornozeleira eletrônica em casos da Lei Maria da Penha.', t: ['Segurança e justiça', 'Direitos']},
+  {c: 'PL 2475/2025', f: 'Torna hediondo o crime de maus-tratos a animais, em certos casos.', t: ['Segurança e justiça']},
+  {c: 'PL 2879/2011', f: 'Muda a sinalização de travessia de pedestres no Código de Trânsito.', t: ['Cidade e trânsito']},
+  {c: 'PL 2994/2020', f: 'Regula o turismo colaborativo.', t: ['Turismo e comércio', 'Trabalho e aposentadoria']},
+  {c: 'PL 2726/2022', f: 'Cria a Política Nacional de Convivência Sociocultural e Economia Solidária.', t: ['Direitos', 'Trabalho e aposentadoria']},
+  {c: 'PL 5974/2023', f: 'Permite adaptar obras para pessoas com deficiência intelectual.', t: ['Direitos', 'Cultura e homenagens']},
+  {c: 'PL 3099/2019', f: 'Cria o Dia Nacional do Autocuidado.', t: ['Cultura e homenagens']},
+  {c: 'PL 4159/2025', f: 'Inscreve Padre Inácio de Sousa Rolim no Livro dos Heróis e Heroínas da Pátria.', t: ['Cultura e homenagens']}
+];
+const MPV = {c: 'MPV 1379/2026', f: 'A agenda não traz resumo. Lemos o texto assim que for publicado.', t: ['Tema pendente'], pend: true};
+const PLP = {c: 'PLP 114/2026', d: '12/08/2026', t: [318, 113, 1, 1, 80]};
+const bar = (c, tot) => { const w = k => (c[k] / tot * 100).toFixed(2) + '%';
+  return `background:linear-gradient(90deg,var(--ink) 0 ${w(0)},transparent ${w(0)}),repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px);background-size:100% 100%,calc(${w(0)} + ${w(1)}) 100%;background-repeat:no-repeat;background-color:var(--sheet)`; };
+const selo = p => p.rev ? 'Revisado por pessoa · ' + p.rev : 'Aguardando revisão';
+const tag = n => ({n});
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = {tema: 'Todos'}; }
+  renderVals() {
+    const theme = (this.props.tema ?? 'claro') === 'escuro' ? 't-dark' : 't-light';
+    const bolso = PAUTA.filter(p => p.m).map(p => ({c: p.c, f: p.f, money: 'Mexe com dinheiro: ' + p.m, temas: p.t.map(tag), selo: selo(p)}));
+    const resto = PAUTA.filter(p => !p.m).concat([MPV]);
+    const counts = {};
+    resto.forEach(p => p.t.forEach(n => { counts[n] = (counts[n] || 0) + 1; }));
+    const nomes = TEMAS.filter(n => counts[n]).concat(counts['Tema pendente'] ? ['Tema pendente'] : []);
+    const sel = this.state.tema;
+    const chips = [{nome: 'Todos', n: resto.length}].concat(nomes.map(n => ({nome: n, n: counts[n]})))
+      .map(ch => ({...ch, on: ch.nome === sel, cls: 'chip' + (ch.nome === sel ? ' on' : ''), pick: () => this.setState({tema: ch.nome})}));
+    const itens = resto.filter(p => sel === 'Todos' || p.t.includes(sel))
+      .map(p => ({c: p.c, f: p.f, temas: p.t.map(tag), temSelo: !p.pend, selo: p.pend ? '' : selo(p)}));
+    const t = PLP.t;
+    return {theme, n: bolso.length, bolso, resto: resto.length, chips, itens,
+      mostrando: `${itens.length} de ${resto.length}`, temaSel: sel === 'Todos' ? 'todos os temas' : sel,
+      plp: {c: PLP.c, d: PLP.d, bar: bar(t, 513), linha: `513 cadeiras · ${t[0]} Sim · ${t[1]} Não · ${t[2]} abstenção · ${t[4]} não votaram · ${t[3]} presidia a sessão`}};
+  }
+}
+</script>
+</body>
+</html>

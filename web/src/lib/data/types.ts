@@ -324,6 +324,66 @@ export type Agreement = { a: string; b: string; same: number; total: number };
 /** Uma votação em que as duas pessoas registraram votos diferentes (comparar, W1 item 8). */
 export type Disagreement = { event: VotingEvent & { proposalLabel: string | null }; a: VoteValue; b: VoteValue };
 
+// Pauta "No seu bolso" (db/migrations/0005, 0007). O motivo de entrada sai da regra vigente, nunca de escolha manual.
+export type PautaStage = "plenario" | "comissao";
+export type PautaReason = { theme: string | null; term: string };
+export type PautaEntry = {
+  key: string; // camara-pl-79-2020: o endereço da proposta
+  body: Body;
+  type: string;
+  number: number;
+  year: number;
+  summary: string | null;
+  stage: PautaStage;
+  committee: string | null;
+  scheduledFor: string; // ISO
+  regime: string | null;
+  rapporteur: string | null;
+  reason: PautaReason;
+  reviewedAt?: string | null; // respostas revisadas por pessoa e publicadas
+  plain?: string | null; // "o que propõe", revisado; no lugar da ementa nos cartões
+};
+export type PautaRead = { readAt: string | null; failed: number; total: number };
+export type PocketWeek = { total: number; atLeast: boolean; readAt: string | null; weekStarts: string; weekEnds: string };
+export type PautaOverview = {
+  week: PocketWeek;
+  plenary: PautaEntry[]; // conta no número: plenário nesta semana
+  later: PautaEntry[]; // plenário depois desta semana, dentro dos 14 dias
+  committees: PautaEntry[];
+  exits: (PautaEntry & { leftAt: string })[];
+  reads: Record<Body, PautaRead>;
+};
+export type PautaStatus =
+  | { kind: "na_pauta" }
+  | { kind: "saiu"; at: string }
+  | { kind: "reuniao_encerrada"; at: string }
+  | { kind: "reuniao_cancelada"; at: string }
+  | { kind: "sem_leitura"; lastSeenAt: string };
+export type PautaVote = { id: string; occurredAt: string; description: string; result: string | null; yes: number | null; no: number | null };
+export type PautaProposal = {
+  entry: PautaEntry;
+  status: PautaStatus;
+  schedule: PautaEntry[]; // onde está na última leitura (pode estar em mais de uma reunião)
+  readAt: string | null;
+  fichaUrl: string | null;
+  presentedOn: string | null;
+  authors: { slug: string; name: string; role: "principal" | "coautoria" }[];
+  votes: PautaVote[];
+  answers: PublishedAnswers | null;
+};
+// Regra 3: respostas rascunhadas por IA, publicadas só depois de revisão humana (db/migrations/0009).
+export const ANSWER_FIELDS = ["o_que_propoe", "quem_recebe", "quem_paga", "o_que_muda", "dinheiro", "estimativa_impacto"] as const;
+export type AnswerField = (typeof ANSWER_FIELDS)[number];
+export type AnswerClaim = { says: boolean; text: string; quote: string; page: number; direction?: "entra" | "sai" | "dividido" | "nao_diz" };
+export type PublishedAnswers = {
+  reviewedAt: string;
+  sourceUrl: string;
+  fields: Record<AnswerField, AnswerClaim>;
+  correction: { correctedAt: string; note: string; previous: Record<AnswerField, AnswerClaim> } | null;
+};
+export type Correction = { key: string; label: string; correctedAt: string; note: string; changed: { field: AnswerField; before: AnswerClaim; after: AnswerClaim }[] };
+export type PocketRule = { version: number; themes: string[]; terms: string[]; publishedOn: string };
+
 /** Contrato da camada de dados. A versão fake e a Postgres implementam isto; nenhuma tela importa a implementação. */
 export interface DataSource extends DataSourceW4 {
   readonly isDemo: boolean;
@@ -391,6 +451,11 @@ export interface DataSource extends DataSourceW4 {
   /** Anos já carregados de um conjunto com carimbo por ano (ex.: "tse.contas" → [2018, 2020, …]), crescente. */
   listStampYears(prefix: string): Promise<number[]>;
   latestRefresh(): Promise<string>;
+  // R3 · pauta
+  getPautaOverview(): Promise<PautaOverview>;
+  getPautaProposal(key: string): Promise<PautaProposal | null>;
+  listPocketRules(): Promise<PocketRule[]>;
+  listCorrections(): Promise<Correction[]>;
   listSourceStatus(): Promise<SourceStatus[]>;
   getCoverageMatrix(): Promise<CoverageMatrix>;
 }

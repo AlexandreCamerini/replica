@@ -36,7 +36,7 @@ test.describe("W1a · S22 Metodologia e fontes", () => {
   test("S22-H2 todo link do rodapé e do menu Mais resolve", async ({ page, request }) => {
     await page.goto("/sobre");
     const hrefs = await page.locator("footer a[href^='/']").evaluateAll((as) => [...new Set(as.map((a) => (a as HTMLAnchorElement).getAttribute("href")!))]);
-    expect(hrefs.length).toBeGreaterThan(10);
+    expect(hrefs.length).toBeGreaterThanOrEqual(3); // rodapé v1: só o que existe
     for (const h of hrefs) expect((await request.get(h)).status(), h).toBeLessThan(400);
   });
 

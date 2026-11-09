@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Já decidido · computador</title>
+<script src="./support.js"></script>
+<script src="dados.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Barlow+Condensed:wght@600;700&amp;display=swap">
+<style>
+body{margin:0}
+.root{--paper:#f3efe6;--sheet:#fbf9f4;--ink:#1c2226;--rule:#bdb6a6;--muted:#545a5e;--grid:rgba(28,34,38,.045);--tint:#9a9d9b;
+  width:1440px;box-sizing:border-box;font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.serif{font-family:Newsreader,Georgia,serif;font-optical-sizing:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.disp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;line-height:.9}
+.lbl{font:500 11px/1.4 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.plate{background:var(--sheet);border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:5px;margin:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--ink);background:var(--sheet);font:500 14px "IBM Plex Sans",sans-serif;text-decoration:none;color:var(--ink);cursor:pointer}
+.btn.main{background:var(--ink);color:var(--paper)}
+.sq{display:inline-block;width:14px;height:14px;border:1.5px solid var(--ink);box-sizing:border-box;flex:none;background:var(--sheet)}
+.vS{background:var(--ink)}
+.vN{background:repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px)}
+.vA{background:var(--sheet);border-style:dotted;border-width:2px}
+.vX,.vP{background:var(--sheet)}
+.crumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.crumb button{min-height:44px;padding:0 10px;border:0;background:transparent;font:500 15px "IBM Plex Sans",sans-serif;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.crumb .here{min-height:44px;display:inline-flex;align-items:center;padding:0 10px;font:600 15px "IBM Plex Sans",sans-serif;color:var(--ink)}
+.chip{display:flex;flex-direction:column;gap:3px;min-height:44px;padding:8px 12px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink)}
+.chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--paper)}
+.chip b{font:600 13px "IBM Plex Mono",monospace}
+.chip span{font-size:12.5px;line-height:1.3;color:var(--muted)}
+.chip.on span{color:var(--ink)}
+.p4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--ink)}
+.p4 > div{display:flex;flex-direction:column;gap:6px;padding:10px 14px;border-left:1px solid var(--rule)}
+.p4 > div:first-child{border-left:0}
+.p4 .lbl{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.bar{display:block;height:22px;border:1px solid var(--ink);box-sizing:border-box}
+/* mapa oficial (nível 1): cada estado enche até o % de Sim */
+.cmap{position:relative;background:var(--paper);border-top:1px solid var(--ink)}
+.cmap svg{display:block}
+.st{fill:var(--f);stroke:var(--ink);stroke-width:.8;stroke-linejoin:round}
+.ld{stroke:var(--ink);stroke-width:1;fill:none}
+.lb{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.lb .u{font:600 12.5px/1 "IBM Plex Mono",monospace}
+.lb .p{font:700 17px/1 "Barlow Condensed","Arial Narrow",sans-serif}
+.lb:hover .u{text-decoration:underline}
+.lb.co{flex-direction:row;gap:6px;justify-content:flex-start;padding:0 8px;border:1px solid var(--ink);background:var(--sheet)}
+.lb.co:hover{box-shadow:0 0 0 2px var(--ink)}
+/* estado ampliado (nível 2) */
+.zoom{display:flex;gap:28px;align-items:center;padding:18px}
+.zoom svg{flex:none;width:300px;height:300px;overflow:visible}
+.zoom .st{stroke-width:1.6}
+.grp{display:flex;flex-direction:column;gap:10px;padding:16px 18px;border-top:1px solid var(--rule)}
+.grp .hd{display:flex;align-items:center;gap:10px}
+.dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.dep{display:flex;align-items:center;gap:9px;min-height:44px;padding:4px 10px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink)}
+.dep:hover{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.dep .n{font-size:13.5px;font-weight:500;line-height:1.2}
+.dep .pt{font:500 11px "IBM Plex Mono",monospace;color:var(--muted)}
+/* deputado (nível 3) */
+.hrow{display:grid;grid-template-columns:150px minmax(0,1fr) 190px;gap:14px;align-items:center;min-height:52px;padding:8px 0;border-top:1px solid var(--rule)}
+.hrow.on{background:var(--paper);margin:0 -18px;padding:8px 18px}
+.mk{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.aside{display:flex;flex-direction:column;gap:14px;padding:18px}
+.mini{width:120px;height:90px;overflow:visible}
+a{color:var(--ink)}
+</style>
+</helmet>
+<div class="root">
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 32px; border-bottom: 1px solid var(--ink)">
+    <a href="EntradaDesktop.dc.html" class="serif" style="font-size: 24px; font-weight: 600; text-decoration: none; color: var(--ink)">quem·representa</a>
+    <nav aria-label="Principal" style="display: flex; gap: 22px; font-size: 14px; font-weight: 500; flex-wrap: wrap">
+      <a href="JaDecididoDesktop.dc.html" style="text-decoration: none; border-bottom: 2px solid var(--ink); padding-bottom: 4px">Já decidido</a>
+      <a href="PautaDesktop.dc.html" style="text-decoration: none; color: var(--muted)">Vem aí</a>
+      <a href="QuemVoteiDesktop.dc.html" style="text-decoration: none; color: var(--muted)">Quem eu votei</a>
+      <a href="ComoEscolhemos.dc.html" style="text-decoration: none; color: var(--muted)">Como escolhemos</a>
+      <a href="Correcoes.dc.html" style="text-decoration: none; color: var(--muted)">Correções</a>
+    </nav>
+    <span class="mono" style="font-size: 12px; color: var(--muted)">Pauta lida em 05/11/2026, 00:02</span>
+  </header>
+
+  <main style="padding: 20px 32px 40px; display: flex; flex-direction: column; gap: 18px">
+    <nav class="crumb" aria-label="Onde você está">
+      <sc-if value="{{lvl0}}" hint-placeholder-val="{{true}}"><span class="here">Brasil</span></sc-if>
+      <sc-if value="{{lvlUp}}" hint-placeholder-val="{{false}}"><button onClick="{{goBR}}">Brasil</button><span aria-hidden="true" style="color: var(--muted)">›</span></sc-if>
+      <sc-if value="{{lvl1}}" hint-placeholder-val="{{false}}"><span class="here">{{ufName}}</span></sc-if>
+      <sc-if value="{{lvl2}}" hint-placeholder-val="{{false}}"><button onClick="{{goUF}}">{{ufName}}</button><span aria-hidden="true" style="color: var(--muted)">›</span><span class="here">{{dep.nome}}</span></sc-if>
+    </nav>
+
+    <section aria-label="Votação escolhida" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px">
+      <sc-for list="{{votes}}" as="v" hint-placeholder-count="6">
+        <button class="{{v.cls}}" onClick="{{v.pick}}" aria-pressed="{{v.on}}"><b>{{v.c}}</b><span>{{v.f}}</span></button>
+      </sc-for>
+    </section>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 28px; align-items: start">
+      <section class="plate" aria-live="polite" style="min-width: 0">
+
+        <sc-if value="{{lvl0}}" hint-placeholder-val="{{true}}">
+          <div style="display: flex; flex-direction: column; gap: 6px; padding: 16px 18px 14px">
+            <span class="lbl">Nível 1 de 3 · Brasil · {{V.c}} · {{V.d}}</span>
+            <h1 class="serif" style="margin: 0; font-size: 32px; line-height: 1.1; font-weight: 500">{{V.f}}</h1>
+            <p style="margin: 0; font-size: 15px; color: var(--muted)">Cada estado enche, de baixo para cima, até a parte dos deputados que votou Sim. Toque num estado para ver quem votou.</p>
+          </div>
+          <div class="cmap" style="height: {{mapH}}px" role="group" aria-label="Mapa oficial do Brasil. Toque num estado.">
+            <svg width="886" height="{{mapH}}" viewBox="0 0 886 {{mapH}}" aria-hidden="true">
+              <defs>
+                <sc-for list="{{states}}" as="s" hint-placeholder-count="27">
+                  <linearGradient id="{{s.gid}}" x1="0" y1="1" x2="0" y2="0"><stop offset="{{s.off}}" style="stop-color: var(--tint)"></stop><stop offset="{{s.off}}" style="stop-color: var(--sheet)"></stop></linearGradient>
+                </sc-for>
+              </defs>
+              <sc-for list="{{states}}" as="s" hint-placeholder-count="27">
+                <path class="st" d="{{s.d}}" style="{{s.fill}}"></path>
+              </sc-for>
+              <sc-for list="{{leads}}" as="l" hint-placeholder-count="8">
+                <path class="ld" d="{{l.d}}"></path>
+              </sc-for>
+            </svg>
+            <sc-for list="{{labels}}" as="l" hint-placeholder-count="27">
+              <button class="{{l.cls}}" style="{{l.st}}" onClick="{{l.pick}}" aria-label="{{l.aria}}"><sc-if value="{{l.co}}" hint-placeholder-val="{{false}}"><i class="sq" style="width: 18px; height: 14px; background: var(--tint)"></i></sc-if><span class="u">{{l.u}}</span><span class="p">{{l.p}}</span></button>
+            </sc-for>
+          </div>
+          <p class="mono" style="margin: 0; padding: 10px 18px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--muted)">% calculado só entre quem votou (Sim, Não ou abstenção). 14 estados têm até 10 deputados: neles, 1 voto muda o % em 10 pontos ou mais. RN, PB, PE, AL, SE, ES, RJ e DF são pequenos no mapa e têm etiqueta com linha.</p>
+        </sc-if>
+
+        <sc-if value="{{lvl1}}" hint-placeholder-val="{{false}}">
+          <div class="zoom">
+            <svg viewBox="{{zoom.vb}}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <defs><linearGradient id="g-zoom" x1="0" y1="1" x2="0" y2="0"><stop offset="{{zoom.off}}" style="stop-color: var(--tint)"></stop><stop offset="{{zoom.off}}" style="stop-color: var(--sheet)"></stop></linearGradient></defs>
+              <path class="st" d="{{zoom.d}}" style="--f: url(#g-zoom)"></path>
+            </svg>
+            <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+              <span class="lbl">Nível 2 de 3 · {{ufName}} · {{V.c}}</span>
+              <div style="display: flex; align-items: baseline; gap: 12px"><span class="disp" style="font-size: 72px">{{ufPct}}</span><span style="font-size: 15px; color: var(--muted)">de quem votou escolheu Sim</span></div>
+              <h1 class="serif" style="margin: 0; font-size: 28px; line-height: 1.15; font-weight: 500">{{frase}}</h1>
+              <span style="font-size: 14px; color: var(--muted)">Toque num nome para ver como a pessoa votou nas outras votações.</span>
+            </div>
+          </div>
+          <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+            <div class="grp">
+              <div class="hd"><i class="{{g.sw}}"></i><span class="serif" style="font-size: 20px; font-weight: 500">{{g.title}}</span></div>
+              <div class="dl">
+                <sc-for list="{{g.list}}" as="d" hint-placeholder-count="8">
+                  <button class="dep" onClick="{{d.pick}}"><i class="{{d.sw}}"></i><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span class="n">{{d.nome}}</span><span class="pt">{{d.partido}}</span></span></button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{temNV}}" hint-placeholder-val="{{true}}">
+            <div class="grp">
+              <div class="hd"><i class="sq vX"></i><span class="serif" style="font-size: 20px; font-weight: 500">{{nvTitle}}</span></div>
+              <p style="margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); max-width: 720px">A Câmara publica só os votos registrados. Quem não votou não aparece por nome na lista oficial da votação, então não mostramos nome aqui.</p>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <sc-if value="{{lvl2}}" hint-placeholder-val="{{false}}">
+          <div style="display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; padding: 18px 18px 16px">
+            <div style="display: flex; gap: 20px; align-items: center">
+              <svg class="mini" viewBox="{{zoom.vb}}" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><path class="st" d="{{zoom.d}}" style="--f: var(--paper)"></path></svg>
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <span class="lbl">Nível 3 de 3 · deputado federal · {{dep.partido}} · {{ufName}}</span>
+                <h1 class="serif" style="margin: 0; font-size: 40px; line-height: 1.05; font-weight: 500">{{dep.nome}}</h1>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; padding-top: 6px">
+                  <a class="btn" href="{{dep.url}}" target="_blank" rel="noopener">Página na Câmara</a>
+                  <a class="btn" href="#">Enviar mensagem ao gabinete</a>
+                  <a class="btn main" href="#">Acompanhar esta pessoa</a>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex: none">
+              <span class="lbl">Nesta votação · {{V.c}}</span>
+              <span class="mk" style="font-size: 22px"><i class="{{dep.sw}}" style="width: 22px; height: 22px"></i>{{dep.voto}}</span>
+            </div>
+          </div>
+          <div style="padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px">
+            <span class="lbl" style="color: var(--ink)">Nas 6 votações sobre dinheiro público de 2026</span>
+            <div style="display: flex; flex-direction: column">
+              <sc-for list="{{hist}}" as="h" hint-placeholder-count="6">
+                <div class="{{h.cls}}">
+                  <span><b class="mono" style="font-size: 13px; font-weight: 600">{{h.c}}</b><br><span class="mono" style="font-size: 11px; color: var(--muted)">{{h.d}}</span></span>
+                  <span style="font-size: 14.5px; line-height: 1.35">{{h.f}}</span>
+                  <span class="mk"><i class="{{h.sw}}"></i>{{h.voto}}</span>
+                </div>
+              </sc-for>
+            </div>
+            <p class="mono" style="margin: 0; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--muted); line-height: 1.6">Fonte: Câmara dos Deputados, votações nominais em Plenário. “Sem voto registrado” inclui ausência, licença e obstrução: a lista oficial não distingue.</p>
+          </div>
+        </sc-if>
+      </section>
+
+      <aside class="plate aside" aria-label="Contexto">
+        <span class="lbl">Resultado na Câmara · 513 deputados</span>
+        <div class="p4">
+          <div><span class="lbl"><i class="sq vS"></i>Sim</span><span class="disp" style="font-size: 40px">{{pl.s}}</span></div>
+          <div><span class="lbl"><i class="sq vN"></i>Não</span><span class="disp" style="font-size: 40px">{{pl.n}}</span></div>
+          <div><span class="lbl"><i class="sq vA"></i>Abst.</span><span class="disp" style="font-size: 40px">{{pl.a}}</span></div>
+          <div><span class="lbl"><i class="sq vX"></i>Fora</span><span class="disp" style="font-size: 40px">{{pl.x}}</span></div>
+        </div>
+        <span class="bar" style="{{pl.bar}}" aria-hidden="true"></span>
+        <span class="mono" style="font-size: 12px; color: var(--muted)">{{pl.lbl}}</span>
+
+        <sc-if value="{{lvlUp}}" hint-placeholder-val="{{false}}">
+          <div style="border-top: 1px solid var(--ink); padding-top: 14px; display: flex; flex-direction: column; gap: 8px">
+            <span class="lbl">{{ufName}} · {{ufSeats}} deputados</span>
+            <span class="bar" style="{{ufBar}}" aria-hidden="true"></span>
+            <span class="mono" style="font-size: 12.5px">{{ufLine}}</span>
+          </div>
+        </sc-if>
+
+        <div style="border-top: 1px solid var(--rule); padding-top: 14px; display: flex; flex-direction: column; gap: 8px">
+          <span class="lbl">Como ler</span>
+          <span style="display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px">
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq" style="background: linear-gradient(to top, var(--tint) 70%, var(--sheet) 70%); width: 20px"></i>Estado cheio até o % de Sim</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vS"></i>Sim</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vN"></i>Não</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vA"></i>Abstenção</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vX"></i>Sem voto registrado</span>
+          </span>
+          <span style="font-size: 13px; line-height: 1.5; color: var(--muted)">Dizemos como cada pessoa votou. Não dizemos se foi bom ou ruim.</span>
+        </div>
+
+        <div style="border-top: 1px solid var(--rule); padding-top: 14px; display: flex; flex-direction: column; gap: 8px">
+          <span class="lbl">Caminho</span>
+          <ol style="margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 2px">
+            <li>Brasil: o mapa oficial com o resultado em cada estado.</li>
+            <li>Estado: o contorno ampliado, quem são os deputados e como cada um votou.</li>
+            <li>Deputado: o histórico nas 6 votações e o contato.</li>
+          </ol>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1640}}'>
+const Q = window.QR;
+const vot = c => c[0] + c[1] + c[2];
+const pct = c => vot(c) ? Math.floor(c[0] / vot(c) * 100) : null;
+const nk = (n, um, vs) => n === 1 ? `1 ${um}` : `${n} ${vs}`;
+const VL = {S:'Votou Sim', N:'Votou Não', A:'Abstenção', P:'Presidia a sessão', X:'Sem voto registrado'};
+function frase(c, u) {
+  const p = [];
+  if (c[0]) p.push(nk(c[0], 'votou Sim', 'votaram Sim'));
+  if (c[1]) p.push(nk(c[1], 'votou Não', 'votaram Não'));
+  if (c[2]) p.push(nk(c[2], 'se absteve', 'se abstiveram'));
+  if (c[4]) p.push(nk(c[4], 'não registrou voto', 'não registraram voto'));
+  if (c[3]) p.push('1 presidia a sessão');
+  const j = p.length > 1 ? p.slice(0, -1).join(', ') + ' e ' + p[p.length - 1] : p[0];
+  return `Dos ${Q.SEATS[u]} deputados federais ${Q.DE[u]} ${Q.NAMES[u]}, ${j}.` + (c[1] ? '' : ' Nenhum votou Não.');
+}
+const bar = (c, tot) => { const w = k => (c[k] / tot * 100).toFixed(2) + '%';
+  return `background:linear-gradient(90deg,var(--ink) 0 ${w(0)},transparent ${w(0)}),repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px);background-size:100% 100%,calc(${w(0)} + ${w(1)}) 100%;background-repeat:no-repeat;background-color:var(--sheet)`; };
+const zoomOf = u => { const b = Q.BOX[u], m = Math.max(b[2], b[3]) * .08; return `${b[0] - m} ${b[1] - m} ${b[2] + 2 * m} ${b[3] + 2 * m}`; };
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = {vote: 1, uf: null, dep: null}; }
+  renderVals() {
+    const st = this.state, V = Q.VOTES[st.vote], uf = st.uf, depId = st.dep;
+    const lvl = depId ? 2 : uf ? 1 : 0;
+    const votes = Q.VOTES.map((v, i) => ({c: v.c, d: v.d, f: v.f, on: i === st.vote, cls: 'chip' + (i === st.vote ? ' on' : ''), pick: () => this.setState({vote: i})}));
+    const t = V.t;
+    const pl = {s: t[0], n: t[1], a: t[2], x: t[4] + t[3], bar: bar(t, 513), lbl: `513 cadeiras${t[3] ? ' · 1 deputado presidia a sessão e não vota' : ''}`};
+    const states = Object.keys(Q.PATHS).map(u => { const p = pct(V.uf[u]);
+      return {u, d: Q.PATHS[u], gid: 'g-' + u, off: (p === null ? 0 : p) + '%', fill: `--f: url(#g-${u})`}; });
+    const leads = [], labels = [];
+    for (const u of Object.keys(Q.LAB)) { const l = Q.LAB[u], c = V.uf[u], p = pct(c);
+      if (l[4]) { const tx = l[0] > l[5] ? l[0] : l[0] + l[2]; leads.push({d: `M${l[5]} ${l[6]}L${tx} ${l[1] + l[3] / 2}`}); }
+      labels.push({u, p: p === null ? '–' : p + '%', co: !!l[4], cls: 'lb' + (l[4] ? ' co' : ''),
+        st: `left:${l[0]}px;top:${l[1]}px;width:${l[2]}px;height:${l[3]}px`,
+        aria: `${Q.NAMES[u]}, ${Q.SEATS[u]} deputados: ${c[0]} Sim, ${c[1]} Não, ${c[2]} abstenção. Abrir o estado`,
+        pick: () => this.setState({uf: u, dep: null})}); }
+    const out = {lvl0: lvl === 0, lvl1: lvl === 1, lvl2: lvl === 2, lvlUp: lvl > 0, V, votes, pl, states, leads, labels, mapH: Q.H,
+      goBR: () => this.setState({uf: null, dep: null}), goUF: () => this.setState({dep: null}),
+      ufName: '', dep: {}, zoom: {}, groups: [], hist: [], temNV: false};
+    if (!uf) return out;
+    const c = V.uf[uf], p = pct(c);
+    out.ufName = Q.NAMES[uf]; out.ufSeats = Q.SEATS[uf]; out.ufPct = p === null ? '–' : p + '%';
+    out.zoom = {vb: zoomOf(uf), d: Q.PATHS[uf], off: (p === null ? 0 : p) + '%'};
+    out.frase = frase(c, uf); out.ufBar = bar(c, Q.SEATS[uf]);
+    out.ufLine = `${c[0]} Sim · ${c[1]} Não · ${c[2]} abstenção · ${c[4] + c[3]} fora`;
+    const deps = V.dep.filter(d => d[3] === uf);
+    out.groups = [['S', 'votou Sim', 'votaram Sim'], ['N', 'votou Não', 'votaram Não'], ['A', 'se absteve', 'se abstiveram'], ['P', 'presidia a sessão', 'presidiam a sessão']]
+      .map(([k, um, vs]) => { const list = deps.filter(d => d[4] === k).map(d => ({id: d[0], nome: d[1], partido: d[2], sw: 'sq v' + k, pick: () => this.setState({dep: d[0]})}));
+        return {k, sw: 'sq v' + k, title: nk(list.length, um, vs), list}; }).filter(g => g.list.length);
+    out.temNV = c[4] > 0; out.nvTitle = nk(c[4], 'não registrou voto', 'não registraram voto');
+    if (!depId) return out;
+    let d = V.dep.find(x => x[0] === depId);
+    for (const v of Q.VOTES) { if (d) break; d = v.dep.find(x => x[0] === depId); }
+    const k = (V.dep.find(x => x[0] === depId) || [])[4] || 'X';
+    out.dep = {nome: d[1], partido: d[2], voto: VL[k], sw: 'sq v' + k, url: `https://www.camara.leg.br/deputados/${depId}`};
+    out.hist = Q.VOTES.map((v, i) => { const x = v.dep.find(y => y[0] === depId), kk = x ? x[4] : 'X';
+      return {c: v.c, d: v.d, f: v.f, voto: VL[kk], sw: 'sq v' + kk, cls: 'hrow' + (i === st.vote ? ' on' : '')}; });
+    return out;
+  }
+}
+</script>
+</body>
+</html>

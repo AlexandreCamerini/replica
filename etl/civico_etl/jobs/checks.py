@@ -413,6 +413,16 @@ CHECKS: list[tuple[str, str]] = [
            where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')
               or (s.slug = 'tse' and ds.refreshed_at < now() - interval '60 days')""",
     ),
+    (
+        "pauta: última leitura de cada Casa há mais de 24 h (o número da entrada estaria velho)",
+        """select count(*) from (select distinct on (body_id) read_at from pauta_reads order by body_id, read_at desc) x
+           where x.read_at < now() - interval '24 hours'""",
+    ),
+    (
+        "pauta: regra vigente com tema que não existe em topics",
+        """select count(*) from (select unnest(topic_slugs) s from pocket_rules order by version desc limit 1) r
+           where not exists (select 1 from topics t where t.slug = r.s)""",
+    ),
     # W3-A (Assembleias): o casamento com o TSE nunca põe dado de uma casa estadual no crachá de quem não tem mandato nela
     (
         "assembleia: todo vínculo de deputado estadual aponta para pessoa com mandato de deputado estadual/distrital na mesma UF",
