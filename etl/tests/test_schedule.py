@@ -295,6 +295,22 @@ def test_tarefa_com_chave_ausente_e_pulada_com_motivo(conn, monkeypatch):
     assert not r.alert and "aguardam chave" in r.text()
 
 
+def test_janela_perdida_registrada_no_relatorio_e_no_alerta():
+    t = S.Task("x.noturna", lambda d: ["x"], ("x.noturna.",), 24, 1, retry_h=1, window=S.Window(S.dtime(0, 30), S.dtime(2, 0), S.TER_A_SAB))
+    # quarta 09/12 (BRT) 08:00: a janela de 00:30-02:00 de hoje já fechou
+    now = datetime(2026, 12, 9, 11, 0, tzinfo=timezone.utc)
+    assert S.missed_window(t, datetime(2026, 12, 8, 4, 0, tzinfo=timezone.utc), now)["task"] == "x.noturna"  # carimbo da noite anterior
+    assert S.missed_window(t, None, now) is not None
+    assert S.missed_window(t, datetime(2026, 12, 9, 4, 0, tzinfo=timezone.utc), now) is None  # leu na janela
+    # dentro da janela aberta: ainda não é perdida (a de ontem foi lida)
+    assert S.missed_window(t, datetime(2026, 12, 8, 4, 0, tzinfo=timezone.utc), datetime(2026, 12, 9, 3, 0, tzinfo=timezone.utc)) is None
+    # segunda de manhã: domingo e segunda não têm janela; a última é a de sábado, lida
+    assert S.missed_window(t, datetime(2026, 12, 5, 4, 0, tzinfo=timezone.utc), datetime(2026, 12, 7, 12, 0, tzinfo=timezone.utc)) is None
+    assert S.missed_window(S.Task("y", lambda d: ["y"], ("y.",), 24, 1), None, now) is None  # sem janela
+    rep = S.Report(started_at=now.isoformat(), missed=[S.missed_window(t, None, now)])
+    assert rep.alert and "JANELA PERDIDA x.noturna" in rep.text()
+
+
 # ---------------------------------------------------------------- D274: filtro de tarefas por ambiente (Actions sem SAPL de câmara; Mac só com ele)
 
 
