@@ -16,6 +16,7 @@ replica/screens/
 # Postgres local e caches do ETL
 .local/
 etl/.cache/
+etl/.raw/
 etl/.agenda-logs/
 .venv/
 

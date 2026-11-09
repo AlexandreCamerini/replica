@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from . import rawstore
 from .util import sha256_file, sha256_text
 
 log = logging.getLogger("etl.http")
@@ -79,6 +80,7 @@ def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: s
     body, meta = _paths(url)
     m: dict[str, Any] = json.loads(meta.read_text()) if meta.exists() and body.exists() else {}
     if m and max_age is not None and time.time() - m.get("fetched_at", 0) < max_age:
+        rawstore.note(url, body, m["sha256"])
         return Fetched(body, m["sha256"], True, 304)
     headers: dict[str, str] = {}
     if accept:
@@ -96,6 +98,7 @@ def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: s
                 if r.status_code == 304 and body.exists():
                     m["fetched_at"] = time.time()
                     meta.write_text(json.dumps(m))
+                    rawstore.note(url, body, m["sha256"])
                     return Fetched(body, m["sha256"], True, 304)
                 if r.status_code == 404:
                     raise FileNotFoundError(url)
@@ -120,6 +123,7 @@ def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: s
                         }
                     )
                 )
+                rawstore.note(url, body, sha)
                 return Fetched(body, sha, False, r.status_code)
         except FileNotFoundError:
             raise
