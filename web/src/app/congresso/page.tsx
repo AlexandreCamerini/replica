@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Container, PageHeader } from "@/components/page/page-header";
 import { LinkChip, MoreLink, SelectField, fieldCls, hrefWith, type Params } from "@/components/profile/ui";
 import { MissingDataNote, SourceFooter, TopicTag, VoteBadge } from "@/components/ui/data";
+import { ChamberTransitionView } from "@/components/ui/chamber-transition";
 import { Hemicycle } from "@/components/ui/hemicycle";
 import { data, type Body } from "@/lib/data";
 import { count, date, monthYear } from "@/lib/format";
@@ -27,8 +28,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const everything = sp.vtipo === "tudo";
   const first = await data.listVotingEvents({ body, limit: 1 });
   const year = sp.ano && first.years.includes(Number(sp.ano)) ? Number(sp.ano) : undefined;
-  const [seats, events, topics, stamp] = await Promise.all([
+  const [seats, transition, events, topics, stamp] = await Promise.all([
     data.getChamber(body),
+    data.getChamberTransition(body),
     data.listVotingEvents({ body, year, q, result, limit: shown, scope: everything ? "tudo" : "lei" }),
     data.listTopics(),
     data.getStamp(`${body}.votacoes`),
@@ -91,6 +93,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             <p className="text-sm text-muted">Nenhuma pessoa em exercício carregada para esta casa.</p>
           )}
           <p className="mt-3 text-xs text-muted">Cor não indica partido: escolha um partido acima para destacar as cadeiras dele. A ordem é alfabética por sigla.</p>
+          <div className="mt-6 border-t border-border pt-4">
+            <ChamberTransitionView t={transition} title="Posse de fevereiro de 2027" />
+          </div>
         </section>
 
         {tab === "leis" ? (
