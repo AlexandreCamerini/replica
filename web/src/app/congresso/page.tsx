@@ -23,17 +23,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const shown = Math.min(Math.max(Number(sp.n) || STEP, STEP), 300);
   const result = sp.resultado === "aprovado" || sp.resultado === "rejeitado" ? sp.resultado : undefined;
   const q = sp.busca?.trim().slice(0, 80) || undefined;
+  // U11: o padrão é só o que muda lei; `vtipo=tudo` mostra também requerimento e urgência
+  const everything = sp.vtipo === "tudo";
   const first = await data.listVotingEvents({ body, limit: 1 });
   const year = sp.ano && first.years.includes(Number(sp.ano)) ? Number(sp.ano) : undefined;
   const [seats, events, topics, stamp] = await Promise.all([
     data.getChamber(body),
-    data.listVotingEvents({ body, year, q, result, limit: shown }),
+    data.listVotingEvents({ body, year, q, result, limit: shown, scope: everything ? "tudo" : "lei" }),
     data.listTopics(),
     data.getStamp(`${body}.votacoes`),
   ]);
   const topicName = Object.fromEntries(topics.map((t) => [t.slug, t.name]));
   const base = "/congresso";
-  const keep: Params = { casa: body === "senado" ? "senado" : undefined, ano: year ? String(year) : undefined, busca: q, resultado: result };
+  const keep: Params = { casa: body === "senado" ? "senado" : undefined, ano: year ? String(year) : undefined, busca: q, resultado: result, vtipo: everything ? "tudo" : undefined };
   const groups: { month: string; items: typeof events.items }[] = [];
   for (const e of events.items) {
     const m = e.occurredAt.slice(0, 7);
@@ -101,9 +103,34 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             Votações nominais
             <span className="text-base font-normal tabular text-muted">{count(events.total)}</span>
           </h2>
-          <p className="mt-1 mb-4 text-sm text-muted">Votação simbólica não registra voto de cada pessoa e não aparece aqui.</p>
+          <p className="mt-1 mb-3 text-sm text-muted">Votação simbólica não registra voto de cada pessoa e não aparece aqui.</p>
+          <nav aria-label="Que votações mostrar" className="mb-2">
+            <ul className="flex flex-wrap gap-2">
+              <li>
+                <LinkChip tall href={hrefWith(base, keep, { vtipo: undefined, n: undefined }, "votacoes-h")} active={!everything}>
+                  Só o que muda lei
+                </LinkChip>
+              </li>
+              <li>
+                <LinkChip tall href={hrefWith(base, keep, { vtipo: "tudo", n: undefined }, "votacoes-h")} active={everything}>
+                  Tudo
+                </LinkChip>
+              </li>
+            </ul>
+          </nav>
+          <p className="mb-4 text-sm text-muted" data-testid="votos-regra">
+            {everything
+              ? "Mostrando tudo, inclusive pedido de urgência e requerimento."
+              : events.hidden > 0
+                ? `${count(events.hidden)} ${events.hidden === 1 ? "votação de requerimento ou urgência está escondida" : "votações de requerimento ou urgência estão escondidas"}.`
+                : "Nenhuma votação de requerimento ou urgência escondida."}{" "}
+            <Link href="/como-escolhemos#votos-lei" className="underline underline-offset-2">
+              A regra
+            </Link>
+          </p>
           <form action={base} className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_2fr_auto]">
             {body === "senado" && <input type="hidden" name="casa" value="senado" />}
+            {everything && <input type="hidden" name="vtipo" value="tudo" />}
             <SelectField label="Ano" name="ano" value={year ? String(year) : ""} options={[{ value: "", label: "Todos" }, ...events.years.map((y) => ({ value: String(y), label: String(y) }))]} />
             <SelectField label="Resultado" name="resultado" value={result} options={[{ value: "", label: "Todos" }, { value: "aprovado", label: "Aprovado" }, { value: "rejeitado", label: "Rejeitado" }]} />
             <label className="col-span-2 flex flex-col gap-1 text-xs font-semibold text-fg md:col-span-1">
@@ -150,7 +177,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             </div>
           )}
           <MoreLink href={hrefWith(base, keep, { n: String(shown + STEP) }, "votacoes-h")} remaining={events.total - events.items.length} />
-          <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+          <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
         </section>
         )}
       </div>
@@ -331,7 +358,7 @@ async function LawsPanel({ sp }: { sp: Params }) {
         </ol>
       )}
       <MoreLink href={hrefWith("/congresso", keep, { nl: String(shown + STEP) }, "leis-h")} remaining={laws.total - laws.items.length} />
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </section>
   );
 }

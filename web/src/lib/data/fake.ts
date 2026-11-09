@@ -36,6 +36,8 @@ import type {
   RepresentativeGroup,
   VoteValue,
   VotingEvent,
+  VoteKind,
+  LatestRecord,
   VotingEventDetail,
   VotingEventSummary,
   ActivityItem,
@@ -422,11 +424,14 @@ function votesOfBody(body: "camara" | "senado") {
     for (let i = 0; i < 40; i++) {
       const topic = pick(r, TOPICS).slug;
       const month = y === CURRENT_YEAR ? between(r, 2, 10) : between(r, 2, 12);
+      const what = pick(r, ["texto principal", "destaque", "urgência", "emenda"] as const);
+      const kind: VoteKind = what === "destaque" ? "destaque" : what === "urgência" ? "urgencia" : "texto";
       events.push({
         id: `${body}-v${y}-${i}`,
         body,
+        kind,
         occurredAt: `${iso(y, month, between(r, 1, 28))}T${String(between(r, 14, 22)).padStart(2, "0")}:00:00-03:00`,
-        description: `${pick(r, LAW_TYPES)} ${between(r, 100, 5999)}/${y - between(r, 0, 3)}: ${pick(r, ["texto principal", "destaque", "urgência", "emenda"])} sobre ${pick(r, SUBJECTS)}`,
+        description: `${pick(r, LAW_TYPES)} ${between(r, 100, 5999)}/${y - between(r, 0, 3)}: ${what} sobre ${pick(r, SUBJECTS)}`,
         topic,
         result: "aprovado",
         yes: 0,
@@ -578,6 +583,21 @@ export const fakeSource: DataSource = {
   },
   async getCoverage(place) {
     return coverageFor(place.ibge);
+  },
+  async getCouncilSite() {
+    return null; // a demo não simula Câmaras Municipais
+  },
+  async getLatestRecord(personId) {
+    const on = [
+      ...votesOf(personId).map<LatestRecord>((v) => ({ kind: "votacao", on: v.event.occurredAt.slice(0, 10) })),
+      ...proposalsOf(personId).map<LatestRecord>((p) => ({ kind: "proposta", on: p.presentedOn })),
+      ...expensesOf(personId).map<LatestRecord>((e) => ({ kind: "gasto", on: e.occurredOn })),
+    ].filter((r) => r.on <= TODAY);
+    return on.sort((a, b) => b.on.localeCompare(a.on))[0] ?? null;
+  },
+  async getSalarySchedule(office) {
+    const v = SALARY[office];
+    return v ? [{ validFrom: "2025-02-01", amountCents: v, isCeiling: false, source: { name: "Decreto Legislativo nº 172/2022 (demonstração)", url: "https://www2.camara.leg.br/" } }] : [];
   },
   async getTopVotedInPlace() {
     return null; // a demo não simula votos por município
@@ -741,6 +761,12 @@ export const fakeSource: DataSource = {
   async getCampaignFinance() {
     return []; // a demo não simula a prestação de contas por categoria
   },
+  async listAmendmentsByPerson() {
+    return []; // a demo não inventa emenda (catálogo D02)
+  },
+  async listAmendmentsToPlace() {
+    return [];
+  },
   async listStaff() {
     return []; // a demo não inventa nome de servidor
   },
@@ -771,14 +797,16 @@ export const fakeSource: DataSource = {
   },
   async listVotes(personId, f) {
     const q = f.q ? fold(f.q) : "";
-    const all = votesOf(personId).filter(
+    const base = votesOf(personId).filter(
       (v) =>
         (!f.year || yearOf(v.event.occurredAt) === f.year) &&
         (!f.topic || v.event.topic === f.topic) &&
         (!f.value || v.value === f.value) &&
         (!q || fold(v.event.description).includes(q)),
     );
-    return page(all, f.cursor, f.limit ?? 20);
+    const procedural = (v: PersonVote) => v.event.kind === "requerimento" || v.event.kind === "urgencia";
+    const all = f.scope === "lei" ? base.filter((v) => !procedural(v)) : base;
+    return { ...page(all, f.cursor, f.limit ?? 20), hidden: f.scope === "lei" ? base.length - all.length : 0 };
   },
   async listExpenses(personId, f) {
     const inYear = expensesOf(personId).filter((e) => !f.year || yearOf(e.occurredOn) === f.year);
@@ -837,13 +865,14 @@ export const fakeSource: DataSource = {
   async listVotingEvents(f) {
     const { events } = votesOfBody(f.body);
     const q = f.q ? fold(f.q) : "";
-    const all = events
+    const base = events
       .filter((e) => e.occurredAt.slice(0, 10) <= TODAY && (e.yes || e.no))
       .filter((e) => (!f.year || yearOf(e.occurredAt) === f.year) && (!f.result || e.result === f.result) && (!q || fold(e.description).includes(q)))
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+    const all = f.scope === "lei" ? base.filter((e) => e.kind !== "requerimento" && e.kind !== "urgencia") : base;
     const years = [...new Set(events.map((e) => yearOf(e.occurredAt)))].filter((y) => y <= CURRENT_YEAR).sort((a, b) => b - a);
     const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null });
-    return { ...page(all.map(toSummary), f.cursor, Math.min(f.limit ?? 30, 100)), years };
+    return { ...page(all.map(toSummary), f.cursor, Math.min(f.limit ?? 30, 100)), years, hidden: base.length - all.length };
   },
   async getVotingEvent(id) {
     const body = id.startsWith("senado") ? "senado" : id.startsWith("camara") ? "camara" : null;
@@ -909,6 +938,7 @@ export const fakeSource: DataSource = {
     return [{ name: "Decreto Legislativo nº 172/2022 (demonstração)", url: "https://www2.camara.leg.br/", updatedAt: "2026-11-01T06:10:00-03:00" }];
   },
   async listStampYears(prefix) {
+    if (prefix.startsWith("transparencia") || prefix.startsWith("sancoes")) return []; // a demo não finge carga sem chave (D253)
     return prefix.startsWith("tse") ? [2018, 2020, 2022, 2024, 2026] : [2023, 2024, 2025, 2026];
   },
   async getContacts() {

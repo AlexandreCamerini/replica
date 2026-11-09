@@ -89,7 +89,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           {page.nextCursor && <LinkChip scroll href={hrefWith("/quem", clean, { pagina: page.nextCursor })}>Próximas →</LinkChip>}
         </nav>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Container>
   );
 }

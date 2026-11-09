@@ -400,6 +400,31 @@ CHECKS: list[tuple[str, str]] = [
         "select count(*) from sanctions where person_id is not null and (match_method is null or match_confidence is null)",
     ),
     (
+        # catálogo D03: CGU (CEIS/CNEP) só vincula com órgão estadual/municipal (a UF do DTO é a do órgão) e todo não-vínculo tem motivo
+        "sanções CGU: vínculo com órgão federal, ou não-vínculo sem motivo gravado",
+        """select count(*) from sanctions where left(source, 4) = 'cgu_'
+             and ((person_id is not null and lower(coalesce(body_sphere, '')) not in ('estadual', 'municipal'))
+               or (person_id is null and match_note is null))""",
+    ),
+    (
+        # catálogo D02: estágios da emenda: o pago do ano nunca passa do empenhado (valorPago; o resto a pagar vai em coluna própria)
+        "emendas: pago maior que empenhado",
+        "select count(*) from amendments where paid_cents is not null and committed_cents is not null and paid_cents > committed_cents",
+    ),
+    (
+        # catálogo D02: emenda coletiva não tem autor individual; vínculo com pessoa só com método e confiança registrados
+        "emendas: vínculo com pessoa sem método de casamento, ou emenda de bancada/comissão/relator ligada a uma pessoa",
+        """select count(*) from amendments where person_id is not null
+             and (match_method is null or match_confidence is null or kind in ('bancada', 'comissao', 'relator'))""",
+    ),
+    (
+        # catálogo D11: a soma das origens de campanha é o total arrecadado do TSE (por construção; aqui, conferido no banco)
+        "contas de campanha: soma das origens diferente do total arrecadado",
+        """select count(*) from (select o.candidacy_id from campaign_finance_by_origin o join candidacies c on c.id = o.candidacy_id
+                                 where c.raised_cents is not null group by o.candidacy_id, c.raised_cents
+                                 having sum(o.amount_cents) <> c.raised_cents) x""",
+    ),
+    (
         # D128: vereador do SAPL casado só com pessoa que tem mandato de vereador naquele município
         "SAPL: vereador casado com pessoa sem mandato de vereador no município da câmara",
         """select count(*) from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id

@@ -79,7 +79,7 @@ export default async function Acervo() {
             </li>
           ))}
         </ul>
-        <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+        <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
       </section>
 
       <section id="mapa" aria-labelledby="mapa-h" className="mt-10 grid scroll-mt-28 gap-8 md:grid-cols-2">

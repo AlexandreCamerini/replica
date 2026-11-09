@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { AskSource } from "@/components/profile/ask-source";
 import { Section } from "@/components/profile/ui";
 import { SourceFooter } from "@/components/ui/data";
 import { data, type AssemblyItem, type PeriodStats } from "@/lib/data";
@@ -10,7 +11,7 @@ import { count, date, money } from "@/lib/format";
 const sentence = (t: string) => `${t.charAt(0).toUpperCase()}${t.slice(1)}${t.endsWith(".") ? "" : "."}`;
 
 /** since: rótulo do período de cada número ("desde 2023", "em 2025"): cada casa começa a carga num ano diferente. */
-export async function Assembly({ uf, stats, periodLabel, f, since }: { uf: string; stats: PeriodStats; periodLabel: string; f: boolean; since?: Partial<Record<AssemblyItem["dataset"], string>> }) {
+export async function Assembly({ uf, stats, periodLabel, f, since, askHref }: { uf: string; stats: PeriodStats; periodLabel: string; f: boolean; since?: Partial<Record<AssemblyItem["dataset"], string>>; askHref?: string }) {
   const info = await data.getAssembly(uf);
   if (!info) return null;
   const value = (it: AssemblyItem): string | null => {
@@ -57,6 +58,10 @@ export async function Assembly({ uf, stats, periodLabel, f, since }: { uf: strin
                     ? `sem dado carregado ${periodLabel}: a carga desta casa começa em outro ano ou não traz lançamento deste mandato.`
                     : sentence(it.reason)}
               </p>
+              {/* U02: só onde falta fonte (não conferida ou só no portal), nunca onde a casa diz que não publica */}
+              {askHref && !v && (it.status === "desconhecido" || it.status === "so_portal") && (
+                <AskSource href={askHref} bloco={it.dataset === "gastos_gabinete" ? "gastos" : it.dataset} casa="a assembleia" />
+              )}
               {it.refreshedAt && info.source ? (
                 <SourceFooter source={info.source.name} href={info.source.url} updatedAt={it.refreshedAt} />
               ) : (

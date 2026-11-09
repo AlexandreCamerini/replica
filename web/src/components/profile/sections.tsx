@@ -1,22 +1,39 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { BarBreakdown, NotPublished, SourceFooter, TopicTag, VoteBadge } from "@/components/ui/data";
-import { data, type Candidacy, type ElectionResult, type OfficeSlug, type Party, type SalaryAccrued, type VoteValue } from "@/lib/data";
+import { CAMPAIGN_ORIGINS, data, type Amendment, type CampaignFinance, type Candidacy, type ElectionResult, type OfficeSlug, type Party, type SalaryAccrued, type SalaryStep, type VoteValue } from "@/lib/data";
 import { count, date, money, monthYear } from "@/lib/format";
-import { Empty, MoreLink, SelectField, Section, fieldCls, hrefWith, type Params } from "./ui";
+import { GlossaryFor } from "@/components/ui/glossary";
+import { AskSource, BLOCOS } from "./ask-source";
+import { correctCents, ipcaOf } from "./ipca";
+import { Empty, LinkChip, MoreLink, SelectField, Section, fieldCls, hrefWith, type Params } from "./ui";
 
 const STEP = 20;
 // emendas de plenário/comissão (D38): não viram lei sozinhas; o tipo vem da casa, o rótulo é nosso
 const EMENDA = new Set(["EMC", "EMP", "EMR", "ESB"]);
 const shown = (v: string | undefined) => Math.min(Math.max(Number(v) || STEP, STEP), 500);
 
-type Common = { personId: string; base: string; sp: Params; year: number | null; /** motivo, quando o dado consta como não carregado: mostra "—", nunca "nenhum" */ notLoaded?: string };
+type Common = {
+  personId: string;
+  base: string;
+  sp: Params;
+  year: number | null;
+  /** motivo, quando o dado consta como não carregado: mostra "—", nunca "nenhum" */
+  notLoaded?: string;
+  /** U02: /sugestoes?tipo=fonte&p=…&cidade=… (de askSourceHref). Só vem quando falta fonte de verdade, não quando a carga está na fila. */
+  askHref?: string;
+  /** U05: termos do glossário que outro bloco da mesma tela já explica (ids de ui/glossary) */
+  skipGloss?: string[];
+};
 
-function NotLoaded({ reason }: { reason: string }) {
+function NotLoaded({ reason, ask }: { reason: string; ask?: { href: string; bloco: keyof typeof BLOCOS } }) {
   return (
-    <Empty>
-      <span aria-label="não carregado">—</span> Ainda não carregado: {reason}.
-    </Empty>
+    <>
+      <Empty>
+        <span aria-label="não carregado">—</span> Ainda não carregado: {reason}.
+      </Empty>
+      {ask && <AskSource href={ask.href} bloco={ask.bloco} />}
+    </>
   );
 }
 
@@ -32,11 +49,11 @@ const FILTER_BTN =
   "h-10 self-end rounded-pill bg-surface-inverse px-4 text-sm font-semibold text-on-inverse outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
 
 /** stamp: carimbo de outra casa (W3-A, ex.: "alesp.proposicoes"); onlyBills: a casa só tem projetos carregados (sem pedidos nem emendas). */
-export async function Proposals({ personId, base, sp, year, f, body = "camara", notLoaded, stamp: stampDataset, onlyBills = false }: Common & { f: boolean; body?: "camara" | "senado"; stamp?: string; onlyBills?: boolean }) {
+export async function Proposals({ personId, base, sp, year, f, body = "camara", notLoaded, askHref, stamp: stampDataset, onlyBills = false }: Common & { f: boolean; body?: "camara" | "senado"; stamp?: string; onlyBills?: boolean }) {
   if (notLoaded)
     return (
       <Section id="propostas" title="Propostas">
-        <NotLoaded reason={notLoaded} />
+        <NotLoaded reason={notLoaded} ask={askHref ? { href: askHref, bloco: "propostas" } : undefined} />
       </Section>
     );
   const limit = shown(sp.np);
@@ -52,7 +69,7 @@ export async function Proposals({ personId, base, sp, year, f, body = "camara", 
   return (
     <Section id="propostas" title="Propostas" count={`${count(page.total)}${year ? ` em ${year}` : ""}`}>
       <form action={`${base}#propostas`} className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_1fr_2fr_auto]">
-        <HiddenKeep sp={sp} keep={["ano", "voto", "vtema", "gcat"]} />
+        <HiddenKeep sp={sp} keep={["ano", "voto", "vtema", "gcat", "vtipo"]} />
         <SelectField label="Tema" name="tema" value={sp.tema} options={[{ value: "", label: "Todos" }, ...topics.map((t) => ({ value: t.slug, label: t.name }))]} />
         <SelectField
           label="Tipo"
@@ -73,6 +90,7 @@ export async function Proposals({ personId, base, sp, year, f, body = "camara", 
           Filtrar
         </button>
       </form>
+      <GlossaryFor texts={page.items.map((p) => `${p.type} ${p.summary}`)} className="mb-4" />
       {page.items.length === 0 ? (
         <Empty>{filtered ? "Nenhuma proposta com esses filtros." : `Nenhuma proposta registrada${year ? ` em ${year}` : ""}.`}</Empty>
       ) : (
@@ -105,7 +123,7 @@ export async function Proposals({ personId, base, sp, year, f, body = "camara", 
         </ol>
       )}
       <MoreLink href={hrefWith(base, sp, { np: String(limit + STEP) }, "propostas")} remaining={page.total - page.items.length} />
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
@@ -119,17 +137,19 @@ const VOTE_OPTIONS: { value: VoteValue | ""; label: string }[] = [
   { value: "nao_votou", label: "Não votou" },
 ];
 
-export async function Votes({ personId, base, sp, year, body, notLoaded }: Common & { body: "camara" | "senado" }) {
+export async function Votes({ personId, base, sp, year, body, notLoaded, askHref, skipGloss }: Common & { body: "camara" | "senado" }) {
   if (notLoaded)
     return (
       <Section id="votos" title="Votos em plenário">
-        <NotLoaded reason={notLoaded} />
+        <NotLoaded reason={notLoaded} ask={askHref ? { href: askHref, bloco: "votos" } : undefined} />
       </Section>
     );
   const limit = shown(sp.nv);
   const value = VOTE_OPTIONS.some((o) => o.value === sp.voto && o.value) ? (sp.voto as VoteValue) : undefined;
+  // U11: o padrão é só o que muda lei; `vtipo=tudo` na URL mostra também requerimento e procedimento
+  const everything = sp.vtipo === "tudo";
   const [page, topics, stamp, secret] = await Promise.all([
-    data.listVotes(personId, { year: year ?? undefined, topic: sp.vtema || undefined, value, limit }),
+    data.listVotes(personId, { year: year ?? undefined, topic: sp.vtema || undefined, value, limit, scope: everything ? "tudo" : "lei" }),
     data.listTopics(),
     data.getStamp(`${body}.votacoes`),
     body === "senado" ? data.countSecretVotes(personId, year ?? undefined) : Promise.resolve(0),
@@ -145,8 +165,33 @@ export async function Votes({ personId, base, sp, year, body, notLoaded }: Commo
   }
   return (
     <Section id="votos" title="Votos em plenário" count={`${count(page.total)}${year ? ` em ${year}` : ""}`} intro="Só votações nominais: votação simbólica não registra voto de cada pessoa.">
+      <GlossaryFor texts={page.items.map((v) => v.event.description)} skip={skipGloss} className="mb-4" />
+      <nav aria-label="Que votações mostrar" className="mb-2">
+        <ul className="flex flex-wrap gap-2">
+          <li>
+            <LinkChip tall href={hrefWith(base, sp, { vtipo: undefined, nv: undefined }, "votos")} active={!everything}>
+              Só o que muda lei
+            </LinkChip>
+          </li>
+          <li>
+            <LinkChip tall href={hrefWith(base, sp, { vtipo: "tudo", nv: undefined }, "votos")} active={everything}>
+              Tudo
+            </LinkChip>
+          </li>
+        </ul>
+      </nav>
+      <p className="mb-4 text-sm text-muted" data-testid="votos-regra">
+        {everything
+          ? "Mostrando tudo, inclusive pedido de urgência e requerimento."
+          : page.hidden > 0
+            ? `${count(page.hidden)} ${page.hidden === 1 ? "votação de requerimento ou urgência está escondida" : "votações de requerimento ou urgência estão escondidas"}.`
+            : "Nenhuma votação de requerimento ou urgência escondida."}{" "}
+        <Link href="/como-escolhemos#votos-lei" className="underline underline-offset-2">
+          A regra
+        </Link>
+      </p>
       <form action={`${base}#votos`} className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_auto]">
-        <HiddenKeep sp={sp} keep={["ano", "tema", "tipo", "autoria", "busca", "gcat"]} />
+        <HiddenKeep sp={sp} keep={["ano", "tema", "tipo", "autoria", "busca", "gcat", "vtipo"]} />
         <SelectField label="Voto" name="voto" value={value} options={VOTE_OPTIONS} />
         <SelectField label="Tema" name="vtema" value={sp.vtema} options={[{ value: "", label: "Todos" }, ...topics.map((t) => ({ value: t.slug, label: t.name }))]} />
         <button type="submit" className={FILTER_BTN}>
@@ -190,17 +235,17 @@ export async function Votes({ personId, base, sp, year, body, notLoaded }: Commo
         </p>
       )}
       <MoreLink href={hrefWith(base, sp, { nv: String(limit + STEP) }, "votos")} remaining={page.total - page.items.length} />
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
 
 /** stamp/intro: carimbo e texto de outra casa (W3-A: verba de gabinete ou indenizatória da Assembleia). */
-export async function Expenses({ personId, base, sp, year, body, notLoaded, stamp: stampDataset, title = "Gastos do gabinete", intro: introText }: Common & { body: "camara" | "senado"; stamp?: string; title?: string; intro?: string }) {
+export async function Expenses({ personId, base, sp, year, body, notLoaded, askHref, stamp: stampDataset, title = "Gastos do gabinete", intro: introText }: Common & { body: "camara" | "senado"; stamp?: string; title?: string; intro?: string }) {
   if (notLoaded)
     return (
       <Section id="gastos" title={title}>
-        <NotLoaded reason={notLoaded} />
+        <NotLoaded reason={notLoaded} ask={askHref ? { href: askHref, bloco: "gastos" } : undefined} />
       </Section>
     );
   const limit = shown(sp.ng);
@@ -217,7 +262,7 @@ export async function Expenses({ personId, base, sp, year, body, notLoaded, stam
         <>
           <BarBreakdown caption="Por categoria" rows={page.byCategory.slice(0, 8)} />
           <form action={`${base}#gastos`} className="mt-6 mb-3 flex flex-wrap items-end gap-3">
-            <HiddenKeep sp={sp} keep={["ano", "tema", "tipo", "autoria", "busca", "voto", "vtema"]} />
+            <HiddenKeep sp={sp} keep={["ano", "tema", "tipo", "autoria", "busca", "voto", "vtema", "vtipo"]} />
             <SelectField label="Categoria" name="gcat" value={sp.gcat} options={[{ value: "", label: "Todas" }, ...page.byCategory.map((c) => ({ value: c.label, label: c.label }))]} />
             <button type="submit" className={FILTER_BTN}>
               Filtrar
@@ -249,7 +294,7 @@ export async function Expenses({ personId, base, sp, year, body, notLoaded, stam
           <MoreLink href={hrefWith(base, sp, { ng: String(limit + STEP) }, "gastos")} remaining={page.total - page.items.length} />
         </>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
@@ -258,40 +303,67 @@ type C = Candidacy & { party: Party; officeName: string; placeLabel: string };
 
 export async function Assets({ candidacies }: { candidacies: C[] }) {
   const rows = candidacies.filter((c) => c.assetsCents !== null).sort((a, b) => a.year - b.year);
-  const stamp = await data.getStamp("tse.bens");
-  const max = Math.max(...rows.map((r) => r.assetsCents!), 1);
+  const [stamp, ind] = await Promise.all([data.getStamp("tse.bens"), rows.length > 1 ? data.listYearlyIndicators() : Promise.resolve(null)]);
+  const ipca = ind ? ipcaOf(ind.rows) : null;
+  const ref = ind?.refs.find((r) => r.key === "ipca_acumulado")?.seriesRefs[0];
+  // nominal e corrigido de cada declaração; variação sempre em R$ (nunca em %), entre declarações vizinhas
+  const view = rows.map((r) => ({ year: r.year, nominal: r.assetsCents!, fixed: ipca ? correctCents(r.assetsCents!, r.year, ipca) : null }));
+  const steps = view.slice(1).map((v, i) => {
+    const prev = view[i];
+    return { from: prev.year, to: v.year, nominal: v.nominal - prev.nominal, fixed: v.fixed !== null && prev.fixed !== null ? v.fixed - prev.fixed : null };
+  });
+  const signed = (c: number) => `${money(Math.abs(c))} ${c < 0 ? "a menos" : "a mais"}`;
   return (
     <Section id="patrimonio" title="Patrimônio declarado" intro="O que a pessoa declarou ao TSE a cada candidatura. É autodeclaração, sem auditoria.">
       {rows.length === 0 ? (
         <Empty>Nenhuma declaração de bens publicada.</Empty>
       ) : (
-        <table className="w-full text-sm">
-          <caption className="sr-only">Patrimônio declarado por ano de eleição</caption>
-          <thead className="sr-only">
-            <tr>
-              <th scope="col">Ano</th>
-              <th scope="col">Proporção</th>
-              <th scope="col">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.year}>
-                <th scope="row" className="w-14 py-1.5 pr-3 text-left font-mono font-semibold text-fg">
-                  {r.year}
-                </th>
-                <td className="w-full py-1.5">
-                  <div aria-hidden className="h-3 rounded-xs bg-surface-sunken">
-                    <div className="h-3 rounded-xs bg-accent" style={{ width: `${(r.assetsCents! / max) * 100}%` }} />
-                  </div>
-                </td>
-                <td className="py-1.5 pl-3 text-right whitespace-nowrap tabular text-fg">{money(r.assetsCents!)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <div tabIndex={0} role="region" aria-label="Patrimônio declarado por eleição" className="relative overflow-x-auto outline-none focus-visible:outline-2 focus-visible:outline-focus">
+            <table className="w-full min-w-[420px] text-sm">
+              <caption className="sr-only">Patrimônio declarado por ano de eleição, em valor nominal{ipca ? " e corrigido pelo IPCA" : ""}</caption>
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted">
+                  <th scope="col" className="py-2 pr-3 font-semibold">Eleição</th>
+                  <th scope="col" className="py-2 pr-3 text-right font-semibold">Declarado na época</th>
+                  {ipca && <th scope="col" className="py-2 text-right font-semibold">Em reais de dez/{ipca.lastYear}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {view.map((v) => (
+                  <tr key={v.year} className="border-b border-border last:border-0">
+                    <th scope="row" className="py-2 pr-3 text-left font-mono font-semibold text-fg">{v.year}</th>
+                    <td className="py-2 pr-3 text-right whitespace-nowrap tabular text-fg">{money(v.nominal)}</td>
+                    {ipca && <td className="py-2 text-right whitespace-nowrap tabular text-fg">{v.fixed === null ? <NotPublished /> : money(v.fixed)}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {steps.length > 0 && (
+            <div className="mt-4" data-testid="patrimonio-variacao">
+              <h3 className="text-sm font-semibold text-fg">Variação entre uma declaração e a seguinte</h3>
+              <ul className="mt-1 flex flex-col gap-1 text-sm text-fg">
+                {steps.map((st) => (
+                  <li key={st.to}>
+                    <span className="font-mono font-semibold">{st.from} a {st.to}:</span> {signed(st.nominal)} em valor nominal
+                    {st.fixed !== null && <>; {signed(st.fixed)} corrigido pela inflação</>}.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {ipca && (
+            <div className="mt-4 max-w-[65ch] text-sm text-muted" data-testid="patrimonio-ipca">
+              <p>Corrigido pela inflação (IPCA, o índice oficial do IBGE).</p>
+              <p>Cada valor é refeito em reais de dez/{ipca.lastYear}. Usamos o IPCA de dezembro a dezembro, dos anos depois da declaração.</p>
+              <p>O ano da eleição fica de fora. {rows.some((r) => r.year >= ipca.lastYear) && "Declaração recente não muda: ainda não há IPCA fechado depois dela."}</p>
+              {ref && <p className="mt-1 font-mono text-xs">IPCA: {ref}.</p>}
+            </div>
+          )}
+        </>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
@@ -345,7 +417,7 @@ export async function Elections({ candidacies, f }: { candidacies: C[]; f: boole
           </table>
         </div>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
@@ -381,7 +453,7 @@ export async function Laws({ personId, f }: { personId: string; f: boolean }) {
           ))}
         </ol>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
@@ -418,7 +490,7 @@ export async function Committees({ personId }: { personId: string }) {
           )}
         </>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
@@ -449,7 +521,7 @@ export async function Speeches({ personId, base, sp, year }: Common) {
         </ol>
       )}
       <MoreLink href={hrefWith(base, sp, { nd: String(limit + 10) }, "discursos")} remaining={page.total - page.items.length} />
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
@@ -495,56 +567,129 @@ export async function Contact({ personId }: { personId: string }) {
           })}
         </dl>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }
 
-/** Custo do mandato: só o que é publicado e somável. Nada estimado vira número. */
+/** Ato legal citado na especificação U12 para a cota da Câmara (replica/catalogo-2026-11-08.md). Sem link: o banco não guarda a URL. */
+const ATO_COTA: Partial<Record<"camara" | "senado", string>> = { camara: "Ato da Mesa nº 43/2009 e atualizações" };
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-border py-1.5 last:border-0">
+      <dt className="min-w-0 text-fg">{label}</dt>
+      <dd className="shrink-0 text-right tabular font-semibold text-fg">{children}</dd>
+    </div>
+  );
+}
+function Ato({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-2 text-xs text-muted">
+      <span className="font-semibold text-fg">Ato legal:</span> {children}
+    </p>
+  );
+}
+
+/**
+ * U12. Quanto custa o mandato: salário, cota (teto e gasto separados), verba de gabinete e moradia, cada um com o ato legal.
+ * Valor sem fonte no banco não aparece: vira "—" com o motivo. O que o banco tem: degraus do subsídio (salaries, com o ato na fonte),
+ * gasto da cota (expenses) e reajuste com data futura (selo). Teto da cota, verba de gabinete e auxílio-moradia ainda não estão carregados.
+ */
 export function MandateCost({
+  body,
+  schedule,
   salaryMonthlyCents,
   accrued,
   months,
   expensesCents,
   periodLabel,
 }: {
+  body: "camara" | "senado";
+  schedule: SalaryStep[];
   salaryMonthlyCents: number | null;
   accrued?: SalaryAccrued | null;
   months: number;
   expensesCents: number | null;
   periodLabel: string;
 }) {
-  // com a série do subsídio carregada, soma mês a mês com o valor de cada época; sem ela, a aproximação antiga (valor de hoje × meses)
+  const today = new Date().toISOString().slice(0, 10);
+  const paid = schedule.filter((x) => !x.isCeiling);
+  const current = [...paid].reverse().find((x) => x.validFrom <= today) ?? null;
+  // reajuste com data futura: está na lei, mas ainda não vale. Fica de fora de toda soma.
+  const pending = paid.filter((x) => x.validFrom > today);
+  const monthly = current?.amountCents ?? salaryMonthlyCents;
+  // com a série do subsídio carregada, soma mês a mês com o valor de cada época; sem ela, a aproximação (valor de hoje × meses)
   const salary = accrued ? accrued.cents : salaryMonthlyCents !== null ? salaryMonthlyCents * months : null;
-  const salaryNote = accrued
-    ? `${accrued.coveredMonths} ${accrued.coveredMonths === 1 ? "mês" : "meses"} com o valor de cada época${accrued.coveredMonths < accrued.months ? `; ${accrued.months - accrued.coveredMonths} meses anteriores sem valor carregado não entram` : ""}`
-    : `${months} ${months === 1 ? "mês" : "meses"} × o valor mensal de hoje; reajustes anteriores eram menores`;
   const total = salary !== null && expensesCents !== null ? salary + expensesCents : null;
-  const rows: [string, number | null, string][] = [
-    [accrued ? "Salário bruto" : "Salário bruto (aproximado)", salary, salaryNote],
-    ["Cota para exercício do mandato", expensesCents, "gastos reembolsados, como a casa publica"],
-  ];
+  const ato = ATO_COTA[body];
   return (
-    <Section id="custo" title={`Quanto custou ${periodLabel}`} intro="Soma do que a fonte publica. Não inclui verba de pessoal do gabinete, imóvel funcional nem benefícios: esses dados ainda não estão carregados.">
-      <table className="w-full max-w-xl text-sm">
-        <tbody>
-          {rows.map(([label, v, note]) => (
-            <tr key={label} className="border-b border-border">
-              <th scope="row" className="py-2 pr-3 text-left font-normal text-fg">
-                {label}
-                <span className="block text-xs text-muted">{note}</span>
-              </th>
-              <td className="py-2 text-right tabular font-semibold text-fg">{v === null ? <NotPublished /> : money(v)}</td>
-            </tr>
+    <Section id="custo" title={`Quanto custa o mandato · ${periodLabel}`} intro="Cada item mostra o que a fonte publica e o ato que o fixa. Onde não há valor carregado, aparece “—” e o motivo.">
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2" data-testid="custo-itens">
+        <li className="border border-border p-4" data-item="salario">
+          <h3 className="text-base font-semibold text-fg">Salário</h3>
+          <dl className="mt-1 text-sm">
+            <Row label="Por mês, bruto">{monthly === null ? <NotPublished /> : money(monthly, true)}</Row>
+            <Row label={accrued ? "Recebido no período" : "No período (aproximado)"}>{salary === null ? <NotPublished /> : money(salary)}</Row>
+          </dl>
+          {!accrued && salary !== null && <p className="mt-1 text-xs text-muted">{months} {months === 1 ? "mês" : "meses"} × o valor mensal de hoje; reajustes anteriores eram menores.</p>}
+          {accrued && accrued.coveredMonths < accrued.months && (
+            <p className="mt-1 text-xs text-muted">Faltam {accrued.months - accrued.coveredMonths} meses sem valor carregado; eles não entram na soma.</p>
+          )}
+          {pending.map((x) => (
+            <p key={x.validFrom} className="mt-2 flex flex-wrap items-center gap-2 text-sm text-fg" data-testid="reajuste-pendente">
+              <span className="stamp text-warning">Reajuste ainda não vale</span>
+              {money(x.amountCents, true)} por mês a partir de {date(x.validFrom)}. Não entra nas somas.
+            </p>
           ))}
-          <tr>
-            <th scope="row" className="py-2 pr-3 text-left font-semibold text-fg">
-              Total aproximado
-            </th>
-            <td className="py-2 text-right font-display text-xl tabular text-fg">{total === null ? <NotPublished /> : money(total)}</td>
-          </tr>
-        </tbody>
-      </table>
+          {current ? (
+            <Ato>
+              <a href={current.source.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                {current.source.name}
+              </a>
+              , valor vigente desde {date(current.validFrom)}.
+            </Ato>
+          ) : (
+            <Ato>ainda não conferido.</Ato>
+          )}
+        </li>
+        <li className="border border-border p-4" data-item="cota">
+          <h3 className="text-base font-semibold text-fg">Cota para exercício do mandato</h3>
+          <dl className="mt-1 text-sm">
+            <Row label="Teto por mês">
+              <NotPublished />
+            </Row>
+            <Row label="Gasto no período">{expensesCents === null ? <NotPublished /> : money(expensesCents)}</Row>
+          </dl>
+          <p className="mt-1 text-xs text-muted">O teto de cada estado ainda não está no site. O gasto é o que a casa reembolsou.</p>
+          <Ato>{ato ?? "ainda não conferido."}</Ato>
+        </li>
+        <li className="border border-border p-4" data-item="verba">
+          <h3 className="text-base font-semibold text-fg">Verba de gabinete</h3>
+          <dl className="mt-1 text-sm">
+            <Row label="Verba por mês">
+              <NotPublished />
+            </Row>
+          </dl>
+          <p className="mt-1 text-xs text-muted">Ainda não está carregado: nem o valor da verba nem a folha de cada pessoa.</p>
+          <Ato>ainda não conferido.</Ato>
+        </li>
+        <li className="border border-border p-4" data-item="moradia">
+          <h3 className="text-base font-semibold text-fg">Auxílio-moradia</h3>
+          <dl className="mt-1 text-sm">
+            <Row label="Valor por mês">
+              <NotPublished />
+            </Row>
+          </dl>
+          <p className="mt-1 text-xs text-muted">Ainda não está carregado.</p>
+          <Ato>ainda não conferido.</Ato>
+        </li>
+      </ul>
+      <p className="mt-4 text-sm text-fg" data-testid="custo-soma">
+        <span className="font-semibold">Soma do que está carregado</span> (salário e gasto da cota no período):{" "}
+        <span className="font-display text-xl tabular">{total === null ? <NotPublished /> : money(total)}</span>
+      </p>
+      <p className="mt-1 text-xs text-muted">Não inclui verba de gabinete nem moradia, que ainda não têm valor no site.</p>
     </Section>
   );
 }
@@ -665,11 +810,137 @@ export async function CampaignMoney({ personId }: { personId: string }) {
                 {c.spending.length ? <BarBreakdown caption="Com o que gastou" rows={c.spending.slice(0, 10)} /> : <Empty>Nenhuma despesa publicada.</Empty>}
               </div>
               {c.spending.length > 10 && <p className="mt-2 text-xs text-muted">Mais {c.spending.length - 10} categorias menores somam {money(sum(c.spending.slice(10)))}.</p>}
+              {c.origins.length > 0 && <CampaignOrigins origins={c.origins} donors={c.donors} year={c.year} />}
             </details>
           ))}
         </div>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
+    </Section>
+  );
+}
+
+/** Catálogo D11: composição da receita por origem, em ordem fixa (nunca pela maior parte). Fundo público e privado
+ *  ficam lado a lado, sem destaque; doador com nome só partido ou pessoa jurídica (pessoa física só somada, D36). */
+function CampaignOrigins({ origins, donors, year }: { origins: CampaignFinance["origins"]; donors: CampaignFinance["donors"]; year: number }) {
+  const total = origins.reduce((s, o) => s + o.cents, 0);
+  const label = new Map(CAMPAIGN_ORIGINS.map((o) => [o.origin, o.label]));
+  const named = [...donors].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  return (
+    <div className="mt-4 border-t border-border pt-3" data-testid={`campanha-origem-${year}`}>
+      <h4 className="text-sm font-semibold text-fg">Por origem do dinheiro</h4>
+      <p className="mt-1 text-xs text-muted">Fundo Eleitoral e Fundo Partidário são dinheiro público repassado pelo partido. Total: {money(total)}.</p>
+      <table className="mt-2 w-full text-sm">
+        <tbody>
+          {origins.map((o) => (
+            <tr key={o.origin} className="border-b border-border last:border-0">
+              <th scope="row" className="py-1.5 pr-3 text-left font-normal text-fg">{label.get(o.origin) ?? o.origin}</th>
+              <td className="py-1.5 text-right tabular whitespace-nowrap text-fg">{money(o.cents)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {named.length > 0 && (
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-muted">Partidos e pessoas jurídicas que doaram ({named.length}), A–Z</summary>
+          <ul className="mt-2 flex flex-col gap-1">
+            {named.map((d) => (
+              <li key={`${d.kind}:${d.name}`} className="flex justify-between gap-3">
+                <span className="text-fg">{d.name} <span className="text-xs text-muted">· {d.kind === "partido" ? "partido" : "pessoa jurídica"}</span></span>
+                <span className="tabular whitespace-nowrap text-fg">{money(d.cents)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+const AMENDMENT_KIND: Record<Amendment["kind"], string> = {
+  individual: "individual",
+  individual_pix: "individual, transferência especial (“Pix”)",
+  bancada: "de bancada",
+  comissao: "de comissão",
+  relator: "de relator",
+  outro: "outro tipo",
+};
+
+/** Catálogo D02: os três estágios lado a lado, porque o pago anda meses atrás do empenhado. Ordem: ano desc, destino A–Z. */
+/** Soma de um estágio; null quando alguma emenda não tem o valor publicado (somar como 0 subcontaria: "—" com nota). */
+function stageSum(rows: Amendment[], k: "committedCents" | "liquidatedCents" | "paidCents"): number | null {
+  return rows.some((r) => r[k] == null) ? null : rows.reduce((s, r) => s + (r[k] ?? 0), 0);
+}
+const cents = (v: number | null) => (v == null ? "—" : money(v));
+
+function AmendmentTotals({ rows }: { rows: Amendment[] }) {
+  const stages = [
+    ["reservado (empenhado)", stageSum(rows, "committedCents")],
+    ["despesa reconhecida (liquidado)", stageSum(rows, "liquidatedCents")],
+    ["pago", stageSum(rows, "paidCents")],
+  ] as const;
+  return (
+    <>
+      <dl className="grid grid-cols-3 gap-3 text-sm">
+        {stages.map(([label, v]) => (
+          <div key={label}><dt className="text-xs text-muted">{label}</dt><dd className="tabular font-semibold text-fg">{cents(v)}</dd></div>
+        ))}
+      </dl>
+      {stages.some(([, v]) => v == null) && <p className="mt-1 text-xs text-muted">“—”: a fonte não publicou esse valor em pelo menos uma emenda do ano. Somar daria um total menor que o real.</p>}
+    </>
+  );
+}
+
+export async function Amendments({ personId, cityIbge, title = "Emendas que mandou" }: { personId?: string; cityIbge?: string; title?: string }) {
+  const [rows, stamp, loaded] = await Promise.all([
+    personId ? data.listAmendmentsByPerson(personId) : cityIbge ? data.listAmendmentsToPlace(cityIbge) : Promise.resolve([] as Amendment[]),
+    data.getStamp("transparencia.emendas"),
+    data.listStampYears("transparencia.emendas"),
+  ]);
+  const years = [...new Set(rows.map((r) => r.year))].sort((a, b) => b - a);
+  return (
+    <Section
+      id="emendas"
+      title={title}
+      count={rows.length ? `${count(rows.length)} ${rows.length === 1 ? "emenda" : "emendas"}` : undefined}
+      intro="Emenda é dinheiro do Orçamento da União que cada parlamentar indica para um lugar ou uma área. Empenhado é o dinheiro reservado; pago é o que saiu."
+    >
+      {!loaded.length ? (
+        <NotLoaded reason="as emendas vêm do Portal da Transparência, que exige chave de acesso; a carga começa quando a chave for configurada" />
+      ) : rows.length === 0 ? (
+        <Empty>{personId ? "Nenhuma emenda com esta autoria" : "Nenhuma emenda com destino nesta cidade"} nos anos carregados ({loaded[0]} a {loaded[loaded.length - 1]}).</Empty>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {years.map((y, i) => {
+            const ys = rows.filter((r) => r.year === y);
+            return (
+              <details key={y} open={i === 0} className="rounded-sm border border-border p-3" data-testid={`emendas-${y}`}>
+                <summary className="cursor-pointer text-sm font-semibold text-fg">{y} · {count(ys.length)} {ys.length === 1 ? "emenda" : "emendas"}</summary>
+                <div className="mt-3"><AmendmentTotals rows={ys} /></div>
+                <ul className="mt-3 flex flex-col divide-y divide-border text-sm">
+                  {ys.map((r, j) => (
+                    <li key={j} className="py-2">
+                      <p className="text-fg">
+                        {personId ? (
+                          r.place ? <Link href={`/representantes?cidade=${r.place.ibge}`} className="underline underline-offset-2">{r.place.name}{r.place.uf ? ` (${r.place.uf})` : ""}</Link> : (r.localityLabel ?? "destino não informado")
+                        ) : r.authorSlug ? <Link href={`/p/${r.authorSlug}`} className="underline underline-offset-2">{r.authorLabel}</Link> : r.authorLabel}
+                        {r.area && <span className="text-muted"> · {r.area}</span>}
+                      </p>
+                      <p className="text-xs text-muted">
+                        emenda {AMENDMENT_KIND[r.kind]} · empenhado {cents(r.committedCents)} · pago {cents(r.paidCents)}
+                        {personId && !r.place && r.placeNote ? ` · ${r.placeNote}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            );
+          })}
+          <p className="text-xs text-muted">Emenda “Pix” (transferência especial) vai direto para o caixa da prefeitura ou do estado, sem objeto detalhado na fonte.</p>
+        </div>
+      )}
+      {/* sem carga não há data: o carimbo de reserva (época 0) não pode virar "atualizado em 1969" */}
+      {loaded.length > 0 && <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />}
     </Section>
   );
 }
@@ -715,7 +986,7 @@ export async function Staff({ personId, body }: { personId: string; body: "camar
           </p>
         </>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }

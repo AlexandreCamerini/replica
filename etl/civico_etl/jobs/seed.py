@@ -23,6 +23,8 @@ SOURCES = [
     ("ibge", "IBGE · API de Localidades", "https://servicodados.ibge.gov.br/api/docs/localidades", "CC BY 4.0"),
     ("norma", "Norma publicada (DOU)", "https://www.in.gov.br/", None),
     ("tcu", "TCU · Dados abertos (inabilitados para função pública)", "https://sites.tcu.gov.br/dados-abertos/inidoneos-irregulares/", None),
+    ("transparencia", "Portal da Transparência · API de dados (emendas parlamentares)", "https://portaldatransparencia.gov.br/api-de-dados", "Decreto 8.777/2016"),
+    ("cgu", "CGU · CEIS e CNEP (Portal da Transparência)", "https://portaldatransparencia.gov.br/sancoes", "Decreto 8.777/2016"),
     ("sapl", "SAPL das Câmaras Municipais (Interlegis/Senado Federal)", "https://www12.senado.leg.br/interlegis/produtos/sapl", None),
     ("constituicao", "Constituição Federal: art. 27 §2º (deputado estadual), art. 32 §3º (distrital), art. 29 VI (vereador)",
      "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", None),

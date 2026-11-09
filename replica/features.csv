@@ -20,8 +20,8 @@ Compartilhar card do crachá (imagem OG + WhatsApp),compartilhar,should,yes,yes,
 Comparar: votaram igual e onde divergiram,comparar,should,yes,yes,"S08; build: % de concordância por par; falta a lista de divergências; diff 2026-11-02: original lista 'Em que votaram diferente' com filtro por tema (400 pautas, 16 temas) e 'Mostrar mais'; build6: 'Em que votaram diferente' por par (escolha na URL), filtro por tema com contagem, mostrar mais; conta por votação (760 Adriana × Baleia), não por pauta"
 Crachá: resumo do ano com temas mais tratados e fidelidade ao partido,cracha,should,yes,yes,"S05; backend: person_period_stats já calcula temas e fidelidade; falta a seção na tela; build2: temas (top 3) e votos iguais à orientação do partido, por período"
 Crachá: leis que vieram de projetos da pessoa,cracha,should,yes,yes,S05; build4: 31 leis 2023–2026 com número e data do DOU; link do Planalto para lei ordinária
-Crachá: emendas parlamentares por destino área e tipo,cracha,should,yes,no,S05; Portal da Transparência
-Crachá: dinheiro das campanhas origem e gastos,cracha,should,yes,yes,"S05; TSE prestação de contas; build2: totais arrecadado/gasto por eleição; falta origem por fonte e lista de despesas; build6: por eleição, receitas e despesas por categoria do TSE (campaign_finance_entries), sem nome de doador"
+Crachá: emendas parlamentares por destino área e tipo,cracha,should,yes,partial,"S05; Portal da Transparência; D254 (catálogo D02): job, crachá e página da cidade prontos; sem carga até a chave do Portal (D253)"
+Crachá: dinheiro das campanhas origem e gastos,cracha,should,yes,yes,"S05; TSE prestação de contas; build2: totais arrecadado/gasto por eleição; falta origem por fonte e lista de despesas; build6: por eleição, receitas e despesas por categoria do TSE (campaign_finance_entries), sem nome de doador; D256 (catálogo D11): composição por origem em ordem fixa, doador nomeado só partido/PJ"
 Crachá: presença em sessões deliberativas com regra publicada,cracha,should,yes,yes,"S05; senado não publica presença; backend: regra derivada de votação nominal, publicada em backend.md; vale para Câmara e Senado; build6: rótulo 'sessões deliberativas' (lista oficial da Câmara, D30); Senado '—' com motivo, também no comparar"
 Crachá: comissões falas viagens equipe do gabinete,cracha,should,yes,partial,"S05; build4: comissões (com histórico) e discursos (resumo + link) de Câmara e Senado; faltam viagens e equipe; diff 2026-11-02: original mostra equipe com nome e salário (14 pessoas · R$ 115 mil/mês); build6: equipe da Câmara (nomes A–Z, nível SP); salário '—' (folha não carregada); Senado e viagens '—' com motivo"
 Crachá: custo do mandato e contato,cracha,should,yes,yes,"S05; build4: contato oficial da casa; custo = salário (aproximado, explicado) + cota"
@@ -64,3 +64,15 @@ Onboarding de 3 passos na primeira visita,shell,could,yes,yes,S02; OnboardingDia
 Copiar link e mandar pelo WhatsApp em toda página (topo),compartilhar,could,yes,yes,diff 2026-11-02: header do original tem 'Copiar o link desta página' e WhatsApp; clone só no crachá; build5: barra no topo (PageShare) com URL canônica sem utm/fbclid etc.; não aparece no crachá (tem o próprio) nem em /entrar e /acompanhando
 Sanções do TCU e da CGU,dados,could,yes,no,"diff 2026-11-02: carga diária citada em /atualizacoes; não apareceu no crachá testado (só quando existe); w3b: 847 inabilitados do TCU no banco, 0 casados (regra nome civil + UF único, D131/D132), sem tela; CGU bloqueada por verificação humana (D130)"
 Como ajudar: canais para mandar dados da cidade e apoiar o site,feedback,could,yes,yes,"S26; build6: /ajudar com quatro jeitos; apoio financeiro ""—"" com motivo (meio de apoio é decisão do dono)"
+Sanções CGU (CEIS/CNEP) ligadas à pessoa,dados,could,yes,partial,"D255 (catálogo D03): job pronto, casamento conservador; carga depende da chave (D253)"
+Segunda leitura noturna do plenário,dados,should,yes,yes,"D257 (catálogo D06): Senado 00:30, Câmara 05:00, ter–sáb"
+Próxima leitura prevista por fonte,confianca,should,yes,yes,D258 (catálogo D13): rodapé de fonte
+Vigia externo de frescor,operacao,should,yes,yes,D259 (catálogo D14): /api/health/fontes + vigia.yml
+Rascunho por IA em lote com cache,operacao,could,no,yes,D260 (catálogo D15): diferencial; o original declara não usar IA
+Conferido em / registro mais recente no topo,confianca,should,yes,yes,D261 (catálogo U01)
+Lacuna que pede ajuda com sugestão pré-preenchida,feedback,should,yes,yes,D262 (catálogo U02)
+Bloco da cidade: o que não está aqui e por quê,representantes,should,yes,yes,D263 (catálogo U03)
+Glossário recolhível no ponto de uso,educativo,should,yes,yes,D264 (catálogo U05); falta Destaque
+Votações: só o que muda lei,congresso,should,yes,yes,D265 (catálogo U11)
+Patrimônio corrigido pela inflação,cracha,could,no,yes,D267 (catálogo U13): o original mostra % sem correção
+Exemplos clicáveis na busca de cidade,representantes,could,yes,yes,D268 (catálogo U14)

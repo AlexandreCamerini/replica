@@ -21,7 +21,7 @@ from ..db import SkipUnchanged, run, upsert
 from ..http import fetch_json
 from ..identity import PersonResolver
 from ..parties import PartyResolver
-from ..util import fold, midnight_br, nz, parse_date, titlecase_pt
+from ..util import BRT, fold, midnight_br, nz, parse_date, titlecase_pt
 
 log = logging.getLogger("etl.senado")
 API = "https://legis.senado.leg.br/dadosabertos"
@@ -213,7 +213,26 @@ def run_senado(conn: psycopg.Connection, *, years: list[int], limit: int | None,
     sx.ceaps(conn, ceaps_years or years, body, force)
 
 
-def _votes_year(conn: psycopg.Connection, r, year: int, senators: list[tuple[str, str, str | None]], body: str, office: str) -> None:
+def run_senado_noturna(conn: psycopg.Connection, *, days: int = 3, force: bool = False) -> None:
+    """catálogo D06: segunda leitura, só das votações do Plenário dos últimos `days` dias (BRT), pelo mesmo /votacao do senado.diario (API ao vivo).
+    Não relê a lista de senadores: usa quem já está no banco (id do Senado -> pessoa) e o partido atual da pessoa (person_current_party),
+    para o upsert não zerar `party_id` do voto. Dataset próprio (`senado.noturna.ANO`), pelo mesmo motivo da Câmara (checksum compartilhado)."""
+    body = str(conn.execute("select id from legislative_bodies where kind = 'senado'").fetchone()["id"])
+    office = str(conn.execute("select id from offices where slug = 'senador'").fetchone()["id"])
+    senators = [(r["external_id"], str(r["person_id"]), str(r["party_id"]) if r["party_id"] else None) for r in conn.execute(
+        """select e.external_id, e.person_id, pcp.party_id from person_external_ids e join sources s on s.id = e.source_id and s.slug = 'senado'
+           left join person_current_party pcp on pcp.person_id = e.person_id""")]
+    today = datetime.now(BRT).date()
+    since = today - timedelta(days=days)
+    for year in sorted({since.year, today.year}):
+        try:
+            with run(conn, f"senado.noturna.{year}", "senado", force=force) as r:
+                _votes_year(conn, r, year, senators, body, office, since=max(since, date(year, 1, 1)))
+        except SkipUnchanged:
+            continue
+
+
+def _votes_year(conn: psycopg.Connection, r, year: int, senators: list[tuple[str, str, str | None]], body: str, office: str, since: date | None = None) -> None:
     """Votações do Plenário do ano pelo endpoint /votacao (todas as nominais, abertas e secretas; D10).
     A API por senador (/senador/{cod}/votacoes) omitia boa parte das abertas (8 × 22 em 2026). Secreta: entra o evento, sem voto
     individual (a fonte só diz "Votou"). Senador fora do diretório (mandato encerrado antes da carga): voto não gravado."""
@@ -224,7 +243,8 @@ def _votes_year(conn: psycopg.Connection, r, year: int, senators: list[tuple[str
         by_cod.setdefault(row["external_id"], (str(row["person_id"]), None))
     end = min(date(year, 12, 31), date.today())
     try:
-        lst = fetch_json(f"{API}/votacao?dataInicio={year}-01-01&dataFim={end.isoformat()}", max_age=86400)
+        # max_age=86400 vale para a carga completa; o recorte noturno quer o dado de agora (nada de cache de um dia)
+        lst = fetch_json(f"{API}/votacao?dataInicio={(since or date(year, 1, 1)).isoformat()}&dataFim={end.isoformat()}", max_age=None if since else 86400)
     except FileNotFoundError:
         lst = []
     for v in _list(lst):

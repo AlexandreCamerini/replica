@@ -12,6 +12,10 @@ ETL_DEADLINE_MIN (opcional): orçamento da chamada; tarefa que não cabe é adia
 Saída de cada tarefa: ETL_STATE_DIR/logs/<job>.log (sobrevive a timeout).
 Saída: 0 tudo certo; 2 houve alerta (falha, check quebrado, fonte fora do prazo ou run órfão).
 
+Janela horária (catálogo D06): tarefa com `window` só vence dentro dela (hora de Brasília e dias da semana), e uma vez por janela: vencida =
+janela aberta e sem carimbo da tarefa desde a abertura. Fora da janela nada mais vale (nem `every_h`), exceto `--force`.
+Chave de API ausente (`needs_env`): a tarefa é pulada com o motivo e a fonte sem carga não acusa "SEM CARGA" (aguarda a chave, catálogo D01).
+
 Vencida = o carimbo mais novo dos datasets da tarefa (dataset_stamps; skipped_unchanged também carimba) é mais velho que
 `every_h`, e a última tentativa (etl_schedule_attempts, qualquer desfecho) é mais velha que `retry_h`, para não martelar
 uma fonte fora do ar.
@@ -29,9 +33,11 @@ import sys
 import time
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time as dtime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
+
+from .util import BRT
 
 import psycopg
 from psycopg.rows import dict_row
@@ -60,7 +66,53 @@ MAX_AGE_H: dict[str, int] = {
     "ibge-sidra": 120 * D,
     "bcb-sgs": 120 * D,
     "receita-federal": 60 * D,
+    "transparencia": 14 * D,  # catálogo D02: emendas, lidas toda semana
+    "cgu": 14 * D,  # catálogo D03: CEIS e CNEP, lidos toda semana
 }
+
+# Fonte -> variável de ambiente sem a qual a carga não roda (catálogo D01). Sem a variável e sem carga alguma, a fonte "aguarda a chave" em vez de alertar.
+SOURCE_ENV: dict[str, str] = {"transparencia": "TRANSPARENCIA_API_KEY", "cgu": "TRANSPARENCIA_API_KEY"}
+
+# catálogo D13: de quanto em quanto tempo a agenda é chamada (cron do .github/workflows/etl.yml: minuto 17, a cada 3 h UTC). A "próxima leitura prevista"
+# do site arredonda para o próximo desses momentos. web/src/lib/sources.ts repete as duas constantes; test_schedule.py confere as três réguas.
+TICK_MINUTE = 17
+TICK_EVERY_H = 3
+
+
+def next_tick(t: datetime) -> datetime:
+    """Primeiro momento de chamada da agenda em ou depois de `t` (UTC)."""
+    c = t.astimezone(timezone.utc).replace(minute=TICK_MINUTE, second=0, microsecond=0)
+    if c < t:
+        c += timedelta(hours=1)
+    while c.hour % TICK_EVERY_H:
+        c += timedelta(hours=1)
+    return c
+
+
+def next_read(every_h: float, stamp: datetime, now: datetime) -> datetime:
+    """Próxima leitura prevista de uma fonte de cadência `every_h` carimbada em `stamp`: carimbo + cadência, no próximo momento de
+    chamada da agenda; se já passou, o próximo momento depois de agora. É um teto: tarefa que falha ou é adiada lê depois."""
+    return next_tick(max(stamp + timedelta(hours=every_h), now))
+
+
+@dataclass(frozen=True)
+class Window:
+    """Janela horária em Brasília [start, end), nos dias da semana `days` (0 = segunda). Sem horário de verão desde 2019."""
+
+    start: dtime
+    end: dtime
+    days: tuple[int, ...]
+
+    def opened_at(self, now: datetime) -> datetime | None:
+        """Instante (UTC) em que a janela de agora abriu; None se agora está fora dela."""
+        local = now.astimezone(BRT)
+        if local.weekday() not in self.days:
+            return None
+        s, e = datetime.combine(local.date(), self.start, BRT), datetime.combine(local.date(), self.end, BRT)
+        return s.astimezone(timezone.utc) if s <= local < e else None
+
+
+TER_A_SAB = (1, 2, 3, 4, 5)
 
 
 def _recent_election_years(today: date) -> list[int]:
@@ -85,6 +137,8 @@ class Task:
     retry_h: int = 0  # 0 = every_h / 4, entre 2 h e 24 h
     missing_ok: bool = False  # família ainda sem carimbo não conta (arquivo da eleição deste ano ainda não publicado)
     derives: bool = False  # o próprio job já roda derive.stats (cli.py); a agenda não repete no fim
+    window: Window | None = None  # catálogo D06: só vence dentro dela, uma vez por janela
+    needs_env: str | None = None  # catálogo D01: variável de ambiente (chave de API) sem a qual a tarefa é pulada, com o motivo
 
     def families(self, today: date) -> tuple[str, ...]:
         return self.prefixes(today) if callable(self.prefixes) else self.prefixes
@@ -95,6 +149,12 @@ class Task:
 
 # Ordem = ordem de execução. Cadência < maxAge do site, com folga para uma falha e uma nova tentativa.
 TASKS: list[Task] = [
+    # catálogo D06: segunda leitura da noite, só das votações recentes (a agenda roda derive.stats depois). Primeiras da fila: uma chamada longa e
+    # sobreposta (o lock global faz a seguinte sair sem fazer nada) é o risco que mais pode comê-las; elas são curtas.
+    # Senado: API ao vivo, logo depois da meia-noite. Câmara: o CSV anual só é regerado entre 03:50 e 04:45 (Brasília; Last-Modified de
+    # 04 e 08/11/2026), então a leitura da Câmara vem depois disso e antes das 07h.
+    Task("senado.noturna", lambda t: ["senado.noturna"], ("senado.noturna.",), 24, 1, retry_h=1, window=Window(dtime(0, 30), dtime(2, 0), TER_A_SAB)),
+    Task("camara.noturna", lambda t: ["camara.noturna"], ("camara.noturna.",), 24, 1, retry_h=1, window=Window(dtime(5, 0), dtime(7, 0), TER_A_SAB)),
     Task("ibge.places", lambda t: ["ibge.places"], ("ibge.places",), 365 * D, 1),
     Task("ibge.populacao", lambda t: ["ibge.populacao"], ("ibge.populacao",), 365 * D, 1),
     Task("ibge.malhas", lambda t: ["ibge.malhas"], ("ibge.malhas",), 365 * D, 2),
@@ -113,6 +173,9 @@ TASKS: list[Task] = [
     # Incremental por cursor (~30 s por câmara já carregada); a 1ª carga de cada câmara é completa (~10 min).
     Task("sapl.todas", lambda t: ["sapl.todas", "--escopo", "todas", "--lote", "150", "--orcamento-min", "150"], ("sapl.",), 20 * H, 3),
     Task("sancoes.tcu", lambda t: ["sancoes.tcu"], ("sancoes.",), 28 * D, 1),
+    # catálogo D01–D03: API do Portal da Transparência com chave. Paginação inteira ao limite de requisições por minuto (transparencia.py).
+    Task("transparencia.emendas", lambda t: ["transparencia.emendas"], ("transparencia.emendas.",), 7 * D, 3, needs_env="TRANSPARENCIA_API_KEY"),
+    Task("sancoes.cgu", lambda t: ["sancoes.cgu"], ("cgu.ceis", "cgu.cnep"), 7 * D, 2, needs_env="TRANSPARENCIA_API_KEY"),
     Task("receita.arrecadacao", lambda t: ["receita.arrecadacao"], ("receita.",), 28 * D, 1),
     Task("governos.indicadores", lambda t: ["governos.indicadores"], ("governos.",), 80 * D, 1),
 ]
@@ -133,6 +196,7 @@ class Report:
         return [r for r in self.ran if r["exit"] != 0]
 
     deferred: list[str] = field(default_factory=list)
+    awaiting: list[str] = field(default_factory=list)  # fontes sem chave de API e sem carga: aguardam, não alertam
     error: str | None = None
 
     @property
@@ -144,6 +208,8 @@ class Report:
         lines += [f"FALHOU {r['task']} (exit {r['exit']}, {r['secs']:.0f}s): {r['tail']}" for r in self.failed]
         lines += [f"RUN ÓRFÃO fechado: {o['dataset']} (iniciado {o['started_at'][:16]})" for o in self.orphans]
         lines += [f"FORA DO PRAZO {o['source']}: {o['age_h']:.0f} h > {o['max_h']} h" if o["age_h"] is not None else f"SEM CARGA {o['source']}" for o in self.overdue]
+        if self.awaiting:
+            lines.append(f"aguardam chave de API (sem alerta): {', '.join(self.awaiting)}")
         if self.deferred:
             lines.append(f"adiadas por falta de tempo nesta chamada: {', '.join(self.deferred)}")
         if self.check_ok is False:
@@ -157,6 +223,15 @@ class Report:
 
 
 def is_due(task: Task, last_stamp: datetime | None, last_attempt: datetime | None, now: datetime) -> tuple[bool, str]:
+    if task.window:
+        opened = task.window.opened_at(now)
+        if opened is None:
+            return False, "fora da janela horária"
+        if last_stamp and last_stamp >= opened:
+            return False, f"já lida nesta janela (carimbo {last_stamp.astimezone(BRT):%H:%M} BRT)"
+        if last_attempt and last_attempt >= opened and now - last_attempt < timedelta(hours=task.retry()):
+            return False, f"última tentativa há {(now - last_attempt).total_seconds() / 3600:.1f} h (< {task.retry()} h)"
+        return True, f"janela aberta às {opened.astimezone(BRT):%H:%M} BRT e sem leitura nela"
     if last_attempt and now - last_attempt < timedelta(hours=task.retry()):
         if not last_stamp or now - last_stamp >= timedelta(hours=task.every_h):
             return False, f"última tentativa há {(now - last_attempt).total_seconds() / 3600:.1f} h (< {task.retry()} h)"
@@ -168,12 +243,15 @@ def is_due(task: Task, last_stamp: datetime | None, last_attempt: datetime | Non
     return False, f"em dia (carimbo há {age.total_seconds() / 3600:.0f} h)"
 
 
-def overdue_sources(stamps: dict[str, datetime | None], now: datetime) -> list[dict]:
-    """Mesma regra de freshness() em sources.ts: sem carga é estado próprio; fora do prazo = idade > maxAge."""
+def overdue_sources(stamps: dict[str, datetime | None], now: datetime, awaiting_key: frozenset[str] = frozenset()) -> list[dict]:
+    """Mesma regra de freshness() em sources.ts: sem carga é estado próprio; fora do prazo = idade > maxAge.
+    `awaiting_key`: fontes sem chave de API configurada; sem carga nenhuma, não alertam (o `plan` já registra o motivo)."""
     out = []
     for src, max_h in MAX_AGE_H.items():
         at = stamps.get(src)
         if at is None:
+            if src in awaiting_key:
+                continue
             out.append({"source": src, "age_h": None, "max_h": max_h})
             continue
         age_h = (now - at).total_seconds() / 3600
@@ -318,6 +396,25 @@ def notify(report: Report, state_dir: Path) -> None:
             log.error("webhook de alerta falhou: %s", e)
 
 
+def env_ok(name: str) -> bool:
+    """A chave existe no ambiente ou, para a do Portal da Transparência, no arquivo local fora do repositório (transparencia.api_key)."""
+    if os.environ.get(name):
+        return True
+    if name == "TRANSPARENCIA_API_KEY":
+        from . import transparencia
+
+        try:
+            transparencia.api_key()
+            return True
+        except transparencia.NoKey:
+            return False
+    return False
+
+
+def awaiting_key_sources() -> frozenset[str]:
+    return frozenset(src for src, env in SOURCE_ENV.items() if not env_ok(env))
+
+
 def plan(conn: psycopg.Connection, now: datetime, only: list[str] | None, force: bool, has_repairs: bool) -> tuple[list[tuple[Task, str]], list[dict]]:
     today = now.date()
     due, skipped = [], []
@@ -326,6 +423,9 @@ def plan(conn: psycopg.Connection, now: datetime, only: list[str] | None, force:
             continue
         if t.needs_repairs and not has_repairs:
             skipped.append({"task": t.name, "why": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"})
+            continue
+        if t.needs_env and not env_ok(t.needs_env):
+            skipped.append({"task": t.name, "why": f"aguarda {t.needs_env} (rode etl/deploy/transparencia-key.sh)"})
             continue
         ok, why = (True, "forçada") if force else is_due(t, last_stamp(conn, t, today), last_attempt(conn, t), now)
         if ok:
@@ -400,7 +500,9 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
                 rep.ran.append({"task": "derive.stats", **_run_cli(["derive.stats"], 2, log_dir)})
             rep.check_ok = _run_cli(["check"], 1, log_dir)["exit"] == 0
             with _connect(url) as c:
-                rep.overdue = overdue_sources(source_stamps(c), datetime.now(timezone.utc))
+                stamps, aw = source_stamps(c), awaiting_key_sources()
+                rep.overdue = overdue_sources(stamps, datetime.now(timezone.utc), aw)
+                rep.awaiting = sorted(src for src in aw if stamps.get(src) is None)
                 mark_attempt(c, "__run_due__", start=False, exit_code=2 if rep.alert else 0)
         except Exception as e:  # noqa: BLE001 - a agenda sempre alerta, mesmo quando ela mesma quebra
             log.exception("run-due quebrou")

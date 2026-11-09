@@ -171,7 +171,7 @@ const KINDS = [
 ];
 const RESPOSTA = { v: "direito_resposta", l: "Direito de resposta" };
 
-export function SuggestionForm({ kind, person, personName, page }: { kind?: string; person?: string; personName?: string; page?: string }) {
+export function SuggestionForm({ kind, person, personName, page, city, bodyHint }: { kind?: string; person?: string; personName?: string; page?: string; city?: string; bodyHint?: string }) {
   const [state, action, pending] = useActionState(submitSuggestion, {});
   if (state.ok)
     return (
@@ -205,7 +205,7 @@ export function SuggestionForm({ kind, person, personName, page }: { kind?: stri
         <label htmlFor="sug-body" className="text-sm font-semibold text-fg">
           Mensagem
         </label>
-        <textarea id="sug-body" name="body" required minLength={5} maxLength={5000} rows={6} defaultValue={f.body} className={clsx(input, "h-auto py-3")} aria-describedby="msg-ajuda" />
+        <textarea id="sug-body" name="body" required minLength={5} maxLength={5000} rows={6} defaultValue={f.body ?? bodyHint} className={clsx(input, "h-auto py-3")} aria-describedby="msg-ajuda" />
         <span id="msg-ajuda" className="text-xs text-muted">
           Se for correção, mande o link da fonte oficial. Isso acelera.
         </span>
@@ -222,7 +222,7 @@ export function SuggestionForm({ kind, person, personName, page }: { kind?: stri
       </div>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-fg">
         Cidade (opcional)
-        <input name="city" maxLength={120} autoComplete="address-level2" defaultValue={f.city} className={input} />
+        <input name="city" maxLength={120} autoComplete="address-level2" defaultValue={f.city ?? city} className={input} />
       </label>
       <Turnstile />
       <Alert state={state} />

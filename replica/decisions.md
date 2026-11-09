@@ -410,3 +410,84 @@ Rodada autônoma autorizada pelo dono do projeto: diff full stack contra politic
   - Uma transação de 30 a 90 min pelo Session pooler: não verifiquei timeout do lado do Supavisor. Se a conexão cair, tudo é desfeito e é só rodar de novo.
   - `sslmode=require` não verifica o certificado.
   - Se a agenda já rodou em produção, o banco não está mais vazio e o assistente recusa. Aí é preciso esvaziar produção à mão antes.
+
+## D253 a D268 · pacotes A e B do catálogo de 08/11 (orquestrador, 2026-11-09)
+
+Origem: `replica/catalogo-2026-11-08.md`. O dono escolheu os pacotes A (ganhos rápidos) e B (dinheiro no bolso), e a evidência está em `replica/recon-delta-2026-11-08.md`. Os itens D0x/U0x abaixo são IDs do catálogo, não decisões antigas.
+
+- **D253 · Chave do Portal da Transparência (catálogo D01).**
+  - **Onde vive:** secret `TRANSPARENCIA_API_KEY` no GitHub e arquivo local com permissão 600. O assistente `etl/deploy/transparencia-key.sh` lê a chave oculta e nunca a imprime.
+  - **Validação:** `civico-etl transparencia.ping` (0 ok, 1 recusada, 2 sem chave, 3 inconclusivo). Sem chave, a tarefa é pulada com motivo e não alerta. 401/403 nunca é retentado.
+  - **Risco:** os limites por minuto (80 e 200, configuráveis por env) são suposição até a primeira carga real.
+- **D254 · Emendas por nome parlamentar (catálogo D02).** Job `transparencia.emendas` (2023+), migração 0082 (liquidado, restos, localidade e motivos).
+  - **Casamento:** a API não traz código IBGE nem código do autor. O vínculo é só por nome parlamentar único com mandato federal no ano. O município é só por "NOME - UF" inequívoco.
+  - **Não-vínculo:** fica sem `person_id`, com motivo.
+  - **Invariante:** `pago ≤ empenhado` em `checks.py`.
+  - **Tela:** crachá (deputado federal e senador) e página da cidade, com ano desc e destino ou autor A–Z, nunca por valor. Os três estágios aparecem lado a lado.
+  - **Risco:** capitais com nome igual ao do estado ficam sem município. Os valores reais de `tipoEmenda` não foram vistos.
+- **D255 · CEIS/CNEP pela API (catálogo D03).** Sai o "BLOQUEADO" do D130. Entra `sancoes.cgu`, com migração 0083.
+  - **Gravação:** só pessoa física, com CPF e NIS descartados no parse.
+  - **Casamento:** com a regra do D132, e só quando o órgão sancionador é estadual ou municipal, porque a UF do DTO é a do órgão. O TCU passa a gravar motivo em todo não-vínculo.
+  - **Risco:** casa muito pouca gente. É de propósito.
+- **D256 · Contas de campanha por origem (catálogo D11).** Tabelas `campaign_finance_by_origin` e `campaign_finance_donors` (0084).
+  - **Origens:** 7, em que o fundo (FEFC, Fundo Partidário) vence a origem declarada.
+  - **Doadores:** só partido e pessoa jurídica têm nome (D36 mantido).
+  - **Tela:** ordem fixa, não pela maior parte.
+  - **Prova:** a soma das origens bate com `raised_cents` nas 67 mil candidaturas de 2022–2026, mas fecha por construção, então ainda falta conferir 3 casos no DivulgaCandContas.
+- **D257 · Segunda leitura noturna (catálogo D06).** Duas tarefas de ter a sáb, com `derive.stats` depois:
+  - `senado.noturna`, de 00:30 a 02:00 (API ao vivo);
+  - `camara.noturna`, de 05:00 a 07:00, e não 00:30, porque o CSV anual da Câmara só é regerado entre 03:50 e 04:45 de Brasília (Last-Modified observado).
+
+  A agenda ganhou o conceito de `Window`. Risco: um run longo anterior segura o lock global e a janela pode passar.
+- **D258 · Próxima leitura prevista (catálogo D13).**
+  - **Cálculo:** `nextExpectedRead` arredonda carimbo + `everyHours` para o próximo tick do cron, com a mesma régua de `schedule.py` (conferida em `test_schedule.py`).
+  - **Onde aparece:** o rodapé de fonte deduz a fonte pelo prefixo do dataset do carimbo (`slugForDataset`). Prefixo ambíguo (agenda, governos, parlamento) não promete hora.
+- **D259 · Vigia externo (catálogo D14).**
+  - **Endpoint:** `/api/health/fontes` devolve 503 se Câmara, Senado ou pauta estiverem velhas ou o banco falhar.
+  - **Cron:** `vigia.yml` diário, independente do ETL, com actions por SHA. Câmara e Senado alertam com 26 h, mais apertado que as 36 h do site, para pegar uma agenda parada.
+  - **Risco:** falso positivo em falha transitória. O GitHub desliga cron de repositório parado por 60 dias.
+  - **Antes de ligar:** confirmar carimbos `pauta.%` em produção.
+- **D260 · Rascunho em lote e cache (catálogo D15).** Mantém o modelo, o prompt e a Regra 3 (a revisão humana continua sendo o único caminho para o público).
+  - `--batch` no cron das 08:30: espera até 20 min, e no prazo cancela e cai para o síncrono. O cron das 14:30 segue síncrono.
+  - Recusa e erro no lote voltam ao síncrono, porque o lote não aceita fallback.
+  - `cache_control` só no bloco fixo.
+  - Uso e custo vão para `answer_drafts`, com o lote em `rascunho_batches` (0090).
+  - **Ganho:** ~US$3 por mês. O lote é a alavanca, porque o cache fica perto do mínimo de 512 tokens.
+  - **Risco:** nunca exercitado na API real.
+- **D261 · Conferido / registro mais recente (catálogo U01).** Linha no topo do crachá e da proposta.
+  - **Conferido:** o carimbo é o da lista da casa.
+  - **Registro mais recente:** o maior entre voto, proposta e gasto. Gasto de assembleia ou câmara mostra só o mês, porque a fonte lança no dia 1.
+  - **Sem dado:** a linha some.
+- **D262 · Lacuna que pede ajuda (catálogo U02).** O link vai para `/sugestoes?tipo=fonte&p&cidade&bloco`. A cidade só entra com 7 dígitos e o nome vem do banco. O convite só aparece em "não conferido" ou "só no portal".
+- **D263 · O que não está aqui, na cidade (catálogo U03).** Um bloco único com o motivo de `data_coverage`. O site da câmara vem de `sapl_houses` e só existe em 90 cidades. Sem site, o bloco oferece mandar o endereço.
+- **D264 · Glossário recolhível (catálogo U05).** `<details>` nativo que lê `TERMS`, a mesma fonte do `/dicionario`.
+  - **Pendência:** "Destaque" não tem verbete. O glossário da Câmara não abre por fetch e o texto não foi conferido, então o termo fica de fora (`GLOSS_MISSING`).
+- **D265 · Só o que muda lei (catálogo U11).** Esconde requerimento e urgência por `voting_events.kind`. É o padrão no crachá (`?vtipo=tudo`) e em `/congresso`, e a regra fica em `/como-escolhemos#votos-lei`.
+  - **Exceção:** `/ja-decidido` não tem chip, porque as 6 votações são curadas (4 de texto e 2 destaques). Ali só aparece a nota.
+- **D266 · Custo do mandato com base legal (catálogo U12).** São quatro itens, cada um com o ato legal.
+  - **Com dado:** salário (decreto legislativo de `salaries`) e cota com gasto real.
+  - **Em "—" com motivo:** teto da cota, verba de gabinete e moradia, por falta de dado no banco.
+  - **Selo `--warn`:** só com `valid_from` futuro.
+  - **Pendência:** o "Ato da Mesa 43/2009" ainda não foi conferido na Câmara.
+- **D267 · Patrimônio corrigido pelo IPCA (catálogo U13).** Valor nominal e valor em reais de dez/2025 (`w4_yearly_indicators`), com a variação em R$, nunca em %.
+  - **Limite:** a série para em 2025 e a tela diz isso.
+  - **Prova:** recálculo em Decimal, não na calculadora do BCB.
+- **D268 · Exemplos clicáveis na busca de cidade (catálogo U14).** Campinas, os 3 senadores do DF, presidente e vice, e Bom Jesus. São links comuns, funcionam sem JS, e a busca global continua fora (decisão de 07/11).
+
+### Revisão independente de D253–D268 (Opus, 2026-11-09)
+- **Corrigidos.**
+  - S2-1, a trava de remoção da CGU: `have` antes do upsert e leitura truncada que não remove nada.
+  - S2-2, LGPD: pessoa física sem nome civil em `people` não é gravada, e o log não leva nome (vale também para o TCU).
+  - S2-3, valor nulo de emenda: aparece como "—" com nota, nunca como R$ 0.
+  - S3-2, o vigia ignora `.noturna.`.
+  - S3-3, `--force` não descarta mais o resultado pago.
+  - S3-4, erro transitório do lote cai no síncrono.
+  - S3-6, paginação deslocada aborta o ano.
+  - S4: sem redirect com a chave; CNPJ de campanha não vira "pessoa jurídica"; doador agregado por CNPJ; `prompt_version` do lote; e a copy "despesa reconhecida (liquidado)".
+- **Ficam como risco.**
+  - S3-1, janela noturna perdida: um run longo na fila do Actions pode passar das 02:00 e pular a noite sem aviso.
+  - S3-5, emenda casada só pelo nome: autor ausente do banco com homônimo de mandato federal no ano.
+  - O `lastRefreshedAt` da fonte em `/atualizacoes` também inclui `.noturna.`.
+  - "Destaque" fica fora do glossário até haver texto conferido.
+- **Prova.** pytest 280/280, `tsc` limpo e e2e 102 passed (74 skipped exigem banco).
+  - Na tela com o Postgres local: crachá da Tabata (custo, emendas sem carga, origem da campanha, próxima leitura) e Campinas, sem rolagem horizontal em 375 px.

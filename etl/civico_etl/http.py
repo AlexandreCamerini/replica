@@ -142,3 +142,57 @@ def paginate_camara(url: str, **kw: Any):
         d = fetch_json(url, **kw)
         yield from d.get("dados", [])
         url = next((l["href"] for l in d.get("links", []) if l.get("rel") == "next"), None)
+
+
+class ApiRedirectError(ValueError):
+    """3xx de API com chave em header: não seguimos (o header `chave-api-dados` não pode ir a outro host). ValueError para os chamadores
+    que já tratam 'resposta fora do esperado' (ex.: ping -> inconclusivo)."""
+
+
+class ApiAuthError(Exception):
+    """401/403 de API com chave: chave ausente, inválida ou sem permissão. Nunca é retentada (cada tentativa gasta limite)."""
+
+    def __init__(self, status: int):
+        super().__init__(f"HTTP {status}: chave recusada")
+        self.status = status
+
+
+def api_json(url: str, *, headers: dict[str, str], retries: int = 3, gate: Any = None, sleep: Any = time.sleep) -> Any:
+    """GET JSON de API que exige chave em header (Portal da Transparência). Sem cache em disco e sem requisição condicional:
+    a resposta depende da chave, e a paginação muda entre chamadas. A chave vive só em `headers`; nada aqui a loga.
+
+    401/403 -> ApiAuthError, sem retentar. 3xx -> ApiRedirectError (follow_redirects=False), sem retentar. 404 -> FileNotFoundError. 429/5xx/rede: retenta com backoff e respeita Retry-After
+    (até 120 s); esgotadas as tentativas, propaga HTTPStatusError/TransportError. `gate.wait()` (opcional) é o limite de taxa."""
+    delay = 5.0
+    for attempt in range(retries + 1):
+        if gate is not None:
+            gate.wait()
+        try:
+            r = client().get(url, headers={**headers, "Accept": "application/json"}, follow_redirects=False)
+            if 300 <= r.status_code < 400:
+                dest = urlparse(r.headers.get("location") or "").netloc or "(mesmo host)"
+                raise ApiRedirectError(f"{url.split('?')[0]}: HTTP {r.status_code} redireciona para {dest}; não seguimos redirect em chamada com chave")
+            if r.status_code in (401, 403):
+                raise ApiAuthError(r.status_code)
+            if r.status_code == 404:
+                raise FileNotFoundError(url)
+            if r.status_code in (429, 500, 502, 503, 504):
+                raise httpx.HTTPStatusError(f"{r.status_code}", request=r.request, response=r)
+            r.raise_for_status()
+            return r.json()
+        except (ApiAuthError, ApiRedirectError, FileNotFoundError):
+            raise
+        except (httpx.HTTPStatusError, httpx.TransportError) as e:
+            if attempt >= retries:
+                raise
+            wait = delay
+            resp = getattr(e, "response", None)
+            ra = resp.headers.get("retry-after") if resp is not None else None
+            if ra and ra.strip().isdigit():
+                wait = min(float(ra), 120.0)
+            elif resp is not None and resp.status_code == 429:
+                wait = 60.0  # limite por minuto: espera a janela virar
+            log.warning("tentativa %d falhou em %s (%s); aguardando %.0fs", attempt + 1, url.split("?")[0], getattr(resp, "status_code", type(e).__name__), wait)
+            sleep(wait)
+            delay = min(delay * 2, 60)
+    raise RuntimeError("unreachable")
