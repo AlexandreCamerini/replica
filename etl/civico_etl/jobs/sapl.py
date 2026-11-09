@@ -4,7 +4,10 @@
   civico-etl sapl.carregar  [--ibge CODIGO ...]     por câmara "ok": vereadores, mandatos, projetos, autorias, sessões,
                                                     presença e votos nominais da legislatura atual; casa vereador com o TSE
   civico-etl sapl.todas                             descobrir + carregar (padrão: capitais)
-  Opções: --full (recarrega tudo), --escopo capitais|todas, --lote N [--offset K] (janela de N câmaras), --orcamento-min M.
+  civico-etl sapl.ales [--uf RO ...]                Assembleias com SAPL 3.x (RO, AC, AM, PI, PB; D09): mesmo adaptador, casa = UF
+  Opções: --full (recarrega tudo), --escopo capitais|todas, --lote N [--offset K] (janela de N câmaras), --orcamento-min M,
+          --workers W (câmaras em paralelo; hosts distintos, 1,1 s por host continua valendo), --casa-max-min M (prazo de uma câmara),
+          --lote-descoberta N, --max-pendentes N (D08: escala; ver replica/decisions.md D269–D272).
 
 Descoberta (D126): a fonte da URL é a página "Órgãos atendidos" do Interlegis
 (www12.senado.leg.br/interlegis/orgaosatendidos?uf=..&municipio=..; com &servico= a página dá 500), cartão "Câmara Municipal", linha "SAPL".
@@ -34,7 +37,9 @@ import html as htmllib
 import logging
 import re
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterator, NamedTuple
 from urllib.parse import quote, urlencode
@@ -57,6 +62,10 @@ UPDATED_MARGIN_DAYS = 2  # matérias editadas: relê de (última leitura - 2 dia
 STALE_DAYS = 6  # câmara carregada há mais que isso volta à fila (incremental, barata) antes de qualquer câmara nova
 MAX_PENDING_OK = 60  # não descobre mais enquanto houver tantas câmaras "ok" ainda nunca carregadas (cada uma custa ~10 min)
 MARGIN = {"materias": 300, "autorias": 300, "presencas": 300, "votos": 1000}  # ids relidos abaixo do cursor
+BACKOFF_BASE_H = 6  # câmara que falhou: 6 h, 12 h, 24 h... até BACKOFF_MAX_H (D270)
+BACKOFF_MAX_H = 7 * 24
+NO_LEGISLATURE_RETRY_H = 48  # sem legislatura vigente no SAPL: tenta de novo em 2 dias, não a cada lote
+HOUSE_MAX_MIN = 25  # prazo de uma câmara (carga completa típica ~10 min): estourou = instável, entra em backoff
 REGISTRY = "https://www12.senado.leg.br/interlegis/orgaosatendidos"
 
 # Capitais com câmara municipal (Brasília não tem: CF art. 32). IBGE.
@@ -65,6 +74,38 @@ CAPITAIS = [
     "5002704", "3106200", "1501402", "2507507", "4106902", "2611606", "2211001", "3304557", "2408102", "4314902",
     "1100205", "1400100", "4205407", "3550308", "2800308", "1721000",
 ]
+
+# Assembleias Legislativas com SAPL 3.x aberto (D09). URL conferida em 09/11/2026: /api/ devolve o índice 3.x, robots.txt só barra
+# crawlers de SEO, legislatura vigente e presença/votos nominais publicados. Não se chuta domínio: uma ALE nova entra aqui depois de sondada.
+ALE_SAPL = {
+    "RO": "https://sapl.al.ro.leg.br",
+    "AC": "https://sapl.al.ac.leg.br",
+    "AM": "https://sapl.al.am.leg.br",
+    "PI": "https://sapl.al.pi.leg.br",
+    "PB": "https://sapl.al.pb.leg.br",
+}
+ALE_SOURCE = "sapl-ale"
+
+# prazo da câmara em curso, por thread (cada worker carrega uma câmara)
+_local = threading.local()
+
+
+class HouseTimeout(Exception):
+    pass
+
+
+def _check_deadline() -> None:
+    d = getattr(_local, "deadline", None)
+    if d is not None and time.monotonic() > d:
+        raise HouseTimeout(f"passou do prazo de {getattr(_local, 'limit_min', HOUSE_MAX_MIN):.0f} min por câmara")
+
+
+def house_ids(house: dict[str, Any]) -> tuple[str, str, str]:
+    """(dataset do run, slug da fonte, nome da casa). Câmara: sapl.<IBGE>; Assembleia (place = UF): sapl-ale.<uf>, fonte própria para
+    a frescor de uma não esconder a da outra (prefixo diferente de 'sapl.')."""
+    if house.get("kind") == "uf":
+        return f"{ALE_SOURCE}.{house['uf'].lower()}", ALE_SOURCE, "Assembleia Legislativa"
+    return f"sapl.{house.get('ibge_code')}", "sapl", "Câmara Municipal"
 
 
 # ------------------------------------------------------------------ registro do Interlegis (puro, testado)
@@ -116,6 +157,7 @@ def pages(base: str, path: str, params: dict[str, Any] | None = None, *, stop=No
     q = dict(params or {})
     q.setdefault("page_size", PAGE)
     for n in range(1, max_pages + 1):
+        _check_deadline()
         q["page"] = n
         try:
             d = _get(f"{base}/api/{path}/?{urlencode(q)}", max_age=max_age)
@@ -200,12 +242,19 @@ def to_discover(scope: list[str], state: dict[str, dict[str, Any]], now: datetim
     return out[:limit] if limit else out
 
 
+def backoff_until(fail_count: int, now: datetime) -> datetime:
+    """retry_after de uma câmara com `fail_count` falhas seguidas (>= 1): 6 h, 12 h, 24 h... teto de 7 dias."""
+    hours = min(BACKOFF_BASE_H * 2 ** max(fail_count - 1, 0), BACKOFF_MAX_H)
+    return now + timedelta(hours=hours)
+
+
 def load_queue(scope: list[str], state: dict[str, dict[str, Any]], limit: int | None, now: datetime | None = None) -> list[str]:
     """Fila de carga. 1º: câmaras 'ok' já carregadas com loaded_at mais velho que STALE_DAYS (incrementais, baratas), rodízio pela
-    tentativa mais antiga (uma que estourou o tempo vai para o fim); 2º: as nunca carregadas (cargas completas), nunca tentadas primeiro."""
+    tentativa mais antiga (uma que estourou o tempo vai para o fim); 2º: as nunca carregadas (cargas completas), nunca tentadas primeiro.
+    Câmara em backoff (retry_after no futuro, D270) fica fora até vencer: instável não come o orçamento todo lote."""
     now = now or datetime.now(timezone.utc)
     floor = datetime.min.replace(tzinfo=timezone.utc)
-    ok = [c for c in scope if (state.get(c) or {}).get("status") == "ok"]
+    ok = [c for c in scope if (state.get(c) or {}).get("status") == "ok" and not ((state[c].get("retry_after")) and state[c]["retry_after"] > now)]
     stale = [c for c in ok if state[c].get("loaded_at") and now - state[c]["loaded_at"] > timedelta(days=STALE_DAYS)]
     new = [c for c in ok if not state[c].get("loaded_at")]
     stale.sort(key=lambda c: (state[c]["last_attempt_at"] or floor, state[c]["loaded_at"], c))
@@ -363,13 +412,17 @@ def _no_legislature(conn: psycopg.Connection, house: dict[str, Any], legs: list[
     """Condição da fonte, não falha: motivo em data_coverage (se nunca carregou) e em sapl_houses.note. O run é gravado direto em
     ingest_runs como skipped_unchanged (com o motivo) SEM passar por db.run: não carimba dataset_stamps (não há dado por trás)."""
     why = no_legislature_reason(legs, today)
+    ds, src, casa = house_ids(house)
+    if casa != "Câmara Municipal":
+        why = why.replace("Câmara Municipal", casa)
     log.info("SAPL %s: %s", house["name"], why)
-    conn.execute("update sapl_houses set note = %s, last_attempt_at = now(), last_outcome = 'sem_legislatura' where id = %s", (why[:500], house["id"]))
+    conn.execute("update sapl_houses set note = %s, last_attempt_at = now(), last_outcome = 'sem_legislatura', retry_after = now() + make_interval(hours => %s) where id = %s",
+                 (why[:500], NO_LEGISLATURE_RETRY_H, house["id"]))
     if not house.get("loaded_at"):  # já carregada antes: não rebaixa a cobertura do que está guardado
         upsert(conn, "data_coverage", ["place_id", "dataset", "status", "reason", "evidence_url", "checked_on"],
                [(house["place_id"], ds, "desconhecido", why, f"{house['base_url']}/parlamentar/", date.today()) for ds in ("propostas", "presenca", "votos")], ["place_id", "dataset"])
     conn.execute("insert into ingest_runs (source_id, dataset, status, finished_at, error) values (%s, %s, 'skipped_unchanged', now(), %s)",
-                 (db.source_id(conn, "sapl"), f"sapl.{house['ibge_code']}", why[:2000]))
+                 (db.source_id(conn, src), ds, why[:2000]))
     conn.commit()
 
 
@@ -383,7 +436,8 @@ def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | No
     if not leg:
         _no_legislature(conn, house, legs, today)
         return stats
-    with run(conn, f"sapl.{house['ibge_code']}", "sapl") as r:
+    ds, src, _casa = house_ids(house)
+    with run(conn, ds, src) as r:
         y0 = int(leg["data_inicio"][:4])
         ln = leg.get("numero")
         conn.execute("update sapl_houses set legislature_number = %s, legislature_start = %s, legislature_end = %s where id = %s",
@@ -510,7 +564,7 @@ def load_house(conn: psycopg.Connection, house: dict[str, Any], today: date | No
         log.info("SAPL %s: modos %s", house["name"], {e: f"{p.mode} ({p.why})" for e, p in final.items()})
 
         stats.update(match_vereadores(conn, house, leg))
-        conn.execute("update sapl_houses set loaded_at = now(), last_attempt_at = now(), last_outcome = 'carregada', note = null where id = %s", (hid,))
+        conn.execute("update sapl_houses set loaded_at = now(), last_attempt_at = now(), last_outcome = 'carregada', note = null, fail_count = 0, retry_after = null where id = %s", (hid,))
         r.add(sum(stats.values()))
         if stats.get("ambiguo") or stats.get("sem_candidato"):
             r.reject(stats.get("ambiguo", 0) + stats.get("sem_candidato", 0), "vereadores sem casamento único com o TSE (ver sapl_parlamentares.match_note)")
@@ -534,12 +588,21 @@ def match_names(sapl: dict[str, Any], candidates: list[dict[str, Any]]) -> tuple
 
 
 def match_vereadores(conn: psycopg.Connection, house: dict[str, Any], leg: dict[str, Any]) -> dict[str, int]:
+    """Casa parlamentar do SAPL com pessoa do TSE. Câmara: vereador do município. Assembleia (place = UF, D09): deputado estadual da UF."""
     hid = house["id"]
-    cands = [dict(r) for r in conn.execute(
-        """select distinct m.person_id::text as person_id, p.display_name, p.civil_name
-           from mandates m join offices o on o.id = m.office_id and o.slug = 'vereador' join people p on p.id = m.person_id
-           where m.place_id = %s and m.started_on < %s::date and m.ends_on > %s::date""",
-        (house["place_id"], leg["data_fim"], leg["data_inicio"]))]
+    if house.get("kind") == "uf":
+        cands = [dict(r) for r in conn.execute(
+            """select distinct m.person_id::text as person_id, p.display_name, p.civil_name
+               from mandates m join offices o on o.id = m.office_id and o.slug = 'deputado_estadual' join people p on p.id = m.person_id
+               join places pl on pl.id = m.place_id
+               where pl.uf = %s and m.status <> 'eleito_aguardando_posse' and m.started_on < %s::date and m.ends_on > %s::date""",
+            (house["uf"], leg["data_fim"], leg["data_inicio"]))]
+    else:
+        cands = [dict(r) for r in conn.execute(
+            """select distinct m.person_id::text as person_id, p.display_name, p.civil_name
+               from mandates m join offices o on o.id = m.office_id and o.slug = 'vereador' join people p on p.id = m.person_id
+               where m.place_id = %s and m.started_on < %s::date and m.ends_on > %s::date""",
+            (house["place_id"], leg["data_fim"], leg["data_inicio"]))]
     in_leg = {r["parlamentar_sapl_id"] for r in conn.execute("select distinct parlamentar_sapl_id from sapl_mandatos where house_id = %s and legislature_number = %s",
                                                               (hid, leg.get("numero")))}
     count: dict[str, int] = {}
@@ -560,20 +623,61 @@ def match_vereadores(conn: psycopg.Connection, house: dict[str, Any], leg: dict[
 
 
 def set_coverage(conn: psycopg.Connection, house: dict[str, Any], stats: dict[str, int]) -> None:
-    """data_coverage da cidade (D129): 'carregando' = lido pelo ETL e guardado; aparece no crachá de vereador (D115). Sem linha na fonte não vira
-    'nao_publica' (a câmara pode publicar fora do SAPL): fica 'desconhecido' com o motivo."""
+    """data_coverage da cidade (D129) ou da UF (D09): 'carregando' = lido pelo ETL e guardado; aparece no crachá do parlamentar. Sem linha na fonte
+    não vira 'nao_publica' (a casa pode publicar fora do SAPL): fica 'desconhecido' com o motivo."""
     url = house["base_url"]
     today = date.today()
+    _ds, _src, casa = house_ids(house)
+    onde = "crachá de vereador (bloco da Câmara Municipal)" if casa == "Câmara Municipal" else "crachá de deputado estadual (bloco da Assembleia)"
     sets = {
-        "propostas": ("carregando", f"projetos da legislatura atual lidos do SAPL da Câmara Municipal ({stats.get('materias', 0)}); aparece no crachá de vereador (bloco da Câmara Municipal)", f"{url}/materia/pesquisar-materia"),
-        "presenca": (("carregando", f"presença em sessão plenária lida do SAPL ({stats.get('presencas', 0)} registros); aparece no crachá de vereador (bloco da Câmara Municipal)") if stats.get("presencas")
-                     else ("desconhecido", "o SAPL da Câmara Municipal não tem presença registrada nesta legislatura")) + (f"{url}/sessao/pesquisar-sessao",),
-        "votos": (("carregando", f"votos nominais lidos do SAPL ({stats.get('votos', 0)}); aparece no crachá de vereador (bloco da Câmara Municipal)") if stats.get("votos")
-                  else ("desconhecido", "o SAPL da Câmara Municipal não tem voto nominal registrado nesta legislatura")) + (f"{url}/sessao/pesquisar-sessao",),
+        "propostas": ("carregando", f"projetos da legislatura atual lidos do SAPL da {casa} ({stats.get('materias', 0)}); aparece no {onde}", f"{url}/materia/pesquisar-materia"),
+        "presenca": (("carregando", f"presença em sessão plenária lida do SAPL ({stats.get('presencas', 0)} registros); aparece no {onde}") if stats.get("presencas")
+                     else ("desconhecido", f"o SAPL da {casa} não tem presença registrada nesta legislatura")) + (f"{url}/sessao/pesquisar-sessao",),
+        "votos": (("carregando", f"votos nominais lidos do SAPL ({stats.get('votos', 0)}); aparece no {onde}") if stats.get("votos")
+                  else ("desconhecido", f"o SAPL da {casa} não tem voto nominal registrado nesta legislatura")) + (f"{url}/sessao/pesquisar-sessao",),
     }
     upsert(conn, "data_coverage", ["place_id", "dataset", "status", "reason", "evidence_url", "checked_on"],
            [(house["place_id"], ds, st, reason, ev, today) for ds, (st, reason, ev) in sets.items()], ["place_id", "dataset"])
     conn.commit()
+
+
+# ------------------------------------------------------------------ Assembleias com SAPL (D09)
+
+
+def discover_ales(conn: psycopg.Connection, ufs: list[str]) -> list[dict[str, Any]]:
+    """Registra a casa de cada UF em sapl_houses (place_id = UF) depois de conferir que {url}/api/ é o índice do SAPL 3.x. A URL vem de ALE_SAPL."""
+    out = []
+    upsert(conn, "sources", ["slug", "name", "url", "license"],
+           [(ALE_SOURCE, "SAPL das Assembleias Legislativas (Interlegis)", "https://www.interlegis.leg.br/produtos/sapl", None)], ["slug"])
+    with run(conn, f"{ALE_SOURCE}.descoberta", ALE_SOURCE) as r:
+        for uf in ufs:
+            base = ALE_SAPL.get(uf)
+            row = conn.execute(
+                """select p.id as place_id, b.id as body_id from places p
+                   left join legislative_bodies b on b.place_id = p.id and b.kind in ('assembleia', 'camara_legislativa_df')
+                   where p.kind = 'uf' and p.uf = %s""", (uf,)).fetchone()
+            if not base or not row or not row["body_id"]:
+                r.reject(1, f"{uf}: sem URL de SAPL cadastrada em ALE_SAPL ou sem Assembleia em legislative_bodies")
+                continue
+            status, note = "ok", None
+            try:
+                status = "ok" if is_sapl_api(_get(f"{base}/api/", max_age=DAY)) else "sem_api"
+                if status == "sem_api":
+                    note = "a URL responde, mas sem a API REST do SAPL 3.x"
+            except Blocked as e:
+                status, note = "robots_bloqueia", str(e)[:500]
+            except Exception as e:  # noqa: BLE001
+                status, note = ("sem_api" if isinstance(e, FileNotFoundError) else "fora_do_ar"), f"{type(e).__name__}: {e}"[:500]
+            log.info("SAPL Assembleia %s: %s %s", uf, status, note or "")
+            upsert(conn, "sapl_houses", ["place_id", "body_id", "base_url", "registry_url", "registry_status", "status", "note", "checked_at"],
+                   [(str(row["place_id"]), str(row["body_id"]), base, base, "conferido à mão em 09/11/2026", status, note, db.now_utc())], ["place_id"],
+                   update=["body_id", "base_url", "status", "note", "checked_at"])
+            conn.execute("update legislative_bodies set adapter = 'sapl', open_data_url = %s, updated_at = now() where id = %s and (adapter <> 'sapl' or open_data_url is distinct from %s)",
+                         (base, row["body_id"], base))
+            out.append({"uf": uf, "status": status})
+        conn.commit()
+        r.add(len(out))
+    return out
 
 
 # ------------------------------------------------------------------ CLI
@@ -585,30 +689,79 @@ def _scope(conn: psycopg.Connection, escopo: str) -> list[str]:
     return [r["ibge_code"] for r in conn.execute("select ibge_code from places where kind = 'municipio' and ibge_code is not null order by ibge_code")]
 
 
-def _state(conn: psycopg.Connection, codes: list[str]) -> dict[str, dict[str, Any]]:
-    return {r["ibge_code"]: dict(r) for r in conn.execute(
-        """select pl.ibge_code, h.status, h.checked_at, h.last_attempt_at, h.loaded_at from sapl_houses h join places pl on pl.id = h.place_id
-           where pl.ibge_code = any(%s)""", (codes,))}
+_STATE_COLS = "h.status, h.checked_at, h.last_attempt_at, h.loaded_at, h.retry_after, h.fail_count"
+
+
+def _state(conn: psycopg.Connection, codes: list[str], *, ales: bool = False) -> dict[str, dict[str, Any]]:
+    """Estado das casas por código (IBGE do município; sigla da UF para Assembleia)."""
+    key, where = ("pl.uf", "pl.kind = 'uf'") if ales else ("pl.ibge_code", "pl.kind = 'municipio'")
+    return {r["code"]: dict(r) for r in conn.execute(
+        f"select {key} as code, {_STATE_COLS} from sapl_houses h join places pl on pl.id = h.place_id where {where} and {key} = any(%s)", (codes,))}
+
+
+def _load_one(code: str, ales: bool, full: bool, t0: float, orcamento_min: float | None, casa_max_min: float) -> str:
+    """Carrega uma câmara numa conexão própria (roda em worker). Devolve 'ok' | 'falhou' | 'pulada' | 'adiada' (orçamento esgotado)."""
+    if orcamento_min and (time.monotonic() - t0) / 60 > orcamento_min:
+        return "adiada"
+    conn = db.connect()
+    key, kind = ("pl.uf", "uf") if ales else ("pl.ibge_code", "municipio")
+    try:
+        h = dict(conn.execute(f"select h.*, pl.ibge_code, pl.name, pl.uf, pl.kind from sapl_houses h join places pl on pl.id = h.place_id where pl.kind = %s and {key} = %s", (kind, code)).fetchone())
+        t1 = time.monotonic()
+        conn.execute("update sapl_houses set last_attempt_at = now() where id = %s", (h["id"],))
+        conn.commit()  # se o processo for morto no timeout, a câmara vai para o fim da fila, não para a cabeça
+        _local.deadline, _local.limit_min = t1 + casa_max_min * 60, casa_max_min
+        try:
+            s = load_house(conn, h, full=full)
+            conn.execute("update sapl_houses set last_duration_s = %s where id = %s", (int(time.monotonic() - t1), h["id"]))
+            conn.commit()
+            log.info("SAPL %s em %.0fs: %s", h["name"], time.monotonic() - t1, s)
+            return "ok"
+        except SkipUnchanged:
+            return "pulada"  # condição da fonte (ex.: sem legislatura vigente): já registrada como cobertura
+        except Exception as e:  # noqa: BLE001 - uma câmara fora do ar não derruba as outras
+            conn.rollback()
+            log.error("SAPL %s falhou: %s", h["name"], e)
+            n = int(h.get("fail_count") or 0) + 1
+            conn.execute(
+                "update sapl_houses set note = %s, last_attempt_at = now(), last_outcome = 'falhou', fail_count = %s, retry_after = %s, last_duration_s = %s where id = %s",
+                (f"carga falhou em {date.today()} (falha {n} seguida): {e}"[:500], n, backoff_until(n, datetime.now(timezone.utc)), int(time.monotonic() - t1), h["id"]))
+            conn.commit()
+            return "falhou"
+        finally:
+            _local.deadline = None
+    finally:
+        conn.close()
 
 
 def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(prog="civico-etl sapl.*")
-    p.add_argument("job", choices=["sapl.descobrir", "sapl.carregar", "sapl.todas"])
+    p.add_argument("job", choices=["sapl.descobrir", "sapl.carregar", "sapl.todas", "sapl.ales"])
     p.add_argument("--ibge", action="append", help="código IBGE do município (repetível); padrão: o escopo")
+    p.add_argument("--uf", action="append", help="sapl.ales: sigla da UF (repetível); padrão: todas em ALE_SAPL")
     p.add_argument("--escopo", choices=["capitais", "todas"], default="capitais", help="capitais (padrão) ou todos os municípios (descoberta em lotes)")
-    p.add_argument("--lote", type=int, help="no máximo N câmaras por execução (descobrir e carregar); sem --offset segue a fila (nunca tentadas, depois a tentativa mais antiga)")
+    p.add_argument("--lote", type=int, help="no máximo N câmaras por execução (carregar); sem --offset segue a fila (nunca tentadas, depois a tentativa mais antiga)")
+    p.add_argument("--lote-descoberta", type=int, help="no máximo N câmaras novas descobertas por execução (padrão: --lote)")
     p.add_argument("--offset", type=int, help="com --lote: janela fixa [offset, offset+lote) do escopo ordenado por IBGE")
     p.add_argument("--max", type=int, default=10, help="carregar no máximo N câmaras 'ok' (padrão 10; --lote tem precedência)")
+    p.add_argument("--max-pendentes", type=int, default=MAX_PENDING_OK, help="não descobre mais enquanto houver N câmaras 'ok' ainda nunca carregadas")
     p.add_argument("--full", action="store_true", help="carga completa (ignora os cursores)")
     p.add_argument("--orcamento-min", type=float, help="não começa nova câmara depois de M minutos")
+    p.add_argument("--casa-max-min", type=float, default=HOUSE_MAX_MIN, help="prazo de uma câmara; estourou = falha com backoff (padrão 25)")
+    p.add_argument("--workers", type=int, default=1, help="câmaras em paralelo (hosts distintos; o intervalo de 1,1 s por host continua valendo)")
     a = p.parse_args(argv)
     conn = db.connect()
     failed = 0
     t0 = time.monotonic()
+    ales = a.job == "sapl.ales"
     try:
         limit = a.lote or a.max
         now = datetime.now(timezone.utc)
-        if a.ibge:
+        if ales:
+            scope = [u.upper() for u in (a.uf or ALE_SAPL)]
+            discover_ales(conn, scope)
+            todo_discover = []
+        elif a.ibge:
             scope = list(a.ibge)
             todo_discover = scope
         else:
@@ -616,41 +769,26 @@ def main(argv: list[str]) -> int:
             if a.offset is not None:
                 scope = window(scope, a.lote, a.offset)
             st0 = _state(conn, scope)
-            lim = None if a.offset is not None else a.lote
-            todo_discover = to_discover(scope, st0, now, lim if a.offset is not None else discover_budget(lim, st0))
+            dlim = a.lote_descoberta or a.lote
+            todo_discover = to_discover(scope, st0, now, dlim if a.offset is not None else discover_budget(dlim, st0, a.max_pendentes))
             if not todo_discover and any(c not in st0 for c in scope):
-                log.info("SAPL: descoberta pausada (>= %d câmaras 'ok' ainda sem carga); a fila de carga drena primeiro", MAX_PENDING_OK)
+                log.info("SAPL: descoberta pausada (>= %d câmaras 'ok' ainda sem carga); a fila de carga drena primeiro", a.max_pendentes)
         if a.job in ("sapl.descobrir", "sapl.todas") and todo_discover:
             discover(conn, todo_discover)
-        if a.job in ("sapl.carregar", "sapl.todas"):
-            state = _state(conn, scope)
+        if a.job in ("sapl.carregar", "sapl.todas", "sapl.ales"):
+            state = _state(conn, scope, ales=ales)
             order = load_queue(scope, state, limit, now)
             if a.ibge:  # explícito: ordem por nome, como antes
                 order = [c for c in scope if (state.get(c) or {}).get("status") == "ok"][:limit]
             if not order:
-                log.info("SAPL: nenhuma câmara 'ok' na fila deste lote")
-            houses = {h["ibge_code"]: dict(h) for h in conn.execute(
-                """select h.*, pl.ibge_code, pl.name from sapl_houses h join places pl on pl.id = h.place_id where pl.ibge_code = any(%s)""", (order or [""],))}
-            for code in order:  # uma câmara por vez
-                if a.orcamento_min and (time.monotonic() - t0) / 60 > a.orcamento_min:
-                    log.info("SAPL: orçamento de %.0f min esgotado; restantes ficam para o próximo lote", a.orcamento_min)
-                    break
-                h = houses[code]
-                t1 = time.monotonic()
-                conn.execute("update sapl_houses set last_attempt_at = now() where id = %s", (h["id"],))
-                conn.commit()  # se o processo for morto no timeout, a câmara vai para o fim da fila, não para a cabeça
-                try:
-                    s = load_house(conn, h, full=a.full)
-                    log.info("SAPL %s em %.0fs: %s", h["name"], time.monotonic() - t1, s)
-                except SkipUnchanged:
-                    continue  # condição da fonte (ex.: sem legislatura vigente): já registrada como cobertura
-                except Exception as e:  # noqa: BLE001 - uma câmara fora do ar não derruba as outras
-                    failed += 1
-                    conn.rollback()
-                    log.error("SAPL %s falhou: %s", h["name"], e)
-                    conn.execute("update sapl_houses set note = %s, last_attempt_at = now(), last_outcome = 'falhou' where id = %s",
-                                 (f"carga falhou em {date.today()}: {e}"[:500], h["id"]))
-                    conn.commit()
+                log.info("SAPL: nenhuma câmara 'ok' na fila deste lote (em backoff ou já em dia)")
+            conn.commit()
+            with ThreadPoolExecutor(max_workers=max(a.workers, 1)) as ex:
+                results = list(ex.map(lambda c: _load_one(c, ales, a.full, t0, a.orcamento_min, a.casa_max_min), order))
+            failed = results.count("falhou")
+            if "adiada" in results:
+                log.info("SAPL: orçamento de %.0f min esgotado; %d câmaras ficam para o próximo lote", a.orcamento_min or 0, results.count("adiada"))
+            log.info("SAPL: %s", {k: results.count(k) for k in sorted(set(results))})
     finally:
         conn.close()
     return 1 if failed else 0

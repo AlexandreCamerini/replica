@@ -10,6 +10,9 @@ Pensado para ser chamado de hora em hora (launchd, cron ou GitHub Actions; ver e
      O alerta sai sempre, mesmo se a própria agenda quebrar no meio (finally).
 ETL_DEADLINE_MIN (opcional): orçamento da chamada; tarefa que não cabe é adiada (reserva de RESERVE_MIN para o fim).
 Saída de cada tarefa: ETL_STATE_DIR/logs/<job>.log (sobrevive a timeout).
+Filtro por ambiente (D274): ETL_TASKS_EXCLUDE="a,b" tira tarefas desta chamada (o Actions não roda o SAPL das câmaras, que é do Mac); ETL_TASKS_INCLUDE="a,b"
+roda só essas (o launchd do Mac roda só o SAPL das câmaras). Nome fora de TASKS é erro, não silêncio. A fonte (Task.source) de tarefa filtrada não
+conta como "fora do prazo" no alerta daquela chamada: o frescor dela é de quem roda a tarefa, e o site e o vigia seguem acusando se envelhecer.
 Saída: 0 tudo certo; 2 houve alerta (falha, check quebrado, fonte fora do prazo ou run órfão).
 
 Janela horária (catálogo D06): tarefa com `window` só vence dentro dela (hora de Brasília e dias da semana), e uma vez por janela: vencida =
@@ -47,11 +50,12 @@ log = logging.getLogger("etl.schedule")
 H = 1
 D = 24
 SCHEDULER_LOCK = "etl.scheduler"
+DEDICATED_LOCK = "etl.scheduler.sapl"  # chamada dedicada (ETL_TASKS_INCLUDE): não disputa o lock do Actions, que não roda essas tarefas
 ORPHAN_AFTER = timedelta(hours=1)
 STUCK_AFTER = timedelta(hours=8)  # lock da agenda ocupado há mais que isso = agenda travada: alerta
 RESERVE_MIN = 45  # minutos guardados no fim para identity.repairs, derive.stats, check e alerta
 # Datasets que carimbam sem trazer dado da casa (descoberta do SAPL): não contam como "fonte em dia".
-NOT_FRESHNESS = ("sapl.descoberta",)
+NOT_FRESHNESS = ("sapl.descoberta", "sapl-ale.descoberta")
 
 # Mesma régua de web/src/lib/sources.ts (SOURCE_META[*].maxAgeHours); test_schedule.py falha se divergir.
 MAX_AGE_H: dict[str, int] = {
@@ -62,6 +66,7 @@ MAX_AGE_H: dict[str, int] = {
     "alesp": 8 * D,
     "alemg": 8 * D,
     "sapl": 8 * D,
+    "sapl-ale": 8 * D,  # catálogo D09
     "tcu": 35 * D,
     "ibge-sidra": 120 * D,
     "bcb-sgs": 120 * D,
@@ -150,6 +155,7 @@ class Task:
     missing_ok: bool = False  # família ainda sem carimbo não conta (arquivo da eleição deste ano ainda não publicado)
     derives: bool = False  # o próprio job já roda derive.stats (cli.py); a agenda não repete no fim
     window: Window | None = None  # catálogo D06: só vence dentro dela, uma vez por janela
+    source: str | None = None  # chave de MAX_AGE_H que a tarefa alimenta (só onde é inequívoco); usada pelo filtro de tarefas (D274)
     needs_env: str | None = None  # catálogo D01: variável de ambiente (chave de API) sem a qual a tarefa é pulada, com o motivo
 
     def families(self, today: date) -> tuple[str, ...]:
@@ -181,9 +187,14 @@ TASKS: list[Task] = [
     Task("agenda.congresso", lambda t: ["agenda.congresso"], ("agenda.",), 20 * H, 1),
     Task("parlamento.extras", lambda t: ["parlamento.extras"], ("parlamento.extras",), 7 * D, 2, derives=True),
     Task("ale.todas", lambda t: ["ale.todas", "--no-derive"], ("alesp.", "alemg."), 6 * D, 4),
-    # SAPL: fila da própria job (nunca tentadas, depois a tentativa mais antiga); 150 por dia na descoberta e até 150 min de carga.
-    # Incremental por cursor (~30 s por câmara já carregada); a 1ª carga de cada câmara é completa (~10 min).
-    Task("sapl.todas", lambda t: ["sapl.todas", "--escopo", "todas", "--lote", "150", "--orcamento-min", "150"], ("sapl.",), 20 * H, 3),
+    # SAPL só alimenta sapl_* e o site lê direto de lá: derive.stats não precisa rodar depois (derives=True), o que também deixa a chamada dedicada
+    # do launchd (ETL_TASKS_INCLUDE, lock próprio) sem tocar em party_memberships enquanto o Actions roda (D274).
+    # D09: 5 Assembleias com SAPL, uma tarefa própria (prefixo sapl-ale.) para a frescor não se misturar com a das câmaras. Cargas pequenas.
+    Task("sapl.ales", lambda t: ["sapl.ales", "--workers", "5", "--casa-max-min", "40"], ("sapl-ale.",), 20 * H, 2, derives=True, source="sapl-ale"),
+    # D08: SAPL das câmaras, fila da própria job (em dia primeiro, nunca tentadas depois; casa em backoff fica fora). Orçamento por chamada:
+    # 150 min de carga, 4 câmaras em paralelo (hosts distintos; 1,1 s por host), prazo de 25 min por câmara, até 400 descobertas por dia e
+    # até 300 câmaras "ok" ainda sem carga antes de pausar a descoberta. Incremental por cursor (~30 s por câmara já carregada); a 1ª carga é completa (~10 min).
+    Task("sapl.todas", lambda t: ["sapl.todas", "--escopo", "todas", "--lote", "150", "--lote-descoberta", "400", "--max-pendentes", "300", "--orcamento-min", "150", "--workers", "4"], ("sapl.",), 20 * H, 3, derives=True, source="sapl"),
     Task("sancoes.tcu", lambda t: ["sancoes.tcu"], ("sancoes.",), 28 * D, 1),
     # catálogo D01–D03: API do Portal da Transparência com chave. Paginação inteira ao limite de requisições por minuto (transparencia.py).
     Task("transparencia.emendas", lambda t: ["transparencia.emendas"], ("transparencia.emendas.",), 7 * D, 3, needs_env="TRANSPARENCIA_API_KEY"),
@@ -267,11 +278,21 @@ def missed_window(task: Task, last_stamp: datetime | None, now: datetime) -> dic
     return {"task": task.name, "opened": w[0].isoformat(), "closed": w[1].isoformat()}
 
 
-def overdue_sources(stamps: dict[str, datetime | None], now: datetime, awaiting_key: frozenset[str] = frozenset()) -> list[dict]:
+def filtered_sources(include: frozenset[str] | None, exclude: frozenset[str]) -> tuple[frozenset[str] | None, frozenset[str]]:
+    """(só estas fontes | None, ignora estas) para o alerta de prazo, a partir do filtro de tarefas. Chamada dedicada (include) só responde
+    pelas fontes das suas tarefas; tarefa excluída tira a própria fonte do alerta desta chamada."""
+    only = None if include is None else frozenset(t.source for t in TASKS if t.name in include and t.source)
+    return only, frozenset(t.source for t in TASKS if t.name in exclude and t.source)
+
+
+def overdue_sources(stamps: dict[str, datetime | None], now: datetime, awaiting_key: frozenset[str] = frozenset(),
+                    ignore: frozenset[str] = frozenset(), only: frozenset[str] | None = None) -> list[dict]:
     """Mesma regra de freshness() em sources.ts: sem carga é estado próprio; fora do prazo = idade > maxAge.
     `awaiting_key`: fontes sem chave de API configurada; sem carga nenhuma, não alertam (o `plan` já registra o motivo)."""
     out = []
     for src, max_h in MAX_AGE_H.items():
+        if src in ignore or (only is not None and src not in only):
+            continue
         at = stamps.get(src)
         if at is None:
             if src in awaiting_key:
@@ -439,11 +460,35 @@ def awaiting_key_sources() -> frozenset[str]:
     return frozenset(src for src, env in SOURCE_ENV.items() if not env_ok(env))
 
 
-def plan(conn: psycopg.Connection, now: datetime, only: list[str] | None, force: bool, has_repairs: bool) -> tuple[list[tuple[Task, str]], list[dict]]:
+def task_filter(env: dict[str, str] | None = None) -> tuple[frozenset[str] | None, frozenset[str]]:
+    """(include, exclude) de ETL_TASKS_INCLUDE / ETL_TASKS_EXCLUDE (nomes separados por vírgula). include None = todas. Nome desconhecido: erro."""
+    env = os.environ if env is None else env
+    known = {t.name for t in TASKS}
+
+    def parse(var: str) -> frozenset[str] | None:
+        raw = (env.get(var) or "").strip()
+        if not raw:
+            return None
+        names = frozenset(x.strip() for x in raw.split(",") if x.strip())
+        bad = sorted(names - known)
+        if bad:
+            raise SystemExit(f"{var}: tarefa desconhecida {', '.join(bad)} (nomes em schedule.TASKS)")
+        return names
+
+    return parse("ETL_TASKS_INCLUDE"), parse("ETL_TASKS_EXCLUDE") or frozenset()
+
+
+def plan(conn: psycopg.Connection, now: datetime, only: list[str] | None, force: bool, has_repairs: bool,
+         include: frozenset[str] | None = None, exclude: frozenset[str] = frozenset()) -> tuple[list[tuple[Task, str]], list[dict]]:
     today = now.date()
     due, skipped = [], []
     for t in TASKS:
         if only and t.name not in only:
+            continue
+        if include is not None and t.name not in include:
+            continue  # chamada dedicada a outras tarefas (launchd do SAPL): nem aparece como "pula"
+        if t.name in exclude:
+            skipped.append({"task": t.name, "why": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar"})
             continue
         if t.needs_repairs and not has_repairs:
             skipped.append({"task": t.name, "why": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"})
@@ -471,10 +516,13 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
         raise SystemExit("defina ETL_DATABASE_URL")
     check_url(url)
     has_repairs = repairs_available()
+    include, exclude = task_filter()
+    only_src, ignore_src = filtered_sources(include, exclude)
+    lock_name, attempt_key = (DEDICATED_LOCK, "__run_due__:dedicada") if include is not None else (SCHEDULER_LOCK, "__run_due__")
 
     if dry_run:  # sem lock: dá para olhar enquanto outra chamada roda
         with _connect(url) as c:
-            due, skipped = plan(c, now, only, force, has_repairs)
+            due, skipped = plan(c, now, only, force, has_repairs, include, exclude)
         for t, why in due:
             print(f"rodaria {t.name}: {' '.join(t.argv(now.date()))}  ({why})")
         for s in skipped:
@@ -489,8 +537,8 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
         notify(rep, state_dir)
         return 2
     try:
-        if not lock.execute("select pg_try_advisory_lock(hashtext(%s)) as ok", (SCHEDULER_LOCK,)).fetchone()["ok"]:
-            r = lock.execute("select attempted_at from etl_schedule_attempts where task = '__run_due__'").fetchone()
+        if not lock.execute("select pg_try_advisory_lock(hashtext(%s)) as ok", (lock_name,)).fetchone()["ok"]:
+            r = lock.execute("select attempted_at from etl_schedule_attempts where task = %s", (attempt_key,)).fetchone()
             if r and now - r["attempted_at"] > STUCK_AFTER:
                 rep.error = f"agenda travada: lock ocupado desde {r['attempted_at']:%d/%m %H:%M} UTC"
                 notify(rep, state_dir)
@@ -500,12 +548,12 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
         people_ran = need_derive = False
         try:
             with _connect(url) as c:
-                mark_attempt(c, "__run_due__", start=True)
+                mark_attempt(c, attempt_key, start=True)
                 rep.orphans = sweep_orphans(c, now)
-                due, rep.skipped = plan(c, now, only, force, has_repairs)
+                due, rep.skipped = plan(c, now, only, force, has_repairs, include, exclude)
             today = now.date()
             for t in TASKS:
-                if (not only or t.name in only) and t.window and not (t.needs_env and not env_ok(t.needs_env)):
+                if (not only or t.name in only) and (include is None or t.name in include) and t.name not in exclude and t.window and not (t.needs_env and not env_ok(t.needs_env)):
                     with _connect(url) as c:
                         m = missed_window(t, last_stamp(c, t, now.date()), now)
                     if m:
@@ -531,9 +579,9 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
             rep.check_ok = _run_cli(["check"], 1, log_dir)["exit"] == 0
             with _connect(url) as c:
                 stamps, aw = source_stamps(c), awaiting_key_sources()
-                rep.overdue = overdue_sources(stamps, datetime.now(timezone.utc), aw)
+                rep.overdue = overdue_sources(stamps, datetime.now(timezone.utc), aw, ignore_src, only_src)
                 rep.awaiting = sorted(src for src in aw if stamps.get(src) is None)
-                mark_attempt(c, "__run_due__", start=False, exit_code=2 if rep.alert else 0)
+                mark_attempt(c, attempt_key, start=False, exit_code=2 if rep.alert else 0)
         except Exception as e:  # noqa: BLE001 - a agenda sempre alerta, mesmo quando ela mesma quebra
             log.exception("run-due quebrou")
             rep.error = f"{type(e).__name__}: {e}"[:500]
