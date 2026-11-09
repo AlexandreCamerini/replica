@@ -839,7 +839,7 @@ function CampaignOrigins({ origins, donors, year }: { origins: CampaignFinance["
   const named = [...donors].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   return (
     <div className="mt-4 border-t border-border pt-3" data-testid={`campanha-origem-${year}`}>
-      <h4 className="text-sm font-semibold text-fg">Por origem do dinheiro</h4>
+      <h3 className="text-sm font-semibold text-fg">Por origem do dinheiro</h3>{/* h3: a seção é h2 e não há h3 entre eles (axe heading-order) */}
       <p className="mt-1 text-xs text-muted">Fundo Eleitoral e Fundo Partidário são dinheiro público repassado pelo partido. Total: {money(total)}.</p>
       <table className="mt-2 w-full text-sm">
         <tbody>

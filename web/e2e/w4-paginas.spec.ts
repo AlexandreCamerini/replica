@@ -134,7 +134,10 @@ test.describe("S16 · /impostos", () => {
     await page.getByTestId("por-uf").locator("tbody th a").first().click();
     await expect(page).toHaveURL(/uf=/);
     await expect(page.getByTestId("por-mes").locator("tbody tr")).toHaveCount(12);
-    await expect(page.locator("#regra")).toContainText("recolhido");
+    await expect(page.locator("#regra")).toContainText("paga");
+    await expect(page.locator("#regra")).toContainText("Rio de Janeiro");
+    await expect(page.getByTestId("por-tributo").getByTestId("tributo-explica").first()).toBeAttached();
+    await expect(page.getByText(/top 5|ranking:/i)).toHaveCount(0);
     await expect(page.locator("main").getByText(/^Fonte:/)).toBeVisible();
   });
 
