@@ -367,15 +367,19 @@ export const pgSource: DataSource = {
   },
   async getAssembly(uf) {
     const [b] = await sql`
-      select b.adapter, b.place_id, s.slug, s.name as source_name, s.url as source_url
+      select b.adapter, b.place_id, coalesce(s.slug, case when b.adapter = 'sapl' then 'sapl-ale' end) as slug,
+             coalesce(s.name, case when b.adapter = 'sapl' then 'SAPL da Assembleia Legislativa' end) as source_name,
+             coalesce(s.url, b.open_data_url) as source_url, h.loaded_at as sapl_loaded_at
       from legislative_bodies b join places p on p.id = b.place_id
       left join sources s on b.adapter = 'ale_custom' and s.url = b.open_data_url
+      left join sapl_houses h on b.adapter = 'sapl' and h.place_id = b.place_id and h.status = 'ok'
       where p.kind = 'uf' and p.uf = ${uf.toUpperCase()} and b.kind in ('assembleia', 'camara_legislativa_df') limit 1`;
     if (!b) return null;
-    const read = b.adapter === "ale_custom" && !!b.slug;
+    const viaSapl = b.adapter === "sapl" && !!b.sapl_loaded_at; // D09: Assembleia lida pelo SAPL (sapl_*); um carimbo só, o da carga da casa
+    const read = (b.adapter === "ale_custom" && !!b.slug) || viaSapl;
     const cov = await sql`select dataset, status, reason, evidence_url, checked_on from data_coverage where place_id = ${b.place_id as string}::uuid and dataset in ('presenca', 'votos', 'propostas', 'gastos_gabinete')`;
     const STAMP: Partial<Record<AssemblyDataset, string>> = { propostas: "proposicoes", gastos_gabinete: "despesas", presenca: "presenca", votos: "votacoes" };
-    const stamps = read
+    const stamps = read && !viaSapl
       ? await sql`select split_part(dataset, '.', 2) as kind, max(refreshed_at) as at from dataset_stamps where dataset like ${String(b.slug) + ".%"} group by 1`
       : [];
     const at = new Map(stamps.map((r) => [String(r.kind), isoTs(r.at)]));
@@ -391,7 +395,7 @@ export const pgSource: DataSource = {
       items: order.map((d) => {
         const c = byDs.get(d);
         const kind = STAMP[d]!;
-        const refreshedAt = read ? (at.get(kind) ?? null) : null;
+        const refreshedAt = viaSapl ? isoTs(b.sapl_loaded_at) : read ? (at.get(kind) ?? null) : null;
         // só conta como lido o que tem carimbo; sem carga, "no_site" não vale (o motivo explica)
         const status = (c?.status as AssemblyInfo["items"][number]["status"]) ?? "desconhecido";
         return {
@@ -409,7 +413,7 @@ export const pgSource: DataSource = {
   },
   async getCityCouncil(personId) {
     const [sp] = await sql`
-      select sp.house_id, sp.sapl_id, h.base_url, h.legislature_number, h.legislature_start, h.legislature_end, h.loaded_at, pl.name as city, pl.uf
+      select sp.house_id, sp.sapl_id, h.base_url, h.legislature_number, h.legislature_start, h.legislature_end, h.loaded_at, pl.name as city, pl.uf, pl.kind as place_kind
       from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id join places pl on pl.id = h.place_id
       where sp.person_id = ${personId}::uuid and sp.match_status = 'casado' and h.status = 'ok' and h.loaded_at is not null
       order by h.loaded_at desc limit 1`;
@@ -434,6 +438,7 @@ export const pgSource: DataSource = {
       };
     }
     return {
+      house: sp.place_kind === "uf" ? "assembleia" : "camara_municipal",
       city: String(sp.city),
       uf: String(sp.uf),
       baseUrl: String(sp.base_url),

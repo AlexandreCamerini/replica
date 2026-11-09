@@ -29,6 +29,8 @@ export const SOURCE_META: Record<string, SourceMeta> = {
   },
   // W3-B: cadência = agenda do ETL (schedule.py, D250). maxAgeHours aqui e MAX_AGE_H lá são a mesma régua (test_schedule.py)
   sapl: { brings: "vereadores das câmaras municipais com SAPL já lidas: projetos com autoria, presença em sessão (sem porcentagem) e votos nominais", cadence: "toda câmara lida volta a ser conferida em até uma semana", everyHours: 20, maxAgeHours: 8 * 24 },
+  // D09: Assembleias que publicam no SAPL (RO, AC, AM, PI, PB). Fonte própria: a frescor de uma Assembleia não se esconde atrás das 900 câmaras
+  "sapl-ale": { brings: "deputados estaduais de RO, AC, AM, PI e PB: projetos com autoria, presença em sessão plenária (sem porcentagem) e votos nominais, como a Assembleia publica no SAPL", cadence: "toda Assembleia lida volta a ser conferida em até uma semana", everyHours: 20, maxAgeHours: 8 * 24 },
   tcu: { brings: "lista de inabilitados para função pública (sem CPF no site)", cadence: "uma vez por mês", everyHours: 28 * 24, maxAgeHours: 35 * 24 },
   alemg: {
     brings: "deputados estaduais de MG: verba indenizatória por mês (valor reembolsado) e proposições (projetos de lei, de lei complementar, de resolução e PECs) com autoria. Presença e votos em plenário não são publicados em dado aberto",
@@ -105,7 +107,7 @@ export function nextSchedulerTick(t: number): number {
 /** Fonte (chave de SOURCE_META) de um carimbo de `dataset_stamps` pelo prefixo do dataset. Prefixo ambíguo
  *  (agenda, governos, parlamento: mais de uma fonte ou cadência própria) devolve undefined e o rodapé não promete hora. */
 const DATASET_PREFIX: Record<string, string> = {
-  camara: "camara", senado: "senado", tse: "tse", ibge: "ibge", sapl: "sapl", alesp: "alesp", alemg: "alemg",
+  camara: "camara", senado: "senado", tse: "tse", ibge: "ibge", sapl: "sapl", "sapl-ale": "sapl-ale", alesp: "alesp", alemg: "alemg",
   receita: "receita-federal", transparencia: "transparencia", "sancoes.tcu": "tcu", "sancoes.cgu": "cgu",
 };
 export function slugForDataset(dataset: string | undefined): string | undefined {

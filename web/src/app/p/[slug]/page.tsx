@@ -79,8 +79,8 @@ export default async function Page({ params, searchParams }: Props) {
   const period: PeriodStats["period"] = yearParam ? (String(yearParam) as `${number}`) : "career";
   const rawStats = await data.getStats(person.id, period);
   // W3-B/D129: vereador de câmara lida pelo SAPL. Os números ficam no bloco próprio (sem porcentagem); o cartão diz onde estão
-  const council = main && main.office === "vereador" ? await data.getCityCouncil(person.id) : null;
-  const SAPL_NOTE = "está no bloco Câmara Municipal, lido do SAPL (sem porcentagem: a fonte não publica o total de sessões de cada mandato)";
+  const council = main && (main.office === "vereador" || main.office === "deputado_estadual") ? await data.getCityCouncil(person.id) : null;
+  const SAPL_NOTE = "está no bloco da casa legislativa, lido do SAPL (sem porcentagem: a fonte não publica o total de sessões de cada mandato)";
   const stats = council
     ? { ...rawStats, missing: rawStats.missing.map((x) => (["presenca", "propostas"].includes(x.dataset) || (x.dataset === "votos" && council.votes) ? { ...x, reason: SAPL_NOTE } : x)) }
     : rawStats;
@@ -142,7 +142,7 @@ export default async function Page({ params, searchParams }: Props) {
     const labels: Record<string, string> = { presenca: "Presença", votos: "Votos em plenário", propostas: "Propostas", gastos_gabinete: "Gastos do gabinete" };
     for (const it of assembly.items) if (it.stampDataset) numberSources.push(await stampLine(labels[it.dataset] ?? it.label, it.stampDataset));
   } else if (council) {
-    numberSources.push({ label: "Presença, propostas e votos", source: `SAPL da Câmara Municipal de ${council.city}`, href: council.baseUrl, updatedAt: council.loadedAt });
+    numberSources.push({ label: "Presença, propostas e votos", source: council.house === "assembleia" ? `SAPL da Assembleia Legislativa (${council.uf})` : `SAPL da Câmara Municipal de ${council.city}`, href: council.baseUrl, updatedAt: council.loadedAt });
   }
   // U01: "conferido com a lista oficial" = carimbo da lista da casa que sustenta o mandato; "registro mais recente" = fato mais novo da pessoa
   const ROSTER: Record<string, string> = { camara: "camara.deputados", senado: "senado.senadores", tse: "tse.candidatos" };
