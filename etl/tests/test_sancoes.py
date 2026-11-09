@@ -104,7 +104,8 @@ def test_cgu_casamento_conservador_com_motivo_em_todo_nao_vinculo(conn):
         assert "mais de uma pessoa" in got["4"]["match_note"] and "sem mandato ou candidatura na UF" in got["5"]["match_note"]
         assert "nenhuma pessoa" in got["6"]["match_note"] and "menos de 3 palavras" in got["7"]["match_note"]
         assert all(r["person_id"] or r["match_note"] for r in got.values())  # motivo para cada não-vínculo
-        assert stats["casado"] == 1
+        # com a carga real no banco, match() recasa também as linhas reais: conta contra o que ficou ligado, não contra 1
+        assert stats["casado"] == sum(1 for r in got.values() if r["person_id"]) and got["1"]["person_id"] == ana
         # invariantes do jobs/checks.py ficam verdes nesse estado e quebram se alguém ligar órgão federal
         from civico_etl.jobs.checks import CHECKS
 

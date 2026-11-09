@@ -121,7 +121,7 @@ def test_upsert_idempotente_e_invariante(conn):
     from civico_etl.db import upsert
     from civico_etl.jobs.checks import CHECKS
 
-    check = dict(CHECKS)["emendas: pago maior que empenhado"]
+    check = dict(CHECKS)["emendas: pago maior que empenhado mais resto a pagar inscrito"]
     vinculo = dict(CHECKS)["emendas: vínculo com pessoa sem método de casamento, ou emenda de bancada/comissão/relator ligada a uma pessoa"]
     items = [ITEM, {**ITEM, "codigoEmenda": "2", "nomeAutor": "Bancada de São Paulo", "tipoEmenda": "Emenda de Bancada", "localidadeDoGasto": "NACIONAL"}]
     rows, _ = E.build_rows(E.merge_rows([E.parse_emenda(i) for i in items])[0], PeopleIndex(), lambda uf, n: None)
@@ -130,12 +130,17 @@ def test_upsert_idempotente_e_invariante(conn):
         upsert(conn, "amendments", E.COLS, rows, ["source_key"])
         upsert(conn, "amendments", E.COLS, rows, ["source_key"])  # 2ª carga: mesma chave, sem duplicar
         assert conn.execute("select count(*) as n from amendments").fetchone()["n"] == before + 2
-        row = conn.execute("select * from amendments where api_code = '202443250001'").fetchone()
+        # pelo source_key da linha de teste: com a carga real no banco, o mesmo api_code pode existir com outra chave
+        key = dict(zip(E.COLS, rows[0]))["source_key"]
+        row = conn.execute("select * from amendments where source_key = %s", (key,)).fetchone()
         assert (row["committed_cents"], row["liquidated_cents"], row["paid_cents"]) == (100_000_000, 60_000_050, 40_000_025)
         assert list(conn.execute(check).fetchone().values())[0] == 0
         assert list(conn.execute(vinculo).fetchone().values())[0] == 0
-        # pago > empenhado quebra a invariante
-        conn.execute("update amendments set paid_cents = committed_cents + 1 where api_code = '202443250001'")
+        # pago > empenhado coberto por resto a pagar inscrito é número da fonte (D290): não quebra
+        conn.execute("update amendments set paid_cents = committed_cents + 1, resto_inscrito_cents = 1 where source_key = %s", (key,))
+        assert list(conn.execute(check).fetchone().values())[0] == 0
+        # acima de empenhado + inscrito quebra a invariante
+        conn.execute("update amendments set paid_cents = committed_cents + 2 where source_key = %s", (key,))
         assert list(conn.execute(check).fetchone().values())[0] == 1
         # emenda de bancada ligada a uma pessoa quebra a outra
         pid = conn.execute("select id from people limit 1").fetchone()["id"]
