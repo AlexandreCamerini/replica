@@ -78,3 +78,4 @@ Patrimônio corrigido pela inflação,cracha,could,no,yes,D267 (catálogo U13): 
 Exemplos clicáveis na busca de cidade,representantes,could,yes,yes,D268 (catálogo U14)
 SAPL em escala: backoff, prazo por câmara, workers e lote configuráveis,representantes,must,no,yes,"D269–D271 (catálogo D08): medido +1,5 MB por câmara carregada"
 Assembleias com SAPL (RO AC AM PI PB),representantes,should,no,yes,"D272–D273 (catálogo D09): 4 deputados conferidos contra o SAPL da casa"
+SAPL das câmaras no Mac por launchd (Keychain, sem Actions),representantes,should,no,yes,"D274: ETL_TASKS_EXCLUDE no etl.yml; launchd-sapl-prod.sh; URI só no Keychain"

@@ -293,3 +293,52 @@ def test_tarefa_com_chave_ausente_e_pulada_com_motivo(conn, monkeypatch):
     r = S.Report(started_at=NOW.isoformat())
     r.awaiting = ["cgu", "transparencia"]
     assert not r.alert and "aguardam chave" in r.text()
+
+
+# ---------------------------------------------------------------- D274: filtro de tarefas por ambiente (Actions sem SAPL de câmara; Mac só com ele)
+
+
+def test_filtro_le_o_ambiente_e_recusa_nome_desconhecido():
+    assert S.task_filter({}) == (None, frozenset())
+    assert S.task_filter({"ETL_TASKS_EXCLUDE": " sapl.todas , "}) == (None, frozenset({"sapl.todas"}))
+    assert S.task_filter({"ETL_TASKS_INCLUDE": "sapl.todas"}) == (frozenset({"sapl.todas"}), frozenset())
+    with pytest.raises(SystemExit, match="desconhecida"):
+        S.task_filter({"ETL_TASKS_EXCLUDE": "sapl.todsa"})  # erro de digitação não pode virar "filtro que não filtra"
+
+
+def test_exclude_pula_so_as_camaras_e_mantem_as_ales(monkeypatch):
+    class _C:
+        def execute(self, *a, **k):
+            class _R:
+                def fetchone(s):
+                    return None
+            return _R()
+
+    monkeypatch.setattr(S, "last_stamp", lambda *a: None)
+    monkeypatch.setattr(S, "last_attempt", lambda *a: None)
+    due, skipped = S.plan(_C(), NOW, ["sapl.todas", "sapl.ales"], False, True, None, frozenset({"sapl.todas"}))
+    assert [t.name for t, _ in due] == ["sapl.ales"]
+    assert [s["task"] for s in skipped] == ["sapl.todas"] and "ETL_TASKS_EXCLUDE" in skipped[0]["why"]
+    due, skipped = S.plan(_C(), NOW, None, False, True, frozenset({"sapl.todas"}), frozenset())
+    assert [t.name for t, _ in due] == ["sapl.todas"] and skipped == []  # include: as outras nem aparecem
+
+
+def test_tarefa_filtrada_nao_vira_fora_do_prazo():
+    st = {k: NOW for k in S.MAX_AGE_H}
+    st["sapl"] = NOW - timedelta(days=30)
+    assert {o["source"] for o in S.overdue_sources(st, NOW)} == {"sapl"}
+    only, ignore = S.filtered_sources(None, frozenset({"sapl.todas"}))  # Actions
+    assert S.overdue_sources(st, NOW, frozenset(), ignore, only) == []
+    st["sapl-ale"] = NOW - timedelta(days=30)  # a ALE continua com o Actions: continua acusando
+    assert [o["source"] for o in S.overdue_sources(st, NOW, frozenset(), ignore, only)] == ["sapl-ale"]
+    only, ignore = S.filtered_sources(frozenset({"sapl.todas"}), frozenset())  # Mac: só responde pelo SAPL das câmaras
+    st["camara"] = NOW - timedelta(days=30)
+    assert [o["source"] for o in S.overdue_sources(st, NOW, frozenset(), ignore, only)] == ["sapl"]
+
+
+def test_workflow_exclui_o_sapl_das_camaras_e_a_tarefa_existe():
+    wf = WORKFLOW.read_text()
+    m = re.search(r'ETL_TASKS_EXCLUDE:\s*"([^"]+)"', wf)
+    assert m, "etl.yml precisa passar ETL_TASKS_EXCLUDE"
+    names = set(m.group(1).split(","))
+    assert names == {"sapl.todas"} and names <= {t.name for t in S.TASKS}

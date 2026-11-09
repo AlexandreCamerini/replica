@@ -1,4 +1,6 @@
-# Onde rodar o SAPL em escala (D08) — comparativo para o dono decidir
+# Onde rodar o SAPL em escala (D08) — comparativo
+
+**Decidido pelo dono em 09/11/2026: launchd local (Mac), não Actions. Ver D274 e `etl/deploy/launchd-sapl-prod.sh`.**
 
 Preços consultados em 09/11/2026 nas páginas oficiais; confira de novo antes de contratar. Nada foi contratado nem criado.
 
