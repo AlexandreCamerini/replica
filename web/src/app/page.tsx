@@ -49,7 +49,11 @@ export default async function Entrada() {
           As próximas
         </h2>
         {n === 0 ? (
-          <p className="plate p-4 font-serif text-[19px] text-fg">Nenhuma proposta mexe no bolso nesta semana. A pauta foi lida; não há item deste tipo até {until}.</p>
+          <p className="plate p-4 font-serif text-[19px] text-fg">
+            {o.week.readAt
+              ? <>Nenhuma proposta mexe no bolso nesta semana. A pauta foi lida; não há item deste tipo até {until}.</>
+              : <>A pauta ainda não foi lida. Quando for, o número aparece aqui.</>}
+          </p>
         ) : (
           <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {o.plenary.slice(0, 3).map((e) => (
