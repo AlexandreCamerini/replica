@@ -62,13 +62,14 @@ def test_repetida_idêntica_descarta_e_mesma_chave_soma():
 IDX = PeopleIndex(
     by_name={"ana souza": ["p-ana"], "joao lima": ["p-j1", "p-j2"], "carlos rocha": ["p-carlos"], "maria sem mandato": ["p-m"]},
     federal={"p-ana": [(date(2023, 2, 1), date(2027, 2, 1))], "p-j1": [(date(2023, 2, 1), date(2027, 2, 1))], "p-carlos": [(date(2015, 2, 1), date(2019, 2, 1))]},
+    ufs={"p-ana": {"SP"}, "p-j1": {"MG"}, "p-carlos": {"RJ"}},
 )
 
 
 def test_casamento_conservador():
-    ok = E.match_author("ANA SOUZA", "individual", 2024, IDX)
+    ok = E.match_author("ANA SOUZA", "individual", 2024, IDX, "SP")
     assert ok[0] == "p-ana" and ok[1] == 0.9
-    assert E.match_author("Deputada Federal Ana Souza", "individual_pix", 2024, IDX)[0] == "p-ana"  # título removido, mesmo nome
+    assert E.match_author("Deputada Federal Ana Souza", "individual_pix", 2024, IDX, "sp")[0] == "p-ana"  # título removido, mesmo nome
     for name, kind, why in [
         ("JOÃO LIMA", "individual", "homônimo"),
         ("CARLOS ROCHA", "individual", "não tem mandato"),  # nome único, mandato de outra legislatura
@@ -79,17 +80,25 @@ def test_casamento_conservador():
         ("ANA SOUZA", "comissao", "comiss"),
         ("ANA SOUZA", "relator", "relator"),
     ]:
-        pid, conf, note = E.match_author(name, kind, 2024, IDX)
+        pid, conf, note = E.match_author(name, kind, 2024, IDX, "SP")
         assert pid is None and conf is None and why in note.lower(), (name, kind, note)
 
 
 def test_mandato_precisa_cobrir_o_ano_da_emenda():
-    assert E.match_author("CARLOS ROCHA", "individual", 2018, IDX)[0] == "p-carlos"
-    assert E.match_author("CARLOS ROCHA", "individual", 2024, IDX)[0] is None
+    assert E.match_author("CARLOS ROCHA", "individual", 2018, IDX, "RJ")[0] == "p-carlos"
+    assert E.match_author("CARLOS ROCHA", "individual", 2024, IDX, "RJ")[0] is None
+
+
+def test_homonimo_exige_uf_compativel_ou_baixa_a_confianca():
+    pid, conf, note = E.match_author("ANA SOUZA", "individual", 2024, IDX)  # fonte sem UF do autor
+    assert pid is None and conf == 0.8 and conf < E.LINK_MIN_CONFIDENCE and "UF do autor" in note
+    pid, conf, note = E.match_author("ANA SOUZA", "individual", 2024, IDX, "BA")  # UF de outro estado = outra Ana Souza
+    assert pid is None and conf is None and "UF" in note
+    assert E.match_author("ANA SOUZA", "individual", 2024, IDX, "SP")[:2] == ("p-ana", 0.9)
 
 
 def test_build_rows_motivo_em_todo_nao_vinculo():
-    p = E.merge_rows([E.parse_emenda(ITEM), E.parse_emenda({**ITEM, "codigoEmenda": "9", "nomeAutor": "NINGUEM", "localidadeDoGasto": "NACIONAL"})])[0]
+    p = E.merge_rows([E.parse_emenda({**ITEM, "ufAutor": "SP"}), E.parse_emenda({**ITEM, "codigoEmenda": "9", "nomeAutor": "NINGUEM", "localidadeDoGasto": "NACIONAL"})])[0]
     rows, stats = E.build_rows(p, IDX, lambda uf, name: "place-campinas" if (uf, name) == ("SP", "campinas") else None)
     cols = E.COLS
     by = {r[cols.index("api_code")]: dict(zip(cols, r)) for r in rows}

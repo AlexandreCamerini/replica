@@ -572,8 +572,11 @@ export async function Contact({ personId }: { personId: string }) {
   );
 }
 
-/** Ato legal citado na especificação U12 para a cota da Câmara (replica/catalogo-2026-11-08.md). Sem link: o banco não guarda a URL. */
-const ATO_COTA: Partial<Record<"camara" | "senado", string>> = { camara: "Ato da Mesa nº 43/2009 e atualizações" };
+/** Ato que institui a cota da Câmara (CEAP), conferido no texto oficial em 09/11/2026: Ato da Mesa nº 43, de 21/5/2009, hoje em texto consolidado
+ * (alterado por atos posteriores, p. ex. nº 270/2023 e nº 246/2026; os valores por estado estão no Anexo). Senado: ato ainda não conferido. */
+const ATO_COTA: Partial<Record<"camara" | "senado", { text: string; href: string }>> = {
+  camara: { text: "Ato da Mesa nº 43, de 21/5/2009 (texto consolidado)", href: "https://www2.camara.leg.br/legin/int/atomes/2009/atodamesa-43-21-maio-2009-588364-normaatualizada-cd-mesa.html" },
+};
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -662,7 +665,15 @@ export function MandateCost({
             <Row label="Gasto no período">{expensesCents === null ? <NotPublished /> : money(expensesCents)}</Row>
           </dl>
           <p className="mt-1 text-xs text-muted">O teto de cada estado ainda não está no site. O gasto é o que a casa reembolsou.</p>
-          <Ato>{ato ?? "ainda não conferido."}</Ato>
+          <Ato>
+            {ato ? (
+              <a href={ato.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                {ato.text}
+              </a>
+            ) : (
+              "ainda não conferido."
+            )}
+          </Ato>
         </li>
         <li className="border border-border p-4" data-item="verba">
           <h3 className="text-base font-semibold text-fg">Verba de gabinete</h3>

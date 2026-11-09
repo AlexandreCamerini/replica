@@ -1229,7 +1229,8 @@ export const pgSource: DataSource = {
       const cur = by.get(slug) ?? { slug, name: String(r.name), url: String(r.url), datasets: [], lastRefreshedAt: null };
       const at = isoTs(r.refreshed_at);
       cur.datasets.push({ dataset: String(r.dataset), refreshedAt: at });
-      if (!cur.lastRefreshedAt || at > cur.lastRefreshedAt) cur.lastRefreshedAt = at;
+      // leitura noturna (.noturna.) não conta: só registra o diário parado se o diário parou (mesma régua de health.ts)
+      if (!String(r.dataset).includes(".noturna.") && (!cur.lastRefreshedAt || at > cur.lastRefreshedAt)) cur.lastRefreshedAt = at;
       by.set(slug, cur);
     }
     return [...by.values()];

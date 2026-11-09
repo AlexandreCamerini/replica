@@ -111,6 +111,18 @@ class Window:
         s, e = datetime.combine(local.date(), self.start, BRT), datetime.combine(local.date(), self.end, BRT)
         return s.astimezone(timezone.utc) if s <= local < e else None
 
+    def last_closed(self, now: datetime) -> tuple[datetime, datetime] | None:
+        """(abertura, fechamento) em UTC da janela mais recente que já fechou (hoje ou ontem, em Brasília); None se não houve."""
+        local = now.astimezone(BRT)
+        for back in (0, 1):
+            day = local.date() - timedelta(days=back)
+            if day.weekday() not in self.days:
+                continue
+            s, e = datetime.combine(day, self.start, BRT), datetime.combine(day, self.end, BRT)
+            if e <= local:
+                return s.astimezone(timezone.utc), e.astimezone(timezone.utc)
+        return None
+
 
 TER_A_SAB = (1, 2, 3, 4, 5)
 
@@ -195,19 +207,21 @@ class Report:
     def failed(self) -> list[dict]:
         return [r for r in self.ran if r["exit"] != 0]
 
+    missed: list[dict] = field(default_factory=list)  # S3-1/D257: janela do dia fechou sem a tarefa rodar
     deferred: list[str] = field(default_factory=list)
     awaiting: list[str] = field(default_factory=list)  # fontes sem chave de API e sem carga: aguardam, não alertam
     error: str | None = None
 
     @property
     def alert(self) -> bool:
-        return bool(self.failed or self.orphans or self.overdue or self.check_ok is False or self.error)
+        return bool(self.failed or self.orphans or self.overdue or self.missed or self.check_ok is False or self.error)
 
     def text(self) -> str:
         lines = [f"civico-etl run-due {self.started_at[:16]}Z: {len(self.ran)} tarefas, {len(self.failed)} falhas"]
         lines += [f"FALHOU {r['task']} (exit {r['exit']}, {r['secs']:.0f}s): {r['tail']}" for r in self.failed]
         lines += [f"RUN ÓRFÃO fechado: {o['dataset']} (iniciado {o['started_at'][:16]})" for o in self.orphans]
         lines += [f"FORA DO PRAZO {o['source']}: {o['age_h']:.0f} h > {o['max_h']} h" if o["age_h"] is not None else f"SEM CARGA {o['source']}" for o in self.overdue]
+        lines += [f"JANELA PERDIDA {m['task']}: janela {m['opened'][:16]}Z-{m['closed'][:16]}Z fechou sem leitura" for m in self.missed]
         if self.awaiting:
             lines.append(f"aguardam chave de API (sem alerta): {', '.join(self.awaiting)}")
         if self.deferred:
@@ -241,6 +255,16 @@ def is_due(task: Task, last_stamp: datetime | None, last_attempt: datetime | Non
     if age >= timedelta(hours=task.every_h):
         return True, f"carimbo há {age.total_seconds() / 3600:.0f} h (>= {task.every_h} h)"
     return False, f"em dia (carimbo há {age.total_seconds() / 3600:.0f} h)"
+
+
+def missed_window(task: Task, last_stamp: datetime | None, now: datetime) -> dict | None:
+    """Janela mais recente já fechada sem carimbo da tarefa dentro/depois dela (ex.: fila do Actions atrasou o run e a noite foi pulada)."""
+    if not task.window:
+        return None
+    w = task.window.last_closed(now)
+    if w is None or (last_stamp is not None and last_stamp >= w[0]):
+        return None
+    return {"task": task.name, "opened": w[0].isoformat(), "closed": w[1].isoformat()}
 
 
 def overdue_sources(stamps: dict[str, datetime | None], now: datetime, awaiting_key: frozenset[str] = frozenset()) -> list[dict]:
@@ -480,6 +504,12 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
                 rep.orphans = sweep_orphans(c, now)
                 due, rep.skipped = plan(c, now, only, force, has_repairs)
             today = now.date()
+            for t in TASKS:
+                if (not only or t.name in only) and t.window and not (t.needs_env and not env_ok(t.needs_env)):
+                    with _connect(url) as c:
+                        m = missed_window(t, last_stamp(c, t, now.date()), now)
+                    if m:
+                        rep.missed.append(m)
             for t, why in due:
                 to = task_timeout_h(t.timeout_h, (time.monotonic() - t0) / 60, deadline)
                 if to is None:
