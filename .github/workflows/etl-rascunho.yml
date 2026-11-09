@@ -59,6 +59,8 @@ jobs:
     steps:
       - name: Credenciais configuradas?
         id: gate
+        # antes do checkout a pasta etl/ não existe: o default working-directory quebrava este passo (o job nunca rodou)
+        working-directory: ${{ github.workspace }}
         run: |
           missing=""
           [ -z "$ETL_DATABASE_URL" ] && missing="$missing ETL_DATABASE_URL"
