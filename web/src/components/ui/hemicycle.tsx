@@ -92,7 +92,7 @@ function PartyButton({ label, checked, onClick }: { label: string; checked: bool
 }
 
 /** Distribui n cadeiras em fileiras concêntricas de um semicírculo. */
-function layout(n: number): [number, number][] {
+export function layout(n: number): [number, number][] {
   const rows = Math.max(3, Math.round(Math.sqrt(n / 4)));
   const radii = Array.from({ length: rows }, (_, r) => 40 + (r * 56) / Math.max(rows - 1, 1));
   const total = radii.reduce((s, r) => s + r, 0);

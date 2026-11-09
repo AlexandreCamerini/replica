@@ -24,6 +24,7 @@ import type {
   CoverageStatus,
   Mandate,
   MandateStatus,
+  SeatChange,
   MissingDataset,
   OfficeSlug,
   Officeholder,
@@ -276,6 +277,15 @@ function build(): Store {
       seat(`ver:${ibge}:${i}`, "vereador", ibge, uf, { term: mun, prevChance: 0.4, elected: 2024, nextYear: 2028, prevYear: 2020 },
         // caso de borda deliberado: nome longo
         ibge === "3509502" && i === 0 ? "Maria Aparecida dos Santos Albuquerque de Vasconcelos Filha" : undefined);
+  }
+
+  // U09: eleitos novos de 2026 que ocupam as cadeiras de quem não se reelegeu (só Câmara e Senado; pessoas novas, sem tocar o sorteio das demais)
+  const reelected = new Set(s.mandates.filter((m) => m.status === "eleito_aguardando_posse").map((m) => m.personId));
+  for (const m of s.mandates.filter((x) => x.status === "em_exercicio" && (x.office === "deputado_federal" || x.office === "senador") && x.endsOn <= "2027-02-01" && !reelected.has(x.personId))) {
+    const uf = s.placeByIbge.get(m.placeIbge)?.uf ?? null;
+    const novo = addPerson(`entrante:${m.id}`, uf);
+    addCandidacy(novo, 2026, m.office, m.placeIbge, "eleito", rng(`entrante:${m.id}`), { v: 100_000_000 });
+    addMandate(novo, m.office, m.placeIbge, { start: "2027-02-01", end: m.office === "senador" ? "2035-02-01" : "2031-02-01", status: "eleito_aguardando_posse" });
   }
 
   // slug antigo de demonstração: /p/slug-antigo-demo → 308 para o atual
@@ -755,6 +765,47 @@ export const fakeSource: DataSource = {
     }
     return out.sort((a, b) => a.month - b.month);
   },
+  async getAttendanceGrid(personId, year) {
+    // a demo não guarda a lista de presença: cada dia com votação nominal é uma sessão (presente se votou)
+    const byDay = new Map<string, boolean>();
+    for (const v of votesOf(personId)) {
+      const d = v.event.occurredAt.slice(0, 10);
+      if (yearOf(d) !== year) continue;
+      byDay.set(d, (byDay.get(d) ?? false) || v.value !== "nao_votou");
+    }
+    const sessions = [...byDay].sort((a, b) => a[0].localeCompare(b[0])).map(([date, here]) => ({ date, state: here ? ("presente" as const) : ("ausente" as const) }));
+    const present = sessions.filter((x) => x.state === "presente").length;
+    return { year, sessions, present, absent: sessions.length - present, justified: 0, outside: 0, total: sessions.length };
+  },
+  async getChamberTransition(body) {
+    const office: OfficeSlug = body === "senado" ? "senador" : "deputado_federal";
+    const capacity = body === "senado" ? 81 : 513;
+    const ufOf = (m: Mandate) => store().placeByIbge.get(m.placeIbge)?.uf ?? null;
+    const seatOf = (m: Mandate, change: SeatChange) => {
+      const p = store().personById.get(m.personId)!;
+      return { id: p.slug, name: p.displayName, uf: ufOf(m), change };
+    };
+    const byNm = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "pt-BR");
+    const holders = current().filter((m) => m.office === office);
+    const waiting = store().mandates.filter((m) => m.office === office && m.status === "eleito_aguardando_posse");
+    const waitingIds = new Set(waiting.map((m) => m.personId));
+    const holderIds = new Set(holders.map((m) => m.personId));
+    const stays = (m: Mandate) => waitingIds.has(m.personId) || m.endsOn > "2027-02-01";
+    const continuing = holders.filter(stays).map((m) => seatOf(m, "continua")).sort(byNm);
+    const leaving = holders.filter((m) => !stays(m)).map((m) => seatOf(m, "sai")).sort(byNm);
+    const entering = waiting.filter((m) => !holderIds.has(m.personId)).map((m) => seatOf(m, "entra")).sort(byNm);
+    return {
+      capacity,
+      loaded: waiting.length > 0,
+      today: [...continuing, ...leaving].slice(0, capacity),
+      next: [...continuing, ...entering].slice(0, capacity),
+      continua: continuing.length,
+      entra: entering.length,
+      sai: leaving.length,
+      pending: Math.max(0, capacity - continuing.length - entering.length),
+      extra: Math.max(0, holders.length - capacity),
+    };
+  },
   async getSalaryAccrued() {
     return null; // a demo não guarda a série histórica do subsídio
   },
@@ -980,8 +1031,10 @@ export const fakeSource: DataSource = {
   },
 
   // Pauta: dois itens reais da leitura de 04/11/2026, com datas movidas para a semana corrente.
-  async getPautaOverview() {
+  async getPautaOverview(opts) {
     const { starts, ends, readAt } = demoWeek();
+    // simulate "erro": a leitura da Câmara falhou em 2 das 9 reuniões (events_failed > 0)
+    const camaraFailed = opts?.simulate === "erro" ? 2 : 0;
     const all = demoPauta();
     return {
       week: { total: all.filter((e) => e.stage === "plenario").length, atLeast: false, readAt, weekStarts: starts, weekEnds: ends },
@@ -989,7 +1042,7 @@ export const fakeSource: DataSource = {
       later: [],
       committees: uniqueByKey(all.filter((e) => e.stage === "comissao")),
       exits: [],
-      reads: { camara: { readAt, failed: 0, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
+      reads: { camara: { readAt, failed: camaraFailed, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
     };
   },
   async getPautaProposal(key) {

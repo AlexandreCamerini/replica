@@ -407,6 +407,31 @@ export type PautaEntry = {
   reviewedAt?: string | null; // respostas revisadas por pessoa e publicadas
   plain?: string | null; // "o que propõe", revisado; no lugar da ementa nos cartões
 };
+/** U08: estado de uma sessão deliberativa para a pessoa. `fora_do_exercicio` não é falta e não entra no denominador. */
+export type AttendanceState = "presente" | "ausente" | "ausencia_justificada" | "fora_do_exercicio";
+export type AttendanceSession = { date: string; state: AttendanceState };
+export type AttendanceGrid = { year: number; sessions: AttendanceSession[]; present: number; absent: number; justified: number; outside: number; total: number };
+
+/** U09: o que acontece com cada cadeira na posse de 1º/02/2027. */
+export type SeatChange = "continua" | "entra" | "sai";
+export type TransitionSeat = { id: string; name: string; uf: string | null; change: SeatChange };
+export type ChamberTransition = {
+  capacity: number;
+  /** false = os eleitos de 2026 do TSE ainda não foram carregados para esta casa: não dá para dizer quem sai. */
+  loaded: boolean;
+  /** quem ocupa a cadeira hoje (continua + sai), no máximo `capacity` */
+  today: TransitionSeat[];
+  /** quem ocupa a cadeira a partir de fev/2027 (continua + entra) */
+  next: TransitionSeat[];
+  continua: number;
+  entra: number;
+  sai: number;
+  /** cadeiras de fev/2027 sem eleito carregado (capacity - next.length) */
+  pending: number;
+  /** mandatos em exercício além das cadeiras (fonte com duplicidade) */
+  extra: number;
+};
+
 export type PautaRead = { readAt: string | null; failed: number; total: number };
 export type PocketWeek = { total: number; atLeast: boolean; readAt: string | null; weekStarts: string; weekEnds: string };
 export type PautaOverview = {
@@ -492,6 +517,8 @@ export interface DataSource extends DataSourceW4 {
   getSalaryAccrued(personId: string, year?: number): Promise<SalaryAccrued | null>;
   /** Presença por mês num ano (sessões deliberativas da Câmara; fora do exercício não conta). Só meses com sessão. */
   getPresenceByMonth(personId: string, year: number): Promise<{ month: number; present: number; total: number }[]>;
+  /** U08: uma entrada por sessão deliberativa do ano, em ordem de data. total = presentes + ausentes + justificadas (fora do exercício não entra). */
+  getAttendanceGrid(personId: string, year: number): Promise<AttendanceGrid>;
   listProposals(personId: string, f: ProposalFilter): Promise<Page<Proposal>>;
   /** `hidden` = votos nominais que o `scope: "lei"` escondeu (0 quando scope é "tudo" ou ausente). */
   listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote> & { hidden: number }>;
@@ -502,6 +529,8 @@ export interface DataSource extends DataSourceW4 {
   listTopics(): Promise<Topic[]>;
   /** Pessoas em exercício numa casa, para o hemiciclo (ordem: partido A–Z, depois nome). */
   getChamber(body: Body): Promise<{ slug: string; name: string; party: string; uf: string | null }[]>;
+  /** U09: composição de hoje e de fev/2027, sem partido: só continua / entra / sai. */
+  getChamberTransition(body: Body): Promise<ChamberTransition>;
   listVotingEvents(f: VotingEventFilter): Promise<Page<VotingEventSummary> & { years: number[]; hidden: number }>;
   getVotingEvent(id: string): Promise<VotingEventDetail | null>;
   /** Novidades de várias pessoas (feed de quem a pessoa acompanha), mais recentes primeiro. */
@@ -527,7 +556,8 @@ export interface DataSource extends DataSourceW4 {
   /** U12: degraus do subsídio do cargo (no lugar, ou nacional), do mais antigo ao mais novo; inclui o teto constitucional marcado em `isCeiling`. */
   getSalarySchedule(office: OfficeSlug, placeIbge: string): Promise<SalaryStep[]>;
   // R3 · pauta
-  getPautaOverview(): Promise<PautaOverview>;
+  /** `simulate: "erro"` só é lido pela fonte de demonstração (falha de leitura para testar o estado de erro). */
+  getPautaOverview(opts?: { simulate?: "erro" }): Promise<PautaOverview>;
   getPautaProposal(key: string): Promise<PautaProposal | null>;
   listPocketRules(): Promise<PocketRule[]>;
   listCorrections(): Promise<Correction[]>;

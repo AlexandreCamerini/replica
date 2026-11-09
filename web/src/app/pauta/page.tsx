@@ -2,6 +2,7 @@ import { clsx } from "clsx";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/page/page-header";
+import { PautaCalendar } from "@/components/pauta/calendar";
 import { AboutData, PautaCard, ReadStamp, where } from "@/components/pauta/ui";
 import { GlossaryFor } from "@/components/ui/glossary";
 import { data, type Body, type PautaEntry } from "@/lib/data";
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 };
 export const revalidate = 600;
 
-type Props = { searchParams: Promise<{ casa?: string }> };
+type Props = { searchParams: Promise<{ casa?: string; simular?: string }> };
 
 function byDay(rows: PautaEntry[]) {
   const days = new Map<string, PautaEntry[]>();
@@ -30,9 +31,10 @@ const STAMPS: [string, string][] = [
 ];
 
 export default async function Pauta({ searchParams }: Props) {
-  const { casa } = await searchParams;
+  const { casa, simular } = await searchParams;
   const body: Body | null = casa === "camara" || casa === "senado" ? casa : null;
-  const o = await data.getPautaOverview();
+  // `simular=erro` só vale na demonstração (a fonte real ignora): é como o estado de erro é testado
+  const o = await data.getPautaOverview(simular === "erro" ? { simulate: "erro" } : undefined);
   const only = <T extends PautaEntry>(rows: T[]) => (body ? rows.filter((r) => r.body === body) : rows);
   const plenary = only(o.plenary);
   const until = dayShort(weekLastDay(o.week.weekEnds));
@@ -57,6 +59,8 @@ export default async function Pauta({ searchParams }: Props) {
         className="mb-6 max-w-3xl"
         texts={[...plenary, ...only(o.later), ...only(o.committees)].map((r) => `${r.type} ${r.summary ?? ""} ${r.plain ?? ""}${r.rapporteur ? " relator" : ""}`)}
       />
+
+      <PautaCalendar weekKeys={byDay(plenary).map((d) => dayKey(d[0].scheduledFor))} entries={[...plenary, ...only(o.later)]} reads={o.reads} readAt={o.week.readAt} />
 
       <nav aria-label="Filtrar por Casa" className="mb-6">
         <ul className="flex gap-2">
@@ -85,7 +89,7 @@ export default async function Pauta({ searchParams }: Props) {
           <p className="plate p-4 font-serif text-[19px] text-fg">Nenhuma proposta deste tipo na pauta do plenário até {until}.</p>
         ) : (
           byDay(plenary).map((day) => (
-            <div key={day[0].key} className="mb-6">
+            <div key={day[0].key} id={`dia-${dayKey(day[0].scheduledFor)}`} className="mb-6 scroll-mt-28">
               <h3 className="lbl mb-2 font-sans">{dayLong(day[0].scheduledFor)}</h3>
               <ul className="grid gap-3 md:grid-cols-2">
                 {day.map((e) => (

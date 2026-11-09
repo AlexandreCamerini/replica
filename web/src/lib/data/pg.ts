@@ -3,6 +3,10 @@ import postgres from "postgres";
 import { houseName, notReadReason } from "./assembleias";
 import { UF_ROWS, stateSeats } from "./reference";
 import type {
+  AttendanceGrid,
+  AttendanceState,
+  ChamberTransition,
+  TransitionSeat,
   AssemblyDataset,
   VoteKind,
   LatestRecord,
@@ -687,6 +691,55 @@ export const pgSource: DataSource = {
         and s.starts_at >= make_timestamptz(${year}, 1, 1, 0, 0, 0, 'America/Sao_Paulo') and s.starts_at < make_timestamptz(${year + 1}, 1, 1, 0, 0, 0, 'America/Sao_Paulo')
       group by 1 having count(*) filter (where a.status in ('presente', 'ausente', 'ausencia_justificada')) > 0 order by 1`;
     return rows.map((r) => ({ month: Number(r.m), present: Number(r.present), total: Number(r.total) }));
+  },
+  async getAttendanceGrid(personId, year) {
+    const rows = await sql`
+      select (s.starts_at at time zone 'America/Sao_Paulo')::date as d, a.status
+      from attendance a join sessions s on s.id = a.session_id
+      where a.person_id = ${personId}::uuid and s.is_deliberative
+        and s.starts_at >= make_timestamptz(${year}, 1, 1, 0, 0, 0, 'America/Sao_Paulo') and s.starts_at < make_timestamptz(${year + 1}, 1, 1, 0, 0, 0, 'America/Sao_Paulo')
+      order by s.starts_at, s.id`;
+    const sessions = rows.map((r) => ({ date: iso(r.d), state: String(r.status) as AttendanceState }));
+    const n = (st: AttendanceState) => sessions.filter((x) => x.state === st).length;
+    const present = n("presente"), absent = n("ausente"), justified = n("ausencia_justificada");
+    return { year, sessions, present, absent, justified, outside: n("fora_do_exercicio"), total: present + absent + justified } satisfies AttendanceGrid;
+  },
+  async getChamberTransition(body) {
+    const kind = body === "senado" ? "senado" : "camara_deputados";
+    const capacity = body === "senado" ? 81 : 513;
+    // uma linha por pessoa: o mandato em exercício (hoje) e/ou o eleito aguardando posse (fev/2027)
+    const rows = await sql`
+      select p.slug, p.display_name, pl.uf,
+             bool_or(m.status = 'em_exercicio') as holds,
+             bool_or(m.status = 'em_exercicio' and m.ends_on > date '2027-02-01') as term_goes_on,
+             bool_or(m.status = 'eleito_aguardando_posse') as waits
+      from mandates m
+      join legislative_bodies b on b.id = m.body_id and b.kind = ${kind}
+      join people p on p.id = m.person_id
+      join places pl on pl.id = m.place_id
+      where m.status in ('em_exercicio', 'eleito_aguardando_posse')
+      group by p.id, p.slug, p.display_name, pl.uf
+      order by p.display_name collate pt_br, p.slug`;
+    const loaded = rows.some((r) => r.waits);
+    const seat = (r: (typeof rows)[number], change: TransitionSeat["change"]): TransitionSeat => ({ id: String(r.slug), name: String(r.display_name), uf: (r.uf as string | null) ?? null, change });
+    const holders = rows.filter((r) => r.holds);
+    const stays = (r: (typeof rows)[number]) => Boolean(r.term_goes_on || r.waits);
+    const continuing = holders.filter(stays).map((r) => seat(r, "continua"));
+    const leaving = holders.filter((r) => !stays(r)).map((r) => seat(r, "sai"));
+    const entering = rows.filter((r) => r.waits && !r.holds).map((r) => seat(r, "entra"));
+    const today = (loaded ? [...continuing, ...leaving] : holders.map((r) => seat(r, "continua"))).slice(0, capacity);
+    const next = [...continuing, ...entering].slice(0, capacity);
+    return {
+      capacity,
+      loaded,
+      today,
+      next,
+      continua: continuing.length,
+      entra: entering.length,
+      sai: leaving.length,
+      pending: Math.max(0, capacity - next.length),
+      extra: Math.max(0, holders.length - capacity),
+    } satisfies ChamberTransition;
   },
   async getSalaryAccrued(personId, year) {
     // mês a mês, em todos os mandatos já exercidos; o valor de cada mês é o subsídio vigente no 1º dia dele.

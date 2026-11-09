@@ -76,3 +76,6 @@ Glossário recolhível no ponto de uso,educativo,should,yes,yes,D264 (catálogo 
 Votações: só o que muda lei,congresso,should,yes,yes,D265 (catálogo U11)
 Patrimônio corrigido pela inflação,cracha,could,no,yes,D267 (catálogo U13): o original mostra % sem correção
 Exemplos clicáveis na busca de cidade,representantes,could,yes,yes,D268 (catálogo U14)
+Presença por sessão em padrão de voto,cracha,should,no,yes,D275 (catálogo U08): o original usa cinza e cor
+Hemiciclo Hoje / a partir de fev/2027,congresso,should,no,yes,D277 (catálogo U09): só continua / entra / sai, sem partido
+Agenda em calendário com "consultado há N min",pauta,should,no,yes,D279 (catálogo U10): erro do v1 com events_failed > 0
