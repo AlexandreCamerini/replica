@@ -78,7 +78,10 @@ def parse_emenda(it: dict[str, Any]) -> dict[str, Any] | None:
     return {
         "code": code, "year": year, "number": (it.get("numeroEmenda") or "").strip() or None,
         "kind_label": (it.get("tipoEmenda") or "").strip() or None, "kind": kind_of(it.get("tipoEmenda")),
-        "author": (it.get("nomeAutor") or it.get("autor") or "").strip(), "locality": loc or None, "function": fn or None, "subfunction": sub or None,
+        "author": (it.get("nomeAutor") or it.get("autor") or "").strip(),
+        # ufAutor: ausente no ConsultaEmendasDTO v3; usado se a fonte passar a trazer
+        "author_uf": (str(it.get("ufAutor") or "").strip().upper() or None),
+        "locality": loc or None, "function": fn or None, "subfunction": sub or None,
         "committed": cents(it.get("valorEmpenhado")), "liquidated": cents(it.get("valorLiquidado")), "paid": cents(it.get("valorPago")),
         "resto_inscrito": cents(it.get("valorRestoInscrito")), "resto_cancelado": cents(it.get("valorRestoCancelado")), "resto_pago": cents(it.get("valorRestoPago")),
         # chave natural: a fonte não garante um item por código (uma emenda pode ter várias localidades/funções)
@@ -130,6 +133,7 @@ class PeopleIndex:
 
     by_name: dict[str, list[str]] = field(default_factory=dict)
     federal: dict[str, list[tuple[date, date]]] = field(default_factory=dict)
+    ufs: dict[str, set[str]] = field(default_factory=dict)  # S3-5/D254: UFs dos mandatos federais da pessoa
 
     @classmethod
     def load(cls, conn: psycopg.Connection) -> "PeopleIndex":
@@ -137,18 +141,25 @@ class PeopleIndex:
         for r in conn.execute("select id, display_name from people"):
             idx.by_name.setdefault(fold(r["display_name"]), []).append(str(r["id"]))
         for r in conn.execute(
-            "select m.person_id, m.started_on, m.ends_on from mandates m join offices o on o.id = m.office_id where o.slug in ('deputado_federal', 'senador')"
+            "select m.person_id, m.started_on, m.ends_on, p.uf from mandates m join offices o on o.id = m.office_id join places p on p.id = m.place_id where o.slug in ('deputado_federal', 'senador')"
         ):
             idx.federal.setdefault(str(r["person_id"]), []).append((r["started_on"], r["ends_on"]))
+            if r["uf"]:
+                idx.ufs.setdefault(str(r["person_id"]), set()).add(str(r["uf"]).upper())
         return idx
 
 
 _TITLE = re.compile(r"^(deputad[oa]|senador[a]?|dep\.?|sen\.?)\s+(federal\s+)?")
 
 
-def match_author(author: str, kind: str, year: int, idx: PeopleIndex) -> tuple[str | None, float | None, str]:
+LINK_MIN_CONFIDENCE = 0.9  # D132: abaixo disto o fato fica sem person_id (com o motivo)
+
+
+def match_author(author: str, kind: str, year: int, idx: PeopleIndex, author_uf: str | None = None) -> tuple[str | None, float | None, str]:
     """(person_id, confiança, motivo). Conservador como o D132: só vincula se o nome parlamentar é igual (sem acento/caixa),
     único entre TODAS as pessoas do banco, e a pessoa tem mandato de deputado federal ou senador que cobre algum dia do ano da emenda.
+    `author_uf` (UF do autor, quando a fonte trouxer) precisa ser a de um mandato federal da pessoa; sem ela o nome sozinho não basta
+    (homônimo fora do banco ou nome comum): confiança 0,8 < 0,9, sem vínculo, com o motivo (S3-5/D254).
     Qualquer dúvida: sem vínculo, com o motivo. Emenda coletiva (bancada, comissão, relator) nunca tem pessoa."""
     if kind in COLLECTIVE:
         return None, None, f"emenda de {kind}: sem autor individual"
@@ -163,13 +174,18 @@ def match_author(author: str, kind: str, year: int, idx: PeopleIndex) -> tuple[s
     lo, hi = date(year, 1, 1), date(year, 12, 31)
     if not any(s <= hi and e > lo for s, e in idx.federal.get(ids[0], [])):
         return None, None, "nome único, mas a pessoa não tem mandato de deputado federal ou senador no ano da emenda"
-    return ids[0], 0.9, "nome parlamentar igual, único no banco, com mandato federal no ano da emenda"
+    uf = (author_uf or "").strip().upper()
+    if not uf:
+        return None, 0.8, "nome único com mandato federal no ano, mas a fonte não traz a UF do autor: sem como excluir homônimo; sem vínculo (confiança 0,8 < 0,9)"
+    if uf not in idx.ufs.get(ids[0], set()):
+        return None, None, f"nome único com mandato federal, mas a UF do autor na fonte ({uf}) não é a do mandato"
+    return ids[0], LINK_MIN_CONFIDENCE, "nome parlamentar igual, único no banco, com mandato federal no ano da emenda e UF do autor compatível"
 
 
 def build_rows(rows: list[dict[str, Any]], idx: PeopleIndex, place_of: Callable[[str, str], str | None]) -> tuple[list[tuple], dict[str, int]]:
     out, stats = [], {"com_pessoa": 0, "sem_pessoa": 0, "com_municipio": 0, "sem_municipio": 0}
     for p in rows:
-        pid, conf, note = match_author(p["author"], p["kind"], p["year"], idx)
+        pid, conf, note = match_author(p["author"], p["kind"], p["year"], idx, p.get("author_uf"))
         name, uf, loc_note = parse_locality(p["locality"])
         place = None
         if name and uf:

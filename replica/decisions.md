@@ -506,6 +506,19 @@ Origem: `replica/catalogo-2026-11-08.md`. O dono escolheu os pacotes A (ganhos r
   - **Ressalvas** (`CAVEAT`): "teto, não gasto", "bruto, sem correção pela inflação", "declarado, sem correção pela inflação", "arrecadado, não gasto" etc.
   - **Proposta:** nova `proposta/[key]/opengraph-image.tsx`, com a data prevista da pauta e "previsão da pauta, pode mudar".
   - **Teste:** `web/e2e/u17-card-ressalva.spec.ts`. O guarda estrutural falha se uma linha com `source:` nas imagens OG ficar sem `caveat:`.
+## Fechamento das pendências de A e B (2026-11-09)
+- **D285 · Vigia em produção.** `GET /api/health/fontes` responde com `ok:false` só por `pauta`: a produção não tem carimbo `pauta.%` (`sem_dado`); Câmara e Senado estão em dia.
+  - **Correção proposta, não aplicada (não toco produção):** rodar a leitura da pauta uma vez em produção (`run-due --only pauta`). O alerta das casas fica como está.
+- **D286 · Janela perdida (S3-1, fecha D257).** `schedule.missed_window` compara a última janela já fechada (hoje ou ontem, BRT) com o carimbo da tarefa. Sem carimbo desde a abertura dela, o relatório lista `missed`, o texto traz "JANELA PERDIDA" e o alerta dispara.
+  - **Custo:** persiste a cada run até a próxima janela ser lida; é o que se quer.
+  - **Primeiro deploy:** tarefa nunca lida alerta uma vez.
+- **D287 · Homônimo em emenda (S3-5, fecha D254).** `match_author` exige a UF do autor, igual à de um mandato federal da pessoa. O DTO v3 não traz UF do autor (lido o campo `ufAutor`, hoje ausente). Sem UF: confiança 0,8, sem `person_id`, com o motivo. UF de outro estado: sem vínculo.
+  - **Efeito:** com a fonte atual, emenda individual não vincula pessoa até a fonte trazer a UF. É o preço da neutralidade; o autor continua visível pelo `author_label`.
+- **D288 · Frescor em `/atualizacoes`.** `listSourceStatus` ignora `.noturna.` no `lastRefreshedAt`, igual a `health.ts`. A lista de datasets continua mostrando as leituras noturnas.
+- **D289 · "Destaque" e ato da cota (fecham as pendências de D264 e D266).**
+  - **Destaque:** verbete criado em `dicionario.ts` a partir do Glossário da Câmara (PDF oficial; RICD, arts. 161 e 162). Saiu de `GLOSS_MISSING`.
+  - **Cota:** o ato é o Ato da Mesa nº 43, de 21/5/2009, que institui a CEAP, hoje em texto consolidado (alterações como nº 270/2023 e nº 246/2026). O texto da tela e o link oficial foram corrigidos. O ato do Senado continua "ainda não conferido".
+
 ## Pacote C · municipal e estadual (D08, D09), 2026-11-09
 - **D269 · SAPL em escala: orçamento por lote, sem hospedagem nova (catálogo D08).** `civico-etl sapl.*` ganhou `--workers W` (câmaras em paralelo, cada worker com conexão própria; o intervalo de 1,1 s é por host, então câmaras distintas não se atrapalham), `--casa-max-min M` (prazo de uma câmara, padrão 25 min, verificado a cada página lida), `--lote-descoberta N` e `--max-pendentes N` (antes fixo em 60). A tarefa `sapl.todas` da agenda passa a usar lote 150, 4 workers, 400 descobertas por dia e até 300 câmaras "ok" ainda sem carga. Retomada continua sendo da câmara inteira: a carga de uma câmara é uma transação só, com o cursor junto das linhas; câmara que estoura o prazo desfaz e volta pela fila. Migração 0100.
 - **D270 · Backoff por câmara instável.** `sapl_houses.fail_count` e `retry_after`: a falha dobra a espera (6 h, 12 h, 24 h... teto de 7 dias), a carga bem-sucedida zera. `load_queue` pula a câmara em backoff, então uma câmara fora do ar não consome o orçamento de todo lote. Prazo estourado conta como falha. Câmara sem legislatura vigente (condição da fonte, não falha) só volta à fila depois de 48 h.
