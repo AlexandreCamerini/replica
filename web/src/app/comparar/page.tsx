@@ -266,7 +266,7 @@ async function CompareTable({ people, periodoRaw, sp }: { people: Person[]; peri
         </ul>
       </section>
       <Divergences people={people} year={year} since={since} sp={sp} />
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </>
   );
 }

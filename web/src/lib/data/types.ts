@@ -111,7 +111,46 @@ export type YearStats = {
 export type SalaryAccrued = { cents: number; months: number; coveredMonths: number; firstMonth: string; coveredFrom: string | null };
 
 /** Prestação de contas de uma campanha, somada por categoria oficial do TSE. Nunca nome de doador (D36). */
-export type CampaignFinance = { year: number; officeName: string; placeLabel: string; income: { label: string; cents: number }[]; spending: { label: string; cents: number }[] };
+export type CampaignFinance = {
+  year: number;
+  officeName: string;
+  placeLabel: string;
+  income: { label: string; cents: number }[];
+  spending: { label: string; cents: number }[];
+  /** Catálogo D11: receita por origem (fundo vence origem), na ordem fixa de CAMPAIGN_ORIGINS; vazio = origem não carregada. */
+  origins: { origin: CampaignOrigin; cents: number }[];
+  /** Só partido e pessoa jurídica têm nome; pessoa física nunca (D36). */
+  donors: { name: string; kind: "partido" | "pessoa_juridica"; cents: number }[];
+};
+export type CampaignOrigin = "fefc" | "fundo_partidario" | "partido" | "pessoa_fisica" | "financiamento_coletivo" | "recursos_proprios" | "outros";
+/** Ordem fixa de exibição (catálogo D11: a composição inteira, sem destacar a maior parte). */
+export const CAMPAIGN_ORIGINS: { origin: CampaignOrigin; label: string; publicMoney: boolean }[] = [
+  { origin: "fefc", label: "Fundo Eleitoral (FEFC)", publicMoney: true },
+  { origin: "fundo_partidario", label: "Fundo Partidário", publicMoney: true },
+  { origin: "partido", label: "Partido (outros recursos)", publicMoney: false },
+  { origin: "pessoa_fisica", label: "Pessoas físicas", publicMoney: false },
+  { origin: "financiamento_coletivo", label: "Financiamento coletivo", publicMoney: false },
+  { origin: "recursos_proprios", label: "Recursos próprios", publicMoney: false },
+  { origin: "outros", label: "Outros", publicMoney: false },
+];
+
+/** Catálogo D02: uma emenda parlamentar do Portal da Transparência, nos três estágios (empenhado, liquidado, pago). */
+export type Amendment = {
+  year: number;
+  kind: "individual" | "individual_pix" | "bancada" | "comissao" | "relator" | "outro";
+  kindLabel: string | null;
+  area: string | null;
+  authorLabel: string;
+  authorSlug: string | null;
+  /** destino: município casado (com link) ou o texto da fonte com o motivo de não haver município */
+  place: { ibge: string; name: string; uf: string | null } | null;
+  localityLabel: string | null;
+  placeNote: string | null;
+  /** null = a fonte não publicou o estágio (0082: "NULL, nunca 0"); a tela mostra "—" */
+  committedCents: number | null;
+  liquidatedCents: number | null;
+  paidCents: number | null;
+};
 
 /** Equipe do gabinete (W2 item 14). Salário null = a fonte lida não traz (vira "—" com motivo). */
 export type StaffMember = { name: string; role: string | null; monthlySalaryCents: number | null; asOf: string };
@@ -125,7 +164,27 @@ export type Dataset =
   | "patrimonio";
 
 export type CoverageStatus = "no_site" | "carregando" | "so_portal" | "nao_publica" | "desconhecido";
-export type MissingDataset = { dataset: Dataset; label: string; status: CoverageStatus; reason: string };
+export type MissingDataset = {
+  dataset: Dataset;
+  label: string;
+  status: CoverageStatus;
+  reason: string;
+  /** U03: página que sustenta o motivo (data_coverage.evidence_url); null/ausente = não há */
+  evidenceUrl?: string | null;
+  /** U03: quando conferimos (data_coverage.checked_on, ISO) */
+  checkedOn?: string | null;
+};
+/** U03: o site da câmara municipal, quando o banco conhece um. `url` = SAPL lido da câmara; `note` = o que o registro do Interlegis diz de uma câmara sem SAPL. */
+export type CouncilSite = { url: string | null; note: string | null };
+/** U01: o fato mais recente da pessoa entre o que o crachá mostra (voto nominal, proposta de autoria, gasto). `on` = ISO date. */
+export type LatestRecord = {
+  kind: "votacao" | "proposta" | "gasto";
+  on: string;
+  /** a casa lança o gasto sempre no dia 1 do mês (ALESP, assembleias, câmaras): só o mês é fato, o dia não */
+  monthOnly?: boolean;
+};
+/** U12: um degrau do subsídio (salaries). `validFrom` no futuro = reajuste previsto que ainda não vale. */
+export type SalaryStep = { validFrom: string; amountCents: number; isCeiling: boolean; source: { name: string; url: string } };
 
 export type Topic = { slug: string; name: string };
 
@@ -181,9 +240,14 @@ export type Proposal = {
 };
 
 export type VoteValue = "sim" | "nao" | "abstencao" | "obstrucao" | "art17" | "nao_votou";
+/** voting_events.kind: o que a votação decidiu. texto/destaque mudam o texto de uma proposta; urgência e requerimento são procedimento. */
+export type VoteKind = "texto" | "destaque" | "urgencia" | "requerimento" | "outro";
+/** U11: "lei" esconde requerimento e urgência (procedimento); "tudo" mostra todas. Ausente = tudo (contrato da API não muda). */
+export type VoteScope = "lei" | "tudo";
 export type VotingEvent = {
   id: string;
   body: "camara" | "senado";
+  kind?: VoteKind;
   occurredAt: string;
   description: string;
   topic: string | null;
@@ -247,7 +311,7 @@ export type CommitteeItem = { acronym: string | null; name: string; role: string
 export type SpeechItem = { id: string; occurredAt: string; summary: string | null; url: string | null };
 export type ContactItem = { kind: "email" | "telefone" | "gabinete" | "site" | "instagram" | "facebook" | "x" | "youtube" | "tiktok" | "outra_rede"; value: string };
 
-export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; cursor?: string; limit?: number };
+export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; scope?: VoteScope; cursor?: string; limit?: number };
 
 export type Expense = {
   id: string;
@@ -317,7 +381,7 @@ export type PeopleFilter = {
 };
 
 export type ProposalFilter = { year?: number; topic?: string; type?: "lei" | "pedido" | "emenda"; role?: "autor" | "coautor"; q?: string; cursor?: string; limit?: number };
-export type VoteFilter = { year?: number; topic?: string; value?: VoteValue; q?: string; cursor?: string; limit?: number };
+export type VoteFilter = { year?: number; topic?: string; value?: VoteValue; q?: string; scope?: VoteScope; cursor?: string; limit?: number };
 export type ExpenseFilter = { year?: number; category?: string; cursor?: string; limit?: number };
 
 export type Agreement = { a: string; b: string; same: number; total: number };
@@ -418,6 +482,10 @@ export interface DataSource extends DataSourceW4 {
   countSecretVotes(personId: string, year?: number): Promise<number>;
   /** Uma entrada por ano de eleição (o 2º turno não repete), mais recente primeiro. */
   getCampaignFinance(personId: string): Promise<CampaignFinance[]>;
+  /** Emendas de autoria da pessoa (catálogo D02), ano desc e destino A–Z. Nunca por valor. */
+  listAmendmentsByPerson(personId: string): Promise<Amendment[]>;
+  /** Emendas com destino no município (catálogo D02), ano desc e autor A–Z. */
+  listAmendmentsToPlace(ibge: string): Promise<Amendment[]>;
   /** Equipe do gabinete, A–Z por nome. */
   listStaff(personId: string): Promise<StaffMember[]>;
   /** null = cargo sem valor pago publicado (teto ou nada). */
@@ -425,7 +493,8 @@ export interface DataSource extends DataSourceW4 {
   /** Presença por mês num ano (sessões deliberativas da Câmara; fora do exercício não conta). Só meses com sessão. */
   getPresenceByMonth(personId: string, year: number): Promise<{ month: number; present: number; total: number }[]>;
   listProposals(personId: string, f: ProposalFilter): Promise<Page<Proposal>>;
-  listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote>>;
+  /** `hidden` = votos nominais que o `scope: "lei"` escondeu (0 quando scope é "tudo" ou ausente). */
+  listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote> & { hidden: number }>;
   listExpenses(personId: string, f: ExpenseFilter): Promise<Page<Expense> & { byCategory: { label: string; cents: number }[] }>;
   getAgreement(personIds: string[], period: "career" | number): Promise<Agreement[]>;
   /** Votações em que a e b votaram diferente (sim/não/abstenção/obstrução), mais recentes primeiro; topics = temas com divergência e quantas. */
@@ -433,7 +502,7 @@ export interface DataSource extends DataSourceW4 {
   listTopics(): Promise<Topic[]>;
   /** Pessoas em exercício numa casa, para o hemiciclo (ordem: partido A–Z, depois nome). */
   getChamber(body: Body): Promise<{ slug: string; name: string; party: string; uf: string | null }[]>;
-  listVotingEvents(f: VotingEventFilter): Promise<Page<VotingEventSummary> & { years: number[] }>;
+  listVotingEvents(f: VotingEventFilter): Promise<Page<VotingEventSummary> & { years: number[]; hidden: number }>;
   getVotingEvent(id: string): Promise<VotingEventDetail | null>;
   /** Novidades de várias pessoas (feed de quem a pessoa acompanha), mais recentes primeiro. */
   getActivity(personIds: string[], limit?: number): Promise<ActivityItem[]>;
@@ -451,6 +520,12 @@ export interface DataSource extends DataSourceW4 {
   /** Anos já carregados de um conjunto com carimbo por ano (ex.: "tse.contas" → [2018, 2020, …]), crescente. */
   listStampYears(prefix: string): Promise<number[]>;
   latestRefresh(): Promise<string>;
+  /** U01: data do registro mais recente da pessoa (voto nominal, proposta de autoria ou gasto). null = nenhum registro carregado. */
+  getLatestRecord(personId: string): Promise<LatestRecord | null>;
+  /** U03: site da câmara municipal da cidade (SAPL lido) ou o que o registro diz de uma câmara sem SAPL. null = o banco não sabe nada da câmara. */
+  getCouncilSite(ibge: string): Promise<CouncilSite | null>;
+  /** U12: degraus do subsídio do cargo (no lugar, ou nacional), do mais antigo ao mais novo; inclui o teto constitucional marcado em `isCeiling`. */
+  getSalarySchedule(office: OfficeSlug, placeIbge: string): Promise<SalaryStep[]>;
   // R3 · pauta
   getPautaOverview(): Promise<PautaOverview>;
   getPautaProposal(key: string): Promise<PautaProposal | null>;

@@ -97,6 +97,16 @@ export default async function ComoEscolhemos() {
           </p>
         </Section>
 
+        <Section id="votos-lei" title="Quais votações aparecem">
+          <p>Por padrão, mostramos só o que muda lei.</p>
+          <p>Isso inclui a votação do texto e a de destaque, que decide um trecho.</p>
+          <p>Escondemos requerimento, que é um pedido de procedimento, e pedido de urgência. O chip &quot;Tudo&quot; mostra também esses.</p>
+          <p className="text-sm text-muted">
+            O critério é o tipo que a Casa dá à votação: texto, destaque, urgência ou requerimento. Votação sem tipo claro não é escondida.
+            Nas listas de votos, a contagem escondida aparece ao lado do chip.
+          </p>
+        </Section>
+
         <Section id="selos" title="5. O que os selos dizem">
           <dl className="grid gap-3 sm:grid-cols-2">
             {STAMPS.map(([s, t]) => (

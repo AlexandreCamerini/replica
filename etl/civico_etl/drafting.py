@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from dataclasses import dataclass
 from typing import Any
 
 PROMPT_VERSION = 2  # v2: contagem explícita de palavras (v1 passava de 15 em 5 de 5 frases do PL 79/2020)
@@ -237,3 +238,62 @@ def blocking(checks: dict[str, list[str]], answers: dict[str, Any]) -> dict[str,
         for f, v in checks.items()
         if (answers.get(f) or {}).get("diz") and any(i.split(":")[0] in BLOCKING for i in v)
     }
+
+
+# --- chamada à API: bloco fixo com cache e custo estimado (D15). Puro: sem rede, sem SDK. -------------------------------
+
+def system_blocks(ttl: str | None = None) -> list[dict[str, Any]]:
+    """O bloco fixo (instruções, regras, formato) com `cache_control`. TTL 5 min por padrão; "1h" para o lote, que pode levar
+    mais de 5 min entre uma requisição e outra. Texto idêntico a SYSTEM: mudar aqui sem subir PROMPT_VERSION reescreve o cache, não o rascunho."""
+    cc: dict[str, str] = {"type": "ephemeral"}
+    if ttl:
+        cc["ttl"] = ttl
+    return [{"type": "text", "text": SYSTEM, "cache_control": cc}]
+
+
+def request_params(model: str, label: str, summary: str | None, pages: list[str], *, ttl: str | None = None) -> dict[str, Any]:
+    """Corpo de uma requisição de rascunho. É o mesmo no modo síncrono e no lote (só o transporte muda)."""
+    return {
+        "model": model,
+        "max_tokens": 16000,
+        "system": system_blocks(ttl),
+        "messages": [{"role": "user", "content": user_message(label, summary, pages)}],
+        "output_config": {"effort": "high", "format": {"type": "json_schema", "schema": SCHEMA}},
+    }
+
+
+@dataclass(frozen=True)
+class Usage:
+    input: int = 0  # tokens de entrada sem cache (a API não inclui aqui o que veio do cache nem o que foi gravado nele)
+    output: int = 0
+    cache_read: int = 0
+    cache_create: int = 0
+    batch: bool = False
+    cache_ttl: str = "5m"
+
+    @classmethod
+    def from_api(cls, u: Any, *, batch: bool = False, cache_ttl: str = "5m") -> "Usage":
+        g = lambda n: int(getattr(u, n, 0) or 0)  # noqa: E731 - campos de cache vêm None quando o modelo não cacheia
+        return cls(g("input_tokens"), g("output_tokens"), g("cache_read_input_tokens"), g("cache_creation_input_tokens"), batch, cache_ttl)
+
+
+# US$ por 1M de tokens (tabela da skill claude-api, 2026-10-06): (entrada, saída, leitura de cache). Escrita de cache = 1,25x
+# a entrada (TTL 5 min) ou 2x (1 h). Lote = 50% em tudo. Modelo fora da tabela => custo None (nunca inventar).
+PRICES: dict[str, tuple[float, float, float]] = {
+    "claude-sonnet-5-5": (2.0, 10.0, 0.20),
+    "claude-sonnet-5": (2.0, 10.0, 0.20),
+    "claude-opus-5-5": (4.0, 20.0, 0.20),
+    "claude-opus-5": (5.0, 25.0, 0.50),
+    "claude-haiku-5-5": (0.10, 0.50, 0.01),  # até 100 mil tokens de prompt; acima disso o preço sobe
+}
+
+
+def estimate_cost(model: str, u: Usage) -> float | None:
+    """Custo estimado em US$ de uma chamada. Aproximação: o ID servido pode vir com sufixo, casa por prefixo mais longo."""
+    hit = max((k for k in PRICES if model == k or model.startswith(k + "-")), key=len, default=None)
+    if hit is None:
+        return None
+    pin, pout, pread = PRICES[hit]
+    write = pin * (2.0 if u.cache_ttl == "1h" else 1.25)
+    usd = (u.input * pin + u.output * pout + u.cache_read * pread + u.cache_create * write) / 1_000_000
+    return round(usd * (0.5 if u.batch else 1.0), 6)

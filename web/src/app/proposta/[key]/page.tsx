@@ -5,6 +5,8 @@ import { Container } from "@/components/page/page-header";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
 import { Claim, ReviewedBadge } from "@/components/pauta/answers";
 import { AboutData, ReviewBadge, where } from "@/components/pauta/ui";
+import { FreshnessLine } from "@/components/ui/freshness";
+import { GlossaryFor } from "@/components/ui/glossary";
 import { data, type PautaProposal } from "@/lib/data";
 import { count, date } from "@/lib/format";
 import { bodyFullName, ofBody, dateTime, dayLong, dayShort, deciders, isUrgent, label, reasonText, time, typeName } from "@/lib/pauta";
@@ -54,9 +56,13 @@ export default async function Proposta({ params }: Props) {
   const next = p.schedule[0] ?? null;
   const d = deciders(next ?? e);
   const path = `/proposta/${e.key}`;
+  // U01: a pauta é a lista oficial que conferimos; o registro mais recente é a última votação nominal, ou a apresentação se ainda não votou
+  const lastVote = p.votes.map((v) => v.occurredAt).sort().at(-1);
+  const record = lastVote ? ({ kind: "votacao", on: lastVote.slice(0, 10) } as const) : p.presentedOn ? ({ kind: "proposta", on: p.presentedOn } as const) : null;
   return (
     <Container className="max-w-[880px]">
       <header className="flex flex-col gap-3">
+        <FreshnessLine checkedAt={p.readAt} record={record} />
         <p className="lbl">
           {bodyFullName(e.body)} · {e.type} · {typeName(e.type)}
         </p>
@@ -80,6 +86,7 @@ export default async function Proposta({ params }: Props) {
           )}
         </div>
         <StatusNote p={p} />
+        <GlossaryFor texts={[label(e), typeName(e.type), e.type, e.summary, e.plain, (next?.rapporteur ?? e.rapporteur) ? "relator" : null]} />
         <div className="flex flex-wrap gap-2">
           {p.fichaUrl && (
             <a

@@ -4,6 +4,9 @@ import { houseName, notReadReason } from "./assembleias";
 import { UF_ROWS, stateSeats } from "./reference";
 import type {
   AssemblyDataset,
+  VoteKind,
+  LatestRecord,
+  SalaryStep,
   AssemblyInfo,
   CityCouncilInfo,
   Agreement,
@@ -21,6 +24,8 @@ import type {
   PeriodStats,
   PlaceTopVoted,
   CampaignFinance,
+  CampaignOrigin,
+  Amendment,
   StaffMember,
   SalaryAccrued,
   YearStats,
@@ -55,7 +60,7 @@ import type {
   Correction,
   PublishedAnswers,
 } from "./types";
-import { ANSWER_FIELDS } from "./types";
+import { ANSWER_FIELDS, CAMPAIGN_ORIGINS } from "./types";
 import { label, parseProposalKey, proposalKey, termLabel, uniqueByKey } from "../pauta";
 import { pgW4 } from "./pg-w4";
 
@@ -192,6 +197,20 @@ function person(r: Row): Person {
     education: (r.education as string | null) ?? null,
   };
 }
+const AMENDMENT_SELECT = sql`
+  select a.year, a.kind, a.kind_label, a.area, a.author_label, pp.slug as author_slug, pl.ibge_code, pl.name as place_name, pl.uf as place_uf,
+         a.locality_label, a.place_note, a.committed_cents, a.liquidated_cents, a.paid_cents
+  from amendments a left join places pl on pl.id = a.beneficiary_place_id left join people pp on pp.id = a.person_id`;
+function amendmentRow(r: Row): Amendment {
+  return {
+    year: Number(r.year), kind: r.kind as Amendment["kind"], kindLabel: (r.kind_label as string | null) ?? null, area: (r.area as string | null) ?? null,
+    authorLabel: String(r.author_label), authorSlug: (r.author_slug as string | null) ?? null,
+    place: r.ibge_code ? { ibge: String(r.ibge_code), name: String(r.place_name), uf: (r.place_uf as string | null) ?? null } : null,
+    localityLabel: (r.locality_label as string | null) ?? null, placeNote: (r.place_note as string | null) ?? null,
+    committedCents: r.committed_cents == null ? null : Number(r.committed_cents), liquidatedCents: r.liquidated_cents == null ? null : Number(r.liquidated_cents), paidCents: r.paid_cents == null ? null : Number(r.paid_cents),
+  };
+}
+
 function officeName(r: Row) {
   return String(r.gender === "f" ? r.name_f : r.name_m);
 }
@@ -237,6 +256,8 @@ function page<T>(items: T[], total: number, offset: number, limit: number): Page
   return { items, nextCursor: offset + limit < total ? String(offset + limit) : null, total };
 }
 const off = (cursor?: string) => Math.max(0, Number(cursor) || 0);
+/** U11: voting_events.kind que é procedimento, não texto de lei. Lista de bloqueio: kind novo ou "outro" continua aparecendo. */
+const PROCEDURAL_KINDS = ["requerimento", "urgencia"];
 
 function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
   return {
@@ -244,6 +265,7 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
     body,
     occurredAt: isoTs(r.occurred_at),
     description: String(r.description),
+    ...(r.kind ? { kind: r.kind as VoteKind } : {}),
     topic: (r.topic as string | null) ?? null,
     result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
     yes: Number(r.yes_count ?? 0),
@@ -321,8 +343,23 @@ export const pgSource: DataSource = {
     return groups;
   },
   async getCoverage(pl) {
-    const rows = await sql`select dataset, status, reason from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = ${pl.ibge} and dc.status <> 'no_site' order by dataset`;
-    return rows.map((r) => ({ dataset: toDataset(String(r.dataset)), label: DATASET_LABEL[String(r.dataset)] ?? String(r.dataset), status: r.status as MissingDataset["status"], reason: String(r.reason) }));
+    const rows = await sql`select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = ${pl.ibge} and dc.status <> 'no_site' order by dataset`;
+    return rows.map((r) => ({
+      dataset: toDataset(String(r.dataset)),
+      label: DATASET_LABEL[String(r.dataset)] ?? String(r.dataset),
+      status: r.status as MissingDataset["status"],
+      reason: String(r.reason),
+      evidenceUrl: (r.evidence_url as string | null) ?? null,
+      checkedOn: r.checked_on ? iso(r.checked_on) : null,
+    }));
+  },
+  async getCouncilSite(ibge) {
+    const [h] = await sql`
+      select h.status, h.base_url, h.note
+      from sapl_houses h join places p on p.id = h.place_id
+      where p.ibge_code = ${ibge}`;
+    if (!h) return null;
+    return { url: h.status === "ok" && h.base_url ? String(h.base_url) : null, note: h.status === "ok" ? null : ((h.note as string | null) ?? null) };
   },
   async getAssembly(uf) {
     const [b] = await sql`
@@ -691,11 +728,43 @@ export const pgSource: DataSource = {
     const by = new Map<number, CampaignFinance>();
     for (const r of rows) {
       const y = Number(r.year);
-      const cur = by.get(y) ?? { year: y, officeName: officeName(r), placeLabel: placeLabel(r), income: [], spending: [] };
+      const cur = by.get(y) ?? { year: y, officeName: officeName(r), placeLabel: placeLabel(r), income: [], spending: [], origins: [], donors: [] };
       (r.direction === "receita" ? cur.income : cur.spending).push({ label: String(r.category), cents: Number(r.cents) });
       by.set(y, cur);
     }
+    if (by.size) {
+      // catálogo D11: a mesma candidatura escolhida acima (a de mais lançamentos no ano)
+      const pick = await sql`
+        with per as (
+          select c.id, e.year, (select count(*) from campaign_finance_entries f where f.candidacy_id = c.id) as n
+          from candidacies c join elections e on e.id = c.election_id where c.person_id = ${personId}::uuid
+        ), pick as (select distinct on (year) id, year from per where n > 0 order by year, n desc)
+        select pick.year, 'o' as t, o.origin as a, null::text as b, o.amount_cents::bigint as cents
+          from pick join campaign_finance_by_origin o on o.candidacy_id = pick.id
+        union all
+        select pick.year, 'd', d.donor_kind, d.donor_name, sum(d.amount_cents)::bigint
+          from pick join campaign_finance_donors d on d.candidacy_id = pick.id group by 1, 2, 3, 4
+        order by 1, 2, 5 desc, 4`;
+      for (const r of pick) {
+        const cur = by.get(Number(r.year));
+        if (!cur) continue;
+        if (r.t === "o") cur.origins.push({ origin: r.a as CampaignOrigin, cents: Number(r.cents) });
+        else cur.donors.push({ kind: r.a as "partido" | "pessoa_juridica", name: String(r.b), cents: Number(r.cents) });
+      }
+      const order = new Map(CAMPAIGN_ORIGINS.map((o, i) => [o.origin, i]));
+      for (const c of by.values()) c.origins.sort((a, b) => (order.get(a.origin) ?? 99) - (order.get(b.origin) ?? 99));
+    }
     return [...by.values()].sort((a, b) => b.year - a.year);
+  },
+  async listAmendmentsByPerson(personId) {
+    const rows = await sql`${AMENDMENT_SELECT} where a.person_id = ${personId}::uuid
+      order by a.year desc, coalesce(pl.name, a.locality_label, '') collate pt_br, a.area collate pt_br nulls last, a.source_key`;
+    return rows.map(amendmentRow);
+  },
+  async listAmendmentsToPlace(ibge) {
+    const rows = await sql`${AMENDMENT_SELECT} where pl.ibge_code = ${ibge}
+      order by a.year desc, a.author_label collate pt_br, a.area collate pt_br nulls last, a.source_key`;
+    return rows.map(amendmentRow);
   },
   async listStaff(personId) {
     const rows = await sql`select name, role, monthly_salary_cents, as_of from staff_members where person_id = ${personId}::uuid order by name collate pt_br`;
@@ -760,39 +829,46 @@ export const pgSource: DataSource = {
     const limit = Math.min(f.limit ?? 20, 500);
     const offset = off(f.cursor);
     const q = f.q?.trim();
-    const where = sql`v.person_id = ${personId}::uuid and e.is_nominal
+    const base = sql`v.person_id = ${personId}::uuid and e.is_nominal
       ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
       ${f.value ? sql`and v.value = ${f.value}` : sql``}
       ${f.topic ? sql`and exists (select 1 from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id and t.slug = ${f.topic})` : sql``}
       ${q ? sql`and f_unaccent(lower(e.description)) like '%' || f_unaccent(lower(${q})) || '%'` : sql``}`;
+    const lei = f.scope === "lei";
+    const where = lei ? sql`${base} and e.kind <> all(${PROCEDURAL_KINDS}::text[])` : base;
     const [{ n }] = await sql`select count(*)::int as n from votes v join voting_events e on e.id = v.voting_event_id where ${where}`;
+    const hidden = lei ? Number((await sql`select count(*)::int as n from votes v join voting_events e on e.id = v.voting_event_id where ${base} and e.kind = any(${PROCEDURAL_KINDS}::text[])`)[0].n) : 0;
     const rows = await sql`
-      select e.id, b.kind as body, e.occurred_at, e.result, e.yes_count, e.no_count, v.value, v.party_id,
+      select e.id, e.kind, b.kind as body, e.occurred_at, e.result, e.yes_count, e.no_count, v.value, v.party_id,
              -- a Câmara publica só o placar na descrição; a proposição votada dá o assunto
              case when pr.id is not null then pr.type || ' ' || pr.number || '/' || pr.year || ' — ' || left(pr.summary_official, 220) || ' · ' || e.description else e.description end as description,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
       from votes v join voting_events e on e.id = v.voting_event_id join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id
       where ${where}
       order by e.occurred_at desc limit ${limit} offset ${offset}`;
-    return page(
-      rows.map<PersonVote>((r) => ({
-        event: {
-          id: String(r.id),
-          body: r.body === "senado" ? "senado" : "camara",
-          occurredAt: isoTs(r.occurred_at),
-          description: String(r.description),
-          topic: (r.topic as string | null) ?? null,
-          result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
-          yes: Number(r.yes_count ?? 0),
-          no: Number(r.no_count ?? 0),
-        },
-        value: r.value as VoteValue,
-        partyId: String(r.party_id ?? ""),
-      })),
-      Number(n),
-      offset,
-      limit,
-    );
+    return {
+      ...page(
+        rows.map<PersonVote>((r) => ({
+          event: {
+            id: String(r.id),
+            body: r.body === "senado" ? "senado" : "camara",
+            kind: r.kind as VoteKind,
+            occurredAt: isoTs(r.occurred_at),
+            description: String(r.description),
+            topic: (r.topic as string | null) ?? null,
+            result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
+            yes: Number(r.yes_count ?? 0),
+            no: Number(r.no_count ?? 0),
+          },
+          value: r.value as VoteValue,
+          partyId: String(r.party_id ?? ""),
+        })),
+        Number(n),
+        offset,
+        limit,
+      ),
+      hidden,
+    };
   },
   async listExpenses(personId, f) {
     const limit = Math.min(f.limit ?? 20, 500);
@@ -905,26 +981,29 @@ export const pgSource: DataSource = {
     const limit = Math.min(f.limit ?? 30, 100);
     const offset = off(f.cursor);
     const q = f.q?.trim();
-    const where = sql`b.kind = ${kind} and e.is_nominal
+    const base = sql`b.kind = ${kind} and e.is_nominal
       ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
       ${f.result ? sql`and e.result = ${f.result}` : sql``}
       ${q ? sql`and (f_unaccent(lower(e.description)) like '%' || f_unaccent(lower(${q})) || '%' or f_unaccent(lower(coalesce(pr.summary_official, ''))) like '%' || f_unaccent(lower(${q})) || '%' or lower(coalesce(pr.type || ' ' || pr.number, '')) like '%' || lower(${q}) || '%')` : sql``}`;
+    const lei = f.scope === "lei";
+    const where = lei ? sql`${base} and e.kind <> all(${PROCEDURAL_KINDS}::text[])` : base;
     const from = sql`from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id`;
     const [{ n }] = await sql`select count(*)::int as n ${from} where ${where}`;
+    const hidden = lei ? Number((await sql`select count(*)::int as n ${from} where ${base} and e.kind = any(${PROCEDURAL_KINDS}::text[])`)[0].n) : 0;
     const rows = await sql`
-      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret,
+      select e.id, e.kind, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret,
              exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
       ${from} where ${where} order by e.occurred_at desc, e.id limit ${limit} offset ${offset}`;
     const years = await sql`select distinct extract(year from e.occurred_at at time zone 'America/Sao_Paulo')::int as y
       from voting_events e join legislative_bodies b on b.id = e.body_id where b.kind = ${kind} and e.is_nominal order by 1 desc`;
-    return { ...page(rows.map((r) => summary(r, f.body)), Number(n), offset, limit), years: years.map((y) => Number(y.y)) };
+    return { ...page(rows.map((r) => summary(r, f.body)), Number(n), offset, limit), years: years.map((y) => Number(y.y)), hidden };
   },
   async getVotingEvent(id) {
     if (!/^[0-9a-f-]{36}$/.test(id)) return null;
     const [r] = await sql`
-      select e.id, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret, b.kind as body,
+      select e.id, e.kind, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret, b.kind as body,
              exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
@@ -1182,6 +1261,31 @@ export const pgSource: DataSource = {
       if (c && (!out.checkedOn || c > out.checkedOn)) out.checkedOn = c;
     }
     return out;
+  },
+  async getLatestRecord(personId) {
+    // o mesmo recorte que o crachá mostra: voto nominal, proposta de autoria (qualquer papel) e gasto; data futura não vale
+    const [[v], [p], [g]] = await Promise.all([
+      sql`select (max(e.occurred_at) at time zone 'America/Sao_Paulo')::date as on_ from votes v join voting_events e on e.id = v.voting_event_id where v.person_id = ${personId}::uuid and e.is_nominal and e.occurred_at <= now()`,
+      sql`select max(p.presented_on) as on_ from proposal_authors pa join proposals p on p.id = pa.proposal_id where pa.person_id = ${personId}::uuid and p.presented_on <= current_date`,
+      // assembleias e câmaras lançam o gasto no dia 1 do mês (a fonte dá o mês): nelas só o mês é fato
+      sql`select x.occurred_on as on_, b.kind not in ('camara_deputados', 'senado') as month_only
+          from expenses x join legislative_bodies b on b.id = x.body_id
+          where x.person_id = ${personId}::uuid and x.occurred_on <= current_date order by x.occurred_on desc limit 1`,
+    ]);
+    const found: LatestRecord[] = [];
+    if (v?.on_) found.push({ kind: "votacao", on: iso(v.on_) });
+    if (p?.on_) found.push({ kind: "proposta", on: iso(p.on_) });
+    if (g?.on_) found.push({ kind: "gasto", on: iso(g.on_), ...(g.month_only ? { monthOnly: true } : {}) });
+    return found.sort((x, y) => y.on.localeCompare(x.on))[0] ?? null;
+  },
+  async getSalarySchedule(office, placeIbge) {
+    const rows = await sql`
+      select s.valid_from, s.amount_cents, s.is_ceiling, so.name, so.url
+      from salaries s join offices o on o.id = s.office_id join sources so on so.id = s.source_id
+      left join places pl on pl.id = s.place_id
+      where o.slug = ${office} and (s.place_id is null or pl.ibge_code = ${placeIbge})
+      order by s.valid_from, s.place_id nulls first`;
+    return rows.map<SalaryStep>((r) => ({ validFrom: iso(r.valid_from), amountCents: Number(r.amount_cents), isCeiling: Boolean(r.is_ceiling), source: { name: String(r.name), url: String(r.url) } }));
   },
   async latestRefresh() {
     const [r] = await sql`select max(refreshed_at) as at from dataset_stamps`;

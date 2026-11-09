@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/page/page-header";
 import { AboutData, PautaCard, ReadStamp, where } from "@/components/pauta/ui";
+import { GlossaryFor } from "@/components/ui/glossary";
 import { data, type Body, type PautaEntry } from "@/lib/data";
 import { count } from "@/lib/format";
 import { dateTime, dayKey, dayLong, dayShort, weekLastDay } from "@/lib/pauta";
@@ -51,6 +52,11 @@ export default async function Pauta({ searchParams }: Props) {
         <p className="text-base text-muted">Propostas sobre dinheiro, trabalho e benefícios marcadas para votação no plenário até {until}.</p>
         <ReadStamp readAt={o.week.readAt} reads={o.reads} />
       </header>
+
+      <GlossaryFor
+        className="mb-6 max-w-3xl"
+        texts={[...plenary, ...only(o.later), ...only(o.committees)].map((r) => `${r.type} ${r.summary ?? ""} ${r.plain ?? ""}${r.rapporteur ? " relator" : ""}`)}
+      />
 
       <nav aria-label="Filtrar por Casa" className="mb-6">
         <ul className="flex gap-2">

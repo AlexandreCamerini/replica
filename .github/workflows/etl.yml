@@ -1,13 +1,20 @@
 # Agenda do ETL em produção (D250). Ligar: etl/deploy/github-actions-setup.sh (assistente interativo). Desligada até o dono configurar:
 #   secret ETL_DATABASE_URL (role de escrita do banco de produção), variável ETL_SCHEDULE_ENABLED=true
 #   e, opcional, secret ETL_ALERT_WEBHOOK (Slack/Discord/Teams compatível com {"text": ...}).
+#   Emendas e CGU (catálogo D01–D03) pedem o secret TRANSPARENCIA_API_KEY (etl/deploy/transparencia-key.sh). Sem ele essas tarefas são
+#   puladas com o motivo no relatório, sem alerta.
 # run-due decide o que venceu; chamar a cada 3 h basta (Câmara/Senado vencem em 20 h, prazo do site 36 h).
+# catálogo D06 (segunda leitura noturna, ter–sáb, hora de Brasília = UTC-3): Senado 00:30–02:00 (UTC 03:30–05:00), Câmara 05:00–07:00 (UTC 08:00–10:00).
+# O cron "17 */3" cai em 00:17 e 03:17 BRT, fora da janela do Senado; por isso as duas linhas a mais. O atraso do GitHub (10–60 min) cabe
+# nas janelas. As constantes de "17 */3" repetem-se em schedule.py (TICK_*) e web/src/lib/sources.ts; test_schedule.py confere.
 # O cache de downloads (etl/.cache) é preservado entre execuções para o TSE e o SAPL não baixarem tudo de novo.
 # Actions fixadas por SHA (tag no comentário). Pendente: travar dependências do pip com hash (--require-hashes).
 name: etl
 on:
   schedule:
     - cron: "17 */3 * * *"
+    - cron: "40 3 * * 2-6"   # 00:40 BRT: janela do Senado
+    - cron: "10 8 * * 2-6"   # 05:10 BRT: janela da Câmara (o CSV anual é regerado até 04:45 BRT)
   workflow_dispatch:
     inputs:
       only:
@@ -37,6 +44,7 @@ jobs:
           ONLY: ${{ inputs.only }}
           ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
           ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
+          TRANSPARENCIA_API_KEY: ${{ secrets.TRANSPARENCIA_API_KEY }}  # só header na API; nunca em URL nem log
           ETL_DEADLINE_MIN: "320"  # abaixo do timeout do job: a agenda adia o que não cabe e sempre alerta
         run: |
           if [ -n "$ONLY" ]; then python -m civico_etl.cli run-due --only "$ONLY" --force

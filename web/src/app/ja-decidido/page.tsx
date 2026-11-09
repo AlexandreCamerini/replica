@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/page/page-header";
+import { GlossaryFor } from "@/components/ui/glossary";
 import { EstadoZoom, MapaBrasil } from "@/components/votos/mapa-brasil";
 import { Barra, Barra513, Sq, Trilha, VotacaoChips, VotoLegenda, votoTexto } from "@/components/votos/ui";
 import { NAMES, SEATS, UFS, VOTES, camaraUrl, findDeputy, fora, groupsOf, history, isUf, jaDecididoHref, nk, pctText, stateSentence, voteIndex } from "@/lib/votacoes";
@@ -34,6 +35,16 @@ export default async function JaDecidido({ searchParams }: Props) {
       </header>
 
       <VotacaoChips v={v} uf={uf} dep={depId} />
+      {/* U05: PL, PEC e MPV da votação aberta.
+          U11: sem chip "tudo" aqui, de propósito. As 6 votações são curadas à mão e, por source_key, são 4 de texto e 2 de destaque no banco
+          (voting_events.kind): a frase abaixo é verdade por curadoria, não por filtro. O chip está em /congresso e no crachá. */}
+      <GlossaryFor className="mt-3 max-w-[70ch]" texts={[V.label, V.what]} />
+      <p className="mt-2 max-w-[70ch] text-sm text-muted" data-testid="regra-lei">
+        Esta lista tem só votações que mudam o texto de uma proposta. Requerimento e urgência ficam de fora.{" "}
+        <Link href="/como-escolhemos#votos-lei" className="underline underline-offset-2">
+          A regra
+        </Link>
+      </p>
 
       <div className="mt-4 grid gap-7 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
         <section className="plate min-w-0" aria-live="polite">

@@ -124,7 +124,7 @@ export default async function Page() {
         </Notice>
       </section>
 
-      <SourceFooter source={`${stamp.source} e Banco Central (SGS)`} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={`${stamp.source} e Banco Central (SGS)`} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Container>
   );
 }

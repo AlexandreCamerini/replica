@@ -28,7 +28,7 @@ from ..db import Run, SkipUnchanged, run, upsert
 from ..http import fetch, fetch_json, paginate_camara
 from ..identity import PersonResolver
 from ..parties import PartyResolver
-from ..util import cents, fold, midnight_br, nz, parse_date, parse_ts_br, sha256_text, titlecase_pt
+from ..util import BRT, cents, fold, midnight_br, nz, parse_date, parse_ts_br, sha256_text, titlecase_pt
 
 log = logging.getLogger("etl.camara")
 API = "https://dadosabertos.camara.leg.br/api/v2"
@@ -284,7 +284,19 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
         return
 
 
-def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
+def run_camara_noturna(conn: psycopg.Connection, *, days: int = 3, force: bool = False) -> None:
+    """catálogo D06: segunda leitura, só das votações do Plenário dos últimos `days` dias (BRT). Lê os mesmos CSVs anuais (304 se não mudaram) e
+    grava só os eventos recentes. Dataset próprio (`camara.noturna.ANO`): o checksum dos CSVs não pode fazer a carga completa
+    (`camara.votacoes.ANO`) concluir "entrada igual" e pular correção de sessão mais antiga que o recorte.
+    O CSV anual da Câmara é regerado entre 03:50 e 04:45 de Brasília: antes disso esta leitura vê o arquivo do dia anterior."""
+    today = datetime.now(BRT).date()
+    since = today - timedelta(days=days)
+    ctx = _Ctx(conn)
+    for y in sorted({since.year, today.year}):
+        _votes(conn, ctx, y, force, since=since, dataset=f"camara.noturna.{y}")
+
+
+def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool, *, since: date | None = None, dataset: str | None = None) -> None:
     try:
         f_ev = fetch(f"{FILES}/votacoes/csv/votacoes-{year}.csv")
         f_vt = fetch(f"{FILES}/votacoesVotos/csv/votacoesVotos-{year}.csv")
@@ -295,7 +307,7 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
         return
     checksum = ":".join(x.checksum for x in (f_ev, f_vt, f_or, f_pr))
     try:
-        with run(conn, f"camara.votacoes.{year}", "camara", input_checksum=checksum, force=force) as r:
+        with run(conn, dataset or f"camara.votacoes.{year}", "camara", input_checksum=checksum, force=force) as r:
             # proposição objeto de cada votação (primeira)
             prop_of: dict[str, dict[str, str]] = {}
             for x in _csv(f_pr.text()):
@@ -304,7 +316,7 @@ def _votes(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> None:
             votes_by: dict[str, list[dict[str, str]]] = defaultdict(list)
             for x in _csv(f_vt.text()):
                 votes_by[x["idVotacao"]].append(x)
-            events = [x for x in _csv(f_ev.text()) if x["siglaOrgao"] == "PLEN"]
+            events = [x for x in _csv(f_ev.text()) if x["siglaOrgao"] == "PLEN" and (since is None or (parse_date(x["data"]) or date.min) >= since)]
             log.info("câmara %d: %d votações do Plenário, %d com voto nominal", year, len(events), sum(1 for e in events if e["id"] in votes_by))
 
             # proposições mínimas (as votadas), para ligar o evento

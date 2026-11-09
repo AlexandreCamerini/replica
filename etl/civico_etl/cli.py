@@ -8,6 +8,10 @@ Exemplos:
   civico-etl camara.presenca --year 2025 --year 2026                  # presença oficial em sessões deliberativas
   civico-etl senado.diario --year 2025
   civico-etl senado.secretas                                          # votação secreta do Senado pela fonte (D123)
+  civico-etl camara.noturna / senado.noturna                          # catálogo D06: só as votações dos últimos dias; a agenda roda derive.stats depois (à mão: civico-etl derive.stats)
+  civico-etl transparencia.ping                                       # catálogo D01: testa a chave do Portal da Transparência (exit 0 ok, 1 recusada, 2 sem chave)
+  civico-etl transparencia.emendas [--year 2024]                      # catálogo D02: emendas por ano (2023+), com chave
+  civico-etl sancoes.cgu                                              # catálogo D03: CEIS e CNEP pela API, com chave
   civico-etl agenda.congresso                                         # pauta de plenário Câmara/Senado (mês passado a mês que vem)
   civico-etl tse.fix019 --year 2022 [--apply]                        # BUG-019: corrige presidente contado 2x (dry-run sem --apply)
   civico-etl tse.fix032 [--year 2012] [--apply]                    # BUG-032: identidade casada por SQ sem o ano (dry-run sem --apply)
@@ -53,16 +57,20 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs.ale_cli import main as ale_main
 
         return ale_main(args)
-    if args and args[0].startswith("sancoes."):  # sanções de órgãos de controle (W3-B): sancoes.tcu
+    if args and args[0].startswith("sancoes."):  # sanções de órgãos de controle (W3-B, catálogo D03): sancoes.tcu, sancoes.cgu (API com chave)
         from .jobs.sancoes import main as sancoes_main
 
         return sancoes_main(args)
+    if args and args[0].startswith("transparencia."):  # Portal da Transparência com chave (catálogo D01 e D02): transparencia.ping, transparencia.emendas
+        from .transparencia import main as transparencia_main
+
+        return transparencia_main(args)
     if args and args[0].startswith("sapl."):  # Câmaras Municipais via SAPL (W3-B): sapl.descobrir, sapl.carregar, sapl.todas
         from .jobs.sapl import main as sapl_main
 
         return sapl_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "identity.repairs", "camara.diario", "camara.presenca", "camara.equipe", "senado.diario", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "pauta", "rascunho", "revisar", "check", "all", "governos.indicadores", "receita.arrecadacao"])
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "identity.repairs", "camara.diario", "camara.noturna", "camara.presenca", "camara.equipe", "senado.diario", "senado.noturna", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "pauta", "rascunho", "revisar", "check", "all", "governos.indicadores", "receita.arrecadacao"])
     p.add_argument("key", nargs="?", help="rascunho/revisar: chave da proposta, ex. camara-pl-79-2020")
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
@@ -72,6 +80,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-expenses", action="store_true", help="Câmara: pular a cota parlamentar")
     p.add_argument("--force", action="store_true", help="ignorar checksum e reprocessar")
     p.add_argument("--model", help="rascunho: modelo (padrão claude-sonnet-5-5 ou RASCUNHO_MODEL)")
+    p.add_argument("--batch", action="store_true", help="rascunho: envia a fila num lote (50%% do preço) e espera até --batch-wait-min")
+    p.add_argument("--batch-wait-min", type=float, help="rascunho --batch: espera máxima pelo lote antes de cair para o síncrono (padrão RASCUNHO_BATCH_WAIT_MIN ou 20)")
+    p.add_argument("--coletar", action="store_true", help="rascunho: só coleta lotes de runs anteriores, sem enviar nada")
     p.add_argument("--aprovar", action="store_true", help="revisar: publica o último rascunho")
     p.add_argument("--reprovar", action="store_true", help="revisar: reprova o último rascunho")
     p.add_argument("--revisor", help="revisar: nome de quem revisou (aparece como 'Revisado por pessoa')")
@@ -162,6 +173,14 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.camara_equipe import run_equipe
 
             run_equipe(conn, force=a.force)
+        if a.job == "camara.noturna":
+            from .jobs.camara_diario import run_camara_noturna
+
+            run_camara_noturna(conn, force=a.force)
+        if a.job == "senado.noturna":
+            from .jobs.senado_diario import run_senado_noturna
+
+            run_senado_noturna(conn, force=a.force)
         if a.job in ("senado.diario", "all"):
             from .jobs.senado_diario import run_senado
 
@@ -193,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:
         if a.job == "rascunho":
             from .jobs.rascunho import run_rascunho
 
-            run_rascunho(conn, key=a.key, limit=a.limit or 5, model=a.model, force=a.force)
+            run_rascunho(conn, key=a.key, limit=a.limit or 5, model=a.model, force=a.force, batch=a.batch, batch_wait_min=a.batch_wait_min, coletar=a.coletar)
         if a.job == "revisar":
             from .jobs.revisar import run_revisar
 

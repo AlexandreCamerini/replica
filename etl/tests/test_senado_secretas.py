@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -27,7 +28,8 @@ def test_contagem_bate_com_a_fonte(conn):
     from civico_etl.http import CACHE_DIR
 
     d = CACHE_DIR / "legis.senado.leg.br"
-    metas = [m for m in d.glob("*.meta.json") if "votacao?dataInicio=" in json.loads(m.read_text()).get("url", "")] if d.exists() else []
+    # só o ano inteiro (dataInicio=ANO-01-01): o recorte noturno (catálogo D06, senado.noturna) também fica em cache e cobre poucos dias
+    metas = [m for m in d.glob("*.meta.json") if re.search(r"votacao\?dataInicio=\d{4}-01-01&", json.loads(m.read_text()).get("url", ""))] if d.exists() else []
     if not metas:
         pytest.skip("sem /votacao em cache")
     for m in metas:

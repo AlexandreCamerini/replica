@@ -165,7 +165,7 @@ export async function YearByYear({
         </div>
         {senado && <p className="mt-2 text-xs text-muted">Presença “—”: {presenceReason ?? "o Senado não publica a lista de presença por senador"}.</p>}
       </div>
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }

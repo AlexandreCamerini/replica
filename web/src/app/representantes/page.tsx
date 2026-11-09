@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container, PageHeader } from "@/components/page/page-header";
 import { HolderGrid } from "@/components/people/holder-card";
+import { CityGaps } from "@/components/people/city-gaps";
+import { Amendments } from "@/components/profile/sections";
 import { PlaceSearch } from "@/components/people/place-search";
 import { MissingDataNote, SourceFooter } from "@/components/ui/data";
 import { data, type Place, type PlaceTopVoted, type Stamp } from "@/lib/data";
@@ -39,12 +41,12 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   return <PlaceRepresentatives place={place} />;
 }
 
+// U14. Todos são links comuns (funcionam sem JS) para endereços que o app já serve. Os #ids vêm de GROUPS.key em lib/data/pg.ts.
 const EXAMPLES = [
   { label: "Campinas · SP", href: "/representantes?cidade=3509502" },
-  { label: "Salvador · BA", href: "/representantes?cidade=2927408" },
+  { label: "Os 3 senadores do DF", href: "/representantes?uf=DF#senado" },
+  { label: "Presidente e vice", href: "/representantes?uf=DF#presidencia" },
   { label: "Bom Jesus (4 cidades)", href: "/representantes?q=Bom+Jesus" },
-  { label: "Minas Gerais", href: "/representantes?uf=MG" },
-  { label: "Distrito Federal", href: "/representantes?uf=DF" },
 ];
 
 async function PickPlace({ q }: { q?: string }) {
@@ -61,6 +63,21 @@ async function PickPlace({ q }: { q?: string }) {
       <div className="max-w-xl">
         <PlaceSearch />
       </div>
+      <nav aria-label="Exemplos" className="mt-3 max-w-xl">
+        <p className="lbl mb-1">Por exemplo</p>
+        <ul className="flex flex-wrap gap-2">
+          {EXAMPLES.map((e) => (
+            <li key={e.href}>
+              <Link
+                href={e.href}
+                className="inline-flex min-h-11 items-center rounded-pill border-[1.5px] border-border bg-surface px-4 text-sm font-semibold text-fg outline-none hover:border-border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                {e.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
       {results && (
         <section aria-labelledby="resultados" className="mt-6">
           <h2 id="resultados" className="mb-2 text-lg text-fg">
@@ -81,20 +98,6 @@ async function PickPlace({ q }: { q?: string }) {
           )}
         </section>
       )}
-      <nav aria-label="Exemplos" className="mt-4">
-        <ul className="flex flex-wrap gap-2">
-          {EXAMPLES.map((e) => (
-            <li key={e.href}>
-              <Link
-                href={e.href}
-                className="inline-flex h-8 items-center rounded-pill border-[1.5px] border-border bg-surface px-3 text-sm font-semibold text-fg outline-none hover:border-border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              >
-                {e.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
       <section aria-labelledby="niveis" className="mt-10">
         <h2 id="niveis" className="mb-3 text-lg text-fg">
           Três níveis, uma lista
@@ -117,7 +120,7 @@ async function PickPlace({ q }: { q?: string }) {
 const VISIBLE = 12;
 
 async function PlaceRepresentatives({ place }: { place: Place }) {
-  const [groups, missing, stamp, munis, top, votesStamp, popStamp] = await Promise.all([
+  const [groups, missing, stamp, munis, top, votesStamp, popStamp, site] = await Promise.all([
     data.getRepresentatives(place),
     data.getCoverage(place),
     data.getStamp("tse.candidatos"),
@@ -125,6 +128,7 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
     place.kind === "municipio" ? data.getTopVotedInPlace(place.ibge, 5) : Promise.resolve(null),
     data.getStamp("tse.votos"),
     data.getStamp("ibge.populacao"),
+    place.kind === "municipio" ? data.getCouncilSite(place.ibge) : Promise.resolve(null),
   ]);
   const total = groups.reduce((s, g) => s + g.people.length, 0);
   const isCity = place.kind === "municipio";
@@ -177,7 +181,13 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
         </ul>
       </nav>
 
-      {missing.length > 0 && (
+      {/* U03: na cidade, um bloco só com motivo por dado e o site da câmara; no estado, a nota de antes */}
+      {isCity && missing.length > 0 && (
+        <div className="mb-8">
+          <CityGaps place={place} items={missing} site={site} />
+        </div>
+      )}
+      {!isCity && missing.length > 0 && (
         <div className="mb-8">
           <MissingDataNote items={missing.map((m) => ({ what: m.label, why: m.reason }))} />
         </div>
@@ -221,6 +231,13 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
 
       {isCity && <TopVoted place={place} top={top} stamp={votesStamp} />}
 
+      {/* catálogo D02: quanto chegou em emenda e de quem; autor A–Z, nunca por valor */}
+      {isCity && (
+        <div className="mt-10">
+          <Amendments cityIbge={place.ibge} title={`Emendas com destino a ${place.name}`} />
+        </div>
+      )}
+
       {munis.length > 0 && (
         <section aria-labelledby="cidades" className="mt-10">
           <h2 id="cidades" className="mb-3 text-xl text-fg">
@@ -236,7 +253,7 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
         </section>
       )}
 
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Container>
   );
 }
@@ -289,7 +306,7 @@ function TopVoted({ place, top, stamp }: { place: Place; top: PlaceTopVoted | nu
           </div>
         </>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </section>
   );
 }
