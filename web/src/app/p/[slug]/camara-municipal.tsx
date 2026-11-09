@@ -9,10 +9,12 @@ import { count, date } from "@/lib/format";
 // Listas por data, nunca por desempenho.
 
 export function CityCouncil({ info, f }: { info: CityCouncilInfo; f: boolean }) {
-  const src = `SAPL · Câmara Municipal de ${info.city}`;
+  const ale = info.house === "assembleia";
+  const casa = ale ? `Assembleia Legislativa (${info.uf})` : `Câmara Municipal de ${info.city}`;
+  const src = `SAPL · ${casa}`;
   const leg = info.legislature ? `${info.legislature}ª legislatura${info.legislatureStart ? ` (desde ${date(info.legislatureStart)})` : ""}` : "legislatura vigente";
   return (
-    <Section id="camara-municipal" title={`Na Câmara Municipal de ${info.city}`} intro={`O que a câmara publica no SAPL sobre o mandato na ${leg}.`}>
+    <Section id="camara-municipal" title={ale ? `Na Assembleia Legislativa (${info.uf})` : `Na Câmara Municipal de ${info.city}`} intro={`O que a ${ale ? "Assembleia" : "câmara"} publica no SAPL sobre o mandato na ${leg}.`}>
       <ul className="flex flex-col divide-y divide-border" data-testid="sapl-itens">
         <li className="flex flex-col gap-1 py-3" data-dataset="propostas">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">

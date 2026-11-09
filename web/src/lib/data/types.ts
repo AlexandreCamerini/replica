@@ -204,6 +204,8 @@ export type AssemblyItem = {
 };
 /** W3-A/B: Câmara Municipal lida pelo SAPL (tabelas sapl_*, D126–D129). Presença sem porcentagem: a fonte não publica o denominador. */
 export type CityCouncilInfo = {
+  /** D09: a mesma leitura serve a Assembleia Legislativa com SAPL (city = nome da UF) */
+  house: "camara_municipal" | "assembleia";
   city: string;
   uf: string;
   baseUrl: string;

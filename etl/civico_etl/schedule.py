@@ -51,7 +51,7 @@ ORPHAN_AFTER = timedelta(hours=1)
 STUCK_AFTER = timedelta(hours=8)  # lock da agenda ocupado há mais que isso = agenda travada: alerta
 RESERVE_MIN = 45  # minutos guardados no fim para identity.repairs, derive.stats, check e alerta
 # Datasets que carimbam sem trazer dado da casa (descoberta do SAPL): não contam como "fonte em dia".
-NOT_FRESHNESS = ("sapl.descoberta",)
+NOT_FRESHNESS = ("sapl.descoberta", "sapl-ale.descoberta")
 
 # Mesma régua de web/src/lib/sources.ts (SOURCE_META[*].maxAgeHours); test_schedule.py falha se divergir.
 MAX_AGE_H: dict[str, int] = {
@@ -62,6 +62,7 @@ MAX_AGE_H: dict[str, int] = {
     "alesp": 8 * D,
     "alemg": 8 * D,
     "sapl": 8 * D,
+    "sapl-ale": 8 * D,  # catálogo D09
     "tcu": 35 * D,
     "ibge-sidra": 120 * D,
     "bcb-sgs": 120 * D,
@@ -169,9 +170,12 @@ TASKS: list[Task] = [
     Task("agenda.congresso", lambda t: ["agenda.congresso"], ("agenda.",), 20 * H, 1),
     Task("parlamento.extras", lambda t: ["parlamento.extras"], ("parlamento.extras",), 7 * D, 2, derives=True),
     Task("ale.todas", lambda t: ["ale.todas", "--no-derive"], ("alesp.", "alemg."), 6 * D, 4),
-    # SAPL: fila da própria job (nunca tentadas, depois a tentativa mais antiga); 150 por dia na descoberta e até 150 min de carga.
-    # Incremental por cursor (~30 s por câmara já carregada); a 1ª carga de cada câmara é completa (~10 min).
-    Task("sapl.todas", lambda t: ["sapl.todas", "--escopo", "todas", "--lote", "150", "--orcamento-min", "150"], ("sapl.",), 20 * H, 3),
+    # D09: 5 Assembleias com SAPL, uma tarefa própria (prefixo sapl-ale.) para a frescor não se misturar com a das câmaras. Cargas pequenas.
+    Task("sapl.ales", lambda t: ["sapl.ales", "--workers", "5", "--casa-max-min", "40"], ("sapl-ale.",), 20 * H, 2),
+    # D08: SAPL das câmaras, fila da própria job (em dia primeiro, nunca tentadas depois; casa em backoff fica fora). Orçamento por chamada:
+    # 150 min de carga, 4 câmaras em paralelo (hosts distintos; 1,1 s por host), prazo de 25 min por câmara, até 400 descobertas por dia e
+    # até 300 câmaras "ok" ainda sem carga antes de pausar a descoberta. Incremental por cursor (~30 s por câmara já carregada); a 1ª carga é completa (~10 min).
+    Task("sapl.todas", lambda t: ["sapl.todas", "--escopo", "todas", "--lote", "150", "--lote-descoberta", "400", "--max-pendentes", "300", "--orcamento-min", "150", "--workers", "4"], ("sapl.",), 20 * H, 3),
     Task("sancoes.tcu", lambda t: ["sancoes.tcu"], ("sancoes.",), 28 * D, 1),
     # catálogo D01–D03: API do Portal da Transparência com chave. Paginação inteira ao limite de requisições por minuto (transparencia.py).
     Task("transparencia.emendas", lambda t: ["transparencia.emendas"], ("transparencia.emendas.",), 7 * D, 3, needs_env="TRANSPARENCIA_API_KEY"),

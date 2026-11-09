@@ -25,6 +25,7 @@ SOURCE_TASKS = {
     "alesp": ["ale.todas"],
     "alemg": ["ale.todas"],
     "sapl": ["sapl.todas"],
+    "sapl-ale": ["sapl.ales"],
     "tcu": ["sancoes.tcu"],
     "ibge-sidra": ["governos.indicadores"],
     "bcb-sgs": ["governos.indicadores"],

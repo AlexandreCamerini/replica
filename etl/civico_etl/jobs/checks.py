@@ -425,12 +425,15 @@ CHECKS: list[tuple[str, str]] = [
                                  having sum(o.amount_cents) <> c.raised_cents) x""",
     ),
     (
-        # D128: vereador do SAPL casado só com pessoa que tem mandato de vereador naquele município
-        "SAPL: vereador casado com pessoa sem mandato de vereador no município da câmara",
-        """select count(*) from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id
+        # D128: vereador do SAPL casado só com pessoa que tem mandato de vereador naquele município.
+        # D09: parlamentar de Assembleia com SAPL (casa = UF) casado só com deputado estadual da mesma UF.
+        "SAPL: parlamentar casado com pessoa sem mandato do cargo certo na casa (vereador no município; deputado estadual na UF)",
+        """select count(*) from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id join places hp on hp.id = h.place_id
            where sp.person_id is not null and (sp.match_status <> 'casado' or not exists (
-             select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'vereador'
-             where m.person_id = sp.person_id and m.place_id = h.place_id))""",
+             select 1 from mandates m join offices o on o.id = m.office_id join places mp on mp.id = m.place_id
+             where m.person_id = sp.person_id
+               and ((hp.kind = 'municipio' and o.slug = 'vereador' and m.place_id = h.place_id)
+                 or (hp.kind = 'uf' and o.slug = 'deputado_estadual' and mp.uf = hp.uf))))""",
     ),
     (
         "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias",
