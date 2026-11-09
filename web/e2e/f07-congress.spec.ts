@@ -4,7 +4,7 @@ test.describe("F07 acompanhar o Congresso", () => {
   test("F07-H1 hemiciclo, votações e detalhe", async ({ page, axe }) => {
     await page.goto("/congresso");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Congresso");
-    const seats = page.locator('svg[role="img"][aria-label*="cadeiras"] circle');
+    const seats = page.locator('svg[role="img"][aria-label*="cadeiras"]:not([data-testid]) circle');
     expect(await seats.count()).toBeGreaterThan(400);
     // neutralidade: todas as cadeiras com a mesma cor até escolher um partido
     const fills = await seats.evaluateAll((cs) => [...new Set(cs.map((c) => c.getAttribute("fill")))]);
@@ -25,7 +25,7 @@ test.describe("F07 acompanhar o Congresso", () => {
 
   test("F07-E1 Senado, filtros e 404", async ({ page, request }) => {
     await page.goto("/congresso?casa=senado");
-    expect(await page.locator('svg[role="img"][aria-label*="cadeiras"] circle').count()).toBeLessThanOrEqual(81);
+    expect(await page.locator('svg[role="img"][aria-label*="cadeiras"]:not([data-testid]) circle').count()).toBeLessThanOrEqual(81);
     await page.goto("/congresso?resultado=rejeitado&busca=zzzzzz");
     await expect(page.getByText("Nenhuma votação com esses filtros.")).toBeVisible();
     expect((await request.get("/votacoes/abc")).status()).toBe(404);

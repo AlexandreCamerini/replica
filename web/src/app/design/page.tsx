@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { Bell, Share2 } from "lucide-react";
+import { AttendanceGrid } from "@/components/ui/attendance-grid";
 import { Button } from "@/components/ui/button";
 import { FilterChips, SegmentedTabs } from "@/components/ui/chips";
 import {
@@ -175,6 +176,27 @@ export default function DesignPage() {
 
       <Section title="Hemiciclo (neutro)">
         <Hemicycle seats={SEATS} title="Casa exemplo · 81 cadeiras" />
+      </Section>
+
+      <Section title="Presença por sessão (padrão, sem cor)">
+        <AttendanceGrid
+          grid={{
+            year: 2026,
+            sessions: [
+              { date: "2026-03-03", state: "presente" },
+              { date: "2026-03-04", state: "presente" },
+              { date: "2026-03-10", state: "ausente" },
+              { date: "2026-03-11", state: "ausencia_justificada" },
+              { date: "2026-03-17", state: "fora_do_exercicio" },
+              { date: "2026-03-18", state: "presente" },
+            ],
+            present: 3,
+            absent: 1,
+            justified: 1,
+            outside: 1,
+            total: 5,
+          }}
+        />
       </Section>
 
       <Section title="Formulário e diálogo">

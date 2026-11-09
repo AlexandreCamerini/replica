@@ -410,3 +410,147 @@ Rodada autônoma autorizada pelo dono do projeto: diff full stack contra politic
   - Uma transação de 30 a 90 min pelo Session pooler: não verifiquei timeout do lado do Supavisor. Se a conexão cair, tudo é desfeito e é só rodar de novo.
   - `sslmode=require` não verifica o certificado.
   - Se a agenda já rodou em produção, o banco não está mais vazio e o assistente recusa. Aí é preciso esvaziar produção à mão antes.
+
+## D253 a D268 · pacotes A e B do catálogo de 08/11 (orquestrador, 2026-11-09)
+
+Origem: `replica/catalogo-2026-11-08.md`. O dono escolheu os pacotes A (ganhos rápidos) e B (dinheiro no bolso), e a evidência está em `replica/recon-delta-2026-11-08.md`. Os itens D0x/U0x abaixo são IDs do catálogo, não decisões antigas.
+
+- **D253 · Chave do Portal da Transparência (catálogo D01).**
+  - **Onde vive:** secret `TRANSPARENCIA_API_KEY` no GitHub e arquivo local com permissão 600. O assistente `etl/deploy/transparencia-key.sh` lê a chave oculta e nunca a imprime.
+  - **Validação:** `civico-etl transparencia.ping` (0 ok, 1 recusada, 2 sem chave, 3 inconclusivo). Sem chave, a tarefa é pulada com motivo e não alerta. 401/403 nunca é retentado.
+  - **Risco:** os limites por minuto (80 e 200, configuráveis por env) são suposição até a primeira carga real.
+- **D254 · Emendas por nome parlamentar (catálogo D02).** Job `transparencia.emendas` (2023+), migração 0082 (liquidado, restos, localidade e motivos).
+  - **Casamento:** a API não traz código IBGE nem código do autor. O vínculo é só por nome parlamentar único com mandato federal no ano. O município é só por "NOME - UF" inequívoco.
+  - **Não-vínculo:** fica sem `person_id`, com motivo.
+  - **Invariante:** `pago ≤ empenhado` em `checks.py`.
+  - **Tela:** crachá (deputado federal e senador) e página da cidade, com ano desc e destino ou autor A–Z, nunca por valor. Os três estágios aparecem lado a lado.
+  - **Risco:** capitais com nome igual ao do estado ficam sem município. Os valores reais de `tipoEmenda` não foram vistos.
+- **D255 · CEIS/CNEP pela API (catálogo D03).** Sai o "BLOQUEADO" do D130. Entra `sancoes.cgu`, com migração 0083.
+  - **Gravação:** só pessoa física, com CPF e NIS descartados no parse.
+  - **Casamento:** com a regra do D132, e só quando o órgão sancionador é estadual ou municipal, porque a UF do DTO é a do órgão. O TCU passa a gravar motivo em todo não-vínculo.
+  - **Risco:** casa muito pouca gente. É de propósito.
+- **D256 · Contas de campanha por origem (catálogo D11).** Tabelas `campaign_finance_by_origin` e `campaign_finance_donors` (0084).
+  - **Origens:** 7, em que o fundo (FEFC, Fundo Partidário) vence a origem declarada.
+  - **Doadores:** só partido e pessoa jurídica têm nome (D36 mantido).
+  - **Tela:** ordem fixa, não pela maior parte.
+  - **Prova:** a soma das origens bate com `raised_cents` nas 67 mil candidaturas de 2022–2026, mas fecha por construção, então ainda falta conferir 3 casos no DivulgaCandContas.
+- **D257 · Segunda leitura noturna (catálogo D06).** Duas tarefas de ter a sáb, com `derive.stats` depois:
+  - `senado.noturna`, de 00:30 a 02:00 (API ao vivo);
+  - `camara.noturna`, de 05:00 a 07:00, e não 00:30, porque o CSV anual da Câmara só é regerado entre 03:50 e 04:45 de Brasília (Last-Modified observado).
+
+  A agenda ganhou o conceito de `Window`. Risco: um run longo anterior segura o lock global e a janela pode passar.
+- **D258 · Próxima leitura prevista (catálogo D13).**
+  - **Cálculo:** `nextExpectedRead` arredonda carimbo + `everyHours` para o próximo tick do cron, com a mesma régua de `schedule.py` (conferida em `test_schedule.py`).
+  - **Onde aparece:** o rodapé de fonte deduz a fonte pelo prefixo do dataset do carimbo (`slugForDataset`). Prefixo ambíguo (agenda, governos, parlamento) não promete hora.
+- **D259 · Vigia externo (catálogo D14).**
+  - **Endpoint:** `/api/health/fontes` devolve 503 se Câmara, Senado ou pauta estiverem velhas ou o banco falhar.
+  - **Cron:** `vigia.yml` diário, independente do ETL, com actions por SHA. Câmara e Senado alertam com 26 h, mais apertado que as 36 h do site, para pegar uma agenda parada.
+  - **Risco:** falso positivo em falha transitória. O GitHub desliga cron de repositório parado por 60 dias.
+  - **Antes de ligar:** confirmar carimbos `pauta.%` em produção.
+- **D260 · Rascunho em lote e cache (catálogo D15).** Mantém o modelo, o prompt e a Regra 3 (a revisão humana continua sendo o único caminho para o público).
+  - `--batch` no cron das 08:30: espera até 20 min, e no prazo cancela e cai para o síncrono. O cron das 14:30 segue síncrono.
+  - Recusa e erro no lote voltam ao síncrono, porque o lote não aceita fallback.
+  - `cache_control` só no bloco fixo.
+  - Uso e custo vão para `answer_drafts`, com o lote em `rascunho_batches` (0090).
+  - **Ganho:** ~US$3 por mês. O lote é a alavanca, porque o cache fica perto do mínimo de 512 tokens.
+  - **Risco:** nunca exercitado na API real.
+- **D261 · Conferido / registro mais recente (catálogo U01).** Linha no topo do crachá e da proposta.
+  - **Conferido:** o carimbo é o da lista da casa.
+  - **Registro mais recente:** o maior entre voto, proposta e gasto. Gasto de assembleia ou câmara mostra só o mês, porque a fonte lança no dia 1.
+  - **Sem dado:** a linha some.
+- **D262 · Lacuna que pede ajuda (catálogo U02).** O link vai para `/sugestoes?tipo=fonte&p&cidade&bloco`. A cidade só entra com 7 dígitos e o nome vem do banco. O convite só aparece em "não conferido" ou "só no portal".
+- **D263 · O que não está aqui, na cidade (catálogo U03).** Um bloco único com o motivo de `data_coverage`. O site da câmara vem de `sapl_houses` e só existe em 90 cidades. Sem site, o bloco oferece mandar o endereço.
+- **D264 · Glossário recolhível (catálogo U05).** `<details>` nativo que lê `TERMS`, a mesma fonte do `/dicionario`.
+  - **Pendência:** "Destaque" não tem verbete. O glossário da Câmara não abre por fetch e o texto não foi conferido, então o termo fica de fora (`GLOSS_MISSING`).
+- **D265 · Só o que muda lei (catálogo U11).** Esconde requerimento e urgência por `voting_events.kind`. É o padrão no crachá (`?vtipo=tudo`) e em `/congresso`, e a regra fica em `/como-escolhemos#votos-lei`.
+  - **Exceção:** `/ja-decidido` não tem chip, porque as 6 votações são curadas (4 de texto e 2 destaques). Ali só aparece a nota.
+- **D266 · Custo do mandato com base legal (catálogo U12).** São quatro itens, cada um com o ato legal.
+  - **Com dado:** salário (decreto legislativo de `salaries`) e cota com gasto real.
+  - **Em "—" com motivo:** teto da cota, verba de gabinete e moradia, por falta de dado no banco.
+  - **Selo `--warn`:** só com `valid_from` futuro.
+  - **Pendência:** o "Ato da Mesa 43/2009" ainda não foi conferido na Câmara.
+- **D267 · Patrimônio corrigido pelo IPCA (catálogo U13).** Valor nominal e valor em reais de dez/2025 (`w4_yearly_indicators`), com a variação em R$, nunca em %.
+  - **Limite:** a série para em 2025 e a tela diz isso.
+  - **Prova:** recálculo em Decimal, não na calculadora do BCB.
+- **D268 · Exemplos clicáveis na busca de cidade (catálogo U14).** Campinas, os 3 senadores do DF, presidente e vice, e Bom Jesus. São links comuns, funcionam sem JS, e a busca global continua fora (decisão de 07/11).
+
+### Revisão independente de D253–D268 (Opus, 2026-11-09)
+- **Corrigidos.**
+  - S2-1, a trava de remoção da CGU: `have` antes do upsert e leitura truncada que não remove nada.
+  - S2-2, LGPD: pessoa física sem nome civil em `people` não é gravada, e o log não leva nome (vale também para o TCU).
+  - S2-3, valor nulo de emenda: aparece como "—" com nota, nunca como R$ 0.
+  - S3-2, o vigia ignora `.noturna.`.
+  - S3-3, `--force` não descarta mais o resultado pago.
+  - S3-4, erro transitório do lote cai no síncrono.
+  - S3-6, paginação deslocada aborta o ano.
+  - S4: sem redirect com a chave; CNPJ de campanha não vira "pessoa jurídica"; doador agregado por CNPJ; `prompt_version` do lote; e a copy "despesa reconhecida (liquidado)".
+- **Ficam como risco.**
+  - S3-1, janela noturna perdida: um run longo na fila do Actions pode passar das 02:00 e pular a noite sem aviso.
+  - S3-5, emenda casada só pelo nome: autor ausente do banco com homônimo de mandato federal no ano.
+  - O `lastRefreshedAt` da fonte em `/atualizacoes` também inclui `.noturna.`.
+  - "Destaque" fica fora do glossário até haver texto conferido.
+- **Prova.** pytest 280/280, `tsc` limpo e e2e 102 passed (74 skipped exigem banco).
+  - Na tela com o Postgres local: crachá da Tabata (custo, emendas sem carga, origem da campanha, próxima leitura) e Campinas, sem rolagem horizontal em 375 px.
+
+## D275 a D279 · pacote D do catálogo de 08/11: Congresso de 2027 (U08, U09, U10, 2026-11-09)
+- **D275 · Grade de presença por sessão (U08).** No bloco "Ano a ano" do crachá, um quadrado por sessão deliberativa do ano escolhido: cheio = presente, vazio = ausente, hachura = justificada, pontilhado = fora do exercício. Cada quadrado leva `aria-label` "dd/mm/aaaa: estado". Sem migração: lê `attendance` + `sessions`, as mesmas tabelas de `person_period_stats`.
+- **D276 · Denominador da presença.** Total = presentes + ausentes + justificadas. "Fora do exercício" aparece e é contado à parte ("não conta como falta"). Conferido com o banco local: Adriana Ventura, 2025, 108 cheios de 120; 2026, 77 de 78, igual a `presence_present/total`. Hoje a Câmara não traz justificativa nem "fora do exercício" na carga; o padrão está pronto para quando trouxer (testado em `/design`).
+- **D277 · Hemiciclo Hoje / fev-2027 sem partido (U09).** Chip alterna os dois modos. Cheio = continua, hachura = entra, pontilhado = sai, vazio = cadeira sem eleito carregado. Continua = em exercício e (reeleito aguardando posse ou mandato que passa de 01/02/2027); entra = eleito novo (aguardando posse sem mandato atual na casa); sai = o resto. As cadeiras são sempre 513 e 81: o que falta vira "vazio", e mandato em excesso da fonte (hoje 514 na Câmara local) é cortado com nota visível. O partido existente (destaque pelo usuário) fica no hemiciclo de cima, que não mudou.
+- **D278 · Sem eleitos do TSE, sem "sai".** Se não há nenhum `eleito_aguardando_posse` na casa, o modo fev/2027 fica desabilitado e a nota diz que os eleitos de 2026 não foram carregados; "Hoje" mostra todos como continua. Dizer "sai" sem o TSE seria afirmar o que não sabemos. Risco: o banco local ainda não tem os eleitos de 2026, então "entra" só foi conferido na demonstração (317 continuam, 196 entram, 513 nos dois modos).
+- **D279 · Calendário da pauta (U10).** Em "Vem aí": calendário do mês com o número de itens de plenário por dia (os mesmos da lista abaixo), "próxima sessão" e "consultado há N min" calculado no navegador (a página vem do cache de até 10 min). Rodapé com `events_total` e `events_failed` de `pauta_reads` por casa. Com `events_failed > 0` aparece o erro do v1 ("Não conseguimos ler a pauta da Câmara. Última leitura: …", "Tentar de novo"). `?simular=erro` só é lido pela fonte de demonstração; o Postgres ignora.
+
+
+### Pacote E · confiança e prova (2026-11-09)
+- **D280 · Cópia datada do bruto (catálogo D12).** `etl/civico_etl/rawstore.py`, migração 0120 (`ingest_runs.raw_uri`, `raw_expires_at`, `raw_purged_at`, `raw_bytes`).
+  - **Como:** `http.fetch` e `open_remote` anotam cada download; ao fechar um run com sucesso, `db.run` grava os arquivos (gzip, exceto o que já é compactado) e um manifesto JSON. `raw_uri` aponta para o manifesto, com url, sha256 e `stored_uri` por arquivo.
+  - **Zip remoto do TSE (Range):** entra no manifesto com url e sem cópia (`why_not_stored`). Baixar GBs só para guardar custa mais do que a prova vale; o dono decide se quer isso depois.
+  - **Backends por env:** `ETL_RAW_STORE=off` (padrão) | `local` | `supabase` | `r2` (boto3 opcional). Config incompleta desliga com aviso.
+  - **Retenção:** 90 dias para os diários; `tse.*` é permanente (`raw_expires_at` nulo). `python -m civico_etl purge-raw` apaga o vencido e marca `raw_purged_at`.
+  - **Falha:** erro de upload é nota do run, nunca falha da carga. Falha do manifesto também só deixa nota. O UPDATE roda em savepoint.
+  - **Risco aceito:** respostas de `api_json` (Portal da Transparência, com chave) não são arquivadas, porque não passam por `fetch`. O manifesto fica vazio nessas cargas.
+  - **Ativação:** `replica/runbook-raw-storage.md`. Nenhum bucket nem credencial foi criado.
+- **D281 · Card com ressalva junto (catálogo U17).** `web/src/lib/og-card.ts`: `CardFact` exige `source` e `caveat`; `assertCard` derruba a imagem se faltar fonte, data ou ressalva.
+  - **Data:** o carimbo mais antigo das fontes usadas ("dados de dd/mm/aaaa"). Sem carimbo, "gerado em", dito como tal.
+  - **Ressalvas** (`CAVEAT`): "teto, não gasto", "bruto, sem correção pela inflação", "declarado, sem correção pela inflação", "arrecadado, não gasto" etc.
+  - **Proposta:** nova `proposta/[key]/opengraph-image.tsx`, com a data prevista da pauta e "previsão da pauta, pode mudar".
+  - **Teste:** `web/e2e/u17-card-ressalva.spec.ts`. O guarda estrutural falha se uma linha com `source:` nas imagens OG ficar sem `caveat:`.
+## Fechamento das pendências de A e B (2026-11-09)
+- **D285 · Vigia em produção.** `GET /api/health/fontes` responde com `ok:false` só por `pauta`: a produção não tem carimbo `pauta.%` (`sem_dado`); Câmara e Senado estão em dia.
+  - **Correção proposta, não aplicada (não toco produção):** rodar a leitura da pauta uma vez em produção (`run-due --only pauta`). O alerta das casas fica como está.
+- **D286 · Janela perdida (S3-1, fecha D257).** `schedule.missed_window` compara a última janela já fechada (hoje ou ontem, BRT) com o carimbo da tarefa. Sem carimbo desde a abertura dela, o relatório lista `missed`, o texto traz "JANELA PERDIDA" e o alerta dispara.
+  - **Custo:** persiste a cada run até a próxima janela ser lida; é o que se quer.
+  - **Primeiro deploy:** tarefa nunca lida alerta uma vez.
+- **D287 · Homônimo em emenda (S3-5, fecha D254).** `match_author` exige a UF do autor, igual à de um mandato federal da pessoa. O DTO v3 não traz UF do autor (lido o campo `ufAutor`, hoje ausente). Sem UF: confiança 0,8, sem `person_id`, com o motivo. UF de outro estado: sem vínculo.
+  - **Efeito:** com a fonte atual, emenda individual não vincula pessoa até a fonte trazer a UF. É o preço da neutralidade; o autor continua visível pelo `author_label`.
+- **D288 · Frescor em `/atualizacoes`.** `listSourceStatus` ignora `.noturna.` no `lastRefreshedAt`, igual a `health.ts`. A lista de datasets continua mostrando as leituras noturnas.
+- **D289 · "Destaque" e ato da cota (fecham as pendências de D264 e D266).**
+  - **Destaque:** verbete criado em `dicionario.ts` a partir do Glossário da Câmara (PDF oficial; RICD, arts. 161 e 162). Saiu de `GLOSS_MISSING`.
+  - **Cota:** o ato é o Ato da Mesa nº 43, de 21/5/2009, que institui a CEAP, hoje em texto consolidado (alterações como nº 270/2023 e nº 246/2026). O texto da tela e o link oficial foram corrigidos. O ato do Senado continua "ainda não conferido".
+
+## Pacote C · municipal e estadual (D08, D09), 2026-11-09
+- **D269 · SAPL em escala: orçamento por lote, sem hospedagem nova (catálogo D08).** `civico-etl sapl.*` ganhou `--workers W` (câmaras em paralelo, cada worker com conexão própria; o intervalo de 1,1 s é por host, então câmaras distintas não se atrapalham), `--casa-max-min M` (prazo de uma câmara, padrão 25 min, verificado a cada página lida), `--lote-descoberta N` e `--max-pendentes N` (antes fixo em 60). A tarefa `sapl.todas` da agenda passa a usar lote 150, 4 workers, 400 descobertas por dia e até 300 câmaras "ok" ainda sem carga. Retomada continua sendo da câmara inteira: a carga de uma câmara é uma transação só, com o cursor junto das linhas; câmara que estoura o prazo desfaz e volta pela fila. Migração 0100.
+- **D270 · Backoff por câmara instável.** `sapl_houses.fail_count` e `retry_after`: a falha dobra a espera (6 h, 12 h, 24 h... teto de 7 dias), a carga bem-sucedida zera. `load_queue` pula a câmara em backoff, então uma câmara fora do ar não consome o orçamento de todo lote. Prazo estourado conta como falha. Câmara sem legislatura vigente (condição da fonte, não falha) só volta à fila depois de 48 h.
+- **D271 · Medição do crescimento (banco local, 09/11/2026).**
+  - **Lote de teste:** 100 municípios descobertos, 39 com SAPL "ok". Só 9 tinham legislatura vigente e foram carregadas; 30 (77% das "ok") não têm legislatura cadastrada no SAPL e ficam em `sem_legislatura`, sem dado.
+  - **Tempo:** 1ª carga de 31 a 264 s por câmara (mediana 57 s), 9 câmaras do PA com 4 workers. Recarga incremental: 20 a 33 s.
+  - **Tamanho:** as 9 câmaras e as 100 linhas de `sapl_houses` somaram +13,3 MB (≈ 1,5 MB por câmara carregada; 82% em `sapl_votos`, o resto em matérias, presença e autorias). A base de 73 câmaras de antes media 1,14 MB por câmara. A cauda é de votos: Parauapebas e Altamira têm ~13 mil votos cada.
+  - **Extrapolação para ~900 câmaras carregadas:** 1,0 a 1,35 GB (1,14 a 1,5 MB), até ~2 GB se a cauda de votos for mais pesada que a amostra. Fica em 6 a 13% de 16 GB. Recarga incremental deixa ~0,3 MB por câmara em tuplas mortas até o autovacuum.
+  - **Não aplicado:** podar `sapl_votos.description` (até 2000 caracteres) reduziria o maior item. Fica como proposta ao dono, não feita.
+  - **Não provado aqui:** o aceite "300 câmaras em 2 semanas" depende da agenda rodando e do ritmo de descoberta (~14 dias para os 5.571 municípios a 400 por dia), não se prova numa sessão. A capacidade medida cobre a meta com folga.
+- **D272 · ALEs com SAPL: mesma carga, casa = UF (catálogo D09).** `sapl.ales` carrega RO, AC, AM, PI e PB com o adaptador das câmaras. A casa é uma linha de `sapl_houses` com `place_id` da UF; as URLs ficam em `ALE_SAPL`, sondadas à mão em 09/11/2026 (`/api/` com o índice 3.x, robots só barra SEO, legislatura vigente, presença e voto nominal publicados). Casamento: deputado estadual da UF, mesma regra de nome de câmaras. A fonte é `sapl-ale` e o dataset `sapl-ale.<uf>`, de propósito fora do prefixo `sapl.`: a frescor de uma ALE não se esconde atrás de 150 câmaras, nem o contrário. Tarefa `sapl.ales` (20 h), `MAX_AGE_H`/`sources.ts` com a mesma régua de 8 dias, `test_schedule.py` confere. O corpo da casa passa a `adapter = 'sapl'`; o site lê presença, votos e propostas do bloco SAPL do crachá de deputado estadual. O check "SAPL: parlamentar casado..." passou a conhecer casa de UF (deputado estadual da mesma UF).
+  - **Carga local:** AC 160 s, PI 257 s, RO 517 s, PB 1.122 s, AM 1.371 s (63 mil votos). 132 deputados casados (AC 23, AM 22, PB 35, PI 29, RO 23); sem casamento e fora da legislatura são esperados (suplentes, nomes de urna diferentes).
+- **D273 · Conferência independente de 4 deputados (aceite do D09).** O script `replica/tools/sapl_confere_ale.py` lê o SAPL da casa com outro caminho que o da carga (filtro `parlamentar=`, sessões por data, paginação `o=id`) e compara com o banco. Resultado, presença em sessões da legislatura / votos nominais:
+  - **PB, João Gonçalves:** 164 / 148 (SAPL) = 164 / 148 (banco).
+  - **PI, Franzé Silva:** 438 / 138 = 438 / 138.
+  - **RO, Nim Barroso:** 224 / 361 = 224 / 361.
+  - **AM, Comandante Dan:** 427 / 3.088 = 427 / 3.088.
+  - **Lição:** a 1ª conferência dava 3 a 7 sessões a menos porque a listagem sem `o=id` do SAPL pagina de forma instável. A carga usa `o=-id` em presença, voto e autoria (certo), mas `sessao/sessaoplenaria` e as matérias por tipo/ano são lidas sem ordem; os totais batem hoje (254/254 em RO), mas é risco para cadastros que mudam durante a leitura. Ficou como pendência.
+- **D274 · SAPL das câmaras no Mac do dono (launchd), fora do Actions (decisão do dono, 09/11/2026).** Comparativo e preços em `replica/hospedagem-sapl-2026-11-09.md`; o dono escolheu o launchd local.
+  - **Actions sem SAPL de câmara.** `run-due` ganhou o filtro por ambiente `ETL_TASKS_EXCLUDE` / `ETL_TASKS_INCLUDE` (`schedule.task_filter`; nome fora de `TASKS` é erro, não silêncio). O `etl.yml` passa `ETL_TASKS_EXCLUDE: "sapl.todas"` (o teste confere). `sapl.ales` (5 ALEs, leve) continua no Actions. A fonte (`Task.source`) de tarefa filtrada não entra no "fora do prazo" daquela chamada; o site e o vigia seguem acusando se o SAPL envelhecer. As tarefas SAPL passaram a `derives=True` (SAPL só alimenta `sapl_*`; `derive.stats` não as usa).
+  - **Mac contra produção, sem URI exposta.** `etl/deploy/launchd-sapl-prod.sh install|uninstall|status|run-now|print-plist`. O `install` deixa o próprio `security add-generic-password -w` (sem valor) pedir a URI, oculta, e a grava no Keychain (`civico-etl-prod`, conta `ETL_DATABASE_URL`); recusa URI que não seja `postgres://` com usuário ou que use a porta 6543. O plist `org.civico.etl.sapl-prod` só tem caminhos e horário (de hora em hora, minuto 47; launchd roda o disparo perdido ao acordar). O wrapper `run-due-sapl-prod.sh` lê o Keychain no instante do run, exporta só para o filho, roda `run-due` com `ETL_TASKS_INCLUDE=sapl.todas` (sem `--force`, respeita carimbo de 20 h, lock por dataset e `ETL_DEADLINE_MIN`, padrão 200) e filtra o log trocando URI e senha por marcadores. Log em `~/Library/Logs/civico-etl-sapl.log` (rotação em 5 MB). Isto não repete o plist com URL em texto claro do D250, que só valia para o banco local.
+  - **Lock próprio da chamada dedicada** (`etl.scheduler.sapl`): se o Mac usasse o lock do Actions, uma carga de 150 min poderia cobrir a janela noturna do Senado (00:30–02:00 BRT) e o `run-due` do Actions sairia sem rodar. O Actions não roda mais `sapl.todas`, então não há sobreposição da mesma tarefa; o lock por dataset de cada câmara cobre um run manual.
+  - **Trade-off.** Custo zero e sem minutos pagos do Actions, mas: o lote se perde com o Mac fechado ou dormindo (a fila retoma sozinha; o vigia acusa se passar de 8 dias); o segredo de escrita da produção fica no Keychain do Mac (visível ao usuário logado e a processos dele; mais restrito que em arquivo e sem rastro em plist, argv ou log); e o alerta do SAPL só sai do Mac se o dono guardar também `ETL_ALERT_WEBHOOK` no mesmo serviço (sem isso, ficam o log e o `last-run.json`).
+  - **Prova.** `test_launchd_sapl_prod.py` (estático sempre; ponta a ponta com `CIVICO_TEST_KEYCHAIN=1`, serviço de teste e URI falsa: o filho recebe a URI inteira, o log não guarda nem a URI nem a senha, o exit do `run-due` é propagado, 6543 é apontado, sem item o wrapper falha sem rodar). Quem roda o `install` real é o dono.
+- **D290 · emendas: pago acima do empenhado do ano é número da fonte quando há resto a pagar inscrito.** O invariante "pago <= empenhado" quebrou na primeira carga de produção com uma única linha: Bancada do PR 2024 (`202471170016`, Coronel Vivida), empenhado R$ 408.121, liquidado e pago R$ 2.758.773, resto inscrito R$ 6.845.258. O Portal publica assim. Não corrigimos o número da fonte: a régua passa a ser `pago <= empenhado + resto inscrito`, e o check só quebra quando a própria linha não explica o valor. Trade-off: um erro real de carga dentro dessa folga não é pego por este check. O crachá continua mostrando os estágios como a fonte publica.
+- **D291 · carimbo vencido conta família de dataset, não cada ano.** O check marcava 73 carimbos vencidos em produção, todos de períodos que por desenho não são relidos (`camara.votacoes.2019`, `agenda.senado.202501`). Agora o sufixo de ano, mês ou período sai (`regexp_replace('\.[0-9]{4,8}(-[0-9]{8})?$')`) e a família vence quando nem o carimbo mais novo está no prazo. Ficam fora `*.noturna*` (só ter–sáb, D06) e `tse.fix*` (reparo pontual). Teste: `test_check_stamps.py`. Junto, três testes de banco deixaram de supor banco vazio: com a carga real de emendas, CGU e agenda no banco local, `test_emendas` achava a linha real pelo mesmo `api_code`, `test_sancoes` contava os 41 vínculos reais e `test_schedule` via o carimbo em dia.
+- **D292 · pauta e rascunho nunca rodaram no Actions.** O passo de gate desses dois workflows roda antes do `actions/checkout`, mas herdava o `defaults.run.working-directory: etl`. A pasta ainda não existe, o bash não iniciava e o job falhava em 12 s, sem nenhuma leitura em produção. Era por isso que o vigia acusava "pauta" e o "Vem aí" estava velho. O gate passou a rodar em `${{ github.workspace }}`.

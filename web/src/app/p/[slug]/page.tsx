@@ -8,12 +8,15 @@ import { currentUser } from "@/lib/auth";
 import { isFollowing } from "@/lib/follows";
 import { Avatar } from "@/components/people/holder-card";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
-import { Assets, CampaignMoney, Committees, Contact, Elections, Expenses, HowToReach, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Staff, Votes } from "@/components/profile/sections";
+import { Amendments, Assets, CampaignMoney, Committees, Contact, Elections, Expenses, HowToReach, Laws, MandateCost, NotLoadedYet, Proposals, Speeches, Staff, Votes } from "@/components/profile/sections";
 import { LinkChip, hrefWith, type Params } from "@/components/profile/ui";
 import { YearByYear } from "@/components/profile/yearly";
 import { CompareToggle } from "@/components/shell/compare";
 import { NumerosFontes, type SourceLine } from "@/components/profile/numeros-fontes";
-import { MissingDataNote, StatTile } from "@/components/ui/data";
+import { StatTile } from "@/components/ui/data";
+import { FreshnessLine } from "@/components/ui/freshness";
+import { ProfileGaps } from "@/components/profile/gaps";
+import { askSourceHref } from "@/components/profile/ask-source";
 import { ListenButton } from "@/components/ui/misc";
 import { data, type MandateStatus, type PeriodStats, type YearStats } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
@@ -76,8 +79,8 @@ export default async function Page({ params, searchParams }: Props) {
   const period: PeriodStats["period"] = yearParam ? (String(yearParam) as `${number}`) : "career";
   const rawStats = await data.getStats(person.id, period);
   // W3-B/D129: vereador de câmara lida pelo SAPL. Os números ficam no bloco próprio (sem porcentagem); o cartão diz onde estão
-  const council = main && main.office === "vereador" ? await data.getCityCouncil(person.id) : null;
-  const SAPL_NOTE = "está no bloco Câmara Municipal, lido do SAPL (sem porcentagem: a fonte não publica o total de sessões de cada mandato)";
+  const council = main && (main.office === "vereador" || main.office === "deputado_estadual") ? await data.getCityCouncil(person.id) : null;
+  const SAPL_NOTE = "está no bloco da casa legislativa, lido do SAPL (sem porcentagem: a fonte não publica o total de sessões de cada mandato)";
   const stats = council
     ? { ...rawStats, missing: rawStats.missing.map((x) => (["presenca", "propostas"].includes(x.dataset) || (x.dataset === "votos" && council.votes) ? { ...x, reason: SAPL_NOTE } : x)) }
     : rawStats;
@@ -139,8 +142,48 @@ export default async function Page({ params, searchParams }: Props) {
     const labels: Record<string, string> = { presenca: "Presença", votos: "Votos em plenário", propostas: "Propostas", gastos_gabinete: "Gastos do gabinete" };
     for (const it of assembly.items) if (it.stampDataset) numberSources.push(await stampLine(labels[it.dataset] ?? it.label, it.stampDataset));
   } else if (council) {
-    numberSources.push({ label: "Presença, propostas e votos", source: `SAPL da Câmara Municipal de ${council.city}`, href: council.baseUrl, updatedAt: council.loadedAt });
+    numberSources.push({ label: "Presença, propostas e votos", source: council.house === "assembleia" ? `SAPL da Assembleia Legislativa (${council.uf})` : `SAPL da Câmara Municipal de ${council.city}`, href: council.baseUrl, updatedAt: council.loadedAt });
   }
+  // U01: "conferido com a lista oficial" = carimbo da lista da casa que sustenta o mandato; "registro mais recente" = fato mais novo da pessoa
+  const ROSTER: Record<string, string> = { camara: "camara.deputados", senado: "senado.senadores", tse: "tse.candidatos" };
+  const rosterDataset = main ? ROSTER[main.statusSource] : undefined;
+  // getStamp cai para outro conjunto da mesma fonte quando o pedido não existe, então só vale o carimbo do conjunto pedido.
+  // A lista do TSE tem um carimbo por ano (tse.candidatos.2024…): vale o mais recente deles, sem depender dos outros tse.*.
+  const rosterAt = async (ds: string): Promise<string | null> => {
+    if (ds === "tse.candidatos") {
+      const all = (await data.listSourceStatus()).flatMap((x) => x.datasets).filter((d) => d.dataset.startsWith(`${ds}.`));
+      return all.map((d) => d.refreshedAt).sort().at(-1) ?? null;
+    }
+    const st = await data.getStamp(ds);
+    return st.dataset === ds ? st.refreshedAt : null;
+  };
+  const [checkedAt, latest] = await Promise.all([rosterDataset ? rosterAt(rosterDataset) : Promise.resolve(null), data.getLatestRecord(person.id)]);
+  // U02: o link de "mande o endereço" leva a pessoa e, quando o mandato é de uma cidade, a cidade
+  const askHref = askSourceHref(person.slug, main && /^\d{7}$/.test(main.placeIbge) ? main.placeIbge : null);
+  const askFor = (d: string) => {
+    const m = missingOf(d);
+    return m && (m.status === "desconhecido" || m.status === "so_portal") ? askHref : undefined;
+  };
+  const schedule = full && main ? await data.getSalarySchedule(main.office, main.placeIbge) : [];
+  // U06: ordem = a da página. Só entra o que renderiza abaixo; `n` só quando o dado já está carregado (nunca "0" por desconhecido).
+  const isMain = !!main && main.status === "em_exercicio";
+  const asmProp = !!assembly && !!placeUf && !!stampOf(assembly.items, "propostas");
+  const asmExp = !!assembly && !!placeUf && !!stampOf(assembly.items, "gastos_gabinete");
+  const anchors: { id: string; label: string; n?: string }[] = [
+    ...(full || asmProp ? [{ id: "propostas", label: "Propostas", n: !missingOf("propostas") && stats.proposalsPrincipal !== null ? count(stats.proposalsPrincipal) : undefined }] : []),
+    ...(full ? [{ id: "votos", label: "Votos", n: !missingOf("votos") && stats.votesRegistered !== null ? count(stats.votesRegistered) : undefined }] : []),
+    ...(full || asmExp ? [{ id: "gastos", label: "Gastos", n: !missingOf("gastos_gabinete") && stats.expensesCents !== null ? money(stats.expensesCents) : undefined }] : []),
+    ...(full ? [{ id: "leis", label: "Leis" }, { id: "comissoes", label: "Comissões" }, { id: "equipe", label: "Equipe" }, { id: "discursos", label: "Discursos" }] : []),
+    ...(council ? [{ id: "camara-municipal", label: council.house === "assembleia" ? "Assembleia" : "Câmara municipal" }] : []),
+    ...(assembly && placeUf ? [{ id: "assembleia", label: "Assembleia" }] : []),
+    ...(full ? [{ id: "emendas", label: "Emendas" }] : []),
+    { id: "patrimonio", label: "Patrimônio" },
+    { id: "eleicoes", label: "Eleições", n: candidacies.length ? String(candidacies.length) : undefined },
+    { id: "campanha", label: "Campanhas" },
+    ...(isMain ? [{ id: "contato", label: "Contato" }, { id: "como-cobrar", label: "Como cobrar" }] : []),
+    ...(full ? [{ id: "custo", label: "Custo do mandato" }] : []),
+  ];
+
   const user = await currentUser();
   const following = user ? await isFollowing(user.id, person.id).catch(() => false) : false;
 
@@ -148,8 +191,9 @@ export default async function Page({ params, searchParams }: Props) {
     <Container>
       {/* cabeçalho: o nome é o título da página; cargo e lugar vêm antes, como contexto */}
       <header className="rounded-lg border border-border bg-surface p-5 md:p-8">
+        <FreshnessLine checkedAt={checkedAt} record={latest} />
         {main && (
-          <nav aria-label="Você está em" className="mb-3">
+          <nav aria-label="Você está em" className="mt-3 mb-3">
             <Link
               href={main.placeIbge === "BR" ? "/representantes" : /^\d{7}$/.test(main.placeIbge) ? `/representantes?cidade=${main.placeIbge}` : `/representantes?uf=${placeUf ?? ""}`}
               className="inline-flex h-8 items-center gap-1 rounded-pill bg-surface-sunken px-3 text-xs font-semibold text-fg outline-none hover:underline focus-visible:outline-2 focus-visible:outline-focus"
@@ -231,6 +275,22 @@ export default async function Page({ params, searchParams }: Props) {
           </Link>
         </div>
       </header>
+
+      {/* U06: âncoras das seções que renderizam abaixo, na ordem da página (sem ranking). Número só quando já está nos dados; desconhecido fica sem número. */}
+      {anchors.length > 1 && (
+        <nav aria-label="Ir para uma seção" className="mt-4" data-testid="ancoras">
+          <ul className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+            {anchors.map((a) => (
+              <li key={a.id} className="shrink-0">
+                <LinkChip href={`#${a.id}`} scroll tall>
+                  {a.label}
+                  {a.n && <span className="ml-1.5 font-normal tabular text-muted">{a.n}</span>}
+                </LinkChip>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
 
       {/* mandatos */}
       <section aria-labelledby="mandatos-h" className="mt-8">
@@ -380,7 +440,7 @@ export default async function Page({ params, searchParams }: Props) {
 
       {stats.missing.some((m) => m.reason !== SAPL_NOTE) && (
         <div className="mt-6">
-          <MissingDataNote items={stats.missing.filter((m) => m.reason !== SAPL_NOTE).map((m) => ({ what: m.label, why: m.reason }))} />
+          <ProfileGaps items={stats.missing.filter((m) => m.reason !== SAPL_NOTE)} askHref={askHref} />
         </div>
       )}
 
@@ -392,9 +452,9 @@ export default async function Page({ params, searchParams }: Props) {
         )}
         {full && (
           <>
-            <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("propostas")?.reason} />
-            <Votes personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("votos")?.reason} />
-            <Expenses personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("gastos_gabinete")?.reason} />
+            <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("propostas")?.reason} askHref={askFor("propostas")} />
+            <Votes personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("votos")?.reason} askHref={askFor("votos")} skipGloss={missingOf("propostas") ? undefined : ["pl", "pec", "mpv", "emenda"]} />
+            <Expenses personId={person.id} base={base} sp={sp} year={yearParam} body={main.office === "senador" ? "senado" : "camara"} notLoaded={missingOf("gastos_gabinete")?.reason} askHref={askFor("gastos_gabinete")} />
             <Laws personId={person.id} f={f} />
             <Committees personId={person.id} />
             <Staff personId={person.id} body={main.office === "senador" ? "senado" : "camara"} />
@@ -404,7 +464,7 @@ export default async function Page({ params, searchParams }: Props) {
         {council && <CityCouncil info={council} f={f} />}
         {assembly && placeUf && (
           <>
-            <Assembly uf={placeUf} stats={stats} periodLabel={periodLabel} f={f} since={{ propostas: labelOf("proposalsPrincipal"), gastos_gabinete: labelOf("expensesCents") }} />
+            <Assembly uf={placeUf} stats={stats} periodLabel={periodLabel} f={f} since={{ propostas: labelOf("proposalsPrincipal"), gastos_gabinete: labelOf("expensesCents") }} askHref={askHref} />
             {stampOf(assembly.items, "propostas") && (
               <Proposals personId={person.id} base={base} sp={sp} year={yearParam} f={f} stamp={stampOf(assembly.items, "propostas")!} onlyBills />
             )}
@@ -422,6 +482,7 @@ export default async function Page({ params, searchParams }: Props) {
             )}
           </>
         )}
+        {full && <Amendments personId={person.id} />}
         <Assets candidacies={candidacies} />
         <Elections candidacies={candidacies} f={f} />
         <CampaignMoney personId={person.id} />
@@ -429,6 +490,8 @@ export default async function Page({ params, searchParams }: Props) {
         {main && main.status === "em_exercicio" && <HowToReach office={main.office} hasContact={(await data.getContacts(person.id)).length > 0} f={f} />}
         {full && (
           <MandateCost
+            body={main.office === "senador" ? "senado" : "camara"}
+            schedule={schedule}
             salaryMonthlyCents={stats.salaryIsCeiling ? null : stats.salaryMonthlyCents}
             accrued={accrued}
             months={months}
@@ -439,7 +502,6 @@ export default async function Page({ params, searchParams }: Props) {
         {full && (
           <NotLoadedYet
             items={[
-              { what: "Emendas parlamentares", why: "vêm do Portal da Transparência, que exige chave de acesso cadastrada; entra quando a chave for configurada" },
               { what: "Viagens oficiais", why: "— a casa publica por missão, em formato que ainda não carregamos; nenhuma viagem está no site" },
             ]}
           />

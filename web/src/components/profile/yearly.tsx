@@ -1,3 +1,4 @@
+import { AttendanceGrid } from "@/components/ui/attendance-grid";
 import { NotPublished, SourceFooter } from "@/components/ui/data";
 import { data, type YearStats } from "@/lib/data";
 import { count, money } from "@/lib/format";
@@ -35,8 +36,9 @@ export async function YearByYear({
   // ano do gráfico: o escolhido na página, ou o mais recente com dado
   const chosen = year && withData.some((y) => y.year === year) ? year : withData[withData.length - 1].year;
   const row = withData.find((y) => y.year === chosen)!;
-  const [months, stamp] = await Promise.all([
+  const [months, grid, stamp] = await Promise.all([
     senado ? Promise.resolve([]) : data.getPresenceByMonth(personId, chosen),
+    senado ? Promise.resolve(null) : data.getAttendanceGrid(personId, chosen),
     data.getStamp(senado ? "senado.votacoes" : "camara.presenca"),
   ]);
   const presenceCell = (y: YearStats) =>
@@ -130,6 +132,7 @@ export async function YearByYear({
               </tbody>
             </table>
             </div>
+            {grid && <AttendanceGrid grid={grid} />}
             <p className="mt-2 text-xs text-muted">Mês sem barra: nenhuma sessão deliberativa com a pessoa em exercício. Ausência justificada conta como ausência na fonte.</p>
           </>
         )}
@@ -165,7 +168,7 @@ export async function YearByYear({
         </div>
         {senado && <p className="mt-2 text-xs text-muted">Presença “—”: {presenceReason ?? "o Senado não publica a lista de presença por senador"}.</p>}
       </div>
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Section>
   );
 }

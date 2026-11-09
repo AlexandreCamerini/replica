@@ -45,9 +45,11 @@ test.describe("F03 ler o crachá a fundo", () => {
     const n = await badges.count();
     for (let i = 0; i < Math.min(n, 10); i++) await expect(badges.nth(i)).toHaveText("Não");
     // seções R2: presentes, com estado vazio explicado quando a fonte não tem registro
-    for (const h of [/Leis que vieram de propostas/, /^Comissões/, /^Discursos/, /Contato oficial/, /Quanto custou/, /Ainda não está aqui/])
+    for (const h of [/Leis que vieram de propostas/, /^Comissões/, /^Discursos/, /Contato oficial/, /Quanto custa o mandato/, /Emendas que mandou/, /Ainda não está aqui/])
       await expect(page.getByRole("heading", { level: 2, name: h })).toBeVisible();
-    await expect(page.locator("#custo")).toContainText(/aproximado/);
+    // D266: cada item do custo traz o ato legal; D254: emendas sem carga dizem por quê
+    await expect(page.locator("#custo")).toContainText(/Ato legal/);
+    await expect(page.locator("#emendas")).toContainText(/Portal da Transparência/);
     // fontes em todo bloco
     for (const id of ["propostas", "votos", "gastos", "patrimonio", "eleicoes", "leis", "comissoes", "discursos", "contato"]) await expect(page.locator(`#${id}`).getByText(/^Fonte:/)).toBeVisible();
     await axe();

@@ -9,6 +9,8 @@ Só atualiza candidaturas já carregadas (quem está no diretório). Valor ausen
 Também: candidacy_place_votes (votos por município, cargos estaduais/federais; D15), campaign_finance_entries agregadas por
 categoria oficial (origem da receita / da despesa; sem doador nem fornecedor; D07) e cassação publicada na votação (D06).
 Votos: QT_VOTOS_NOMINAIS_VALIDOS quando a fonte publica (2024+); senão QT_VOTOS_NOMINAIS.
+catálogo D11: receitas também por TIPO DE FONTE (campaign_finance_by_origin, 7 origens fechadas, ver bucket_receita) e, só para partido e pessoa
+jurídica, o nome do doador (campaign_finance_donors). Pessoa física existe apenas no agregado: nome e CPF dela nunca são gravados.
 """
 
 from __future__ import annotations
@@ -166,21 +168,74 @@ def aggregate_votes(z, members, want: set[str], log_prefix: str = "tse votos") -
     return out
 
 
+ORIGINS = ("pessoa_fisica", "partido", "fefc", "fundo_partidario", "financiamento_coletivo", "recursos_proprios", "outros")
+
+
+def bucket_receita(origem: str | None, fonte: str | None) -> str:
+    """catálogo D11: uma receita cai em exatamente uma das 7 origens (função total: o que não se reconhece vai para 'outros', então a soma
+    das origens é sempre o total arrecadado). Precedência: o FUNDO (DS_FONTE_RECEITA, e DS_ORIGEM_RECEITA nos layouts de 2018/2020)
+    vence a origem, porque dinheiro de fundo público repassado por partido ou por outro candidato continua sendo do fundo."""
+    o, f = fold(origem), fold(fonte)
+    if "fundo especial" in f or "fundo especial" in o or "fefc" in o:
+        return "fefc"
+    if "fundo partidario" in f or "fundo partidario" in o:
+        return "fundo_partidario"
+    if "pessoas fisicas" in o or "pessoa fisica" in o:
+        return "pessoa_fisica"
+    if "partido politico" in o:
+        return "partido"
+    if "financiamento coletivo" in o:
+        return "financiamento_coletivo"
+    if "proprios" in o:
+        return "recursos_proprios"
+    return "outros"  # outros candidatos, rendimentos, doações pela internet, origem não identificada, #NULO
+
+
+CAMPANHA_CNPJ = re.compile(r"^eleicao\s+\d{4}\b")  # razão social do CNPJ de campanha: "ELEICAO 2022 FULANO DE TAL DEPUTADO ESTADUAL"
+
+
+def donor_of(origem: str | None, nome: str | None, doc: str | None, rfb: str | None = None, sigla: str | None = None) -> tuple[str, str, str | None] | None:
+    """catálogo D11: doador com nome só quando é partido (origem 'Recursos de partido político') ou pessoa jurídica (CNPJ de 14 dígitos fora das origens
+    de pessoa física, de outros candidatos e de recursos próprios). Devolve (tipo, nome, cnpj) ou None. Pessoa física: sempre None.
+    Nome do partido: 'SIGLA · órgão' ('UNIÃO · Direção Nacional'), porque NM_DOADOR sozinho é só o nível ('Direção Nacional');
+    de pessoa jurídica: o nome na Receita (NM_DOADOR_RFB), senão NM_DOADOR.
+    CNPJ de campanha de candidato (nome "ELEICAO AAAA ..."): é um candidato, não pessoa jurídica. O schema (0084) só aceita partido e
+    pessoa_juridica, então esse doador NÃO é gravado como nomeado; o valor continua na origem agregada."""
+    o = fold(origem)
+    digits = re.sub(r"\D", "", doc or "")
+    nome, rfb, sigla = (" ".join((x or "").split()) for x in (nome, rfb, sigla))
+    if "partido politico" in o:
+        label = f"{sigla} · {nome}" if sigla and nome else (rfb or nome or sigla)
+        return ("partido", label[:300], digits if len(digits) == 14 else None) if label else None
+    if len(digits) == 14 and not any(k in o for k in ("pessoas fisicas", "pessoa fisica", "outros candidatos", "proprios")):
+        if CAMPANHA_CNPJ.match(fold(nome)) or CAMPANHA_CNPJ.match(fold(rfb)):
+            return None
+        label = rfb or nome
+        return ("pessoa_juridica", label[:300], digits) if label else None
+    return None
+
+
 @dataclass
 class FinanceAgg:
     raised: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     spent: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     by_cat: dict[tuple[str, str, str], int] = field(default_factory=lambda: defaultdict(int))  # D07
+    by_origin: dict[tuple[str, str], int] = field(default_factory=lambda: defaultdict(int))  # catálogo D11: (sq, origem) -> centavos
+    origin_lines: dict[tuple[str, str], int] = field(default_factory=lambda: defaultdict(int))
+    donors: dict[tuple[str, str, str, str, str | None], int] = field(default_factory=lambda: defaultdict(int))  # catálogo D11: (sq, origem, tipo, nome, cnpj)
+    donor_label: dict[tuple[str, str, str, str, str | None], str] = field(default_factory=dict)  # chave sem caixa/acento -> nome como a fonte escreveu
 
 
 def aggregate_finance(z, rec, des, want: set[str], log_prefix: str = "tse contas") -> FinanceAgg:
     """Receita e despesa paga por candidatura (rec/des já escolhidos por pick_members, BUG-019).
-    D07: origem do dinheiro e destino da despesa agregados por categoria oficial do TSE; nunca grava doador nem fornecedor."""
+    D07: origem do dinheiro e destino da despesa agregados por categoria oficial do TSE; nunca grava fornecedor nem doador pessoa física.
+    Catálogo D11 (08/11): além disso, receita por tipo de fonte e doador nomeado só se for partido ou pessoa jurídica (`donor_of`)."""
     out = FinanceAgg()
     prestador: dict[str, str] = {}
     for m in rec:
         log.info("%s: lendo %s (%.0f MB)", log_prefix, m.filename, m.compress_size / 1e6)
-        for sq, sp, v, origem in rows(z, m, ["SQ_CANDIDATO", "SQ_PRESTADOR_CONTAS", "VR_RECEITA", "DS_ORIGEM_RECEITA"]):
+        for sq, sp, v, origem, fonte, doc, nome, rfb, sigla in rows(z, m, ["SQ_CANDIDATO", "SQ_PRESTADOR_CONTAS", "VR_RECEITA", "DS_ORIGEM_RECEITA", "DS_FONTE_RECEITA",
+                                                               "NR_CPF_CNPJ_DOADOR", "NM_DOADOR", "NM_DOADOR_RFB", "SG_PARTIDO_DOADOR"]):
             if sq not in want:
                 continue
             prestador[sp] = sq
@@ -188,6 +243,14 @@ def aggregate_finance(z, rec, des, want: set[str], log_prefix: str = "tse contas
             if c is not None:
                 out.raised[sq] += c
                 out.by_cat[(sq, "receita", (origem or "Não informado").strip() or "Não informado")] += c
+                b = bucket_receita(origem, fonte)
+                out.by_origin[(sq, b)] += c
+                out.origin_lines[(sq, b)] += 1
+                d = donor_of(origem, nome, doc, rfb, sigla)  # nome/CPF de pessoa física morrem aqui: só partido e CNPJ passam
+                if d:
+                    k = (sq, b if b in ("partido", "fefc", "fundo_partidario") else "outros", d[0], fold(d[1]), d[2])  # 'DIREÇÃO NACIONAL' = 'Direção Nacional'
+                    out.donors[k] += c
+                    out.donor_label.setdefault(k, d[1])
     for m in des:
         log.info("%s: lendo %s (%.0f MB)", log_prefix, m.filename, m.compress_size / 1e6)
         for sp, v, origem in rows(z, m, ["SQ_PRESTADOR_CONTAS", "VR_PAGTO_DESPESA", "DS_ORIGEM_DESPESA"]):
@@ -233,6 +296,40 @@ def _finance_entries(conn: psycopg.Connection, year: int, by_cat: dict) -> int:
                       rows_, ["source_key"], update=["candidacy_id", "amount_cents"], returning=["id"]))
 
 
+def _origin_entries(conn: psycopg.Connection, year: int, fa: FinanceAgg, r) -> int:
+    """catálogo D11: grava as origens e os doadores nomeáveis. A soma das origens de cada candidatura tem de ser o total arrecadado: se não for, o run
+    falha (nada gravado). Origem que sumiu da fonte neste ano é apagada com nota (a classificação pode mudar entre cargas)."""
+    sums: dict[str, int] = defaultdict(int)
+    for (q, _), v in fa.by_origin.items():
+        sums[q] += v
+    for sq, total in fa.raised.items():
+        got = sums.get(sq, 0)
+        if got != total:
+            raise RuntimeError(f"origens somam {got} e o total arrecadado é {total} para {sq} ({year})")
+    cid = {row["tse_sequencial"]: str(row["id"]) for row in conn.execute(
+        """select distinct on (c.tse_sequencial) c.id, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id
+           where e.year = %s order by c.tse_sequencial, e.round""", (year,))}
+    o_rows = [(cid[sq], o, v, fa.origin_lines[(sq, o)], f"tse:{year}:{sq}:{o}") for (sq, o), v in fa.by_origin.items() if sq in cid]
+    # doador = documento (CNPJ) quando houver, senão nome: o mesmo CNPJ com razões sociais diferentes (NM_DOADOR_RFB vs NM_DOADOR, caixa) é uma linha só;
+    # sem isso as duas dividiriam o source_key e o upsert descartaria uma em silêncio. Rótulo = o da maior parcela (empate: ordem alfabética).
+    grouped: dict[tuple[str, str, str, str], list] = {}
+    for (sq, o, k, n, doc), v in fa.donors.items():
+        if sq not in cid:
+            continue
+        g = grouped.setdefault((sq, o, k, doc or n), [0, doc, []])
+        g[0] += v
+        g[2].append((-v, fa.donor_label[(sq, o, k, n, doc)]))
+    d_rows = [(cid[sq], o, k, min(g[2])[1], g[1], g[0], f"tse:{year}:{sq}:{o}:{k}:{ident}") for (sq, o, k, ident), g in grouped.items()]
+    n = len(upsert(conn, "campaign_finance_by_origin", ["candidacy_id", "origin", "amount_cents", "lines", "source_key"], o_rows, ["source_key"], returning=["id"]))
+    n += len(upsert(conn, "campaign_finance_donors", ["candidacy_id", "origin", "donor_kind", "donor_name", "donor_doc", "amount_cents", "source_key"], d_rows,
+                    ["source_key"], returning=["id"]))
+    for table, rows_ in (("campaign_finance_by_origin", o_rows), ("campaign_finance_donors", d_rows)):
+        gone = conn.execute(f"delete from {table} where source_key like %s and source_key <> all(%s)", (f"tse:{year}:%", [x[-1] for x in rows_])).rowcount
+        if gone:
+            r.notes.append(f"{gone} linhas de {table} de {year} saíram (reclassificação na fonte)")
+    return n
+
+
 def run_finance(conn: psycopg.Connection, years: list[int], force: bool) -> None:
     for year in years:
         url = f"{BASE}/prestacao_contas/prestacao_de_contas_eleitorais_candidatos_{year}.zip"
@@ -244,7 +341,8 @@ def run_finance(conn: psycopg.Connection, years: list[int], force: bool) -> None
         rec = pick_members(z, f"receitas_candidatos_{year}")
         des = pick_members(z, f"despesas_pagas_candidatos_{year}")
         try:
-            with run(conn, f"tse.contas.{year}", "tse", input_checksum=checksum(rec + des), force=force) as r:
+            # sufixo = versão da classificação por origem (catálogo D11): o zip não mudou, mas as tabelas novas precisam ser preenchidas uma vez
+            with run(conn, f"tse.contas.{year}", "tse", input_checksum=checksum(rec + des) + ":origem1", force=force) as r:
                 want = _known(conn, year)
                 fa = aggregate_finance(z, rec, des, want, log_prefix=f"tse contas {year}")
                 raised, spent, by_cat = fa.raised, fa.spent, fa.by_cat
@@ -252,5 +350,6 @@ def run_finance(conn: psycopg.Connection, years: list[int], force: bool) -> None
                 r.add(_apply(conn, year, "raised_cents", raised, by_round=False))
                 r.add(_apply(conn, year, "spent_cents", spent, by_round=False))
                 r.add(_finance_entries(conn, year, by_cat))
+                r.add(_origin_entries(conn, year, fa, r))
         except SkipUnchanged:
             continue

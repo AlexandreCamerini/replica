@@ -35,6 +35,26 @@
         "3101"
       ],
       "port": 3101
+    },
+    {
+      "name": "web-pauta",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DATA_SOURCE=pg",
+        "DATABASE_URL=postgres://web_reader:web_reader@localhost:54339/civico",
+        "AUTH_PROVIDER=dev",
+        "SESSION_SECRET=dev-only-session-secret-0123456789",
+        "REVALIDATE_SECRET=dev-only-secret",
+        "npm",
+        "--prefix",
+        "web",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3102"
+      ],
+      "port": 3102
     }
   ]
 }

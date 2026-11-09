@@ -5,6 +5,7 @@ import { LinkChip, Notice, qs, TableRegion } from "@/components/page/w4";
 import { SourceFooter } from "@/components/ui/data";
 import { data } from "@/lib/data";
 import { money } from "@/lib/format";
+import { sortTaxesAZ, sortUfsAZ, taxBlurb } from "@/lib/impostos";
 
 export const metadata: Metadata = {
   title: "Impostos",
@@ -38,10 +39,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       </Container>
     );
   }
-  const byUf = await data.getTaxByUf(year);
+  const byUf = sortUfsAZ(await data.getTaxByUf(year));
   const ufSel = byUf.find((u) => u.uf === one(sp.uf));
   const months = await data.getTaxByMonth(year, ufSel?.uf);
-  const lines = await data.getTaxLines(year, ufSel?.uf);
+  const lines = sortTaxesAZ(await data.getTaxLines(year, ufSel?.uf));
   const total = byUf.reduce((s, u) => s + u.totalCents, 0);
   const last = lastMonth[year] ?? 12;
   const scope = ufSel ? ufSel.ufName : "Brasil";
@@ -53,6 +54,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         title="Impostos"
         lead="Quanto a União arrecadou em tributos federais, por estado e por mês. É o que a Receita Federal publica; não é gasto e não é quanto cada morador pagou."
       />
+
+      <Notice title="Leia antes: o que “por estado” quer dizer" id="regra">
+        <p>
+          A Receita registra cada tributo no estado de quem <strong>paga</strong> (a sede da empresa ou o domicílio do contribuinte), e não onde o dinheiro foi gerado
+          ou gasto. Por isso São Paulo, Rio de Janeiro e Distrito Federal aparecem maiores, com muitas sedes de empresas e órgãos.
+        </p>
+        <p>Não é “quanto cada estado paga” por habitante nem quem mais contribui. Não mostramos ranking; a lista é alfabética.</p>
+      </Notice>
 
       <nav aria-label="Ano" className="mb-4 flex flex-wrap gap-2" data-testid="anos">
         {years.map((y) => (
@@ -151,7 +160,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
               <tbody>
                 {lines.map((l) => (
                   <tr key={l.tax} className="border-t border-border">
-                    <th scope="row" className="px-3 py-2 font-normal">{l.tax}</th>
+                    <th scope="row" className="px-3 py-2 font-normal">
+                      {l.tax}
+                      {taxBlurb(l.tax) && <span className="mt-0.5 block text-xs text-muted" data-testid="tributo-explica">{taxBlurb(l.tax)}</span>}
+                    </th>
                     <td className="px-3 py-2 text-right tabular-nums"><Brl cents={l.totalCents} /></td>
                   </tr>
                 ))}
@@ -167,14 +179,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         </details>
       </section>
 
-      <section className="mt-10 grid gap-4 md:grid-cols-2">
-        <Notice title="O que “por estado” quer dizer" id="regra">
-          <p>
-            A Receita registra cada tributo no estado onde ele foi <strong>recolhido</strong>, em geral a sede da empresa. Por isso um estado com muitas sedes aparece com
-            mais, mesmo que o consumo e o trabalho estejam em outro lugar. Não é “quanto os moradores pagaram” nem “quanto voltou para o estado”.
-          </p>
-          <p>Não mostramos ranking nem valor por habitante; a lista é alfabética.</p>
-        </Notice>
+      <section className="mt-10 grid gap-4">
         <Notice title="De onde vêm os números">
           <p>
             Cada tributo é uma coluna do arquivo da Receita e entra com o nome dela. Onde um tributo vem dividido em partes (COFINS, PIS/Pasep, CSLL, receita
@@ -187,7 +192,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         </Notice>
       </section>
 
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Container>
   );
 }

@@ -1,7 +1,6 @@
 import { FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { data } from "@/lib/data";
-import { PageShare } from "./page-share";
 import { date } from "@/lib/format";
 
 export async function DataFreshnessBar() {
@@ -13,10 +12,9 @@ export async function DataFreshnessBar() {
           Dados oficiais conferidos em <time dateTime={at}>{date(at)}</time>
         </span>
         <span aria-hidden>·</span>
-        <Link href="/atualizacoes" className="font-semibold text-fg underline underline-offset-2">
-          Como atualizamos
+        <Link href="/como-escolhemos" className="font-semibold text-fg underline underline-offset-2">
+          Como escolhemos
         </Link>
-        <PageShare />
       </p>
     </aside>
   );

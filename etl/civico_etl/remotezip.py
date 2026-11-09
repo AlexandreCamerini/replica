@@ -12,6 +12,7 @@ import io
 import zipfile
 from typing import Iterator
 
+from . import rawstore
 from .http import UA, client
 
 
@@ -67,6 +68,7 @@ class RangeFile(io.RawIOBase):
 
 
 def open_remote(url: str) -> zipfile.ZipFile:
+    rawstore.note(url, None, None)  # D12: entra no manifesto do run, sem cópia local
     return zipfile.ZipFile(RangeFile(url))
 
 

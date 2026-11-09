@@ -400,18 +400,68 @@ CHECKS: list[tuple[str, str]] = [
         "select count(*) from sanctions where person_id is not null and (match_method is null or match_confidence is null)",
     ),
     (
-        # D128: vereador do SAPL casado só com pessoa que tem mandato de vereador naquele município
-        "SAPL: vereador casado com pessoa sem mandato de vereador no município da câmara",
-        """select count(*) from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id
-           where sp.person_id is not null and (sp.match_status <> 'casado' or not exists (
-             select 1 from mandates m join offices o on o.id = m.office_id and o.slug = 'vereador'
-             where m.person_id = sp.person_id and m.place_id = h.place_id))""",
+        # catálogo D03: CGU (CEIS/CNEP) só vincula com órgão estadual/municipal (a UF do DTO é a do órgão) e todo não-vínculo tem motivo
+        "sanções CGU: vínculo com órgão federal, ou não-vínculo sem motivo gravado",
+        """select count(*) from sanctions where left(source, 4) = 'cgu_'
+             and ((person_id is not null and lower(coalesce(body_sphere, '')) not in ('estadual', 'municipal'))
+               or (person_id is null and match_note is null))""",
     ),
     (
-        "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias",
-        """select count(*) from dataset_stamps ds join sources s on s.id = ds.source_id
-           where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')
-              or (s.slug = 'tse' and ds.refreshed_at < now() - interval '60 days')""",
+        # catálogo D02 / D290: o Portal publica pago do ano acima do empenhado do ano quando há resto a pagar inscrito (Bancada do PR 2024,
+        # 202471170016: empenhado 408 mil, pago 2,76 mi, inscrito 6,85 mi). Número da fonte, não erro de carga: a régua passa a ser
+        # pago <= empenhado + resto inscrito. Acima disso o número não tem explicação na própria linha e o check quebra.
+        "emendas: pago maior que empenhado mais resto a pagar inscrito",
+        """select count(*) from amendments where paid_cents is not null and committed_cents is not null
+             and paid_cents > committed_cents + coalesce(resto_inscrito_cents, 0)""",
+    ),
+    (
+        # catálogo D02: emenda coletiva não tem autor individual; vínculo com pessoa só com método e confiança registrados
+        "emendas: vínculo com pessoa sem método de casamento, ou emenda de bancada/comissão/relator ligada a uma pessoa",
+        """select count(*) from amendments where person_id is not null
+             and (match_method is null or match_confidence is null or kind in ('bancada', 'comissao', 'relator'))""",
+    ),
+    (
+        # catálogo D11: a soma das origens de campanha é o total arrecadado do TSE (por construção; aqui, conferido no banco)
+        "contas de campanha: soma das origens diferente do total arrecadado",
+        """select count(*) from (select o.candidacy_id from campaign_finance_by_origin o join candidacies c on c.id = o.candidacy_id
+                                 where c.raised_cents is not null group by o.candidacy_id, c.raised_cents
+                                 having sum(o.amount_cents) <> c.raised_cents) x""",
+    ),
+    (
+        # D128: vereador do SAPL casado só com pessoa que tem mandato de vereador naquele município.
+        # D09: parlamentar de Assembleia com SAPL (casa = UF) casado só com deputado estadual da mesma UF.
+        "SAPL: parlamentar casado com pessoa sem mandato do cargo certo na casa (vereador no município; deputado estadual na UF)",
+        """select count(*) from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id join places hp on hp.id = h.place_id
+           where sp.person_id is not null and (sp.match_status <> 'casado' or not exists (
+             select 1 from mandates m join offices o on o.id = m.office_id join places mp on mp.id = m.place_id
+             where m.person_id = sp.person_id
+               and ((hp.kind = 'municipio' and o.slug = 'vereador' and m.place_id = h.place_id)
+                 or (hp.kind = 'uf' and o.slug = 'deputado_estadual' and mp.uf = hp.uf))))""",
+    ),
+    (
+        # D291: por família de dataset (sufixo de ano, mês ou período tirado). Ano/mês passado não é relido por desenho
+        # (camara.votacoes.2019, agenda.senado.202501); cada um sozinho dava "vencido" para sempre (73 em 09/11/2026).
+        # A família vence quando nem o carimbo mais novo dela está no prazo.
+        "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias (carimbo mais novo de cada família de dataset)",
+        """select count(*) from (
+             select s.slug, regexp_replace(ds.dataset, '\\.[0-9]{4,8}(-[0-9]{8})?$', '') as familia, max(ds.refreshed_at) as ultimo
+               from dataset_stamps ds join sources s on s.id = ds.source_id
+              where s.slug in ('camara', 'senado', 'tse')
+                and ds.dataset not like '%.noturna%'  -- 2ª leitura só ter–sáb (D06): segunda de manhã já passa de 48 h
+                and ds.dataset not like 'tse.fix%'    -- reparos pontuais, não são carga periódica
+              group by 1, 2) f
+           where (f.slug in ('camara','senado') and f.ultimo < now() - interval '48 hours')
+              or (f.slug = 'tse' and f.ultimo < now() - interval '60 days')""",
+    ),
+    (
+        "pauta: última leitura de cada Casa há mais de 24 h (o número da entrada estaria velho)",
+        """select count(*) from (select distinct on (body_id) read_at from pauta_reads order by body_id, read_at desc) x
+           where x.read_at < now() - interval '24 hours'""",
+    ),
+    (
+        "pauta: regra vigente com tema que não existe em topics",
+        """select count(*) from (select unnest(topic_slugs) s from pocket_rules order by version desc limit 1) r
+           where not exists (select 1 from topics t where t.slug = r.s)""",
     ),
     # W3-A (Assembleias): o casamento com o TSE nunca põe dado de uma casa estadual no crachá de quem não tem mandato nela
     (

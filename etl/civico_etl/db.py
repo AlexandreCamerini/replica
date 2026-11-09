@@ -20,6 +20,8 @@ import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
 
+from . import rawstore
+
 log = logging.getLogger("etl.db")
 
 
@@ -108,6 +110,7 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
         log.error("%s falhou após %.0fs: %s", dataset, time.monotonic() - t0, e)
         raise
     else:
+        rawstore.finalize_run(conn, r)  # D12: cópia datada do bruto; nunca derruba a carga, só deixa nota em r.notes
         conn.execute(
             "update ingest_runs set status = 'succeeded', finished_at = now(), rows_upserted = %s, rows_rejected = %s, error = %s where id = %s",
             (r.rows_upserted, r.rows_rejected, "\n".join(r.notes) or None, r.id),
@@ -116,6 +119,7 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
         conn.commit()
         log.info("%s: ok em %.0fs, %d upserts, %d rejeitadas", dataset, time.monotonic() - t0, r.rows_upserted, r.rows_rejected)
     finally:
+        rawstore.reset()
         conn.execute("select pg_advisory_unlock(hashtext(%s))", (dataset,))
         conn.commit()
 

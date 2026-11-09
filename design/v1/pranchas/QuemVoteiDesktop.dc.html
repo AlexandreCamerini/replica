@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Quem eu votei · computador</title>
+<script src="./support.js"></script>
+<script src="dados.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Barlow+Condensed:wght@600;700&amp;display=swap">
+<style>
+body{margin:0}
+.t-light{--paper:#f3efe6;--sheet:#fbf9f4;--ink:#1c2226;--rule:#bdb6a6;--muted:#545a5e;--tint:#9a9d9b;--grid:rgba(28,34,38,.045)}
+.t-dark{--paper:#121518;--sheet:#1a1e22;--ink:#ebe6dc;--rule:#4a4f54;--muted:#a8a397;--tint:#6e7270;--grid:rgba(235,230,220,.05)}
+.root{box-sizing:border-box;min-height:100%;font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;color:var(--ink);background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.wrap{max-width:1320px;margin:0 auto;padding:0 24px}
+.serif{font-family:Newsreader,Georgia,serif;font-optical-sizing:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.disp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;line-height:.9}
+.lbl{font:500 11px/1.4 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.plate{background:var(--sheet);border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:5px;margin:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--ink);background:var(--sheet);font:500 14px "IBM Plex Sans",sans-serif;text-decoration:none;color:var(--ink);cursor:pointer}
+.btn.main{background:var(--ink);color:var(--paper)}
+.btn:hover,.dep:hover,.lk:hover{box-shadow:0 0 0 2px var(--ink)}
+.chip{display:flex;flex-direction:column;gap:3px;min-height:44px;padding:8px 12px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink)}
+.chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--paper)}
+.sq{display:inline-block;width:14px;height:14px;border:1.5px solid var(--ink);box-sizing:border-box;flex:none;background:var(--sheet)}
+.vS{background:var(--ink)}
+.vN{background:repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px)}
+.vA{background:var(--sheet);border-style:dotted;border-width:2px}
+.vX,.vP{background:var(--sheet)}
+.bar{display:block;height:22px;border:1px solid var(--ink);box-sizing:border-box}
+.stamp{display:inline-flex;align-items:center;min-height:26px;padding:0 10px;border:1.5px solid var(--ink);font:600 11px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;transform:rotate(-2deg);background:var(--sheet);white-space:nowrap;color:var(--ink)}
+.crumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.crumb button{min-height:44px;padding:0 10px;border:0;background:transparent;font:500 15px "IBM Plex Sans",sans-serif;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.crumb .here{min-height:44px;display:inline-flex;align-items:center;padding:0 10px;font:600 15px "IBM Plex Sans",sans-serif;color:var(--ink)}
+.crumb .next{min-height:44px;display:inline-flex;align-items:center;padding:0 10px;font:500 15px "IBM Plex Sans",sans-serif;color:var(--muted)}
+.hrow{display:grid;grid-template-columns:150px minmax(0,1fr) 190px;gap:14px;align-items:center;min-height:52px;padding:8px 0;border-top:1px solid var(--rule)}
+.mk{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.dl{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
+.dep{display:flex;align-items:center;gap:9px;min-height:48px;padding:4px 12px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink);font-family:inherit}
+.dep .n{font-size:14px;font-weight:500;line-height:1.2}
+.dep .pt{font:500 11px "IBM Plex Mono",monospace;color:var(--muted)}
+.fld{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fld select,.fld input{box-sizing:border-box;width:100%;min-height:44px;padding:0 12px;border:1px solid var(--ink);border-radius:0;background:var(--sheet);color:var(--ink);font:400 15px "IBM Plex Sans",system-ui,sans-serif}
+.fld input::placeholder{color:var(--muted)}
+.ck{display:flex;align-items:flex-start;gap:12px;min-height:44px;padding:10px 0;cursor:pointer}
+.ck input{flex:none;width:22px;height:22px;margin:1px 0 0;accent-color:var(--ink)}
+.note{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border:1.5px dashed var(--ink);background:var(--sheet)}
+.sec{display:flex;flex-direction:column;gap:10px;padding:16px 18px;border-top:1px solid var(--rule)}
+.sec h2{margin:0;font:500 22px/1.15 Newsreader,Georgia,serif}
+.crow{display:grid;grid-template-columns:150px 190px minmax(0,1fr);gap:14px;align-items:center;min-height:48px;padding:6px 0;border-top:1px solid var(--rule)}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:28px;align-items:start}
+.pane{animation:fi 180ms ease-out}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.pane{animation:none}}
+@media (max-width:960px){.cols{grid-template-columns:minmax(0,1fr)}.hrow{grid-template-columns:110px minmax(0,1fr)}.hrow .mk{grid-column:2}.crow{grid-template-columns:110px minmax(0,1fr)}.crow .cb{grid-column:1/-1}}
+.step{display:flex;flex-direction:column;gap:8px;padding:14px 0 0;border-top:1px solid var(--rule)}
+.step b{font:600 15px/1.3 "IBM Plex Sans",sans-serif}
+.step p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+a{color:var(--ink)}
+</style>
+</helmet>
+<div class="root {{theme}}">
+  <header style="border-bottom: 1px solid var(--ink)">
+    <div class="wrap" style="display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding-top: 18px; padding-bottom: 18px">
+      <a href="EntradaDesktop.dc.html" class="serif" style="font-size: 24px; font-weight: 600; text-decoration: none; color: var(--ink)">quem·representa</a>
+      <nav aria-label="Principal" style="display: flex; gap: 22px; font-size: 14px; font-weight: 500; flex-wrap: wrap">
+        <a href="JaDecididoDesktop.dc.html" style="text-decoration: none; color: var(--muted)">Já decidido</a>
+        <a href="PautaDesktop.dc.html" style="text-decoration: none; color: var(--muted)">Vem aí</a>
+        <a href="QuemVoteiDesktop.dc.html" aria-current="page" style="text-decoration: none; border-bottom: 2px solid var(--ink); padding-bottom: 4px">Quem eu votei</a>
+        <a href="ComoEscolhemos.dc.html" style="text-decoration: none; color: var(--muted)">Como escolhemos</a>
+        <a href="Correcoes.dc.html" style="text-decoration: none; color: var(--muted)">Correções</a>
+      </nav>
+      <span class="mono" style="font-size: 12px; color: var(--muted)">Pauta lida em 05/11/2026, 00:02</span>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding-top: 20px; padding-bottom: 40px; display: flex; flex-direction: column; gap: 18px">
+    <nav class="crumb" aria-label="Onde você está">
+      <span class="next">Quem eu votei</span><span aria-hidden="true" style="color: var(--muted)">›</span>
+      <sc-if value="{{step1}}" hint-placeholder-val="{{true}}"><span class="here" aria-current="step">Escolher</span></sc-if>
+      <sc-if value="{{past1}}" hint-placeholder-val="{{false}}"><button onClick="{{goChoose}}">Escolher</button></sc-if>
+      <span aria-hidden="true" style="color: var(--muted)">›</span>
+      <sc-if value="{{step1}}" hint-placeholder-val="{{true}}"><span class="next">Confirmar</span></sc-if>
+      <sc-if value="{{step2}}" hint-placeholder-val="{{false}}"><span class="here" aria-current="step">Confirmar</span></sc-if>
+      <sc-if value="{{step3}}" hint-placeholder-val="{{false}}"><button onClick="{{goConfirm}}">Confirmar</button></sc-if>
+      <span aria-hidden="true" style="color: var(--muted)">›</span>
+      <sc-if value="{{step3}}" hint-placeholder-val="{{false}}"><span class="here" aria-current="step">Painel</span></sc-if>
+      <sc-if value="{{notStep3}}" hint-placeholder-val="{{true}}"><span class="next">Painel</span></sc-if>
+    </nav>
+
+    <div class="cols">
+      <section class="plate" aria-live="polite" style="min-width: 0">
+
+        <sc-if value="{{step1}}" hint-placeholder-val="{{true}}">
+          <div class="pane">
+            <div style="display: flex; flex-direction: column; gap: 10px; padding: 16px 18px 14px">
+              <span class="lbl">Passo 1 de 3 · Escolher</span>
+              <h1 class="serif" style="margin: 0; font-size: 36px; line-height: 1.1; font-weight: 500">Em quem você votou para deputado federal?</h1>
+              <div class="note">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="flex: none"><rect x="5" y="10.5" width="14" height="10"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
+                <span style="font-size: 15px; line-height: 1.5"><b>O voto é secreto.</b> Aqui você só declara, e só você vê.</span>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 14px; padding: 4px 18px 14px; flex-wrap: wrap">
+              <div class="fld">
+                <label for="uf" class="lbl" style="color: var(--ink)">Estado</label>
+                <select id="uf" value="{{uf}}" onChange="{{setUf}}">
+                  <sc-for list="{{ufs}}" as="u" hint-placeholder-count="27"><option value="{{u.u}}">{{u.nome}}</option></sc-for>
+                </select>
+              </div>
+              <div class="fld">
+                <label for="q" class="lbl" style="color: var(--ink)">Nome ou sobrenome</label>
+                <input id="q" type="search" placeholder="Digite para filtrar a lista" autocomplete="off" value="{{q}}" onChange="{{setQ}}" onInput="{{setQ}}">
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 18px 18px">
+              <span class="mono" style="font-size: 12.5px; color: var(--muted)">{{countLine}}</span>
+              <div class="dl">
+                <sc-for list="{{list}}" as="d" hint-placeholder-count="8">
+                  <button class="dep" onClick="{{d.pick}}"><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span class="n">{{d.nome}}</span><span class="pt">{{d.partido}} · {{d.uf}}</span></span></button>
+                </sc-for>
+              </div>
+              <sc-if value="{{vazio}}" hint-placeholder-val="{{false}}">
+                <p style="margin: 0; font-size: 14.5px; color: var(--muted)">Tente só o sobrenome, ou confira o estado.</p>
+              </sc-if>
+              <p class="mono" style="margin: 0; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--muted); line-height: 1.6">A lista traz quem registrou voto em 2026. Quem nunca votou não aparece.</p>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{step2}}" hint-placeholder-val="{{false}}">
+          <div class="pane">
+            <div style="display: flex; flex-direction: column; gap: 10px; padding: 16px 18px 18px">
+              <span class="lbl">Passo 2 de 3 · Confirmar</span>
+              <h1 class="serif" style="margin: 0; font-size: 36px; line-height: 1.1; font-weight: 500">É essa pessoa?</h1>
+              <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px 0 6px">
+                <span class="serif" style="font-size: 44px; line-height: 1.05; font-weight: 500">{{dep.nome}}</span>
+                <span class="mono" style="font-size: 14px">{{dep.partido}} · {{dep.uf}} · deputado federal · {{dep.ufName}}</span>
+              </div>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                <button class="btn main" onClick="{{confirm}}">É esse</button>
+                <button class="btn" onClick="{{goChoose}}">Escolher outro</button>
+              </div>
+            </div>
+            <div class="sec">
+              <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap">
+                <h2>Aviso no WhatsApp</h2>
+                <span class="stamp">Aviso · só interface</span>
+              </div>
+              <label class="ck" for="wa">
+                <input id="wa" type="checkbox" checked="{{wa}}" onChange="{{toggleWa}}">
+                <span style="font-size: 15px; line-height: 1.45">Avisar no WhatsApp quando essa pessoa votar algo que mexe no bolso.</span>
+              </label>
+              <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--muted)">O aviso diz só o nome da votação e como a pessoa votou. Sem julgamento.</p>
+            </div>
+            <div class="sec">
+              <h2>O que guardamos</h2>
+              <p style="margin: 0; font-size: 14.5px; line-height: 1.5">Só esta escolha, neste aparelho. Não conferimos. Ninguém mais vê.</p>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{step3}}" hint-placeholder-val="{{false}}">
+          <div class="pane">
+            <div style="display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; flex-wrap: wrap; padding: 16px 18px 18px">
+              <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+                <span class="lbl">Passo 3 de 3 · Painel</span>
+                <h1 class="serif" style="margin: 0; font-size: 32px; line-height: 1.1; font-weight: 500">Meu painel · só você vê</h1>
+                <span class="serif" style="font-size: 40px; line-height: 1.05; font-weight: 500; padding-top: 8px">{{dep.nome}}</span>
+                <span class="mono" style="font-size: 14px">{{dep.partido}} · {{dep.uf}} · deputado federal · {{dep.ufName}}</span>
+              </div>
+              <button class="btn" onClick="{{goChoose}}">Trocar</button>
+            </div>
+
+            <div class="sec">
+              <h2>Como votou nas 6 votações de bolso</h2>
+              <div style="display: flex; flex-direction: column">
+                <sc-for list="{{hist}}" as="h" hint-placeholder-count="6">
+                  <div class="hrow">
+                    <span><b class="mono" style="font-size: 13px; font-weight: 600">{{h.c}}</b><br><span class="mono" style="font-size: 11px; color: var(--muted)">{{h.d}}</span></span>
+                    <span style="font-size: 14.5px; line-height: 1.35">{{h.f}}</span>
+                    <span class="mk"><i class="{{h.sw}}"></i>{{h.voto}}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <p class="mono" style="margin: 0; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--muted); line-height: 1.6">Fonte: Câmara dos Deputados, votações nominais em Plenário. “Sem voto registrado” inclui ausência, licença e obstrução: a lista oficial não distingue.</p>
+            </div>
+
+            <div class="sec">
+              <h2>Participação nessas 6</h2>
+              <div style="display: flex; align-items: flex-end; gap: 12px"><span class="disp" style="font-size: 56px">{{part.n}}</span><span style="font-size: 15px; padding-bottom: 5px">de 6 com voto registrado</span></div>
+              <span class="bar" style="{{part.bar}}" aria-hidden="true"></span>
+              <span class="mono" style="font-size: 12px; color: var(--muted)">{{part.lbl}}</span>
+            </div>
+
+            <div class="sec">
+              <h2>Comparado com o estado</h2>
+              <p style="margin: 0; font-size: 14px; color: var(--muted)">O % é de {{dep.ufName}}, entre quem votou Sim, Não ou abstenção.</p>
+              <div style="display: flex; flex-direction: column">
+                <sc-for list="{{hist}}" as="h" hint-placeholder-count="6">
+                  <div class="crow">
+                    <b class="mono" style="font-size: 13px; font-weight: 600">{{h.c}}</b>
+                    <span class="mk"><i class="{{h.sw}}"></i>{{h.voto}}</span>
+                    <span class="cb" style="display: flex; align-items: center; gap: 10px; min-width: 0"><span class="bar" style="{{h.bar}}; flex: 1 1 120px; height: 16px" aria-hidden="true"></span><span class="mono" style="font-size: 12.5px; white-space: nowrap">{{h.cmp}}</span></span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h2>Contato</h2>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+                <a class="btn" href="{{dep.url}}" target="_blank" rel="noopener">Página na Câmara</a>
+                <a class="btn" href="#">Mensagem ao gabinete</a>
+                <span class="stamp">Só interface</span>
+              </div>
+              <p style="margin: 0; font-size: 13.5px; color: var(--muted)">Contato do gabinete: não carregado. [frequência]</p>
+            </div>
+
+            <div class="sec">
+              <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap">
+                <h2>Aviso no WhatsApp</h2>
+                <span class="stamp">Aviso · só interface</span>
+              </div>
+              <label class="ck" for="wa3">
+                <input id="wa3" type="checkbox" checked="{{wa}}" onChange="{{toggleWa}}">
+                <span style="font-size: 15px; line-height: 1.45">Avisar no WhatsApp quando essa pessoa votar algo que mexe no bolso.</span>
+              </label>
+              <span class="mono" style="font-size: 12.5px; color: var(--muted)">{{waLbl}}</span>
+            </div>
+
+            <div class="sec">
+              <h2>O que você declarou e como apagar</h2>
+              <p style="margin: 0; font-size: 14.5px; line-height: 1.5">Guardado: o nome de {{dep.nome}} e a marca do aviso. Nada mais. Apagar remove tudo, sem cópia.</p>
+              <div><button class="btn" onClick="{{clear}}">Apagar minha escolha</button></div>
+            </div>
+          </div>
+        </sc-if>
+      </section>
+
+      <aside class="plate" aria-label="Regras" style="display: flex; flex-direction: column; gap: 14px; padding: 18px">
+        <span class="lbl">Privacidade do voto declarado</span>
+        <span class="serif" style="font-size: 24px; line-height: 1.15; font-weight: 500">Acompanhar sem julgar</span>
+        <div class="step" style="border-top: 1px solid var(--ink)"><span class="lbl">1 · o que guardamos</span><b>Quem você escolheu</b><p>E, se você quiser, a marca do aviso. Nada mais sobre o seu voto.</p></div>
+        <div class="step"><span class="lbl">2 · quem vê</span><b>Só você</b><p>Não aparece em perfil, lista pública, contagem ou mapa.</p></div>
+        <div class="step"><span class="lbl">3 · sem verificar</span><b>Não conferimos</b><p>Não há como saber em quem alguém votou. Nem tentamos.</p></div>
+        <div class="step"><span class="lbl">4 · sair</span><b>Apague com um toque</b><p>Apagar remove a escolha e a marca do aviso. Sem cópia guardada.</p></div>
+        <div style="border-top: 1px solid var(--rule); padding-top: 14px; display: flex; flex-direction: column; gap: 8px">
+          <span class="lbl">Como ler</span>
+          <span style="display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px">
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vS"></i>Sim</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vN"></i>Não</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vA"></i>Abstenção</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq vX"></i>Sem voto registrado</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><i class="sq" style="background: linear-gradient(90deg, var(--tint) 60%, var(--sheet) 60%); width: 22px"></i>% de Sim do estado</span>
+          </span>
+          <span style="font-size: 13px; line-height: 1.5; color: var(--muted)">Dizemos como a pessoa votou. Não dizemos se foi bom ou ruim. Partido só em sigla, sem cor.</span>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer style="border-top: 1px solid var(--ink)">
+    <div class="wrap mono" style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-top: 14px; padding-bottom: 18px; font-size: 11px; color: var(--muted)">
+      <span>Fonte: Câmara dos Deputados, Senado Federal · cadeiras: TSE.</span>
+      <span>Temas lidos por IA, aguardando revisão por pessoa.</span>
+      <a href="Correcoes.dc.html">Correções</a>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1800},"tema":{"editor":"enum","options":["claro","escuro"],"default":"claro"}}'>
+const Q = window.QR;
+const UFS = Object.keys(Q.NAMES).sort();
+const VL = {S: 'Votou Sim', N: 'Votou Não', A: 'Abstenção', P: 'Presidia a sessão', X: 'Sem voto registrado'};
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const pct = c => { const t = c[0] + c[1] + c[2]; return t ? Math.floor(c[0] / t * 100) : null; };
+const nk = (n, um, vs) => n === 1 ? `1 ${um}` : `${n} ${vs}`;
+const tintBar = p => `background:linear-gradient(90deg,var(--tint) 0 ${p}%,var(--sheet) ${p}%)`;
+function depsOf(uf) {
+  const m = new Map();
+  for (const v of Q.VOTES) for (const d of v.dep) if (d[3] === uf && !m.has(d[0])) m.set(d[0], {id: d[0], nome: d[1], partido: d[2], uf: d[3]});
+  return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = {step: 1, uf: 'SP', q: '', dep: null, wa: false}; }
+  renderVals() {
+    const st = this.state, uf = UFS.includes(st.uf) ? st.uf : 'SP', ufName = Q.NAMES[uf];
+    const all = depsOf(uf), nq = norm(st.q);
+    const list = (nq ? all.filter(d => norm(d.nome).includes(nq) || norm(d.partido) === nq) : all)
+      .map(d => ({...d, pick: () => this.setState({dep: d, uf: d.uf, step: 2})}));
+    const countLine = nq
+      ? (list.length ? `${nk(list.length, 'nome', 'nomes')} com “${st.q.trim()}” em ${ufName}` : `Nenhum nome com “${st.q.trim()}” em ${ufName}.`)
+      : `${nk(all.length, 'nome', 'nomes')} com voto registrado em 2026 · ${ufName}`;
+    const out = {
+      theme: (this.props.tema ?? 'claro') === 'escuro' ? 't-dark' : 't-light',
+      step1: st.step === 1, step2: st.step === 2, step3: st.step === 3, past1: st.step > 1, notStep3: st.step !== 3,
+      uf, ufName, ufs: UFS.map(u => ({u, nome: Q.NAMES[u]})), q: st.q, wa: !!st.wa,
+      setUf: e => this.setState({uf: e.target.value, q: ''}),
+      setQ: e => this.setState({q: e.target.value}),
+      toggleWa: e => this.setState({wa: !!e.target.checked}),
+      list, vazio: list.length === 0, countLine,
+      goChoose: () => this.setState({step: 1}),
+      goConfirm: () => this.setState({step: st.dep ? 2 : 1}),
+      confirm: () => this.setState({step: st.dep ? 3 : 1}),
+      clear: () => this.setState({step: 1, dep: null, q: '', wa: false}),
+      dep: {nome: '', partido: '', uf: '', ufName: '', url: '#'}, hist: [], part: {n: 0, lbl: '', bar: tintBar(0)}, waLbl: ''
+    };
+    const d = st.dep;
+    if (!d || st.step === 1) return out;
+    out.dep = {nome: d.nome, partido: d.partido, uf: d.uf, ufName: Q.NAMES[d.uf], url: `https://www.camara.leg.br/deputados/${d.id}`};
+    out.hist = Q.VOTES.map(v => {
+      const x = v.dep.find(y => y[0] === d.id), k = x ? x[4] : 'X', p = pct(v.uf[d.uf]);
+      return {c: v.c, d: v.d, f: v.f, k, voto: VL[k], sw: 'sq v' + k, bar: tintBar(p === null ? 0 : p),
+        cmp: p === null ? `${d.uf}: sem voto registrado` : `${p}% de Sim em ${d.uf}`};
+    });
+    const n = out.hist.filter(h => 'SNA'.includes(h.k)).length, np = out.hist.filter(h => h.k === 'P').length;
+    out.part = {n, bar: tintBar(Math.floor(n / 6 * 100)), lbl: `Sim, Não ou abstenção contam. ${6 - n - np} sem voto registrado${np ? ` · ${np} presidindo a sessão` : ''}.`};
+    out.waLbl = st.wa ? 'Aviso marcado. Só desenho: nada é enviado.' : 'Aviso desmarcado.';
+    return out;
+  }
+}
+</script>
+</body>
+</html>

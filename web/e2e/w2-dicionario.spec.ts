@@ -14,7 +14,7 @@ test.describe("W2 · S19 Dicionário", () => {
   });
 
   test("S19-H2 filtro por tema e busca pela URL (sem JS)", async ({ browser }) => {
-    const ctx = await browser.newContext({ javaScriptEnabled: false, baseURL: process.env.E2E_BASE_URL });
+    const ctx = await browser.newContext({ javaScriptEnabled: false, baseURL: process.env.E2E_BASE_URL || "http://localhost:3200" });
     const page = await ctx.newPage();
     await page.goto("/dicionario?tema=justica");
     const n = await page.locator("li[id^='termo-']").count();

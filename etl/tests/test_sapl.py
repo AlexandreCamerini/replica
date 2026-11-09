@@ -231,3 +231,59 @@ def test_sem_legislatura_vigente_e_condicao_da_fonte():
     motivo = no_legislature_reason(legs, date(2026, 11, 4))
     assert "não tem legislatura vigente" in motivo and "18ª" in motivo and "04/11/2026" in motivo
     assert "nenhuma legislatura cadastrada" in no_legislature_reason([], date(2026, 11, 4))
+
+
+# ---------------------------------------------------------------- D08 escala / D09 Assembleias (pacote C)
+
+
+def _cam(status="ok", loaded=None, attempt=None, retry=None):
+    return {"status": status, "loaded_at": loaded, "last_attempt_at": attempt, "retry_after": retry, "checked_at": None}
+
+
+def test_backoff_dobra_e_tem_teto():
+    from civico_etl.jobs.sapl import BACKOFF_BASE_H, BACKOFF_MAX_H, backoff_until
+
+    now = datetime(2026, 11, 9, tzinfo=timezone.utc)
+    assert backoff_until(1, now) == now + timedelta(hours=BACKOFF_BASE_H)
+    assert backoff_until(2, now) == now + timedelta(hours=2 * BACKOFF_BASE_H)
+    assert backoff_until(3, now) == now + timedelta(hours=4 * BACKOFF_BASE_H)
+    assert backoff_until(30, now) == now + timedelta(hours=BACKOFF_MAX_H)
+    assert backoff_until(0, now) == now + timedelta(hours=BACKOFF_BASE_H)  # nunca antes de agora
+
+
+def test_fila_pula_camara_em_backoff_e_volta_quando_vence():
+    now = datetime(2026, 11, 9, 12, tzinfo=timezone.utc)
+    state = {
+        "1": _cam(retry=now + timedelta(hours=3)),  # nunca carregada, em backoff
+        "2": _cam(),  # nunca carregada, livre
+        "3": _cam(loaded=now - timedelta(days=9), retry=now + timedelta(days=1)),  # velha, em backoff
+        "4": _cam(loaded=now - timedelta(days=9), retry=now - timedelta(minutes=1)),  # velha, backoff vencido
+    }
+    assert load_queue(list(state), state, None, now) == ["4", "2"]
+    state["1"]["retry_after"] = None
+    assert "1" in load_queue(list(state), state, None, now)
+
+
+def test_prazo_da_camara_interrompe_a_paginacao(monkeypatch):
+    import pytest
+
+    monkeypatch.setattr(sapl, "_get", lambda *a, **k: {"results": [{"id": 1}], "pagination": {"next_page": 2}})
+    sapl._local.deadline, sapl._local.limit_min = -1.0, 25  # monotonic() > -1: já estourou
+    try:
+        with pytest.raises(sapl.HouseTimeout):
+            list(sapl.pages("https://x", "p"))
+    finally:
+        sapl._local.deadline = None
+    assert len(list(sapl.pages("https://x", "p", max_pages=2))) == 2  # sem prazo, segue
+
+
+def test_dataset_da_assembleia_nao_comeca_com_sapl_ponto():
+    """A frescor da tarefa das câmaras (prefixo 'sapl.') não pode ser alimentada nem escondida pela das Assembleias."""
+    ds, src, casa = sapl.house_ids({"kind": "uf", "uf": "RO"})
+    assert (ds, src, casa) == ("sapl-ale.ro", "sapl-ale", "Assembleia Legislativa") and not ds.startswith("sapl.")
+    assert sapl.house_ids({"kind": "municipio", "ibge_code": "1100205"}) == ("sapl.1100205", "sapl", "Câmara Municipal")
+
+
+def test_ales_com_sapl_sao_as_cinco_do_catalogo():
+    assert set(sapl.ALE_SAPL) == {"RO", "AC", "AM", "PI", "PB"}
+    assert all(u.startswith("https://sapl.") and not u.endswith("/") for u in sapl.ALE_SAPL.values())

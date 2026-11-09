@@ -1,0 +1,104 @@
+# IA rascunha as respostas das propostas da pauta (D13). Nada aqui publica: publicar é `civico-etl revisar`, por pessoa.
+#
+# Custo: uma chamada por proposta nova ou PDF novo (o mesmo PDF na mesma versão do prompt não é refeito).
+# Teto por dia = disparos × limite × custo por proposta. Medido no PL 79/2020: ~US$ 0,03 (6 páginas).
+# Com 2 disparos e limite 10: no máximo 20 chamadas/dia. PDF grande custa mais; acima de 80 páginas é recusado.
+# Precisa de ETL_DATABASE_URL e ANTHROPIC_API_KEY. Sem algum deles, o run termina com aviso e não falha.
+# O limite padrão vem da variável de repositório RASCUNHO_LIMITE (padrão 10); o modelo, de RASCUNHO_MODEL.
+#
+# D15 · custo: o disparo das 08:30 usa a Message Batches API (50% do preço) e espera o lote ATÉ RASCUNHO_BATCH_WAIT_MIN min
+# (variável de repositório, padrão 20) no próprio passo. Ao fim do prazo cancela o lote e rascunha o que faltou em modo
+# síncrono, então a fila está pronta antes da revisão de qualquer jeito. Esperar no passo (e não coletar no disparo seguinte)
+# porque o seguinte é 6 h depois e a revisão humana é de manhã; o minuto de runner ocioso custa menos que o atraso.
+# O disparo das 14:30 segue síncrono (a pauta entrou há pouco e a pessoa quer ver logo). Todo run começa coletando lote
+# de run anterior que terminou depois (`rascunho_batches`, migração 0090 — aplicar ANTES de ligar o --batch).
+name: etl · rascunho
+
+on:
+  schedule:
+    - cron: "30 11 * * 1-5" # seg–sex 08:30 em Brasília, depois da primeira leitura da pauta: LOTE (a condição abaixo compara esta string)
+    - cron: "30 17 * * 1-5" # seg–sex 14:30, pega o que entrou na pauta de manhã
+  workflow_dispatch:
+    inputs:
+      chave:
+        description: "Só esta proposta (ex. camara-pl-79-2020). Vazio = fila da pauta."
+        required: false
+      limite:
+        description: "No máximo N chamadas à API neste run"
+        required: false
+        default: "10"
+      modo:
+        description: "sync = uma chamada por proposta; batch = lote com 50% de desconto, espera e cai para sync no prazo"
+        required: false
+        type: choice
+        options: [sync, batch]
+        default: sync
+
+concurrency:
+  group: etl-rascunho
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rascunho:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60 # espera do lote (20) + síncrono do que faltar + coleta
+    defaults:
+      run:
+        working-directory: etl
+    env:
+      ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      RASCUNHO_MODEL: ${{ vars.RASCUNHO_MODEL }}
+      LIMITE: ${{ inputs.limite || vars.RASCUNHO_LIMITE || '10' }}
+      CHAVE: ${{ inputs.chave }}
+      MODO: ${{ inputs.modo || (github.event.schedule == '30 11 * * 1-5' && 'batch') || 'sync' }}
+      BATCH_WAIT_MIN: ${{ vars.RASCUNHO_BATCH_WAIT_MIN || '20' }}
+    steps:
+      - name: Credenciais configuradas?
+        id: gate
+        # antes do checkout a pasta etl/ não existe: o default working-directory quebrava este passo (o job nunca rodou)
+        working-directory: ${{ github.workspace }}
+        run: |
+          missing=""
+          [ -z "$ETL_DATABASE_URL" ] && missing="$missing ETL_DATABASE_URL"
+          [ -z "$ANTHROPIC_API_KEY" ] && missing="$missing ANTHROPIC_API_KEY"
+          case "$LIMITE" in ''|*[!0-9]*) echo "::error::limite inválido: '$LIMITE'"; exit 1;; esac
+          case "$BATCH_WAIT_MIN" in ''|*[!0-9]*) echo "::error::RASCUNHO_BATCH_WAIT_MIN inválido: '$BATCH_WAIT_MIN'"; exit 1;; esac
+          if [ "$BATCH_WAIT_MIN" -gt 40 ]; then echo "::error::espera de lote acima de 40 min estoura o timeout do job"; exit 1; fi
+          if [ "$LIMITE" -gt 50 ]; then echo "::error::limite $LIMITE acima de 50; rode em partes"; exit 1; fi
+          if [ -n "$CHAVE" ] && ! printf '%s' "$CHAVE" | grep -Eq '^camara-[a-z]+-[0-9]+-[0-9]{4}$'; then
+            echo "::error::chave inválida: '$CHAVE'"; exit 1
+          fi
+          if [ -n "$missing" ]; then
+            echo "::notice::faltam secrets:$missing; rascunho não rodou."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.gate.outputs.ok == 'true'
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          enable-cache: true
+          cache-dependency-glob: etl/uv.lock
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          path: etl/.cache
+          key: etl-http-rascunho-${{ github.run_id }}
+          restore-keys: etl-http-rascunho-
+      - name: Rascunhar
+        if: steps.gate.outputs.ok == 'true'
+        run: |
+          if [ "$MODO" = "batch" ]; then
+            uv run --frozen civico-etl rascunho $CHAVE --limit "$LIMITE" --batch --batch-wait-min "$BATCH_WAIT_MIN"
+          else
+            uv run --frozen civico-etl rascunho $CHAVE --limit "$LIMITE"
+          fi
+      - name: Fila de revisão
+        if: steps.gate.outputs.ok == 'true'
+        run: uv run --frozen civico-etl revisar >> "$GITHUB_STEP_SUMMARY"

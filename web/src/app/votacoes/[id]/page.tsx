@@ -217,7 +217,7 @@ export default async function Page({ params, searchParams }: Props) {
         )}
       </section>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Container>
   );
 }
