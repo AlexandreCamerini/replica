@@ -76,3 +76,5 @@ Glossário recolhível no ponto de uso,educativo,should,yes,yes,D264 (catálogo 
 Votações: só o que muda lei,congresso,should,yes,yes,D265 (catálogo U11)
 Patrimônio corrigido pela inflação,cracha,could,no,yes,D267 (catálogo U13): o original mostra % sem correção
 Exemplos clicáveis na busca de cidade,representantes,could,yes,yes,D268 (catálogo U14)
+Cópia datada do bruto de cada carga (ETL_RAW_STORE, desligada por padrão),etl,should,yes,yes,D280 (catálogo D12)
+Card de compartilhar com fonte, data e ressalva (crachá e proposta),cracha,should,yes,yes,D281 (catálogo U17)

@@ -1,16 +1,15 @@
 import { ImageResponse } from "next/og";
 import { campaignTotals } from "@/lib/campaign";
 import { data } from "@/lib/data";
-import { count, money } from "@/lib/format";
+import { count, date, money } from "@/lib/format";
 import { OG } from "@/lib/og-tokens";
+import { assertCard, CAVEAT, type CardFact } from "@/lib/og-card";
 
 // W2 item 12: card de compartilhamento por crachá (WhatsApp, redes). Sem foto: não temos licença de uso das fotos oficiais.
 // Até 4 números, cada um com a fonte; nenhum adjetivo, nota ou cor de partido.
 export const alt = "Cartão com nome, cargo, partido e números oficiais";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-
-type Fact = { value: string; label: string; source: string };
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const slug = (await params).slug;
@@ -32,20 +31,24 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const assets = cands.find((c) => c.assetsCents !== null);
   const camp = campaignTotals(cands);
 
-  const facts: (Fact | null)[] = [
+  const facts: (CardFact | null)[] = [
     stats.salaryMonthlyCents !== null
-      ? { value: `${stats.salaryIsCeiling ? "até " : ""}${money(stats.salaryMonthlyCents)}`, label: stats.salaryIsCeiling ? "teto do salário por mês" : "salário bruto por mês", source: stats.salaryIsCeiling ? "Constituição" : "lei do subsídio" }
+      ? { value: `${stats.salaryIsCeiling ? "até " : ""}${money(stats.salaryMonthlyCents)}`, label: stats.salaryIsCeiling ? "teto do salário por mês" : "salário bruto por mês", source: stats.salaryIsCeiling ? "Constituição" : "lei do subsídio", caveat: stats.salaryIsCeiling ? CAVEAT.salaryCeiling : CAVEAT.salary }
       : null,
     stats.presenceTotal
-      ? { value: `${Math.round(((stats.presencePresent ?? 0) / stats.presenceTotal) * 100)}%`, label: `presença desde ${since("presencePresent")}`, source: `${house}, sessões deliberativas` }
+      ? { value: `${Math.round(((stats.presencePresent ?? 0) / stats.presenceTotal) * 100)}%`, label: `presença desde ${since("presencePresent")}`, source: house, caveat: CAVEAT.presence }
       : null,
-    stats.proposalsPrincipal !== null ? { value: count(stats.proposalsPrincipal), label: `propostas desde ${since("proposalsPrincipal")}`, source: house } : null,
-    elected?.votes != null ? { value: count(elected.votes), label: `votos em ${elected.year}`, source: "TSE" } : null,
-    assets ? { value: money(assets.assetsCents!), label: `patrimônio declarado (${assets.year})`, source: "TSE" } : null,
-    camp.raisedCents !== null ? { value: money(camp.raisedCents), label: "arrecadado nas campanhas", source: "TSE" } : null,
-    accrued ? { value: money(accrued.cents), label: "salário recebido", source: "lei do subsídio" } : null,
+    stats.proposalsPrincipal !== null ? { value: count(stats.proposalsPrincipal), label: `propostas desde ${since("proposalsPrincipal")}`, source: house, caveat: CAVEAT.proposals } : null,
+    elected?.votes != null ? { value: count(elected.votes), label: `votos em ${elected.year}`, source: "TSE", caveat: CAVEAT.votes } : null,
+    assets ? { value: money(assets.assetsCents!), label: `patrimônio declarado (${assets.year})`, source: "TSE", caveat: CAVEAT.assets } : null,
+    camp.raisedCents !== null ? { value: money(camp.raisedCents), label: "arrecadado nas campanhas", source: "TSE", caveat: CAVEAT.raised } : null,
+    accrued ? { value: money(accrued.cents), label: "salário recebido", source: "lei do subsídio", caveat: CAVEAT.salaryAccrued } : null,
   ];
-  const shown = facts.filter((f): f is Fact => f !== null).slice(0, 4);
+  // D281: data = o carimbo mais antigo das fontes usadas (a conservadora); sem carimbo, a data de geração, dita como tal.
+  const stamps = await Promise.all([data.getStamp(senado ? "senado" : "camara"), data.getStamp("tse")].map((p) => p.catch(() => null)));
+  const oldest = stamps.map((s) => s?.refreshedAt).filter((x): x is string => !!x).sort()[0];
+  const asOf = oldest ? `dados de ${date(oldest)}` : `gerado em ${date(new Date().toISOString())}`;
+  const shown = assertCard({ facts: facts.filter((f): f is CardFact => f !== null).slice(0, 4), asOf }).facts;
   const role = main ? `${main.officeName} · ${main.placeLabel} · ${main.party.acronym}` : "";
 
   return new ImageResponse(
@@ -61,13 +64,14 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             >
               <div style={{ display: "flex", fontSize: f.value.length > 11 ? 29 : 38, fontWeight: 700, color: OG.text }}>{f.value}</div>
               <div style={{ display: "flex", fontSize: 20, color: OG.text, marginTop: 6 }}>{f.label}</div>
-              <div style={{ display: "flex", fontSize: 16, color: OG.textMuted, marginTop: 6 }}>Fonte: {f.source}</div>
+              <div style={{ display: "flex", fontSize: 17, color: OG.text, fontWeight: 700, marginTop: 6 }}>{f.caveat}</div>
+              <div style={{ display: "flex", fontSize: 16, color: OG.textMuted, marginTop: 4 }}>Fonte: {f.source}</div>
             </div>
           ))}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28, fontSize: 20, color: OG.textMuted }}>
           <span style={{ color: OG.accent, fontWeight: 700 }}>quem · representa</span>
-          <span>Dados oficiais com fonte. Sem nota, sem ranking.</span>
+          <span>{asOf} · Sem nota, sem ranking.</span>
         </div>
       </div>
     ),
