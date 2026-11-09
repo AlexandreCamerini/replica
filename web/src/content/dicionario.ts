@@ -88,6 +88,7 @@ const RAW: [string, string, string, Source][] = [
   ["Comissão", p, "Grupo menor de parlamentares que analisa projetos de um tema (saúde, educação...) antes de eles irem ao Plenário.", cf("art. 58")],
   ["Quórum", p, "Número mínimo de presentes ou de votos a favor exigido para uma sessão acontecer ou uma decisão valer.", SEN],
   ["Sessão deliberativa", p, "Sessão em que o Plenário vota matérias. Difere da sessão de debates, que só discute.", CAM],
+  ["Destaque", l, "Pedido feito no momento da votação para mexer no texto de um projeto: votar uma parte ou uma emenda separada do resto. A parte destacada vai a voto depois e só volta ao texto principal se for aprovada.", { label: "Glossário da Câmara dos Deputados, verbete Destaque (RICD, arts. 161 e 162)", href: "https://www2.camara.leg.br/glossario/arquivos/glossario-em-formato-pdf" }],
   ["Líder partidário", p, "Parlamentar que representa a bancada do partido nas decisões da casa e orienta o voto dos colegas.", CAM],
   ["Oposição", p, "Parlamentares e partidos que não apoiam o governo e fiscalizam o Executivo. A palavra não é jurídica; o regimento usa “minoria” para o bloco que não está com a maioria.", CAM],
   ["Maioria absoluta", p, "Mais da metade de todos os membros de uma casa, estejam presentes ou não. Na Câmara, 257 de 513 votos.", cf("art. 47")],
