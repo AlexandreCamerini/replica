@@ -499,6 +499,21 @@ Origem: `replica/catalogo-2026-11-08.md`. O dono escolheu os pacotes A (ganhos r
 - **D278 · Sem eleitos do TSE, sem "sai".** Se não há nenhum `eleito_aguardando_posse` na casa, o modo fev/2027 fica desabilitado e a nota diz que os eleitos de 2026 não foram carregados; "Hoje" mostra todos como continua. Dizer "sai" sem o TSE seria afirmar o que não sabemos. Risco: o banco local ainda não tem os eleitos de 2026, então "entra" só foi conferido na demonstração (317 continuam, 196 entram, 513 nos dois modos).
 - **D279 · Calendário da pauta (U10).** Em "Vem aí": calendário do mês com o número de itens de plenário por dia (os mesmos da lista abaixo), "próxima sessão" e "consultado há N min" calculado no navegador (a página vem do cache de até 10 min). Rodapé com `events_total` e `events_failed` de `pauta_reads` por casa. Com `events_failed > 0` aparece o erro do v1 ("Não conseguimos ler a pauta da Câmara. Última leitura: …", "Tentar de novo"). `?simular=erro` só é lido pela fonte de demonstração; o Postgres ignora.
 
+
+### Pacote E · confiança e prova (2026-11-09)
+- **D280 · Cópia datada do bruto (catálogo D12).** `etl/civico_etl/rawstore.py`, migração 0120 (`ingest_runs.raw_uri`, `raw_expires_at`, `raw_purged_at`, `raw_bytes`).
+  - **Como:** `http.fetch` e `open_remote` anotam cada download; ao fechar um run com sucesso, `db.run` grava os arquivos (gzip, exceto o que já é compactado) e um manifesto JSON. `raw_uri` aponta para o manifesto, com url, sha256 e `stored_uri` por arquivo.
+  - **Zip remoto do TSE (Range):** entra no manifesto com url e sem cópia (`why_not_stored`). Baixar GBs só para guardar custa mais do que a prova vale; o dono decide se quer isso depois.
+  - **Backends por env:** `ETL_RAW_STORE=off` (padrão) | `local` | `supabase` | `r2` (boto3 opcional). Config incompleta desliga com aviso.
+  - **Retenção:** 90 dias para os diários; `tse.*` é permanente (`raw_expires_at` nulo). `python -m civico_etl purge-raw` apaga o vencido e marca `raw_purged_at`.
+  - **Falha:** erro de upload é nota do run, nunca falha da carga. Falha do manifesto também só deixa nota. O UPDATE roda em savepoint.
+  - **Risco aceito:** respostas de `api_json` (Portal da Transparência, com chave) não são arquivadas, porque não passam por `fetch`. O manifesto fica vazio nessas cargas.
+  - **Ativação:** `replica/runbook-raw-storage.md`. Nenhum bucket nem credencial foi criado.
+- **D281 · Card com ressalva junto (catálogo U17).** `web/src/lib/og-card.ts`: `CardFact` exige `source` e `caveat`; `assertCard` derruba a imagem se faltar fonte, data ou ressalva.
+  - **Data:** o carimbo mais antigo das fontes usadas ("dados de dd/mm/aaaa"). Sem carimbo, "gerado em", dito como tal.
+  - **Ressalvas** (`CAVEAT`): "teto, não gasto", "bruto, sem correção pela inflação", "declarado, sem correção pela inflação", "arrecadado, não gasto" etc.
+  - **Proposta:** nova `proposta/[key]/opengraph-image.tsx`, com a data prevista da pauta e "previsão da pauta, pode mudar".
+  - **Teste:** `web/e2e/u17-card-ressalva.spec.ts`. O guarda estrutural falha se uma linha com `source:` nas imagens OG ficar sem `caveat:`.
 ## Fechamento das pendências de A e B (2026-11-09)
 - **D285 · Vigia em produção.** `GET /api/health/fontes` responde com `ok:false` só por `pauta`: a produção não tem carimbo `pauta.%` (`sem_dado`); Câmara e Senado estão em dia.
   - **Correção proposta, não aplicada (não toco produção):** rodar a leitura da pauta uma vez em produção (`run-due --only pauta`). O alerta das casas fica como está.

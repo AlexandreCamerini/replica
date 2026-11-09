@@ -49,6 +49,19 @@ log = logging.getLogger("etl")
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
+    if args and args[0] == "purge-raw":  # D12: apaga o bruto vencido (90 dias dos diários); eleição do TSE é permanente
+        from . import rawstore
+        from .db import connect
+
+        st = rawstore.store_from_env()
+        if st is None:
+            log.info("ETL_RAW_STORE desligado: nada a apagar")
+            return 0
+        c = connect()
+        n = rawstore.purge_expired(c, st)
+        c.commit()
+        log.info("purge-raw: %d runs apagados", n)
+        return 0
     if args and args[0] == "run-due":  # agenda (D250): roda o que venceu, repara identidade, check e alerta
         from .schedule import main as schedule_main
 
