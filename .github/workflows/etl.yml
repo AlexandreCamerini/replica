@@ -8,6 +8,9 @@
 # O cron "17 */3" cai em 00:17 e 03:17 BRT, fora da janela do Senado; por isso as duas linhas a mais. O atraso do GitHub (10–60 min) cabe
 # nas janelas. As constantes de "17 */3" repetem-se em schedule.py (TICK_*) e web/src/lib/sources.ts; test_schedule.py confere.
 # O cache de downloads (etl/.cache) é preservado entre execuções para o TSE e o SAPL não baixarem tudo de novo.
+# SAPL das câmaras (sapl.todas, ~150 min por dia) NÃO roda aqui: minutos do Actions em repositório privado são pagos (D274). Roda no Mac do dono por
+# launchd (etl/deploy/launchd-sapl-prod.sh). ETL_TASKS_EXCLUDE tira a tarefa desta chamada e a fonte "sapl" do alerta de prazo daqui; o site e o vigia
+# continuam acusando se ela envelhecer. sapl.ales (5 Assembleias, leve) continua aqui.
 # Actions fixadas por SHA (tag no comentário). Pendente: travar dependências do pip com hash (--require-hashes).
 name: etl
 on:
@@ -45,6 +48,7 @@ jobs:
           ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
           ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
           TRANSPARENCIA_API_KEY: ${{ secrets.TRANSPARENCIA_API_KEY }}  # só header na API; nunca em URL nem log
+          ETL_TASKS_EXCLUDE: "sapl.todas"  # roda no Mac (D274); nomes em schedule.TASKS, desconhecido = erro
           ETL_DEADLINE_MIN: "320"  # abaixo do timeout do job: a agenda adia o que não cabe e sempre alerta
         run: |
           if [ -n "$ONLY" ]; then python -m civico_etl.cli run-due --only "$ONLY" --force
