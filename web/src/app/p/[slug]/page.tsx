@@ -165,6 +165,25 @@ export default async function Page({ params, searchParams }: Props) {
     return m && (m.status === "desconhecido" || m.status === "so_portal") ? askHref : undefined;
   };
   const schedule = full && main ? await data.getSalarySchedule(main.office, main.placeIbge) : [];
+  // U06: ordem = a da página. Só entra o que renderiza abaixo; `n` só quando o dado já está carregado (nunca "0" por desconhecido).
+  const isMain = !!main && main.status === "em_exercicio";
+  const asmProp = !!assembly && !!placeUf && !!stampOf(assembly.items, "propostas");
+  const asmExp = !!assembly && !!placeUf && !!stampOf(assembly.items, "gastos_gabinete");
+  const anchors: { id: string; label: string; n?: string }[] = [
+    ...(full || asmProp ? [{ id: "propostas", label: "Propostas", n: !missingOf("propostas") && stats.proposalsPrincipal !== null ? count(stats.proposalsPrincipal) : undefined }] : []),
+    ...(full ? [{ id: "votos", label: "Votos", n: !missingOf("votos") && stats.votesRegistered !== null ? count(stats.votesRegistered) : undefined }] : []),
+    ...(full || asmExp ? [{ id: "gastos", label: "Gastos", n: !missingOf("gastos_gabinete") && stats.expensesCents !== null ? money(stats.expensesCents) : undefined }] : []),
+    ...(full ? [{ id: "leis", label: "Leis" }, { id: "comissoes", label: "Comissões" }, { id: "equipe", label: "Equipe" }, { id: "discursos", label: "Discursos" }] : []),
+    ...(council ? [{ id: "camara-municipal", label: council.house === "assembleia" ? "Assembleia" : "Câmara municipal" }] : []),
+    ...(assembly && placeUf ? [{ id: "assembleia", label: "Assembleia" }] : []),
+    ...(full ? [{ id: "emendas", label: "Emendas" }] : []),
+    { id: "patrimonio", label: "Patrimônio" },
+    { id: "eleicoes", label: "Eleições", n: candidacies.length ? String(candidacies.length) : undefined },
+    { id: "campanha", label: "Campanhas" },
+    ...(isMain ? [{ id: "contato", label: "Contato" }, { id: "como-cobrar", label: "Como cobrar" }] : []),
+    ...(full ? [{ id: "custo", label: "Custo do mandato" }] : []),
+  ];
+
   const user = await currentUser();
   const following = user ? await isFollowing(user.id, person.id).catch(() => false) : false;
 
@@ -256,6 +275,22 @@ export default async function Page({ params, searchParams }: Props) {
           </Link>
         </div>
       </header>
+
+      {/* U06: âncoras das seções que renderizam abaixo, na ordem da página (sem ranking). Número só quando já está nos dados; desconhecido fica sem número. */}
+      {anchors.length > 1 && (
+        <nav aria-label="Ir para uma seção" className="mt-4" data-testid="ancoras">
+          <ul className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+            {anchors.map((a) => (
+              <li key={a.id} className="shrink-0">
+                <LinkChip href={`#${a.id}`} scroll tall>
+                  {a.label}
+                  {a.n && <span className="ml-1.5 font-normal tabular text-muted">{a.n}</span>}
+                </LinkChip>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
 
       {/* mandatos */}
       <section aria-labelledby="mandatos-h" className="mt-8">

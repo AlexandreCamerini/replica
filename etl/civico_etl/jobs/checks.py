@@ -407,9 +407,12 @@ CHECKS: list[tuple[str, str]] = [
                or (person_id is null and match_note is null))""",
     ),
     (
-        # catálogo D02: estágios da emenda: o pago do ano nunca passa do empenhado (valorPago; o resto a pagar vai em coluna própria)
-        "emendas: pago maior que empenhado",
-        "select count(*) from amendments where paid_cents is not null and committed_cents is not null and paid_cents > committed_cents",
+        # catálogo D02 / D290: o Portal publica pago do ano acima do empenhado do ano quando há resto a pagar inscrito (Bancada do PR 2024,
+        # 202471170016: empenhado 408 mil, pago 2,76 mi, inscrito 6,85 mi). Número da fonte, não erro de carga: a régua passa a ser
+        # pago <= empenhado + resto inscrito. Acima disso o número não tem explicação na própria linha e o check quebra.
+        "emendas: pago maior que empenhado mais resto a pagar inscrito",
+        """select count(*) from amendments where paid_cents is not null and committed_cents is not null
+             and paid_cents > committed_cents + coalesce(resto_inscrito_cents, 0)""",
     ),
     (
         # catálogo D02: emenda coletiva não tem autor individual; vínculo com pessoa só com método e confiança registrados
@@ -436,10 +439,19 @@ CHECKS: list[tuple[str, str]] = [
                  or (hp.kind = 'uf' and o.slug = 'deputado_estadual' and mp.uf = hp.uf))))""",
     ),
     (
-        "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias",
-        """select count(*) from dataset_stamps ds join sources s on s.id = ds.source_id
-           where (s.slug in ('camara','senado') and ds.refreshed_at < now() - interval '48 hours')
-              or (s.slug = 'tse' and ds.refreshed_at < now() - interval '60 days')""",
+        # D291: por família de dataset (sufixo de ano, mês ou período tirado). Ano/mês passado não é relido por desenho
+        # (camara.votacoes.2019, agenda.senado.202501); cada um sozinho dava "vencido" para sempre (73 em 09/11/2026).
+        # A família vence quando nem o carimbo mais novo dela está no prazo.
+        "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias (carimbo mais novo de cada família de dataset)",
+        """select count(*) from (
+             select s.slug, regexp_replace(ds.dataset, '\\.[0-9]{4,8}(-[0-9]{8})?$', '') as familia, max(ds.refreshed_at) as ultimo
+               from dataset_stamps ds join sources s on s.id = ds.source_id
+              where s.slug in ('camara', 'senado', 'tse')
+                and ds.dataset not like '%.noturna%'  -- 2ª leitura só ter–sáb (D06): segunda de manhã já passa de 48 h
+                and ds.dataset not like 'tse.fix%'    -- reparos pontuais, não são carga periódica
+              group by 1, 2) f
+           where (f.slug in ('camara','senado') and f.ultimo < now() - interval '48 hours')
+              or (f.slug = 'tse' and f.ultimo < now() - interval '60 days')""",
     ),
     (
         "pauta: última leitura de cada Casa há mais de 24 h (o número da entrada estaria velho)",

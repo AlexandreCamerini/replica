@@ -35,6 +35,8 @@ jobs:
     steps:
       - name: Banco configurado?
         id: gate
+        # antes do checkout a pasta etl/ não existe: o default working-directory quebrava este passo (o job nunca rodou)
+        working-directory: ${{ github.workspace }}
         run: |
           if [ -z "$ETL_DATABASE_URL" ]; then
             echo "::notice::ETL_DATABASE_URL não definido; pauta não lida."

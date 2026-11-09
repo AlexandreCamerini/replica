@@ -288,7 +288,8 @@ def test_tarefa_com_chave_ausente_e_pulada_com_motivo(conn, monkeypatch):
     assert due == [] and {s["task"] for s in skipped} == {"transparencia.emendas", "sancoes.cgu"}
     assert all("TRANSPARENCIA_API_KEY" in s["why"] for s in skipped)
     monkeypatch.setattr(S, "env_ok", lambda name: True)
-    due, _ = S.plan(conn, NOW, ["transparencia.emendas"], False, True)
+    # force: com a carga real no banco o carimbo pode estar em dia; aqui só importa que a chave presente libera a tarefa
+    due, _ = S.plan(conn, NOW, ["transparencia.emendas"], True, True)
     assert [t.name for t, _ in due] == ["transparencia.emendas"]
     r = S.Report(started_at=NOW.isoformat())
     r.awaiting = ["cgu", "transparencia"]
