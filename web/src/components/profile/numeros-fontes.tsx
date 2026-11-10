@@ -1,3 +1,5 @@
+import { date } from "@/lib/format";
+
 export type SourceLine = { label: string; source: string; href: string; updatedAt: string };
 
 /** Fonte e data de cada número do bloco “Números” (regra de produto: fonte e data em todo bloco; BUG-026). */
@@ -11,7 +13,7 @@ export function NumerosFontes({ lines }: { lines: SourceLine[] }) {
           <a href={l.href} className="underline underline-offset-2 hover:text-fg">
             {l.source}
           </a>{" "}
-          · atualizado em <time dateTime={l.updatedAt}>{new Date(l.updatedAt).toLocaleDateString("pt-BR")}</time>
+          · atualizado em <time dateTime={l.updatedAt}>{date(l.updatedAt)}</time>
         </li>
       ))}
     </ul>

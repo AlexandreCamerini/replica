@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import Image from "next/image";
 import { Check, CircleSlash, HelpCircle, Info, Minus, Plus, X } from "lucide-react";
 import { Button as AriaButton, Dialog, DialogTrigger, Popover } from "react-aria-components";
+import { date } from "@/lib/format";
 import { nextExpectedRead, nextReadLabel, slugForDataset, SOURCE_META } from "@/lib/sources";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -178,7 +179,6 @@ export function SourceFooter({
   /** dataset do carimbo (Stamp.dataset): sem `slug`, a fonte sai do prefixo (slugForDataset). */
   dataset?: string;
 }) {
-  const d = new Date(updatedAt);
   const key = slug ?? slugForDataset(dataset);
   const meta = key ? SOURCE_META[key] : undefined;
   const next = meta ? nextExpectedRead(updatedAt, meta.everyHours) : null;
@@ -192,7 +192,7 @@ export function SourceFooter({
       </span>
       <span aria-hidden>·</span>
       <span>
-        atualizado em <time dateTime={updatedAt}>{d.toLocaleDateString("pt-BR")}</time>
+        atualizado em <time dateTime={updatedAt}>{date(updatedAt)}</time>
       </span>
       {next && (
         <>
