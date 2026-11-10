@@ -33,7 +33,8 @@ Remover a extensão auxiliar depois (`drop extension pgstattuple`). Rodar como `
 
 ## Janela
 - Duração estimada: 2 a 10 minutos por tabela; o `pg_repack` só toma bloqueio exclusivo no início e no fim (troca de arquivo). Leituras do site continuam, escritas do ETL ficam pausadas.
-- Quando: fora do horário do cron do ETL (ver `.github/workflows`), idealmente madrugada de dia útil.
+- Quando: o `etl-pauta.yml` roda a cada 30 min de seg a sex das 08:00 às 22:30 (Brasília) e a cada 3 h no fim de semana. A janela quieta é de seg a sex entre 23:00 e 08:00. Conferir também `etl.yml`, `etl-rascunho.yml` e `vigia.yml` antes.
+- Pausar o ETL na janela: `gh workflow disable <arquivo>` em cada um e `gh workflow enable` ao fim. Cron do GitHub atrasa; confirmar `ingest_runs` sem `running` antes de começar.
 - O site continua lendo (RLS e `web_reader` não são afetados). Rodar depois do próximo `derive.stats` bem-sucedido, para não repackear dados que a próxima carga já mudaria.
 
 ## Execução (ordem: menor risco primeiro)
