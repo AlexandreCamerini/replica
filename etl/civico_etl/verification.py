@@ -49,7 +49,9 @@ DOC_RULE = (
 _NUM = r"(?:(?:[IVXLC]+|\d+)\s*[-–—.)]\s*)?"
 _SPACED = re.compile(r"^\s*" + _NUM + r"j\s*u\s*s\s*t\s*i\s*f\s*i\s*c\s*a\s*(?:[çc]\s*[ãa]\s*o|t\s*i\s*v\s*a)\b", re.I)
 _UPPER = re.compile(r"^\s*" + _NUM + r"JUSTIFICA(?:ÇÃO|CAO|TIVA)\b")
-_ANNEX = re.compile(r"^\s*ANEXO\b")
+_ANNEX = re.compile(r"^\s*(?:ANEXOS?|Anexos?)\b")
+# Exposição de motivos, mensagem e fecho do articulado: texto do autor, não o que a lei faria.
+_MOTIVOS = re.compile(r"^\s*(?:EXPOSI[ÇC][ÃA]O\s+DE\s+MOTIVOS|Exposi[çc][ãa]o\s+de\s+Motivos|EM\s*n[ºo°]|MENSAGEM\s+(?:n[ºo°]|N[ºO°])|Sala\s+das\s+Sess[õo]es|SALA\s+DAS\s+SESS[ÕO]ES)", )
 _ARTICLE_LINE = re.compile(r"^\s*(?:art\.|§|par[áa]grafo|[ivx]+\s*[-–—])", re.I)
 
 
@@ -61,6 +63,8 @@ def _marker(line: str) -> str | None:
         return None
     if _ANNEX.match(ln):
         return "anexo"
+    if _MOTIVOS.match(ln):
+        return "justificacao"
     if _UPPER.match(ln):
         return "justificacao"
     if _ARTICLE_LINE.match(ln):
@@ -68,7 +72,8 @@ def _marker(line: str) -> str | None:
     words = ln.split()
     if _SPACED.match(ln) and (len(words) <= 6 or " " in ln.strip()[:4]):
         return "justificacao"
-    if len(words) <= 6 and re.search(r"\bjustifica(?:cao|tiva)\b", drafting._fold(ln)):
+    # Título isolado: começa em maiúscula e não termina em pontuação. "…mediante\na justificativa técnica do órgão." é frase quebrada.
+    if len(words) <= 6 and ln[0].isupper() and ln[-1] not in ".,;:" and re.search(r"\bjustifica(?:cao|tiva)\b", drafting._fold(ln)):
         return "justificacao"
     return None
 
@@ -143,7 +148,7 @@ def directive_hits(pages: list[str]) -> list[str]:
     return [p for p in _DIRECTIVES if re.search(drafting._fold(p), text)]
 
 
-_ART = re.compile(r"(?m)^[ \t]*Art\.?[ \t]*(\d+)[ \t]*[ºo°]?[ \t]*\.?[ \t]*[-–—]?")
+_ART = re.compile(r"(?mi)^[ \t]*art(?:igo)?\.?\s*(\d+|[úu]nico)[ \t]*[ºo°]?[ \t]*\.?[ \t]*[-–—]?")
 
 
 def _articles(pages: list[str]) -> dict[int, list[str]]:
@@ -154,7 +159,7 @@ def _articles(pages: list[str]) -> dict[int, list[str]]:
     found: dict[int, list[list[str]]] = {}
     for i, m in enumerate(ms):
         end = ms[i + 1].start() if i + 1 < len(ms) else len(text)
-        found.setdefault(int(m.group(1)), []).append([drafting._fold(w) for w in drafting._words(text[m.end():end])[:PROOF_WORDS]])
+        found.setdefault(1 if m.group(1).lower() in ("único", "unico") else int(m.group(1)), []).append([drafting._fold(w) for w in drafting._words(text[m.end():end])[:PROOF_WORDS]])
     uniq = {n: v[0] for n, v in found.items() if len(v) == 1 and len(v[0]) == PROOF_WORDS}
     starts = [tuple(v) for v in uniq.values()]
     return {n: v for n, v in uniq.items() if starts.count(tuple(v)) == 1}
@@ -406,7 +411,10 @@ def decide(ev: Evidence) -> Decision:
     # Independência conferida, não presumida: o verificador não pode ter saído do mesmo modelo do redator.
     for role in ("sustentacao", "contraditor"):
         served = ev.served.get(role)
-        if served and same_model(served, ev.drafter_model):
+        data = ev.sust if role == "sustentacao" else ev.contra
+        if data is not None and not served:  # sem o modelo que atendeu não há como provar independência
+            barred.append(f"modelo_nao_informado:{role}")
+        elif served and same_model(served, ev.drafter_model):
             barred.append(f"mesmo_modelo_do_redator:{role}")
     # Regra 4: sem prova de leitura, a lista vazia do contraditor não vale como aprovação.
     if ev.contra is not None and not ev.proof_ok:

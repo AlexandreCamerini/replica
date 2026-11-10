@@ -27,6 +27,7 @@ Os verificadores rodam SEM modelo de reserva: um reserva poderia ser o mesmo mod
 from __future__ import annotations
 
 import io
+import re
 import json
 import logging
 import os
@@ -56,6 +57,10 @@ class Transient(Exception):
     """A API não respondeu agora (ou cortou a resposta). A proposta fica na fila, com uma marca de tentativa."""
 
 
+class Changed(Exception):
+    """O rascunho mudou de estado durante a verificação: esta proposta sai da fila deste run, o resto segue."""
+
+
 class Fatal(Exception):
     """A API recusou a requisição (4xx). O defeito é da nossa configuração: o run para e nada é gravado."""
 
@@ -64,7 +69,7 @@ def _pages(pdf: bytes) -> list[str]:
     return [(p.extract_text() or "") for p in PdfReader(io.BytesIO(pdf)).pages]
 
 
-_WHITE = 0.95
+_WHITE = 0.85  # quase branco também some no papel; o erro seguro é barrar
 
 
 def _blank_fill(op: str, args: list[Any]) -> bool | None:
@@ -94,7 +99,11 @@ def _scan(pdf: bytes) -> tuple[list[str], int] | None:
             box = page.mediabox
             x0, y0, x1, y1 = float(box.left), float(box.bottom), float(box.right), float(box.top)
             parts: list[str] = []
-            state = {"white": False, "mode": 0}
+            state = {"white": False, "mode": 0, "tz": 100.0}
+            try:
+                gstates = page["/Resources"]["/ExtGState"]
+            except Exception:  # noqa: BLE001 - página sem ExtGState
+                gstates = {}
             stack: list[dict[str, Any]] = []
             n = [0]
 
@@ -112,6 +121,17 @@ def _scan(pdf: bytes) -> tuple[list[str], int] | None:
                     state["white"] = False  # troca de espaço de cor volta ao preto
                 elif o == "Tr":
                     state["mode"] = int(args[0])
+                elif o == "Tz":
+                    state["tz"] = float(args[0])
+                elif o == "gs":  # transparência zero pelo ExtGState (/ca, /CA)
+                    try:
+                        g = gstates[args[0]].get_object()
+                        if any(float(g[k]) < 0.1 for k in ("/ca", "/CA") if k in g):
+                            state["white"] = True
+                    except Exception:  # noqa: BLE001
+                        pass
+                elif o == "TJ" and isinstance(args[0], list) and sum(float(x) for x in args[0] if isinstance(x, (int, float))) < -50000:
+                    n[0] += 1  # deslocamento que empurra o texto para fora da página
                 elif o in ("Tj", "TJ", "'", '"') and (state["white"] or state["mode"] in (3, 7)):
                     n[0] += 1
 
@@ -123,7 +143,7 @@ def _scan(pdf: bytes) -> tuple[list[str], int] | None:
                 ca, cb, cc, cd, ce, cf = (float(v) for v in cm)
                 x, y = e * ca + f * cc + ce, e * cb + f * cd + cf
                 scale = ((a * ca + b_ * cc) ** 2 + (a * cb + b_ * cd) ** 2) ** 0.5 or 1.0
-                if float(size or 0) * scale < 4 or not (x0 - 5 <= x <= x1 + 5 and y0 - 5 <= y <= y1 + 5):
+                if float(size or 0) * scale < 4 or state["tz"] < 20 or not (x0 - 5 <= x <= x1 + 5 and y0 - 5 <= y <= y1 + 5):
                     n[0] += 1
                     return
                 parts.append(text)
@@ -164,11 +184,15 @@ def call_agent(client: Any, role: str, system: str, user: str, schema: dict[str,
             messages=[{"role": "user", "content": user}],
             output_config={"effort": V.EFFORT[role], "format": {"type": "json_schema", "schema": schema}},
         )
-    except (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.InternalServerError) as x:
+    except (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.InternalServerError,
+            anthropic.APIResponseValidationError) as x:
         raise Transient(f"{role}: {type(x).__name__}") from x
     except anthropic.APIStatusError as x:
-        if x.status_code >= 500:
+        if x.status_code >= 500 or x.status_code in (408, 409):
             raise Transient(f"{role}: API respondeu {x.status_code}") from x
+        if x.status_code == 413 or (x.status_code == 400 and re.search(r"too (?:long|large)|exceed|maximum", str(x), re.I)):
+            # o problema é desta proposta (documento grande): barra só ela, não trava a fila inteira
+            raise AgentFailed(f"{role}: documento grande demais para a API ({x.status_code})") from x
         raise Fatal(f"{role}: a API recusou a requisição ({x.status_code}); confira chave, crédito, ID do modelo e tamanho do documento") from x
     if resp.stop_reason == "refusal":
         raise AgentFailed(f"{role}: o modelo recusou")
@@ -222,8 +246,13 @@ def verify(client: Any, draft: dict[str, Any], pdf: bytes) -> Outcome:
     """Roda as conferências sobre um rascunho e devolve a decisão. Não toca no banco. Transient e Fatal sobem para quem chama."""
     pages = _pages(pdf)
     # O portão mecânico roda de novo aqui: os avisos gravados no rascunho podem estar velhos (edição direta no banco).
-    answers, checks = drafting.validate(draft["answers"], pages)
     pregate: list[str] = []
+    if drafting.shape_errors(draft["answers"]):  # editado no banco: não chega ao validador nem aos agentes
+        pregate.append("rascunho_malformado")
+        answers = {f: V._blank(f, "nao_conferido") for f in V.FIELDS}
+        checks = {}
+    else:
+        answers, checks = drafting.validate(draft["answers"], pages)
     if len(pages) > MAX_PAGES:
         pregate.append(f"paginas:{len(pages)}>{MAX_PAGES}")
     if sum(len(p.strip()) for p in pages) < 200:
@@ -358,7 +387,7 @@ class PgStore:
 
     def _one(self, q: str, args: tuple) -> None:
         if self.conn.execute(q, args).rowcount != 1:  # dentro de transaction() a saída desfaz o bloco; fora, nada foi gravado
-            raise SystemExit("o rascunho mudou de estado durante a verificação; rode de novo")
+            raise Changed("o rascunho mudou de estado durante a verificação; rode de novo")
 
 
 def strikes(d: dict[str, Any]) -> int:
@@ -375,11 +404,11 @@ def process(store: Any, client: Any, d: dict[str, Any], pdf: bytes, *, live: boo
     o = verify(client, d, pdf)
     if not live:
         store.rehearse(d, o.report)
-        return "ensaio:publicaria" if o.decision.publish else "ensaio:barraria"
+        return "ensaio:publicaria" if o.decision.publish and not store.human_live(d) else "ensaio:barraria"
     if o.decision.publish:
         if store.human_live(d):
             # seção 9: página revisada por pessoa não é trocada por agentes. Fica registrado e sai da fila.
-            store.bar(d, o.report, "publicacao_de_pessoa_no_ar: a correção desta página é com `civico-etl revisar`")
+            store.bar(d, o.report, "publicacao_de_pessoa_no_ar: a página no ar é de pessoa; para trocá-la gere novo rascunho com `civico-etl rascunho --force` e revise com `civico-etl revisar`")
             return "barrado"
         store.publish(d, o.decision.answers, o.report)
         return "publicado"
@@ -437,6 +466,9 @@ def run_verificar(conn: psycopg.Connection, *, key: str | None = None, limit: in
                     r.notes.append("duas falhas seguidas da API: run encerrado para não gastar à toa")
                     rc = 1
                     break
+                continue
+            except Changed as x:
+                r.reject(why=f"{d['key']}: {x}")
                 continue
             except Fatal as x:
                 r.reject(why=f"{d['key']}: {x}. Run encerrado; nada foi gravado para esta proposta.")

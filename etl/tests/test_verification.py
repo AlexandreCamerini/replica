@@ -1,6 +1,8 @@
 """Verificação agêntica (D293): cada regra do árbitro e cada checagem em código. Sem rede, sem banco.
 Rodar: uv run --with pytest pytest tests/test_verification.py"""
 
+import pytest
+
 from civico_etl import verification as V
 from civico_etl.drafting import FIELDS
 
@@ -329,3 +331,28 @@ def test_mensagens_entregam_o_documento_delimitado_e_o_leitor_nao_ve_o_texto_ofi
     assert "Ainda não é lei" in reader and Q1 not in reader
     assert "[página 1]" in V.sust_message(ans, PAGES, ["o_que_propoe"]) and "<direcao>" not in V.sust_message(ans, PAGES, ["o_que_propoe"])
     assert "<direcao>dividido</direcao>" in V.sust_message(ans, PAGES, ["dinheiro"])
+
+
+# --- segunda revisão: classificador e prova de leitura --------------------------------------------------------------
+
+def _doc(*lines):
+    return ["\n".join(lines)]
+
+
+def test_frase_quebrada_com_justificativa_nao_vira_titulo():
+    pages = _doc("Art. 1º A empresa prestará contas mediante", "a justificativa técnica do órgão.", "Art. 2º Fica instituído o programa de apoio ao setor.")
+    assert V.classify_quote("Fica instituído o programa de apoio ao setor.", pages) == "articulado"
+
+
+def test_titulos_do_autor_fecham_o_articulado():
+    for titulo in ("EXPOSIÇÃO DE MOTIVOS", "Exposição de Motivos", "EM nº 12/2026", "Sala das Sessões, em 3 de março", "Anexos", "ANEXOS"):
+        pages = _doc("Art. 1º Fica instituído o programa de apoio ao setor produtivo.", titulo, "A medida beneficiará 20 milhões de famílias.")
+        assert V.classify_quote("A medida beneficiará 20 milhões de famílias.", pages) != "articulado", titulo
+
+
+@pytest.mark.parametrize("prefixo", ["Artigo 1º", "art. 1º", "Art.\n1º", "Art. único"])
+def test_variacoes_de_artigo_entram_na_prova(prefixo):
+    pages = _doc(f"{prefixo} Fica instituído o programa nacional de apoio ao setor produtivo brasileiro.")
+    arts = V._articles(pages)
+    assert 1 in arts and V.proof_articles(pages, "sha") == [1]
+    assert V.check_proof(pages, [1], [{"artigo": 1, "primeiras_palavras": " ".join(arts[1])}])
