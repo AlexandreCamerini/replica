@@ -115,14 +115,20 @@ def run_revisar(conn: psycopg.Connection, key: str | None, *, approve: bool, rej
             _set(conn, "update answer_drafts set status = 'substituido' where id = %s and status = 'publicado'", (prev["id"],))
         _set(
             conn,
-            """update answer_drafts set status = 'publicado', answers = %s, checks = %s, reviewer = %s, reviewed_at = now(),
-                      replaces_id = %s, correction_note = %s where id = %s and status = 'rascunho'""",
+            f"""update answer_drafts set status = 'publicado', answers = %s, checks = %s, reviewer = %s, reviewed_at = now(),
+                      replaces_id = %s, correction_note = %s{_by_person(conn)} where id = %s and status = 'rascunho'""",
             (json.dumps(answers, ensure_ascii=False), json.dumps(checks, ensure_ascii=False), reviewer.strip(),
              prev["id"] if prev else None, note if prev else None, d["id"]),
         )
     conn.commit()
     print(f"{key}: publicado{' como correção' if prev else ''}. O site mostra em até 10 minutos.")
     return 0
+
+
+def _by_person(conn: psycopg.Connection) -> str:
+    """Depois da migração 0130: marca quem conferiu e não deixa o relatório de ensaio dos agentes congelado numa página de pessoa."""
+    has = conn.execute("select 1 from information_schema.columns where table_name = 'answer_drafts' and column_name = 'verified_by'").fetchone()
+    return ", verified_by = 'pessoa', verification = null, verifier_version = null" if has else ""
 
 
 def _set(conn: psycopg.Connection, q: str, args: tuple) -> None:

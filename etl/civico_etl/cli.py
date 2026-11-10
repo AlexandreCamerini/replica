@@ -29,6 +29,7 @@ Ficam para resposta a incidente. A rotina roda `identity.repairs` depois de tse.
   civico-etl check                                                  # invariantes; exit 1 se alguma quebrar
   civico-etl rascunho --limit 5                                     # IA rascunha as respostas (custa API); nada publica
   civico-etl revisar [chave] [--aprovar|--reprovar] --revisor "Nome"  # fila, leitura e publicação por pessoa
+  civico-etl verificar [chave] [--limit N] [--force]                 # agentes conferem o rascunho; ensaio até VERIFICACAO_AGENTICA=on (D293)
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
   civico-etl run-due [--dry-run] [--only TAREFA --force]             # agenda (D250): roda o que venceu, check e alerta; exit 2 = alerta
 """
@@ -83,8 +84,8 @@ def main(argv: list[str] | None = None) -> int:
 
         return sapl_main(args)
     p = argparse.ArgumentParser(prog="civico-etl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "identity.repairs", "camara.diario", "camara.noturna", "camara.presenca", "camara.equipe", "senado.diario", "senado.noturna", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "pauta", "rascunho", "revisar", "check", "all", "governos.indicadores", "receita.arrecadacao"])
-    p.add_argument("key", nargs="?", help="rascunho/revisar: chave da proposta, ex. camara-pl-79-2020")
+    p.add_argument("job", choices=["seed", "ibge.places", "ibge.populacao", "ibge.malhas", "tse.candidatos", "tse.votos", "tse.contas", "tse.fix019", "tse.fix032", "tse.fix035", "identity.fix038", "identity.fix041", "identity.fix033", "identity.fix033.devolver", "identity.repairs", "camara.diario", "camara.noturna", "camara.presenca", "camara.equipe", "senado.diario", "senado.noturna", "senado.secretas", "agenda.congresso", "parlamento.extras", "identity.dedupe", "derive.stats", "pauta", "rascunho", "revisar", "verificar", "check", "all", "governos.indicadores", "receita.arrecadacao"])
+    p.add_argument("key", nargs="?", help="rascunho/revisar/verificar: chave da proposta, ex. camara-pl-79-2020")
     p.add_argument("--year", type=int, action="append", help="ano (repetível)")
     p.add_argument("--uf", action="append", help="só esta UF (repetível; TSE e Câmara)")
     p.add_argument("--all", action="store_true", help="TSE: carregar todas as candidaturas, não só eleitos")
@@ -232,6 +233,11 @@ def main(argv: list[str] | None = None) -> int:
             if a.aprovar and a.reprovar:
                 p.error("use --aprovar ou --reprovar, não os dois")
             return run_revisar(conn, a.key, approve=a.aprovar, reject=a.reprovar, reviewer=a.revisor, note=a.motivo, not_said=a.nao_diz, phrases=a.frase, checked=a.conferido)
+        if a.job == "verificar":
+            from .jobs.verificar import run_verificar
+
+            # sem --limit e sem chave só mostra a fila: verificar custa API
+            return run_verificar(conn, key=a.key, limit=a.limit if a.limit is not None else (1 if a.key else 0), force=a.force)
         # W4: fora do "all" (fontes novas, independentes das legislativas)
         if a.job == "governos.indicadores":
             from .jobs.governos_indicadores import run_governos
