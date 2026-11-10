@@ -176,7 +176,9 @@ def upsert(
         for row in rows:
             cp.write_row(row)
     upd = [c for c in cols if c not in key] if update is None else list(update)
-    if update is None and not upd:
+    if update is None and not upd and not returning:
+        action = sql.SQL("do nothing")  # nada a mudar e ninguém pede as linhas de volta: não reescreve
+    elif update is None and not upd:
         # chave = todas as colunas: força DO UPDATE para que RETURNING devolva também as linhas já existentes
         action = sql.SQL("do update set updated_at = now()")
     elif upd:
@@ -185,6 +187,15 @@ def upsert(
             action += sql.SQL(", updated_at = now()")
         if where:
             action += sql.SQL(" where ") + sql.SQL(where)
+        elif not returning:
+            # Sem `where` e sem RETURNING: só reescreve a linha que mudou. Reescrever igual gerava de 3 a 128 versões
+            # mortas por linha (votes, proposals, person_period_stats) e inchava tabela e índices. Com RETURNING o
+            # DO UPDATE continua incondicional, porque o chamador espera todas as linhas de volta.
+            cmp = [c for c in upd if c != "updated_at"]
+            if cmp:
+                lhs = sql.SQL(", ").join(sql.SQL("{}.{}").format(sql.Identifier(table), sql.Identifier(c)) for c in cmp)
+                rhs = sql.SQL(", ").join(sql.SQL("excluded.{}").format(sql.Identifier(c)) for c in cmp)
+                action += sql.SQL(" where ({}) is distinct from ({})").format(lhs, rhs)
     else:
         action = sql.SQL("do nothing")
     q = sql.SQL("insert into {t} ({cols}) select distinct on ({key}) {cols} from {tmp} order by {key} {conflict} {action}").format(
