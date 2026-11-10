@@ -8,11 +8,11 @@ Princípio: o produto é um **pipeline de dados oficiais com uma vitrine**. A vi
 
 | layer | choice | why |
 | --- | --- | --- |
-| web | Next.js 15 (App Router) + TypeScript | RSC com ISR por slug: 71 mil crachás gerados sob demanda e invalidados por tag quando o ETL termina |
+| web | Next.js 15 (App Router) + TypeScript | RSC com cache de dados por tag (`unstable_cache` na camada `lib/data`): 71 mil crachás sem ir ao banco a cada visita, invalidados quando o ETL termina (ver `integration.md` §7.1) |
 | styling | Tailwind + tokens do replica-design | padrão; tema claro/escuro por CSS variables |
 | mobile | nenhum app nativo; PWA | o original é só web e o público chega pelo link no WhatsApp |
 | database | Postgres no Supabase (Pro + compute Medium) | um banco só com auth OTP, Storage e RLS. Volume estimado de 40–80 GB no escopo completo, acima do plano free |
-| ORM | Drizzle | SQL primeiro: `schema.sql` é a migration 0001 e o Drizzle introspecta. Tipos sem esconder o SQL |
+| acesso a dados | `postgres` (postgres.js), sem ORM | SQL escrito à mão é a fonte de verdade; tagged templates parametrizam. Drizzle seria segundo schema sem ganho (desvio registrado em `backend.md`) |
 | auth | Supabase Auth, OTP por e-mail | é exatamente o fluxo do original (S20: "não tem senha") |
 | payments | nenhum | produto não comercial. Doação, se vier, é link externo |
 | email | Resend (SMTP do Supabase Auth + digests) | um provedor para OTP e digest, com webhooks de bounce e complaint |
@@ -30,6 +30,8 @@ Princípio: o produto é um **pipeline de dados oficiais com uma vitrine**. A vi
 | observabilidade | Sentry + painel de `ingest_runs` | o que quebra aqui é a fonte, não o app |
 
 Uma camada de dados (`lib/data/*.ts`, funções de leitura tipadas) atende páginas RSC, `/api/*` e MCP. Nenhuma query fica fora dela.
+
+Integrações (fontes oficiais, serviços de plataforma, superfícies expostas, orquestração do ETL, falhas e lacunas): [`integration.md`](integration.md).
 
 ## Schema
 
@@ -99,8 +101,8 @@ A maioria das leituras é RSC no servidor, sem endpoint. Os `/api/*` existem par
 | GET `/` | home: contadores, mapa, diretório A–Z | anyone | — | RSC (ISR 10 min) | F01 F02 |
 | GET `/representantes` | busca de lugar e diagrama de níveis | anyone | — | RSC estático | F01 |
 | GET `/api/places?q=` | autocomplete de cidade/UF, homônimos com UF | anyone | `q` de 2 a 60 caracteres, sem acento | `[{ibge, name, uf, kind}]` ≤ 10 | F01 |
-| GET `/representantes?cidade=<ibge>` / `?uf=<sigla>` | todos no cargo por nível + dados faltantes | anyone | IBGE de 7 dígitos ou UF válida; inválido → 404 | RSC (ISR, tag `place:<ibge>`) | F01 |
-| GET `/p/[slug]` | crachá | anyone | slug; se antigo → 308 via `person_slug_redirects` | RSC (ISR, tag `person:<id>`) | F01 F03 |
+| GET `/representantes?cidade=<ibge>` / `?uf=<sigla>` | todos no cargo por nível + dados faltantes | anyone | IBGE de 7 dígitos ou UF válida; inválido → 404 | RSC dinâmico, dado em cache (tag `place:<ibge>`) | F01 |
+| GET `/p/[slug]` | crachá | anyone | slug; se antigo → 308 via `person_slug_redirects` | RSC dinâmico, dado em cache (tag `person:<id>`) | F01 F03 |
 
 ### F02 Mapa (S01)
 
@@ -180,7 +182,7 @@ Interno:
 
 | method path | does | who | input |
 | --- | --- | --- | --- |
-| POST `/api/revalidate` | invalida tags após um run do ETL | ETL, com HMAC no header e janela de 5 min | `{runId, tags[] ≤ 5000}` |
+| POST `/api/revalidate` | invalida tags após um run do ETL | ETL, Bearer `REVALIDATE_SECRET` comparado em tempo constante + WAF 10/min (ver `integration.md` §7.2) | `{tags[] ≤ 5000}` |
 
 Webhooks in: Resend `email.bounced` / `email.complained` → `profiles.digest = 'off'`. Nenhum webhook das fontes, porque nenhuma fonte oficial oferece.
 Webhooks out: nenhum.
