@@ -31,7 +31,7 @@ Agendar `python -m civico_etl purge-raw` (diário). Apaga o bruto com mais de 90
 ## 4. Verificação
 ```sql
 select dataset, status, raw_uri, raw_bytes, raw_expires_at
-from ingest_runs where status = 'succeeded' and started_at > now() - interval '1 day' and raw_uri is null;
+from ingest_runs where status in ('succeeded', 'partial') and started_at > now() - interval '1 day' and raw_uri is null;
 ```
 Deve voltar vazio depois de ligar. Para ler um dado datado: abra o manifesto em `raw_uri`; ele lista url, sha256 e o objeto de cada arquivo.
 

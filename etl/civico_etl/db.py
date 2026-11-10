@@ -3,17 +3,22 @@
 Contrato de todo job (architecture.md › Jobs):
   1. advisory lock por dataset  2. linha em ingest_runs  3. pula se o checksum não mudou
   4. staging + upsert pela chave natural  5. dataset_stamps  6. derive.stats + revalidate (feito pelo cli)
-Se a fonte falhar, o dado anterior fica no ar com o stamp antigo. Nada é apagado.
+Se a fonte falhar, o dado anterior fica no ar com o stamp antigo.
+Status do run: succeeded, partial (gravou, mas algo ficou retido: Run.partial), skipped_unchanged, failed.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import subprocess
 import time
+import traceback
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 import psycopg
@@ -49,77 +54,153 @@ class Run:
     rows_rejected: int = 0
     notes: list[str] = field(default_factory=list)
     id: str | None = None
+    rows_read: int | None = None  # None = o job não informou (zero é zero de verdade)
+    rows_deleted: int | None = None
+    partial_why: list[str] = field(default_factory=list)
 
     def add(self, n: int) -> None:
         self.rows_upserted += n
 
     def reject(self, n: int = 1, why: str | None = None) -> None:
         self.rows_rejected += n
-        if why and len(self.notes) < 50:
-            self.notes.append(why)
+        if why:
+            self.note(why)
+
+    def read(self, n: int) -> None:
+        """Itens lidos da fonte, antes de filtro e de vínculo. É a base do contrato de volume."""
+        self.rows_read = (self.rows_read or 0) + n
+
+    def deleted(self, n: int) -> None:
+        self.rows_deleted = (self.rows_deleted or 0) + n
+
+    def note(self, msg: str) -> None:
+        """Observação do run (vai para ingest_runs.notes). Não é erro e não alerta."""
+        if len(self.notes) < MAX_NOTES:
+            self.notes.append(msg)
+
+    def partial(self, why: str) -> None:
+        """O dado foi gravado, mas algo ficou retido ou incompleto. O run fecha como `partial`: carimba, entra no alerta da agenda
+        e não serve de base para o skip por checksum (a próxima execução reprocessa)."""
+        if len(self.partial_why) < MAX_NOTES:
+            self.partial_why.append(why)
+
+
+MAX_NOTES = 50
+
+
+@lru_cache(maxsize=1)
+def code_version() -> str | None:
+    """Commit do código que rodou: ETL_CODE_VERSION, GITHUB_SHA (Actions) ou o HEAD do checkout (Mac). Nunca levanta."""
+    v = os.environ.get("ETL_CODE_VERSION") or os.environ.get("GITHUB_SHA")
+    if not v:
+        try:
+            v = subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent, capture_output=True, text=True, timeout=5).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            v = ""
+    return v[:12] or None
+
+
+def invocation() -> str | None:
+    """Id da chamada do run-due que disparou este processo (schedule.run_due põe em ETL_INVOCATION). É por ele que a agenda acha os
+    runs `partial` da própria chamada, qualquer que seja o nome do dataset."""
+    return os.environ.get("ETL_INVOCATION") or None
+
+
+def _text(lines: list[str], limit: int) -> str | None:
+    return "\n".join(lines)[:limit] or None
+
+
+def _close(conn: psycopg.Connection, r: Run, status: str, t0: float, *, error: str | None = None, tb: str | None = None) -> None:
+    conn.execute(
+        """update ingest_runs set status = %s, finished_at = now(), rows_upserted = %s, rows_rejected = %s, rows_read = %s, rows_deleted = %s,
+                  duration_ms = %s, error = %s, notes = %s, traceback = %s where id = %s""",
+        (status, r.rows_upserted, r.rows_rejected, r.rows_read, r.rows_deleted, int((time.monotonic() - t0) * 1000), error, _text(r.notes, 20000), tb, r.id),
+    )
+
+
+def _keep_partial(r: Run) -> None:
+    """Run que marcou partial e não fechou como partial (falhou ou pulou): o motivo fica nas notas em vez de se perder."""
+    r.notes = [f"parcial antes de fechar: {w}" for w in r.partial_why] + r.notes
+
+
+def _fail(conn: psycopg.Connection, r: Run, t0: float, e: BaseException) -> None:
+    conn.rollback()
+    _keep_partial(r)
+    _close(conn, r, "failed", t0, error=f"{type(e).__name__}: {e}"[:2000], tb=traceback.format_exc()[-4000:])
+    conn.commit()
 
 
 @contextmanager
 def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_checksum: str | None = None, force: bool = False):
-    """Abre um run. Levante SkipUnchanged de dentro para marcar skipped_unchanged."""
+    """Abre um run. Levante SkipUnchanged de dentro para marcar skipped_unchanged.
+
+    Fecha como succeeded, partial (Run.partial), skipped_unchanged ou failed. Em failed nada do que o job gravou depois do último
+    commit fica, e o carimbo não anda. Notas vão para `notes`; `error` só tem erro (failed) ou o motivo do partial."""
+    src = source_id(conn, source_slug)  # antes do lock: fonte desconhecida não deixa lock preso
     cur = conn.cursor()
     cur.execute("select pg_try_advisory_lock(hashtext(%s)) as ok", (dataset,))
     if not cur.fetchone()["ok"]:
         raise SystemExit(f"outro run de {dataset} em andamento (advisory lock)")
-    src = source_id(conn, source_slug)
-    if input_checksum and not force:
-        cur.execute(
-            # compara com o ÚLTIMO run bem-sucedido: se a fonte foi de A para B e voltou para A, A precisa ser recarregada
-            "select input_checksum = %s as same from ingest_runs where dataset = %s and status = 'succeeded' order by started_at desc limit 1",
-            (input_checksum, dataset),
-        )
-        last = cur.fetchone()
-        if last and last["same"]:
-            cur.execute(
-                "insert into ingest_runs (source_id, dataset, status, input_checksum, finished_at) values (%s, %s, 'skipped_unchanged', %s, now()) returning id",
-                (src, dataset, input_checksum),
-            )
-            _stamp(conn, dataset, src, str(cur.fetchone()["id"]))
-            conn.commit()
-            cur.execute("select pg_advisory_unlock(hashtext(%s))", (dataset,))
-            conn.commit()
-            log.info("%s: entrada igual ao último run, pulando", dataset)
-            raise SkipUnchanged(dataset)
-    cur.execute(
-        "insert into ingest_runs (source_id, dataset, input_checksum) values (%s, %s, %s) returning id",
-        (src, dataset, input_checksum),
-    )
-    r = Run(conn, dataset, source_slug, input_checksum, id=str(cur.fetchone()["id"]))
-    conn.commit()
-    t0 = time.monotonic()
     try:
-        yield r
-    except SkipUnchanged:
-        conn.rollback()
-        conn.execute("update ingest_runs set status = 'skipped_unchanged', finished_at = now() where id = %s", (r.id,))
-        _stamp(conn, dataset, src, r.id)
-        conn.commit()
-        raise
-    except Exception as e:  # noqa: BLE001 - registra e propaga
-        conn.rollback()
-        conn.execute(
-            "update ingest_runs set status = 'failed', finished_at = now(), error = %s, rows_upserted = %s, rows_rejected = %s where id = %s",
-            (f"{type(e).__name__}: {e}"[:2000], r.rows_upserted, r.rows_rejected, r.id),
+        if input_checksum and not force:
+            cur.execute(
+                # compara com a ÚLTIMA carga que gravou dado: se a fonte foi de A para B e voltou para A, A precisa ser recarregada.
+                # partial também gravou dado, mas nunca é base de skip: A -> partial(B) -> A recarrega A, e partial(A) -> A roda de novo.
+                """select status, input_checksum = %s as same from ingest_runs
+                   where dataset = %s and status in ('succeeded', 'partial') order by started_at desc limit 1""",
+                (input_checksum, dataset),
+            )
+            last = cur.fetchone()
+            if last and last["status"] == "succeeded" and last["same"]:
+                cur.execute(
+                    """insert into ingest_runs (source_id, dataset, status, input_checksum, finished_at, duration_ms, code_version, invocation)
+                       values (%s, %s, 'skipped_unchanged', %s, now(), 0, %s, %s) returning id""",
+                    (src, dataset, input_checksum, code_version(), invocation()),
+                )
+                _stamp(conn, dataset, src, str(cur.fetchone()["id"]))
+                conn.commit()
+                log.info("%s: entrada igual ao último run, pulando", dataset)
+                raise SkipUnchanged(dataset)
+        cur.execute(
+            "insert into ingest_runs (source_id, dataset, input_checksum, code_version, invocation) values (%s, %s, %s, %s, %s) returning id",
+            (src, dataset, input_checksum, code_version(), invocation()),
         )
+        r = Run(conn, dataset, source_slug, input_checksum, id=str(cur.fetchone()["id"]))
         conn.commit()
-        log.error("%s falhou após %.0fs: %s", dataset, time.monotonic() - t0, e)
-        raise
-    else:
-        rawstore.finalize_run(conn, r)  # D12: cópia datada do bruto; nunca derruba a carga, só deixa nota em r.notes
-        conn.execute(
-            "update ingest_runs set status = 'succeeded', finished_at = now(), rows_upserted = %s, rows_rejected = %s, error = %s where id = %s",
-            (r.rows_upserted, r.rows_rejected, "\n".join(r.notes) or None, r.id),
-        )
-        _stamp(conn, dataset, src, r.id)
-        conn.commit()
-        log.info("%s: ok em %.0fs, %d upserts, %d rejeitadas", dataset, time.monotonic() - t0, r.rows_upserted, r.rows_rejected)
+        t0 = time.monotonic()
+        tag = f"{dataset} [{r.id[:8]}]"
+        try:
+            yield r
+        except SkipUnchanged:
+            conn.rollback()
+            _keep_partial(r)
+            _close(conn, r, "skipped_unchanged", t0)
+            _stamp(conn, dataset, src, r.id)
+            conn.commit()
+            raise
+        except (Exception, SystemExit, KeyboardInterrupt) as e:  # noqa: BLE001 - registra e propaga; SystemExit de dentro do job também é falha
+            _fail(conn, r, t0, e)
+            log.error("%s falhou após %.0fs: %s", tag, time.monotonic() - t0, e)  # o traceback fica em ingest_runs.traceback, não no log
+            raise
+        else:
+            status = "partial" if r.partial_why else "succeeded"
+            try:
+                rawstore.finalize_run(conn, r)  # D12: cópia datada do bruto; nunca derruba a carga, só deixa nota em r.notes
+                _close(conn, r, status, t0, error=_text(r.partial_why, 2000))
+                _stamp(conn, dataset, src, r.id)
+                conn.commit()
+            except Exception as e:  # noqa: BLE001 - fechar falhou: a carga volta atrás e o run fica failed com o erro real, não `running` órfão
+                _fail(conn, r, t0, e)
+                log.error("%s falhou ao fechar após %.0fs: %s", tag, time.monotonic() - t0, e)
+                raise
+            if r.partial_why:
+                log.warning("%s: PARCIAL em %.0fs, %d upserts: %s", tag, time.monotonic() - t0, r.rows_upserted, "; ".join(r.partial_why)[:500])
+            else:
+                log.info("%s: ok em %.0fs, %d upserts, %d rejeitadas", tag, time.monotonic() - t0, r.rows_upserted, r.rows_rejected)
+        finally:
+            rawstore.reset()
     finally:
-        rawstore.reset()
+        conn.rollback()  # nada pendente é confirmado pelo unlock; também tira a sessão de uma transação abortada
         conn.execute("select pg_advisory_unlock(hashtext(%s))", (dataset,))
         conn.commit()
 

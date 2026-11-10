@@ -56,7 +56,7 @@ carreira = total direto da fonte e ≥ soma dos anos; nenhum zero em ano sem car
 
 ## Contrato de job (todos)
 
-advisory lock por dataset → linha em `ingest_runs` → pula se o checksum da entrada não mudou (`--force` ignora) → COPY em tabela temporária + `INSERT … ON CONFLICT (chave natural)` → `dataset_stamps` → `derive.stats` → `/api/revalidate`. Fonte fora do ar: run `failed`, dado anterior fica no ar com o stamp antigo. Nada é apagado.
+advisory lock por dataset → linha em `ingest_runs` → pula se o checksum da entrada não mudou (`--force` ignora) → COPY em tabela temporária + `INSERT … ON CONFLICT (chave natural)` → `dataset_stamps` → `derive.stats` → `/api/revalidate`. Fonte fora do ar: run `failed`, dado anterior fica no ar com o stamp antigo. Run que gravou mas reteve algo fecha `partial` (`Run.partial`): carimba, alerta na agenda, não é base de skip e a tarefa volta a rodar no intervalo de nova tentativa. Notas vão em `ingest_runs.notes`; `error` só tem erro ou o motivo do partial. Nada é apagado.
 
 ```bash
 db/pg-local.sh start && DATABASE_URL=$(db/pg-local.sh url) db/migrate.sh --local
