@@ -5,8 +5,9 @@ import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { clsx } from "clsx";
+import { COMPARE_MAX } from "@/lib/compare";
 
-export const COMPARE_MAX = 5;
+export { COMPARE_MAX };
 type Picked = { slug: string; name: string };
 type Ctx = { picked: Picked[]; has: (slug: string) => boolean; toggle: (p: Picked) => void; clear: () => void; full: boolean };
 
