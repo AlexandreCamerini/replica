@@ -232,3 +232,12 @@ Regras do revisor: contexto limpo; recebe o artefato e a fonte, não o resumo de
 3. Rodar o ensaio sobre o conjunto de referência e registrar a barra da seção 10 em `decisions.md`.
 
 **Verificação desta entrega.** 93 testes de unidade (árbitro, job com cliente e banco simulados, PDFs montados à mão para o texto invisível). Duas revisões independentes com contexto limpo. A segunda, sobre as correções, achou falso positivo e falso negativo no classificador, variações de "Art." fora da prova, três fugas de texto invisível, travamento da fila por 400/413 e rascunho malformado, `SystemExit` deixando `ingest_runs` em "running", ensaio que ignorava página de pessoa e independência que não falhava fechada; tudo isso foi corrigido e testado. **Ficaram sem correção, declarados:** fugas por retângulo/clip/contorno/Separation (item acima); achado lateral do contraditor (`trata=false` para campo que o redator afirmou é ignorado); `[página N]` forjável pelo PDF; `verification.rascunho` legível pelo papel do site nas linhas publicadas (decidir grant por coluna ao aplicar a 0130); `publish` não atualiza `checks`; falta teste de integração do laço `run_verificar` com banco, do SQL do `PgStore` e da migração, que só existem com um banco de teste. Barra de falso positivo do texto invisível a medir no ensaio: `seen()` conta barrado como visto, então um PDF legítimo barrado só volta com `VERIFIER_VERSION` nova ou `--force`.
+
+## 18. Migração 0130 exercitada em banco (2026-11-10)
+
+- Postgres 16 local (não o Neon: o único projeto Neon da conta é de outro produto, BolsIA, e uma branch dele copiaria dados que não são deste projeto). Banco isolado, clonado do banco de desenvolvimento.
+- 33 migrações aplicam do zero; reaplicar a 0130 não falha; o gatilho `set_updated_at` termina habilitado.
+- `db/tests/0130_probe.sql`: 19 casos, todos passam (insert só como rascunho, relatório obrigatório para `agentes`, `verified_by` obrigatório no que o público lê, conteúdo imutável após sair de rascunho, retirada só com motivo, finais, RLS em `pipeline_switches`).
+- ETL inteiro contra o clone: 394 passed, 2 skipped; 1 falha por disco cheio do host, repassada depois e passou (8 passed).
+- Efeito colateral: ao tentar subir o Postgres local, a 0120 e a 0130 foram aplicadas ao banco de desenvolvimento compartilhado `civico` (instância de /Users/acamerini/replica/.local/pg). Migrações aditivas e idempotentes.
+- Ainda sem teste: `PgStore` e o laço `run_verificar` de ponta a ponta com chamadas reais à API; grant por coluna de `verification`.
