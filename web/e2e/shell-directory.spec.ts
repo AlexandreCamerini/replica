@@ -1,25 +1,24 @@
 import { CAMPINAS, expect, test } from "./fixtures";
 
 test.describe("Shell e diretório", () => {
-  test("SH-H1 skip link, menu Mais por teclado, tema persiste, aria-current", async ({ page }) => {
+  test("SH-H1 skip link, navegação v1, tema persiste, aria-current", async ({ page }) => {
     await page.goto("/");
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Pular para o conteúdo" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.locator("#conteudo")).toBeFocused();
-    await expect(page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Início" })).toHaveAttribute("aria-current", "page");
-    const more = page.getByRole("button", { name: "Mais" });
-    await more.focus();
-    await page.keyboard.press("Enter");
-    const item = page.getByRole("menuitem", { name: "Quem publica dados" });
-    await expect(item).toBeVisible();
-    await item.click();
-    await expect(page).toHaveURL(/\/dados-abertos/);
-    await expect(page.getByRole("menu")).toBeHidden();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Quem publica dados");
+    const nav = page.getByRole("navigation", { name: "Principal" });
+    await expect(nav.getByRole("link")).toHaveText(["Entrada", "Vem aí", "Já decidido", "Quem eu votei", "Como escolhemos", "Correções"]);
+    await expect(nav.getByRole("link", { name: "Entrada" })).toHaveAttribute("aria-current", "page");
+    await nav.getByRole("link", { name: "Vem aí" }).click();
+    await expect(page).toHaveURL(/\/pauta$/);
+    await expect(nav.getByRole("link", { name: "Vem aí" })).toHaveAttribute("aria-current", "page");
     const dark = page.getByRole("radio", { name: "Tema escuro" });
-    await dark.click();
-    await expect(dark).toHaveAttribute("aria-checked", "true");
+    // a página de destino é pesada em dev: um clique antes da hidratação é perdido, então repete até pegar
+    await expect(async () => {
+      await dark.click();
+      await expect(dark).toHaveAttribute("aria-checked", "true", { timeout: 1500 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -37,17 +36,17 @@ test.describe("Shell e diretório", () => {
     await page.goto(CAMPINAS);
     const a = await page.locator("#vereadores a[href^='/p/']").nth(0).getAttribute("href");
     const b = await page.locator("#vereadores a[href^='/p/']").nth(1).getAttribute("href");
-    for (const u of ["/", CAMPINAS, a!, `/comparar?p=${a!.split("/").pop()},${b!.split("/").pop()}`, "/quem"]) {
+    for (const u of ["/", "/sobre", "/atualizacoes", "/dados-abertos", "/congresso", CAMPINAS, a!, `/comparar?p=${a!.split("/").pop()},${b!.split("/").pop()}`, "/quem"]) {
       await page.goto(u);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), u).toBeLessThanOrEqual(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - 390), u).toBeLessThanOrEqual(0);
     }
   });
 
   test("S04-H1 diretório filtra, pagina e conta", async ({ page, axe }) => {
     await page.goto("/quem");
     await axe();
-    await page.getByLabel("Cargo").selectOption("senador");
-    await page.getByLabel("Estado").selectOption("SP");
+    await page.locator("select[name=cargo]").selectOption("senador");
+    await page.locator("select[name=uf]").selectOption("SP");
     await page.getByRole("button", { name: "Buscar" }).click();
     await expect(page).toHaveURL(/cargo=senador/);
     await expect(page).toHaveURL(/uf=SP/);

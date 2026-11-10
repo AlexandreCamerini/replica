@@ -12,8 +12,8 @@ export async function DataFreshnessBar() {
           Dados oficiais conferidos em <time dateTime={at}>{date(at)}</time>
         </span>
         <span aria-hidden>·</span>
-        <Link href="/sobre#atualizacao" className="font-semibold text-fg underline underline-offset-2">
-          Como atualizamos
+        <Link href="/como-escolhemos" className="font-semibold text-fg underline underline-offset-2">
+          Como escolhemos
         </Link>
       </p>
     </aside>

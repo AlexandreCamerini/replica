@@ -1,0 +1,64 @@
+# Agenda do ETL em produção (D250). Ligar: etl/deploy/github-actions-setup.sh (assistente interativo). Desligada até o dono configurar:
+#   secret ETL_DATABASE_URL (role de escrita do banco de produção), variável ETL_SCHEDULE_ENABLED=true
+#   e, opcional, secret ETL_ALERT_WEBHOOK (Slack/Discord/Teams compatível com {"text": ...}).
+#   Emendas e CGU (catálogo D01–D03) pedem o secret TRANSPARENCIA_API_KEY (etl/deploy/transparencia-key.sh). Sem ele essas tarefas são
+#   puladas com o motivo no relatório, sem alerta.
+# run-due decide o que venceu; chamar a cada 3 h basta (Câmara/Senado vencem em 20 h, prazo do site 36 h).
+# catálogo D06 (segunda leitura noturna, ter–sáb, hora de Brasília = UTC-3): Senado 00:30–02:00 (UTC 03:30–05:00), Câmara 05:00–07:00 (UTC 08:00–10:00).
+# O cron "17 */3" cai em 00:17 e 03:17 BRT, fora da janela do Senado; por isso as duas linhas a mais. O atraso do GitHub (10–60 min) cabe
+# nas janelas. As constantes de "17 */3" repetem-se em schedule.py (TICK_*) e web/src/lib/sources.ts; test_schedule.py confere.
+# O cache de downloads (etl/.cache) é preservado entre execuções para o TSE e o SAPL não baixarem tudo de novo.
+# SAPL das câmaras (sapl.todas, ~150 min por dia) NÃO roda aqui: minutos do Actions em repositório privado são pagos (D274). Roda no Mac do dono por
+# launchd (etl/deploy/launchd-sapl-prod.sh). ETL_TASKS_EXCLUDE tira a tarefa desta chamada e a fonte "sapl" do alerta de prazo daqui; o site e o vigia
+# continuam acusando se ela envelhecer. sapl.ales (5 Assembleias, leve) continua aqui.
+# Actions fixadas por SHA (tag no comentário). Pendente: travar dependências do pip com hash (--require-hashes).
+name: etl
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+    - cron: "40 3 * * 2-6"   # 00:40 BRT: janela do Senado
+    - cron: "10 8 * * 2-6"   # 05:10 BRT: janela da Câmara (o CSV anual é regerado até 04:45 BRT)
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "tarefa única (schedule.TASKS), com --force"
+        required: false
+concurrency: { group: etl, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  run-due:
+    if: vars.ETL_SCHEDULE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    defaults: { run: { working-directory: etl } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.12" }
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: etl/.cache
+          key: etl-cache-${{ github.run_id }}
+          restore-keys: etl-cache-
+      - run: pip install -e .
+      - name: run-due
+        # segredos só neste passo (não nas actions de terceiros nem no pip); input via env, nunca interpolado no shell
+        env:
+          ONLY: ${{ inputs.only }}
+          ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
+          ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
+          TRANSPARENCIA_API_KEY: ${{ secrets.TRANSPARENCIA_API_KEY }}  # só header na API; nunca em URL nem log
+          ETL_TASKS_EXCLUDE: "sapl.todas"  # roda no Mac (D274); nomes em schedule.TASKS, desconhecido = erro
+          ETL_DEADLINE_MIN: "320"  # abaixo do timeout do job: a agenda adia o que não cabe e sempre alerta
+        run: |
+          if [ -n "$ONLY" ]; then python -m civico_etl.cli run-due --only "$ONLY" --force
+          else python -m civico_etl.cli run-due; fi
+      # exit 2 (alerta) deixa o run vermelho de propósito; o cache e o relatório são salvos mesmo assim
+      - if: always()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: etl/.cache
+          key: etl-cache-${{ github.run_id }}
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: { name: last-run, path: etl/.state, if-no-files-found: ignore }

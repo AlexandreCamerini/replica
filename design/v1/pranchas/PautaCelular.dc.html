@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Vem aí · celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Barlow+Condensed:wght@600;700&amp;display=swap">
+<style>
+body{margin:0}
+.root{width:390px;box-sizing:border-box;padding:0 10px;display:flex;flex-direction:column;gap:22px;font:400 15px/1.5 "IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.root.t-light{--paper:#f3efe6;--sheet:#fbf9f4;--ink:#1c2226;--rule:#bdb6a6;--muted:#545a5e;--tint:#9a9d9b;--ok:#1f6f4a;--warn:#8a5a00;--err:#9b2c2c;--grid:rgba(28,34,38,.045)}
+.root.t-dark{--paper:#121518;--sheet:#1a1e22;--ink:#ebe6dc;--rule:#4a4f54;--muted:#a8a397;--tint:#6e7270;--ok:#5fc48f;--warn:#e0a53a;--err:#e08080;--grid:rgba(235,230,220,.06)}
+.serif{font-family:Newsreader,Georgia,serif;font-optical-sizing:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.disp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;line-height:.9}
+.lbl{font:500 11px/1.4 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.plate{background:var(--sheet);border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:5px;margin:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--ink);background:var(--sheet);font:500 14px "IBM Plex Sans",sans-serif;text-decoration:none;color:var(--ink);cursor:pointer}
+.btn.main{background:var(--ink);color:var(--paper)}
+.btn:hover{box-shadow:0 0 0 2px var(--ink)}
+.chip{flex:none;display:flex;flex-direction:column;gap:2px;min-height:44px;min-width:104px;padding:7px 10px;border:1px solid var(--rule);background:var(--sheet);text-align:left;cursor:pointer;color:var(--ink);box-sizing:border-box}
+.chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--paper)}
+.chip b{font:600 12px "IBM Plex Mono",monospace}
+.chip span{font-size:11.5px;line-height:1.25;color:var(--muted)}
+.chip.on span{color:var(--ink)}
+.sq{display:inline-block;width:14px;height:14px;border:1.5px solid var(--ink);box-sizing:border-box;flex:none;background:var(--sheet)}
+.vS{background:var(--ink)}
+.vN{background:repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px)}
+.vA{background:var(--sheet);border-style:dotted;border-width:2px}
+.vX,.vP{background:var(--sheet)}
+.bar{display:block;height:18px;border:1px solid var(--ink);box-sizing:border-box}
+.stamp{display:inline-block;font:500 10.5px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;padding:5px 7px;border:1.5px solid currentColor;color:var(--ink);transform:rotate(-2deg);white-space:nowrap}
+.stamp.warn{color:var(--warn)}
+.stamp.err{color:var(--err)}
+.money{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border:1px solid var(--ink);background:var(--sheet);font:500 13px "IBM Plex Sans",sans-serif}
+.ttag{display:inline-block;padding:3px 8px;border:1px solid var(--rule);background:var(--paper);font:500 11.5px/1.3 "IBM Plex Mono",ui-monospace,monospace;color:var(--ink)}
+.ttags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 6px;border-bottom:1px solid var(--ink)}
+.brand{font-size:22px;font-weight:600;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
+.sec{display:flex;flex-direction:column;gap:12px;padding:16px 14px}
+.h2{margin:0;font-family:Newsreader,Georgia,serif;font-size:24px;line-height:1.2;font-weight:500}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:0 6px 6px}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.row{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-top:1px solid var(--rule)}
+.row .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.row .code{font:600 12.5px/1.5 "IBM Plex Mono",ui-monospace,monospace}
+.row .f{font-size:15px;line-height:1.4}
+.empty{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:12px 14px;border:1px dashed var(--rule);background:var(--paper);font-size:14.5px}
+.sel{display:flex;flex-direction:column;gap:10px}
+.sel > div{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;padding:10px 12px;border:1px solid var(--rule);background:var(--sheet)}
+.sel .d{font:600 14px "IBM Plex Mono",ui-monospace,monospace}
+.ft{display:flex;flex-direction:column;gap:4px;padding:12px 6px 28px;border-top:1px solid var(--ink);font:400 11px/1.6 "IBM Plex Mono",ui-monospace,monospace;color:var(--muted)}
+.trail{display:flex;flex-wrap:wrap;gap:0 12px;margin-bottom:6px}
+.trail a{display:inline-flex;align-items:center;min-height:44px;font:500 13px "IBM Plex Sans",sans-serif;color:var(--ink)}
+a{color:var(--ink)}
+</style>
+</helmet>
+<div class="root {{theme}}">
+  <header class="hd">
+    <a class="serif brand" href="EntradaCelular.dc.html">quem·representa</a>
+    <button class="btn" type="button"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 4h14M2 9h14M2 14h14"></path></svg>Menu</button>
+  </header>
+
+  <section style="display: flex; flex-direction: column; gap: 12px; padding: 4px 6px 0">
+    <span class="lbl">Vem aí · 05/11 a 19/11</span>
+    <h1 class="serif" style="margin: 0; font-size: 30px; line-height: 1.12; font-weight: 500">Tudo que está marcado para votar nas próximas duas semanas.</h1>
+    <p style="margin: 0; font-size: 14px; color: var(--muted)">Plenário = todos os deputados juntos. PL = projeto de lei. MPV = medida provisória.</p>
+  </section>
+  <div class="chips" role="group" aria-label="Escolher o dia">
+    <sc-for list="{{dias}}" as="d" hint-placeholder-count="3">
+      <button class="{{d.cls}}" onClick="{{d.pick}}" aria-pressed="{{d.on}}"><b>{{d.lbl}}</b><span>{{d.sub}}</span></button>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{is05}}" hint-placeholder-val="{{true}}">
+    <section class="plate sec" aria-label="Câmara, Plenário">
+      <span class="lbl">Quinta, 05/11 · Câmara · Plenário · 10:00</span>
+      <h2 class="h2">13 itens no Plenário da Câmara</h2>
+      <ul class="list">
+        <sc-for list="{{itens}}" as="i" hint-placeholder-count="13">
+          <li class="row">
+            <div class="top"><span class="code">{{i.c}}</span><span class="stamp">{{i.selo}}</span></div>
+            <span class="f">{{i.f}}</span>
+            <span class="ttags">
+              <sc-if value="{{i.temMoney}}" hint-placeholder-val="{{false}}"><span class="money">{{i.money}}</span></sc-if>
+              <sc-for list="{{i.temas}}" as="t" hint-placeholder-count="2"><span class="ttag">{{t.n}}</span></sc-for>
+            </span>
+          </li>
+        </sc-for>
+      </ul>
+    </section>
+
+    <section class="plate sec" aria-label="Congresso, Comissão mista">
+      <span class="lbl">Quinta, 05/11 · Congresso · Comissão mista · 14:00</span>
+      <h2 class="h2">1 medida provisória</h2>
+      <ul class="list">
+        <li class="row">
+          <div class="top"><span class="code">{{mpv.c}}</span></div>
+          <span class="f">{{mpv.f}}</span>
+          <span class="ttags"><span class="ttag">Tema pendente</span></span>
+        </li>
+      </ul>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{outro}}" hint-placeholder-val="{{false}}">
+    <section class="plate sec" aria-label="Pauta do dia escolhido">
+      <span class="lbl">Quinta, {{outroLbl}} · Câmara · Plenário</span>
+      <h2 class="h2">[N] itens</h2>
+      <div class="empty"><span>Sem pauta lida para este dia.</span><span class="stamp">Exemplo ilustrativo</span></div>
+    </section>
+  </sc-if>
+
+  <section class="plate sec" aria-label="Comissões que decidem sozinhas">
+    <span class="lbl">Comissões que decidem sozinhas</span>
+    <h2 class="h2">Comissão com decisão terminativa: vota sem passar pelo Plenário.</h2>
+    <div class="empty"><span>Nenhuma reunião marcada com decisão terminativa até 19/11.</span><span class="stamp">Exemplo ilustrativo</span></div>
+  </section>
+
+  <section class="plate sec" aria-label="Semanas seguintes">
+    <span class="lbl">Semanas seguintes</span>
+    <div class="sel">
+      <sc-for list="{{proximas}}" as="s" hint-placeholder-count="2">
+        <div><span class="d">{{s.d}}</span><span>{{s.n}}</span><span class="stamp">Exemplo ilustrativo</span><button class="btn" onClick="{{s.pick}}" style="width: 100%">Abrir o dia</button></div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section class="plate sec" aria-label="Saíram da pauta">
+    <span class="lbl">Saíram da pauta</span>
+    <div class="empty"><span>Nada saiu da pauta desde 05/11.</span></div>
+  </section>
+
+  <section class="plate sec" aria-label="Como ler os selos">
+    <span class="lbl">Como ler os selos</span>
+    <div style="display: flex; flex-direction: column">
+      <sc-for list="{{selos}}" as="s" hint-placeholder-count="10">
+        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 0; border-top: 1px solid var(--rule)"><span class="{{s.cls}}">{{s.t}}</span><span style="font-size: 14px">{{s.d}}</span></div>
+      </sc-for>
+    </div>
+  </section>
+
+  <footer class="ft">
+    <nav class="trail" aria-label="Principal">
+      <a href="JaDecididoCelular.dc.html">Já decidido</a>
+      <a href="PautaCelular.dc.html" aria-current="page">Vem aí</a>
+      <a href="QuemVoteiCelular.dc.html">Quem eu votei</a>
+      <a href="ComoEscolhemos.dc.html">Como escolhemos</a>
+      <a href="Correcoes.dc.html">Correções</a>
+    </nav>
+    <span>Fonte: Câmara dos Deputados, Senado Federal · cadeiras: TSE</span>
+    <span>Temas lidos por IA, aguardando revisão por pessoa</span>
+    <span>Pauta lida em 05/11/2026, 00:02</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":3200},"tema":{"editor":"enum","options":["claro","escuro"],"default":"claro"}}'>
+const PAUTA = [
+  {c: 'PL 79/2020', f: 'Muda para onde vão contribuições de empresas de transporte aéreo e portuário.', t: ['Trabalho e aposentadoria', 'Dinheiro e impostos'], m: 'contribuição de empresas', rev: '04/11'},
+  {c: 'PL 2374/2023', f: 'Muda regras da alimentação escolar e do Fundeb.', t: ['Educação', 'Dinheiro e impostos'], m: 'verba da educação'},
+  {c: 'PL 1932/2021', f: 'Muda regras de abastecimento de remédios nos estados e cidades.', t: ['Saúde']},
+  {c: 'PL 565/2020', f: 'Trata da educação em saúde feita por profissionais do SUS.', t: ['Saúde']},
+  {c: 'PL 5086/2026', f: 'Cria regras para associações sem fins lucrativos com sistemas de beneficência.', t: ['Saúde', 'Assistência social']},
+  {c: 'PL 5542/2026', f: 'Define garantias para a tornozeleira eletrônica em casos da Lei Maria da Penha.', t: ['Segurança e justiça', 'Direitos']},
+  {c: 'PL 2475/2025', f: 'Torna hediondo o crime de maus-tratos a animais, em certos casos.', t: ['Segurança e justiça']},
+  {c: 'PL 2879/2011', f: 'Muda a sinalização de travessia de pedestres no Código de Trânsito.', t: ['Cidade e trânsito']},
+  {c: 'PL 2994/2020', f: 'Regula o turismo colaborativo.', t: ['Turismo e comércio', 'Trabalho e aposentadoria']},
+  {c: 'PL 2726/2022', f: 'Cria a Política Nacional de Convivência Sociocultural e Economia Solidária.', t: ['Direitos', 'Trabalho e aposentadoria']},
+  {c: 'PL 5974/2023', f: 'Permite adaptar obras para pessoas com deficiência intelectual.', t: ['Direitos', 'Cultura e homenagens']},
+  {c: 'PL 3099/2019', f: 'Cria o Dia Nacional do Autocuidado.', t: ['Cultura e homenagens']},
+  {c: 'PL 4159/2025', f: 'Inscreve Padre Inácio de Sousa Rolim no Livro dos Heróis e Heroínas da Pátria.', t: ['Cultura e homenagens']}
+];
+const MPV = {c: 'MPV 1379/2026', f: 'A agenda não traz resumo. Lemos o texto assim que for publicado.'};
+const DIAS = [{k: '05', lbl: '05/11', sub: '14 itens'}, {k: '12', lbl: '12/11', sub: '[N] itens'}, {k: '19', lbl: '19/11', sub: '[N] itens'}];
+const SELOS = [
+  {t: 'Aguardando revisão', d: 'A IA leu; uma pessoa ainda não conferiu.'},
+  {t: 'Revisado por pessoa · 04/11', d: 'Uma pessoa conferiu o resumo e o trecho citado, na data.'},
+  {t: 'Reunião em andamento', d: 'A sessão começou. O resultado sai quando a Câmara publicar.'},
+  {t: 'Saiu da pauta', d: 'O item foi retirado da lista oficial daquele dia.'},
+  {t: 'Reunião cancelada', d: 'A sessão não aconteceu. Os itens voltam quando houver nova data.'},
+  {t: 'Votada', d: 'O Plenário votou. O placar está em Já decidido.'},
+  {t: 'Virou lei', d: 'Sancionada e publicada no Diário Oficial.'},
+  {t: 'Pauta desatualizada', d: 'A última leitura falhou. Mostramos a leitura anterior, com a hora.', k: 'warn'},
+  {t: 'Texto oficial fora do ar', d: 'O site da Câmara não entregou o texto. Tentamos a cada leitura.', k: 'err'},
+  {t: 'Exemplo ilustrativo', d: 'Dado que ainda não temos. Nada aqui é real.'}
+];
+const selo = p => p.rev ? 'Revisado por pessoa · ' + p.rev : 'Aguardando revisão';
+const tag = n => ({n});
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = {dia: '05'}; }
+  renderVals() {
+    const theme = (this.props.tema ?? 'claro') === 'escuro' ? 't-dark' : 't-light';
+    const dia = this.state.dia;
+    const dias = DIAS.map(d => ({...d, on: d.k === dia, cls: 'chip' + (d.k === dia ? ' on' : ''), pick: () => this.setState({dia: d.k})}));
+    const itens = PAUTA.map(p => ({c: p.c, f: p.f, temas: p.t.map(tag), temMoney: !!p.m, money: p.m ? 'Mexe com dinheiro: ' + p.m : '', selo: selo(p)}));
+    const proximas = DIAS.slice(1).map(d => ({d: d.lbl, n: d.sub, pick: () => this.setState({dia: d.k})}));
+    const selos = SELOS.map(s => ({t: s.t, d: s.d, cls: 'stamp' + (s.k ? ' ' + s.k : '')}));
+    return {theme, dias, is05: dia === '05', outro: dia !== '05', outroLbl: (DIAS.find(d => d.k === dia) || DIAS[0]).lbl, itens, mpv: MPV, proximas, selos};
+  }
+}
+</script>
+</body>
+</html>

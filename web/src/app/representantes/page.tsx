@@ -4,10 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container, PageHeader } from "@/components/page/page-header";
 import { HolderGrid } from "@/components/people/holder-card";
+import { CityGaps } from "@/components/people/city-gaps";
+import { Amendments } from "@/components/profile/sections";
 import { PlaceSearch } from "@/components/people/place-search";
 import { MissingDataNote, SourceFooter } from "@/components/ui/data";
-import { data, type Place } from "@/lib/data";
-import { count } from "@/lib/format";
+import { data, type Place, type PlaceTopVoted, type Stamp } from "@/lib/data";
+import { count, date } from "@/lib/format";
 
 type SP = Promise<{ cidade?: string; uf?: string; q?: string }>;
 
@@ -39,12 +41,12 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   return <PlaceRepresentatives place={place} />;
 }
 
+// U14. Todos são links comuns (funcionam sem JS) para endereços que o app já serve. Os #ids vêm de GROUPS.key em lib/data/pg.ts.
 const EXAMPLES = [
   { label: "Campinas · SP", href: "/representantes?cidade=3509502" },
-  { label: "Salvador · BA", href: "/representantes?cidade=2927408" },
+  { label: "Os 3 senadores do DF", href: "/representantes?uf=DF#senado" },
+  { label: "Presidente e vice", href: "/representantes?uf=DF#presidencia" },
   { label: "Bom Jesus (4 cidades)", href: "/representantes?q=Bom+Jesus" },
-  { label: "Minas Gerais", href: "/representantes?uf=MG" },
-  { label: "Distrito Federal", href: "/representantes?uf=DF" },
 ];
 
 async function PickPlace({ q }: { q?: string }) {
@@ -61,6 +63,21 @@ async function PickPlace({ q }: { q?: string }) {
       <div className="max-w-xl">
         <PlaceSearch />
       </div>
+      <nav aria-label="Exemplos" className="mt-3 max-w-xl">
+        <p className="lbl mb-1">Por exemplo</p>
+        <ul className="flex flex-wrap gap-2">
+          {EXAMPLES.map((e) => (
+            <li key={e.href}>
+              <Link
+                href={e.href}
+                className="inline-flex min-h-11 items-center rounded-pill border-[1.5px] border-border bg-surface px-4 text-sm font-semibold text-fg outline-none hover:border-border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                {e.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
       {results && (
         <section aria-labelledby="resultados" className="mt-6">
           <h2 id="resultados" className="mb-2 text-lg text-fg">
@@ -81,25 +98,11 @@ async function PickPlace({ q }: { q?: string }) {
           )}
         </section>
       )}
-      <nav aria-label="Exemplos" className="mt-4">
-        <ul className="flex flex-wrap gap-2">
-          {EXAMPLES.map((e) => (
-            <li key={e.href}>
-              <Link
-                href={e.href}
-                className="inline-flex h-8 items-center rounded-pill border-[1.5px] border-border bg-surface px-3 text-sm font-semibold text-fg outline-none hover:border-border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              >
-                {e.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
       <section aria-labelledby="niveis" className="mt-10">
         <h2 id="niveis" className="mb-3 text-lg text-fg">
           Três níveis, uma lista
         </h2>
-        <ol className="grid gap-3 md:grid-cols-3">
+        <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {levels.map(({ Icon, where, who, when }) => (
             <li key={where} className="flex flex-col gap-1 rounded-md border border-border bg-surface p-4">
               <Icon aria-hidden className="size-5 text-accent-text" />
@@ -117,11 +120,15 @@ async function PickPlace({ q }: { q?: string }) {
 const VISIBLE = 12;
 
 async function PlaceRepresentatives({ place }: { place: Place }) {
-  const [groups, missing, stamp, munis] = await Promise.all([
+  const [groups, missing, stamp, munis, top, votesStamp, popStamp, site] = await Promise.all([
     data.getRepresentatives(place),
     data.getCoverage(place),
     data.getStamp("tse.candidatos"),
     place.kind === "uf" ? data.listMunicipalities(place.uf!) : Promise.resolve([]),
+    place.kind === "municipio" ? data.getTopVotedInPlace(place.ibge, 5) : Promise.resolve(null),
+    data.getStamp("tse.votos"),
+    data.getStamp("ibge.populacao"),
+    place.kind === "municipio" ? data.getCouncilSite(place.ibge) : Promise.resolve(null),
   ]);
   const total = groups.reduce((s, g) => s + g.people.length, 0);
   const isCity = place.kind === "municipio";
@@ -138,6 +145,11 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
           <>
             <strong className="text-fg">{count(total)} pessoas</strong> no cargo respondem por quem mora {isCity ? "nesta cidade" : "neste estado"}
             {isCity ? ", do vereador ao presidente." : ", do deputado estadual ao presidente."}
+            {isCity && place.population != null && (
+              <span className="mt-1 block text-sm" data-testid="populacao">
+                {count(place.population)} moradores, segundo a estimativa do IBGE (carregada em {date(popStamp.refreshedAt)}).
+              </span>
+            )}
           </>
         }
       >
@@ -148,7 +160,7 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
             </li>
           )}
           <li>
-            <Chip href={`/?mapa=${place.uf}#mapa`}>Ver no mapa</Chip>
+            <Chip href={`/acervo?mapa=${place.uf}#mapa`}>Ver no mapa</Chip>
           </li>
           <li>
             <Chip href="/eleicoes">Eleições</Chip>
@@ -162,14 +174,20 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
           {groups.map((g) => (
             <li key={g.key} className="shrink-0">
               <a href={`#${g.key}`} className="inline-flex h-8 items-center gap-1.5 rounded-pill bg-surface-sunken px-3 text-sm text-fg outline-none hover:underline focus-visible:outline-2 focus-visible:outline-focus">
-                {g.title} <span className="tabular text-muted">{g.people.length}</span>
+                {g.title} <span className="tabular text-muted">{g.seats ? `${g.people.length} de ${g.seats.total}` : g.people.length}</span>
               </a>
             </li>
           ))}
         </ul>
       </nav>
 
-      {missing.length > 0 && (
+      {/* U03: na cidade, um bloco só com motivo por dado e o site da câmara; no estado, a nota de antes */}
+      {isCity && missing.length > 0 && (
+        <div className="mb-8">
+          <CityGaps place={place} items={missing} site={site} />
+        </div>
+      )}
+      {!isCity && missing.length > 0 && (
         <div className="mb-8">
           <MissingDataNote items={missing.map((m) => ({ what: m.label, why: m.reason }))} />
         </div>
@@ -183,9 +201,19 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
             <section key={g.key} id={g.key} aria-labelledby={`${g.key}-h`} className="scroll-mt-28">
               <h2 id={`${g.key}-h`} className="mb-1 flex items-baseline gap-2 text-xl text-fg">
                 {g.title}
-                <span className="text-base tabular text-muted">{g.people.length}</span>
+                <span className="text-base tabular text-muted">{g.seats ? `${g.people.length} de ${g.seats.total} cadeiras carregadas` : g.people.length}</span>
               </h2>
               <p className="mb-3 text-sm text-muted">{levelNote(g.level, g.where)}</p>
+              {g.seats && (
+                <p className="mb-3 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-muted" data-testid="cadeiras">
+                  <span aria-hidden>—</span> {count(g.seats.total - g.seats.loaded)} {g.seats.total - g.seats.loaded === 1 ? "cadeira não está" : "cadeiras não estão"} aqui: {g.seats.why}.
+                </p>
+              )}
+              {g.gaps?.map((x) => (
+                <p key={x.what} className="mb-3 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-muted" data-testid="lacuna">
+                  <span className="font-semibold text-fg">{x.what}:</span> <span aria-hidden>—</span> {x.why}.
+                </p>
+              ))}
               <HolderGrid people={head} />
               {rest.length > 0 && (
                 <details className="group mt-2">
@@ -200,6 +228,15 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
           );
         })}
       </div>
+
+      {isCity && <TopVoted place={place} top={top} stamp={votesStamp} />}
+
+      {/* catálogo D02: quanto chegou em emenda e de quem; autor A–Z, nunca por valor */}
+      {isCity && (
+        <div className="mt-10">
+          <Amendments cityIbge={place.ibge} title={`Emendas com destino a ${place.name}`} />
+        </div>
+      )}
 
       {munis.length > 0 && (
         <section aria-labelledby="cidades" className="mt-10">
@@ -216,8 +253,61 @@ async function PlaceRepresentatives({ place }: { place: Place }) {
         </section>
       )}
 
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Container>
+  );
+}
+
+const ELECTED = new Set(["eleito", "eleito_qp", "eleito_media"]);
+
+/** W1 item 6: mais votados no município. Ordem = votos na urna (é o dado pedido), nunca nota ou adjetivo. */
+function TopVoted({ place, top, stamp }: { place: Place; top: PlaceTopVoted | null; stamp: Stamp }) {
+  return (
+    <section aria-labelledby="mais-votados-h" id="mais-votados" className="mt-10 scroll-mt-28 rounded-md border border-border bg-surface p-4 md:p-6">
+      <h2 id="mais-votados-h" className="text-xl text-fg">
+        Mais votados em {place.name}
+        {top ? ` · eleição de ${top.year}` : ""}
+      </h2>
+      {!top ? (
+        <p className="mt-2 rounded-sm bg-surface-sunken px-4 py-3 text-sm text-muted">
+          <span aria-label="não carregado">—</span> Os votos por cidade desta eleição ainda não foram carregados para {place.name}.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-muted">
+            Votos que cada candidatura recebeu dentro da cidade no 1º turno, entre quem tem crachá no site (quem tem ou já teve mandato). Candidaturas sem
+            crachá ainda não entram, por isso a lista pode pular alguém bem votado aqui.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {top.groups.map((g) => (
+              <div key={g.office}>
+                <h3 className="mb-2 text-base font-semibold text-fg">{g.label}</h3>
+                <ol className="flex flex-col divide-y divide-border" data-testid={`mais-votados-${g.office}`}>
+                  {g.items.map((it, i) => (
+                    <li key={it.slug} className="flex items-center justify-between gap-3 py-2 text-sm">
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <span className="w-4 shrink-0 text-right tabular text-muted">{i + 1}</span>
+                        <span className="min-w-0">
+                          <Link href={`/p/${it.slug}`} className="font-semibold text-fg underline-offset-2 hover:underline">
+                            {it.name}
+                          </Link>{" "}
+                          <span className="text-xs text-muted">
+                            {it.party}
+                            {it.result && ELECTED.has(it.result) ? ` · ${it.gender === "f" ? "eleita" : "eleito"}` : it.result === "suplente" ? " · suplente" : ""}
+                          </span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 tabular text-fg">{count(it.votes)} votos</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
+    </section>
   );
 }
 

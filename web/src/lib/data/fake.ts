@@ -1,3 +1,4 @@
+import { fakeW4 } from "./fake-w4";
 import {
   EXPENSE_CATEGORIES,
   MUNICIPALITY_ROWS,
@@ -20,8 +21,10 @@ import type {
   ElectionResult,
   Expense,
   Level,
+  CoverageStatus,
   Mandate,
   MandateStatus,
+  SeatChange,
   MissingDataset,
   OfficeSlug,
   Officeholder,
@@ -34,10 +37,16 @@ import type {
   RepresentativeGroup,
   VoteValue,
   VotingEvent,
+  VoteKind,
+  LatestRecord,
   VotingEventDetail,
   VotingEventSummary,
   ActivityItem,
+  PautaEntry,
 } from "./types";
+import { parseProposalKey, uniqueByKey } from "../pauta";
+
+import { houseName } from "./assembleias";
 
 // Camada de dados de DEMONSTRAÇÃO. Pessoas, partidos e números são fictícios e determinísticos (mesma seed, mesmo resultado).
 // Lugares e tamanhos de bancada são reais. Trocar por pg.ts não muda nenhuma tela: o contrato é DataSource.
@@ -270,6 +279,15 @@ function build(): Store {
         ibge === "3509502" && i === 0 ? "Maria Aparecida dos Santos Albuquerque de Vasconcelos Filha" : undefined);
   }
 
+  // U09: eleitos novos de 2026 que ocupam as cadeiras de quem não se reelegeu (só Câmara e Senado; pessoas novas, sem tocar o sorteio das demais)
+  const reelected = new Set(s.mandates.filter((m) => m.status === "eleito_aguardando_posse").map((m) => m.personId));
+  for (const m of s.mandates.filter((x) => x.status === "em_exercicio" && (x.office === "deputado_federal" || x.office === "senador") && x.endsOn <= "2027-02-01" && !reelected.has(x.personId))) {
+    const uf = s.placeByIbge.get(m.placeIbge)?.uf ?? null;
+    const novo = addPerson(`entrante:${m.id}`, uf);
+    addCandidacy(novo, 2026, m.office, m.placeIbge, "eleito", rng(`entrante:${m.id}`), { v: 100_000_000 });
+    addMandate(novo, m.office, m.placeIbge, { start: "2027-02-01", end: m.office === "senador" ? "2035-02-01" : "2031-02-01", status: "eleito_aguardando_posse" });
+  }
+
   // slug antigo de demonstração: /p/slug-antigo-demo → 308 para o atual
   const firstFed = s.mandates.find((m) => m.office === "deputado_federal")!;
   s.redirects.set("slug-antigo-demo", s.personById.get(firstFed.personId)!.slug);
@@ -416,11 +434,14 @@ function votesOfBody(body: "camara" | "senado") {
     for (let i = 0; i < 40; i++) {
       const topic = pick(r, TOPICS).slug;
       const month = y === CURRENT_YEAR ? between(r, 2, 10) : between(r, 2, 12);
+      const what = pick(r, ["texto principal", "destaque", "urgência", "emenda"] as const);
+      const kind: VoteKind = what === "destaque" ? "destaque" : what === "urgência" ? "urgencia" : "texto";
       events.push({
         id: `${body}-v${y}-${i}`,
         body,
+        kind,
         occurredAt: `${iso(y, month, between(r, 1, 28))}T${String(between(r, 14, 22)).padStart(2, "0")}:00:00-03:00`,
-        description: `${pick(r, LAW_TYPES)} ${between(r, 100, 5999)}/${y - between(r, 0, 3)}: ${pick(r, ["texto principal", "destaque", "urgência", "emenda"])} sobre ${pick(r, SUBJECTS)}`,
+        description: `${pick(r, LAW_TYPES)} ${between(r, 100, 5999)}/${y - between(r, 0, 3)}: ${what} sobre ${pick(r, SUBJECTS)}`,
         topic,
         result: "aprovado",
         yes: 0,
@@ -522,6 +543,7 @@ function salaryFor(m: Mandate): { cents: number | null; ceiling: boolean } {
 // ---------- implementação ----------
 export const fakeSource: DataSource = {
   isDemo: true,
+  ...fakeW4,
 
   async searchPlaces(q, limit = 10) {
     const f = fold(q);
@@ -571,6 +593,44 @@ export const fakeSource: DataSource = {
   },
   async getCoverage(place) {
     return coverageFor(place.ibge);
+  },
+  async getCouncilSite() {
+    return null; // a demo não simula Câmaras Municipais
+  },
+  async getLatestRecord(personId) {
+    const on = [
+      ...votesOf(personId).map<LatestRecord>((v) => ({ kind: "votacao", on: v.event.occurredAt.slice(0, 10) })),
+      ...proposalsOf(personId).map<LatestRecord>((p) => ({ kind: "proposta", on: p.presentedOn })),
+      ...expensesOf(personId).map<LatestRecord>((e) => ({ kind: "gasto", on: e.occurredOn })),
+    ].filter((r) => r.on <= TODAY);
+    return on.sort((a, b) => b.on.localeCompare(a.on))[0] ?? null;
+  },
+  async getSalarySchedule(office) {
+    const v = SALARY[office];
+    return v ? [{ validFrom: "2025-02-01", amountCents: v, isCeiling: false, source: { name: "Decreto Legislativo nº 172/2022 (demonstração)", url: "https://www2.camara.leg.br/" } }] : [];
+  },
+  async getTopVotedInPlace() {
+    return null; // a demo não simula votos por município
+  },
+  async getCityCouncil() {
+    return null; // a demo não simula Câmaras Municipais
+  },
+  async getAssembly(uf) {
+    // a demo não simula Assembleias: toda casa aparece como não lida, com o motivo (nunca número inventado)
+    const u = uf.toUpperCase();
+    if (!UF_ROWS.some((r) => r[1] === u)) return null;
+    const why = "dados de demonstração: Assembleias não são simuladas";
+    const items = (["presenca", "votos", "propostas", "gastos_gabinete"] as const).map((d) => ({
+      dataset: d,
+      label: { presenca: "Presença no plenário", votos: "Votos no plenário", propostas: "Propostas apresentadas", gastos_gabinete: "Verba de gabinete" }[d],
+      status: "desconhecido" as const,
+      reason: why,
+      evidenceUrl: null,
+      checkedOn: null,
+      refreshedAt: null,
+      stampDataset: null,
+    }));
+    return { uf: u, houseName: houseName(u), read: false, source: null, items };
   },
   async getCounters() {
     const byLevel: Record<Level, number> = { federal: 0, estadual: 0, municipal: 0 };
@@ -629,7 +689,7 @@ export const fakeSource: DataSource = {
   },
   async getMandates(personId) {
     const person = store().personById.get(personId)!;
-    const rank: Record<MandateStatus, number> = { em_exercicio: 0, eleito_aguardando_posse: 1, licenciado: 2, encerrado: 3 };
+    const rank: Record<MandateStatus, number> = { em_exercicio: 0, eleito_aguardando_posse: 1, licenciado: 2, afastado: 2, encerrado: 3, renunciou: 3, cassado: 3 };
     return (store().mandatesByPerson.get(personId) ?? [])
       .map((m) => ({ ...m, party: partyById[m.partyId], officeName: officeName(m.office, person.gender), placeLabel: placeLabel(m.placeIbge) }))
       .sort((a, b) => rank[a.status] - rank[b.status] || b.startedOn.localeCompare(a.startedOn));
@@ -639,6 +699,13 @@ export const fakeSource: DataSource = {
     return (store().candidaciesByPerson.get(personId) ?? [])
       .map((c) => ({ ...c, party: partyById[c.partyId], officeName: officeName(c.office, person.gender), placeLabel: placeLabel(c.placeIbge) }))
       .sort((a, b) => b.year - a.year);
+  },
+  async getPartyProvenance(personId) {
+    const m = mainMandate(personId);
+    if (!m) return { kind: "none", reason: "sem filiação registrada nas fontes" };
+    if (m.office === "deputado_federal") return { kind: "camara", since: m.startedOn };
+    if (m.office === "senador") return { kind: "senado", since: m.startedOn };
+    return { kind: "tse", since: m.startedOn, electionYear: Number(m.startedOn.slice(0, 4)) - 1 };
   },
   async getStats(personId, period) {
     const m = mainMandate(personId);
@@ -687,6 +754,85 @@ export const fakeSource: DataSource = {
   async getActiveYears(personId) {
     return mandateYears(personId);
   },
+  async getPresenceByMonth(personId, year) {
+    const out: { month: number; present: number; total: number }[] = [];
+    for (const v of votesOf(personId)) {
+      if (yearOf(v.event.occurredAt) !== year) continue;
+      const m = Number(v.event.occurredAt.slice(5, 7));
+      const row = out.find((x) => x.month === m) ?? (out.push({ month: m, present: 0, total: 0 }), out[out.length - 1]);
+      row.total++;
+      if (v.value !== "nao_votou") row.present++;
+    }
+    return out.sort((a, b) => a.month - b.month);
+  },
+  async getAttendanceGrid(personId, year) {
+    // a demo não guarda a lista de presença: cada dia com votação nominal é uma sessão (presente se votou)
+    const byDay = new Map<string, boolean>();
+    for (const v of votesOf(personId)) {
+      const d = v.event.occurredAt.slice(0, 10);
+      if (yearOf(d) !== year) continue;
+      byDay.set(d, (byDay.get(d) ?? false) || v.value !== "nao_votou");
+    }
+    const sessions = [...byDay].sort((a, b) => a[0].localeCompare(b[0])).map(([date, here]) => ({ date, state: here ? ("presente" as const) : ("ausente" as const) }));
+    const present = sessions.filter((x) => x.state === "presente").length;
+    return { year, sessions, present, absent: sessions.length - present, justified: 0, outside: 0, total: sessions.length };
+  },
+  async getChamberTransition(body) {
+    const office: OfficeSlug = body === "senado" ? "senador" : "deputado_federal";
+    const capacity = body === "senado" ? 81 : 513;
+    const ufOf = (m: Mandate) => store().placeByIbge.get(m.placeIbge)?.uf ?? null;
+    const seatOf = (m: Mandate, change: SeatChange) => {
+      const p = store().personById.get(m.personId)!;
+      return { id: p.slug, name: p.displayName, uf: ufOf(m), change };
+    };
+    const byNm = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "pt-BR");
+    const holders = current().filter((m) => m.office === office);
+    const waiting = store().mandates.filter((m) => m.office === office && m.status === "eleito_aguardando_posse");
+    const waitingIds = new Set(waiting.map((m) => m.personId));
+    const holderIds = new Set(holders.map((m) => m.personId));
+    const stays = (m: Mandate) => waitingIds.has(m.personId) || m.endsOn > "2027-02-01";
+    const continuing = holders.filter(stays).map((m) => seatOf(m, "continua")).sort(byNm);
+    const leaving = holders.filter((m) => !stays(m)).map((m) => seatOf(m, "sai")).sort(byNm);
+    const entering = waiting.filter((m) => !holderIds.has(m.personId)).map((m) => seatOf(m, "entra")).sort(byNm);
+    return {
+      capacity,
+      loaded: waiting.length > 0,
+      today: [...continuing, ...leaving].slice(0, capacity),
+      next: [...continuing, ...entering].slice(0, capacity),
+      continua: continuing.length,
+      entra: entering.length,
+      sai: leaving.length,
+      pending: Math.max(0, capacity - continuing.length - entering.length),
+      extra: Math.max(0, holders.length - capacity),
+    };
+  },
+  async getSalaryAccrued() {
+    return null; // a demo não guarda a série histórica do subsídio
+  },
+  async getCampaignFinance() {
+    return []; // a demo não simula a prestação de contas por categoria
+  },
+  async listAmendmentsByPerson() {
+    return []; // a demo não inventa emenda (catálogo D02)
+  },
+  async listAmendmentsToPlace() {
+    return [];
+  },
+  async listStaff() {
+    return []; // a demo não inventa nome de servidor
+  },
+  async countSecretVotes() {
+    return 0; // a demo não simula votação secreta
+  },
+  async getYearlyStats(personId) {
+    const years = [...mandateYears(personId)].sort((a, b) => a - b);
+    return Promise.all(
+      years.map(async (y) => {
+        const st = await fakeSource.getStats(personId, String(y) as `${number}`);
+        return { year: y, presencePresent: st.presencePresent, presenceTotal: st.presenceTotal, proposalsPrincipal: st.proposalsPrincipal, proposalsCosigned: st.proposalsCosigned, votesRegistered: st.votesRegistered, expensesCents: st.expensesCents };
+      }),
+    );
+  },
 
   async listProposals(personId, f) {
     const q = f.q ? fold(f.q) : "";
@@ -694,7 +840,7 @@ export const fakeSource: DataSource = {
       (p) =>
         (!f.year || p.year === f.year) &&
         (!f.topic || p.topics.includes(f.topic)) &&
-        (!f.type || (f.type === "lei") === p.canBecomeLaw) &&
+        (!f.type || (f.type === "emenda" ? false : (f.type === "lei") === p.canBecomeLaw)) &&
         (!f.role || p.role === f.role) &&
         (!q || fold(p.summary).includes(q) || `${p.type} ${p.number}`.toLowerCase().includes(q)),
     );
@@ -702,14 +848,16 @@ export const fakeSource: DataSource = {
   },
   async listVotes(personId, f) {
     const q = f.q ? fold(f.q) : "";
-    const all = votesOf(personId).filter(
+    const base = votesOf(personId).filter(
       (v) =>
         (!f.year || yearOf(v.event.occurredAt) === f.year) &&
         (!f.topic || v.event.topic === f.topic) &&
         (!f.value || v.value === f.value) &&
         (!q || fold(v.event.description).includes(q)),
     );
-    return page(all, f.cursor, f.limit ?? 20);
+    const procedural = (v: PersonVote) => v.event.kind === "requerimento" || v.event.kind === "urgencia";
+    const all = f.scope === "lei" ? base.filter((v) => !procedural(v)) : base;
+    return { ...page(all, f.cursor, f.limit ?? 20), hidden: f.scope === "lei" ? base.length - all.length : 0 };
   },
   async listExpenses(personId, f) {
     const inYear = expensesOf(personId).filter((e) => !f.year || yearOf(e.occurredOn) === f.year);
@@ -743,6 +891,17 @@ export const fakeSource: DataSource = {
       }
     return out;
   },
+  async listDisagreements(a, b, f) {
+    const va = new Map(votesOf(a).map((v) => [v.event.id, v]));
+    const ok = (x: string) => ["sim", "nao", "abstencao", "obstrucao"].includes(x);
+    const all = votesOf(b)
+      .filter((v) => va.has(v.event.id) && ok(v.value) && ok(va.get(v.event.id)!.value) && v.value !== va.get(v.event.id)!.value && (!f.year || yearOf(v.event.occurredAt) === f.year))
+      .map((v) => ({ event: { ...v.event, proposalLabel: null }, a: va.get(v.event.id)!.value, b: v.value }));
+    const topics = new Map<string, number>();
+    for (const d of all) if (d.event.topic) topics.set(d.event.topic, (topics.get(d.event.topic) ?? 0) + 1);
+    const items = all.filter((d) => !f.topic || d.event.topic === f.topic);
+    return { ...page(items, undefined, f.limit ?? 20), topics: [...topics].map(([slug, count]) => ({ slug, count })).sort((x, y) => x.slug.localeCompare(y.slug)) };
+  },
   async listTopics() {
     return TOPICS;
   },
@@ -757,13 +916,14 @@ export const fakeSource: DataSource = {
   async listVotingEvents(f) {
     const { events } = votesOfBody(f.body);
     const q = f.q ? fold(f.q) : "";
-    const all = events
+    const base = events
       .filter((e) => e.occurredAt.slice(0, 10) <= TODAY && (e.yes || e.no))
       .filter((e) => (!f.year || yearOf(e.occurredAt) === f.year) && (!f.result || e.result === f.result) && (!q || fold(e.description).includes(q)))
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+    const all = f.scope === "lei" ? base.filter((e) => e.kind !== "requerimento" && e.kind !== "urgencia") : base;
     const years = [...new Set(events.map((e) => yearOf(e.occurredAt)))].filter((y) => y <= CURRENT_YEAR).sort((a, b) => b - a);
     const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null });
-    return { ...page(all.map(toSummary), f.cursor, Math.min(f.limit ?? 30, 100)), years };
+    return { ...page(all.map(toSummary), f.cursor, Math.min(f.limit ?? 30, 100)), years, hidden: base.length - all.length };
   },
   async getVotingEvent(id) {
     const body = id.startsWith("senado") ? "senado" : id.startsWith("camara") ? "camara" : null;
@@ -813,11 +973,24 @@ export const fakeSource: DataSource = {
   async getLaws() {
     return [];
   },
+  async getAgenda() {
+    return { events: [], total: 0, source: null }; // a demo não simula agenda
+  },
+  async listLaws() {
+    return { items: [], nextCursor: null, total: 0, years: [] }; // a demo não simula leis
+  },
   async getCommittees() {
     return [];
   },
   async listSpeeches() {
     return { items: [], nextCursor: null, total: 0 };
+  },
+  async getSalarySources() {
+    return [{ name: "Decreto Legislativo nº 172/2022 (demonstração)", url: "https://www2.camara.leg.br/", updatedAt: "2026-11-01T06:10:00-03:00" }];
+  },
+  async listStampYears(prefix) {
+    if (prefix.startsWith("transparencia") || prefix.startsWith("sancoes")) return []; // a demo não finge carga sem chave (D253)
+    return prefix.startsWith("tse") ? [2018, 2020, 2022, 2024, 2026] : [2023, 2024, 2025, 2026];
   },
   async getContacts() {
     return [];
@@ -827,7 +1000,131 @@ export const fakeSource: DataSource = {
     const refreshedAt = dataset.startsWith("camara") || dataset.startsWith("senado") ? "2026-11-01T06:10:00-03:00" : dataset.startsWith("ibge") ? "2026-01-15T03:00:00-03:00" : "2026-10-31T05:40:00-03:00";
     return { dataset, source: src.name, sourceUrl: src.url, refreshedAt };
   },
+  async listSourceStatus() {
+    const mk = (slug: keyof typeof SOURCES, datasets: string[]) => {
+      const refreshedAt = slug === "ibge" ? "2026-01-15T03:00:00-03:00" : slug === "tse" ? "2026-10-31T05:40:00-03:00" : "2026-11-01T06:10:00-03:00";
+      return { slug, name: SOURCES[slug].name, url: SOURCES[slug].url, datasets: datasets.map((dataset) => ({ dataset, refreshedAt })), lastRefreshedAt: refreshedAt };
+    };
+    return [mk("camara", ["camara.deputados", "camara.votacoes.2026"]), mk("ibge", ["ibge.places"]), mk("senado", ["senado.senadores", "senado.votacoes.2026"]), mk("tse", ["tse.candidatos.2024"])];
+  },
+  async getCoverageMatrix() {
+    const keys = ["salario", "presenca", "votos", "propostas", "gastos_gabinete"] as const;
+    const rows = UF_ROWS.map((u) => ({ uf: u[1], name: u[2], cities: 0, cells: {} as Record<string, Partial<Record<CoverageStatus, number>>> })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    const byUf = new Map(rows.map((r) => [r.uf, r]));
+    const total = { cities: 0, cells: {} as Record<string, Partial<Record<CoverageStatus, number>>> };
+    for (const m of MUNICIPALITY_ROWS) {
+      const row = byUf.get(m[2]);
+      if (!row) continue;
+      row.cities++;
+      total.cities++;
+      const present = new Map(coverageFor(m[0]).map((c) => [c.dataset, c.status]));
+      for (const k of keys) {
+        const st: CoverageStatus = present.get(k) ?? "no_site";
+        row.cells[k] = { ...row.cells[k], [st]: (row.cells[k]?.[st] ?? 0) + 1 };
+        total.cells[k] = { ...total.cells[k], [st]: (total.cells[k]?.[st] ?? 0) + 1 };
+      }
+    }
+    return { datasets: keys.map((k) => ({ key: k, label: DATASET_LABEL[k] })), rows, total, checkedOn: "2026-11-01" };
+  },
   async latestRefresh() {
     return "2026-11-01T06:10:00-03:00";
   },
+
+  // Pauta: dois itens reais da leitura de 04/11/2026, com datas movidas para a semana corrente.
+  async getPautaOverview(opts) {
+    const { starts, ends, readAt } = demoWeek();
+    // simulate "erro": a leitura da Câmara falhou em 2 das 9 reuniões (events_failed > 0)
+    const camaraFailed = opts?.simulate === "erro" ? 2 : 0;
+    const all = demoPauta();
+    return {
+      week: { total: all.filter((e) => e.stage === "plenario").length, atLeast: false, readAt, weekStarts: starts, weekEnds: ends },
+      plenary: uniqueByKey(all.filter((e) => e.stage === "plenario")),
+      later: [],
+      committees: uniqueByKey(all.filter((e) => e.stage === "comissao")),
+      exits: [],
+      reads: { camara: { readAt, failed: camaraFailed, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
+    };
+  },
+  async getPautaProposal(key) {
+    if (!parseProposalKey(key)) return null;
+    const entry = demoPauta().find((e) => e.key === key);
+    if (!entry) return null;
+    return {
+      entry,
+      status: { kind: "na_pauta" },
+      schedule: [entry],
+      readAt: demoWeek().readAt,
+      fichaUrl: null,
+      presentedOn: null,
+      authors: [],
+      votes: [],
+      answers: null,
+    };
+  },
+  async listCorrections() {
+    return [];
+  },
+  async listPocketRules() {
+    const terms = ["tributo", "imposto", "alíquota", "contribuição", "salário", "benefício", "aposentadoria", "pensão", "tarifa", "preço", "juros"];
+    const themes = [
+      "Direito e Defesa do Consumidor",
+      "Economia",
+      "Finanças Públicas e Orçamento",
+      "Indústria, Comércio e Serviços",
+      "Previdência e Assistência Social",
+      "Trabalho e Emprego",
+    ];
+    return [
+      { version: 2, themes, terms: [...terms, "linha de crédito", "FGTS", "renda", "dívida"], publishedOn: "2026-11-03" },
+      { version: 1, themes, terms: [...terms, "crédito", "FGTS", "renda", "dívida"], publishedOn: "2026-11-03" },
+    ];
+  },
 };
+
+function demoWeek() {
+  const now = new Date();
+  const dow = (now.getUTCDay() + 6) % 7; // segunda = 0
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dow, 3)); // 00:00 em Brasília
+  return {
+    starts: start.toISOString(),
+    ends: new Date(start.getTime() + 7 * 86400e3).toISOString(),
+    readAt: new Date(now.getTime() - 40 * 60e3).toISOString(),
+    at: (day: number, hour: number) => new Date(start.getTime() + day * 86400e3 + hour * 3600e3).toISOString(),
+  };
+}
+
+function demoPauta(): PautaEntry[] {
+  const { at } = demoWeek();
+  return [
+    {
+      key: "camara-pl-79-2020",
+      body: "camara",
+      type: "PL",
+      number: 79,
+      year: 2020,
+      summary:
+        "Altera o Decreto-Lei nº 1.305, de 8 de janeiro de 1974, e as Leis nºs 5.461, de 25 de junho de 1968, 5.989, de 17 de dezembro de 1973, 7.573, de 23 de dezembro de 1986, 8.706, de 14 de setembro de 1993, e 12.462, de 4 de agosto de 2011, além de dar outras providências, para dispor sobre a destinação das contribuições sociais compulsórias das empresas do setor de transporte aéreo e portuário, incluindo aquelas relativas à contratação do trabalhador portuário avulso (TPA).",
+      stage: "plenario",
+      committee: null,
+      scheduledFor: at(2, 13.9),
+      regime: "Urgência (Art. 155, RICD)",
+      rapporteur: "Arthur Oliveira Maia",
+      reason: { theme: "Indústria, Comércio e Serviços", term: "contribuição" },
+    },
+    {
+      key: "camara-pl-4567-2024",
+      body: "camara",
+      type: "PL",
+      number: 4567,
+      year: 2024,
+      summary:
+        "Inclui na Lei nº 12.933, de 26 de dezembro de 2023, que “dispõe sobre o benefício do pagamento de meia-entrada para estudantes, idosos, pessoas com deficiência e jovens de 15 a 29 anos comprovadamente carentes em espetáculos artístico-culturais e esportivos”, gratuidade para crianças menores de três anos.",
+      stage: "comissao",
+      committee: "CPASF",
+      scheduledFor: at(2, 14),
+      regime: "Ordinário (Art. 151, III, RICD)",
+      rapporteur: "Nely Aquino",
+      reason: { theme: "Indústria, Comércio e Serviços", term: "benefício" },
+    },
+  ];
+}

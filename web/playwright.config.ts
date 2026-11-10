@@ -16,6 +16,8 @@ export default defineConfig({
   use: {
     baseURL: external ?? `http://localhost:${port}`,
     locale: "pt-BR",
+    // quem testa já "viu" a apresentação inicial; o spec de onboarding limpa o cookie
+    storageState: { cookies: [{ name: "onb", value: "1", domain: "localhost", path: "/", expires: -1, httpOnly: false, secure: false, sameSite: "Lax" }], origins: [] },
     timezoneId: "America/Sao_Paulo",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

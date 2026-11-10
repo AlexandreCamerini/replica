@@ -20,6 +20,8 @@ import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
 
+from . import rawstore
+
 log = logging.getLogger("etl.db")
 
 
@@ -67,14 +69,17 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
     src = source_id(conn, source_slug)
     if input_checksum and not force:
         cur.execute(
-            "select 1 from ingest_runs where dataset = %s and status = 'succeeded' and input_checksum = %s limit 1",
-            (dataset, input_checksum),
+            # compara com o ÚLTIMO run bem-sucedido: se a fonte foi de A para B e voltou para A, A precisa ser recarregada
+            "select input_checksum = %s as same from ingest_runs where dataset = %s and status = 'succeeded' order by started_at desc limit 1",
+            (input_checksum, dataset),
         )
-        if cur.fetchone():
+        last = cur.fetchone()
+        if last and last["same"]:
             cur.execute(
-                "insert into ingest_runs (source_id, dataset, status, input_checksum, finished_at) values (%s, %s, 'skipped_unchanged', %s, now())",
+                "insert into ingest_runs (source_id, dataset, status, input_checksum, finished_at) values (%s, %s, 'skipped_unchanged', %s, now()) returning id",
                 (src, dataset, input_checksum),
             )
+            _stamp(conn, dataset, src, str(cur.fetchone()["id"]))
             conn.commit()
             cur.execute("select pg_advisory_unlock(hashtext(%s))", (dataset,))
             conn.commit()
@@ -92,6 +97,7 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
     except SkipUnchanged:
         conn.rollback()
         conn.execute("update ingest_runs set status = 'skipped_unchanged', finished_at = now() where id = %s", (r.id,))
+        _stamp(conn, dataset, src, r.id)
         conn.commit()
         raise
     except Exception as e:  # noqa: BLE001 - registra e propaga
@@ -104,21 +110,29 @@ def run(conn: psycopg.Connection, dataset: str, source_slug: str, *, input_check
         log.error("%s falhou após %.0fs: %s", dataset, time.monotonic() - t0, e)
         raise
     else:
+        rawstore.finalize_run(conn, r)  # D12: cópia datada do bruto; nunca derruba a carga, só deixa nota em r.notes
         conn.execute(
             "update ingest_runs set status = 'succeeded', finished_at = now(), rows_upserted = %s, rows_rejected = %s, error = %s where id = %s",
             (r.rows_upserted, r.rows_rejected, "\n".join(r.notes) or None, r.id),
         )
-        conn.execute(
-            """insert into dataset_stamps (dataset, source_id, refreshed_at, last_run_id)
-               values (%s, %s, now(), %s)
-               on conflict (dataset) do update set refreshed_at = excluded.refreshed_at, last_run_id = excluded.last_run_id, source_id = excluded.source_id""",
-            (dataset, src, r.id),
-        )
+        _stamp(conn, dataset, src, r.id)
         conn.commit()
         log.info("%s: ok em %.0fs, %d upserts, %d rejeitadas", dataset, time.monotonic() - t0, r.rows_upserted, r.rows_rejected)
     finally:
+        rawstore.reset()
         conn.execute("select pg_advisory_unlock(hashtext(%s))", (dataset,))
         conn.commit()
+
+
+def _stamp(conn: psycopg.Connection, dataset: str, src: str, run_id: str) -> None:
+    """Carimbo = "conferido com a fonte em". Entrada igual (skipped_unchanged) também carimba: a fonte foi lida e não mudou,
+    então o dado está em dia; sem isso uma fonte estável aparece "fora do prazo" para sempre (D250)."""
+    conn.execute(
+        """insert into dataset_stamps (dataset, source_id, refreshed_at, last_run_id)
+           values (%s, %s, now(), %s)
+           on conflict (dataset) do update set refreshed_at = excluded.refreshed_at, last_run_id = excluded.last_run_id, source_id = excluded.source_id""",
+        (dataset, src, run_id),
+    )
 
 
 def source_id(conn: psycopg.Connection, slug: str) -> str:

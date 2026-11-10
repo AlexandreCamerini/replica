@@ -33,6 +33,7 @@
   --color-region-sul: var(--region-sul);
   --font-*: initial;
   --font-sans: var(--ds-font-sans);
+  --font-serif: var(--ds-font-serif);
   --font-display: var(--ds-font-display);
   --font-mono: var(--ds-font-mono);
   --text-*: initial;

@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import Image from "next/image";
 import { Check, CircleSlash, HelpCircle, Info, Minus, Plus, X } from "lucide-react";
 import { Button as AriaButton, Dialog, DialogTrigger, Popover } from "react-aria-components";
+import { nextExpectedRead, nextReadLabel, slugForDataset, SOURCE_META } from "@/lib/sources";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const int = new Intl.NumberFormat("pt-BR");
@@ -57,7 +58,8 @@ export function StatTile({
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-sm border border-border bg-surface p-4">
       <div className="flex items-start justify-between gap-2">
-        <span className="font-display text-xl tabular text-fg">
+        {/* text-lg no celular: valor de 9 dígitos + botão de ajuda cabem na meia coluna de 390 px */}
+        <span className="min-w-0 font-display text-lg tabular text-fg md:text-xl">
           {ceiling && value !== null && <span className="mr-1 text-sm font-semibold text-muted">até</span>}
           {formatValue(value, kind)}
         </span>
@@ -164,13 +166,22 @@ export function SourceFooter({
   href,
   updatedAt,
   stale,
+  slug,
+  dataset,
 }: {
   source: string;
   href: string;
   updatedAt: string; // ISO
   stale?: boolean;
+  /** slug da fonte em lib/sources (SOURCE_META): liga "próxima leitura prevista" (catálogo D13). Sem ele, a linha não aparece. */
+  slug?: string;
+  /** dataset do carimbo (Stamp.dataset): sem `slug`, a fonte sai do prefixo (slugForDataset). */
+  dataset?: string;
 }) {
   const d = new Date(updatedAt);
+  const key = slug ?? slugForDataset(dataset);
+  const meta = key ? SOURCE_META[key] : undefined;
+  const next = meta ? nextExpectedRead(updatedAt, meta.everyHours) : null;
   return (
     <footer className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-muted">
       <span>
@@ -183,6 +194,16 @@ export function SourceFooter({
       <span>
         atualizado em <time dateTime={updatedAt}>{d.toLocaleDateString("pt-BR")}</time>
       </span>
+      {next && (
+        <>
+          <span aria-hidden>·</span>
+          <span>
+            próxima leitura prevista: <time dateTime={next} suppressHydrationWarning>
+              {nextReadLabel(next)}
+            </time>
+          </span>
+        </>
+      )}
       {stale && (
         <span className="rounded-pill bg-warning-soft px-2 py-0.5 font-sans font-semibold text-warning">
           pode estar desatualizado
