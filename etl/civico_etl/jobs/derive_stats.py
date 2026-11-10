@@ -30,16 +30,16 @@ with periods as (
        generate_series(extract(year from m.started_on)::int, least(extract(year from m.ends_on - 1)::int, extract(year from current_date)::int)) y
   where m.status <> 'eleito_aguardando_posse'
 ),
--- o que já foi carregado, por fonte, tipo e ano (runs bem-sucedidos). Ano sem carga -> null, nunca 0.
+-- o que já foi carregado, por fonte, tipo e ano (runs que gravaram dado: succeeded ou partial). Ano sem carga -> null, nunca 0.
 -- presença: só a lista oficial (camara.presenca.AAAA). Senado não publica: nunca entra -> null ("—").
 -- senado.autorias traz a carreira inteira de cada senador: cobre todos os anos.
 loaded as (
   select distinct split_part(dataset, '.', 1) as src, split_part(dataset, '.', 2) as kind, split_part(dataset, '.', 3)::int as year
   from ingest_runs
-  where status = 'succeeded' and dataset ~ '^(camara|senado|ale[a-z]{2})\.(votacoes|proposicoes|despesas|presenca)\.[0-9]{4}$'
+  where status in ('succeeded', 'partial') and dataset ~ '^(camara|senado|ale[a-z]{2})\.(votacoes|proposicoes|despesas|presenca)\.[0-9]{4}$'
   union
   select 'senado', 'proposicoes', y from generate_series(1980, extract(year from current_date)::int) y
-  where exists (select 1 from ingest_runs where status = 'succeeded' and dataset = 'senado.autorias')
+  where exists (select 1 from ingest_runs where status in ('succeeded', 'partial') and dataset = 'senado.autorias')
 ),
 -- Assembleia com adaptador (W3-A): carimbos ale<uf>.* (alesp, alemg...). Só o mandato daquela casa conta.
 person_src as (

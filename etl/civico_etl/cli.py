@@ -43,7 +43,7 @@ from datetime import date
 
 from . import db
 
-logging.basicConfig(level=os.environ.get("ETL_LOG", "INFO"), format="%(asctime)s %(name)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
+logging.basicConfig(level=os.environ.get("ETL_LOG", "INFO"), format="%(asctime)s %(name)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 log = logging.getLogger("etl")
 
 

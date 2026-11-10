@@ -331,7 +331,7 @@ def test_exclude_pula_so_as_camaras_e_mantem_as_ales(monkeypatch):
                     return None
             return _R()
 
-    monkeypatch.setattr(S, "last_stamp", lambda *a: None)
+    monkeypatch.setattr(S, "last_stamp", lambda *a, **k: None)
     monkeypatch.setattr(S, "last_attempt", lambda *a: None)
     due, skipped = S.plan(_C(), NOW, ["sapl.todas", "sapl.ales"], False, True, None, frozenset({"sapl.todas"}))
     assert [t.name for t, _ in due] == ["sapl.ales"]

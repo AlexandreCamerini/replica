@@ -221,15 +221,17 @@ class Report:
     missed: list[dict] = field(default_factory=list)  # S3-1/D257: janela do dia fechou sem a tarefa rodar
     deferred: list[str] = field(default_factory=list)
     awaiting: list[str] = field(default_factory=list)  # fontes sem chave de API e sem carga: aguardam, não alertam
+    partial: list[dict] = field(default_factory=list)  # runs que gravaram dado mas fecharam `partial` nesta chamada (db.Run.partial)
     error: str | None = None
 
     @property
     def alert(self) -> bool:
-        return bool(self.failed or self.orphans or self.overdue or self.missed or self.check_ok is False or self.error)
+        return bool(self.failed or self.orphans or self.overdue or self.missed or self.partial or self.check_ok is False or self.error)
 
     def text(self) -> str:
         lines = [f"civico-etl run-due {self.started_at[:16]}Z: {len(self.ran)} tarefas, {len(self.failed)} falhas"]
         lines += [f"FALHOU {r['task']} (exit {r['exit']}, {r['secs']:.0f}s): {r['tail']}" for r in self.failed]
+        lines += [f"PARCIAL {p['dataset']}: {p['why']}" for p in self.partial]
         lines += [f"RUN ÓRFÃO fechado: {o['dataset']} (iniciado {o['started_at'][:16]})" for o in self.orphans]
         lines += [f"FORA DO PRAZO {o['source']}: {o['age_h']:.0f} h > {o['max_h']} h" if o["age_h"] is not None else f"SEM CARGA {o['source']}" for o in self.overdue]
         lines += [f"JANELA PERDIDA {m['task']}: janela {m['opened'][:16]}Z-{m['closed'][:16]}Z fechou sem leitura" for m in self.missed]
@@ -322,14 +324,18 @@ def check_url(url: str) -> None:
         raise SystemExit("ETL_DATABASE_URL aponta para pooler em modo transação (porta 6543); use a conexão direta ou o pooler em modo sessão")
 
 
-def last_stamp(conn: psycopg.Connection, task: Task, today: date) -> datetime | None:
+def last_stamp(conn: psycopg.Connection, task: Task, today: date, *, clean: bool = False) -> datetime | None:
     """Carimbo da tarefa = o da família de datasets mais atrasada (cada prefixo pelo seu dataset mais novo).
+    `clean`: ignora carimbo deixado por run `partial`. É o que decide se a tarefa venceu: dado parcial não deixa a tarefa "em dia" pelo
+    ciclo inteiro (até 80 dias), ela volta a rodar no intervalo de nova tentativa até fechar limpa. O frescor do site segue o carimbo real.
     Com max() simples, a cota recém-carregada esconderia votações paradas há dias. Família sem carimbo = nunca carregada,
     salvo `missing_ok` (eleição deste ano ainda sem arquivo no TSE), que só conta se nenhuma família tiver carimbo."""
     ats = []
     for p in task.families(today):
         r = conn.execute(
-            "select max(refreshed_at) as at from dataset_stamps where dataset like %s and dataset <> all(%s)", (p + "%", list(NOT_FRESHNESS))
+            "select max(s.refreshed_at) as at from dataset_stamps s where s.dataset like %s and s.dataset <> all(%s)"
+            + (" and not exists (select 1 from ingest_runs r where r.id = s.last_run_id and r.status = 'partial')" if clean else ""),
+            (p + "%", list(NOT_FRESHNESS)),
         ).fetchone()
         if r["at"] is None:
             if task.missing_ok:
@@ -382,6 +388,24 @@ def sweep_orphans(conn: psycopg.Connection, now: datetime) -> list[dict]:
         conn.execute("select pg_advisory_unlock(hashtext(%s))", (r["dataset"],))
         closed.append({"id": str(r["id"]), "dataset": r["dataset"], "started_at": r["started_at"].isoformat()})
     return closed
+
+
+def move_legacy_notes(conn: psycopg.Connection, like: str = "%") -> int:
+    """Notas de run bem-sucedido que código anterior à migração 0131 ainda grava em `error` (o Mac do SAPL pode demorar a atualizar) passam
+    para `notes`. Mesmo update do backfill da 0131; repetível. Sai quando nenhum processo antigo gravar mais."""
+    return conn.execute(
+        "update ingest_runs set notes = error, error = null where status = 'succeeded' and error is not null and notes is null and dataset like %s", (like,)
+    ).rowcount
+
+
+def partial_runs(conn: psycopg.Connection, invocation: str) -> list[dict]:
+    """Runs `partial` abertos por esta chamada do run-due (ingest_runs.invocation). O subprocesso da tarefa sai com 0 (o dado entrou),
+    então o alerta lê o banco. Pelo id da chamada entram todos os datasets que as tarefas gravaram, inclusive derive e reparos, e fica de
+    fora o que outra chamada (Mac, D274) rodou no mesmo intervalo. Workflow fora do run-due (pauta, rascunho) não passa por aqui."""
+    rows = conn.execute(
+        "select dataset, error, started_at from ingest_runs where status = 'partial' and invocation = %s order by started_at", (invocation,)
+    ).fetchall()
+    return [{"dataset": r["dataset"], "why": (r["error"] or "sem motivo registrado").replace("\n", "; ")[:300], "started_at": r["started_at"].isoformat()} for r in rows]
 
 
 def repairs_available() -> bool:
@@ -496,7 +520,7 @@ def plan(conn: psycopg.Connection, now: datetime, only: list[str] | None, force:
         if t.needs_env and not env_ok(t.needs_env):
             skipped.append({"task": t.name, "why": f"aguarda {t.needs_env} (rode etl/deploy/transparencia-key.sh)"})
             continue
-        ok, why = (True, "forçada") if force else is_due(t, last_stamp(conn, t, today), last_attempt(conn, t), now)
+        ok, why = (True, "forçada") if force else is_due(t, last_stamp(conn, t, today, clean=True), last_attempt(conn, t), now)
         if ok:
             due.append((t, why))
         else:
@@ -546,10 +570,15 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
             log.warning("outro run-due em andamento; saindo")
             return 0
         people_ran = need_derive = False
+        os.environ["ETL_INVOCATION"] = f"{now:%Y%m%dT%H%M%S}-{os.getpid()}"  # herdado pelos subprocessos das tarefas (db.invocation)
         try:
             with _connect(url) as c:
                 mark_attempt(c, attempt_key, start=True)
                 rep.orphans = sweep_orphans(c, now)
+                try:
+                    move_legacy_notes(c)
+                except psycopg.Error as e:  # limpeza: não segura a agenda
+                    log.warning("move_legacy_notes falhou: %s", e)
                 due, rep.skipped = plan(c, now, only, force, has_repairs, include, exclude)
             today = now.date()
             for t in TASKS:
@@ -581,6 +610,7 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
                 stamps, aw = source_stamps(c), awaiting_key_sources()
                 rep.overdue = overdue_sources(stamps, datetime.now(timezone.utc), aw, ignore_src, only_src)
                 rep.awaiting = sorted(src for src in aw if stamps.get(src) is None)
+                rep.partial = partial_runs(c, os.environ["ETL_INVOCATION"])
                 mark_attempt(c, attempt_key, start=False, exit_code=2 if rep.alert else 0)
         except Exception as e:  # noqa: BLE001 - a agenda sempre alerta, mesmo quando ela mesma quebra
             log.exception("run-due quebrou")
