@@ -204,3 +204,31 @@ Regras do revisor: contexto limpo; recebe o artefato e a fonte, não o resumo de
 - [ ] Site mostra os três estados, o selo novo, o relatório por campo e a frase fixa.
 - [ ] As duas chaves de desligar funcionam e não afetam páginas revisadas por pessoa.
 - [ ] Blueprint atualizado para v2.1.
+
+## 17. Estado da implementação (2026-11-10)
+
+`civico-etl verificar` existe e roda **em ensaio** por padrão: chama os agentes, grava o relatório no rascunho e não muda status. Arquivos: `etl/civico_etl/verification.py` (árbitro, prompts, checagens em código), `etl/civico_etl/jobs/verificar.py` (chamadas, banco, laço), `db/migrations/0130_verificacao_agentica.sql`.
+
+**Duas chaves para publicar.** `VERIFICACAO_AGENTICA=on` no ambiente e a linha `verificacao_agentica = 'on'` em `pipeline_switches`. A migração cria a tabela vazia. A linha só deve ser gravada depois dos três itens de "Antes de ligar", abaixo.
+
+**Onde a implementação diverge desta especificação, de propósito ou por limite:**
+
+| Seção | A especificação diz | O código faz | Efeito |
+|---|---|---|---|
+| 3, regra 2 | classificador de trecho por código + modelo (Haiku) | só código: título de Justificação (numerado, espaçado, colado ao texto) e ANEXO | título que o código não reconhece passa como articulado; medir no ensaio |
+| 5, regra 3 | `sustenta_em_parte` gera nova redação, uma vez | o campo vai direto para `nao_conferido` | fechado; publica menos campos |
+| 5, regra 4 | prova de leitura: primeira frase de três artigos | as 8 primeiras palavras do caput de até três artigos sorteados, só de artigos com número e começo únicos | documento sem artigo elegível é barrado |
+| 6 | descartar o texto invisível antes dos agentes | barra a proposta inteira se houver qualquer texto invisível (branco, sem tinta, fora da página, corpo < 4 pt) | fechado; branco sobre fundo escuro legítimo também barra |
+| 6 | medida de extração: linhas curtas e palavras fora do dicionário | só linhas curtas, limiar provisório 0,75 | calibrar no conjunto de referência |
+| 11 | cache do documento entre agentes | cache só no prompt de sistema | custo maior; sem efeito na decisão |
+
+**Limites conhecidos do detector de texto invisível** (pypdf): não vê texto coberto por imagem ou retângulo, texto dentro de Form XObject com cor herdada, nem cor "quase branca" abaixo de 0,95. A defesa restante nesses casos são os agentes (`instrucao_detectada`) e o escape dos marcadores do prompt.
+
+**Degradação.** Falha transitória da API (429, 5xx, conexão, resposta cortada): a proposta fica na fila com marca de tentativa; três marcas e ela é pulada até `--force`; duas falhas seguidas encerram o run. Recusa da requisição (4xx): o run para e nada é gravado. Recusa do modelo ou resposta fora do esquema: agente sem resposta, proposta barrada.
+
+**Antes de ligar (nenhum feito):**
+1. Aplicar a migração 0130 num banco de teste e exercitar o gatilho, as constraints e o `revisar` depois dela. Até aqui ela só foi lida, nunca executada.
+2. O site mostrar os três estados por campo e trocar "Revisado por pessoa" por quem conferiu (`verified_by`). Hoje um campo `nao_conferido` apareceria como "O texto não diz".
+3. Rodar o ensaio sobre o conjunto de referência e registrar a barra da seção 10 em `decisions.md`.
+
+**Verificação desta entrega.** 74 testes de unidade novos (árbitro, job com cliente e banco simulados, PDFs montados à mão para o texto invisível). Uma revisão independente com contexto limpo achou 1 defeito crítico, 7 altos e 10 médios; todos os críticos e altos foram corrigidos, e dos médios ficaram como divergência declarada os da tabela acima. A segunda passada independente, sobre as correções, não terminou (limite de uso da conta) e fica pendente.
