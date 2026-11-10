@@ -9,6 +9,7 @@ import { data } from "@/lib/data";
 import { myFollows } from "@/lib/follows";
 import { date } from "@/lib/format";
 
+export const dynamic = "force-dynamic"; // depende da sessão: nunca pré-renderizar
 export const metadata: Metadata = { title: "Acompanhando", robots: { index: false } };
 
 const KIND: Record<string, string> = { voto: "votou", proposta: "apresentou", gasto: "gasto do gabinete" };

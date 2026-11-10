@@ -1,4 +1,6 @@
 import "server-only";
+import { cookies } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import type { AuthProvider } from "./types";
 
 // AUTH_PROVIDER=supabase em produção (obrigatório). "dev" só fora de produção: código vai para .local/mail.
@@ -13,12 +15,15 @@ export async function auth(): Promise<AuthProvider> {
 }
 
 export async function currentUser() {
+  // Lê os cookies antes de qualquer atalho: a página que pergunta pela sessão é dinâmica mesmo sem Supabase configurado
+  await cookies();
   // Supabase ainda não configurado (demo, build): visitante anônimo, sem ruído no log
   const provider = process.env.AUTH_PROVIDER ?? (process.env.NODE_ENV === "production" ? "supabase" : "dev");
   if (provider === "supabase" && !process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
   try {
     return await (await auth()).getUser();
   } catch (e) {
+    unstable_rethrow(e); // erros internos do Next (uso dinâmico no build, redirect, notFound) não são falha do provedor
     console.error("[auth] getUser", e);
     return null; // falha do provedor = visitante anônimo; nenhuma página pública quebra por isso
   }

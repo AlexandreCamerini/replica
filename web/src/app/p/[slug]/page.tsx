@@ -24,6 +24,8 @@ import { campaignTotals, joinYears } from "@/lib/campaign";
 import { Assembly, stampOf } from "./assembleia";
 import { CityCouncil } from "./camara-municipal";
 
+export const dynamic = "force-dynamic"; // lê a sessão (botão Acompanhar) e searchParams
+
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Params> };
 
 const FULL_DATA = new Set(["deputado_federal", "senador"]);
