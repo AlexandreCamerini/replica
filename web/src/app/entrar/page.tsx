@@ -6,6 +6,7 @@ import { Container, PageHeader } from "@/components/page/page-header";
 import { currentUser, safeReturn } from "@/lib/auth";
 import { signOut } from "@/lib/account";
 
+export const dynamic = "force-dynamic"; // depende da sessão: nunca pré-renderizar
 export const metadata: Metadata = { title: "Entrar", robots: { index: false } };
 
 type SP = Promise<{ volta?: string; etapa?: string; seguir?: string }>;

@@ -16,6 +16,8 @@ import { ListenButton } from "@/components/ui/misc";
 import { data, type MandateStatus, type PeriodStats } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
 
+export const dynamic = "force-dynamic"; // lê a sessão (botão Acompanhar) e searchParams
+
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Params> };
 
 const FULL_DATA = new Set(["deputado_federal", "senador"]);
