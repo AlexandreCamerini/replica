@@ -11,7 +11,7 @@
 # SAPL das câmaras (sapl.todas, ~150 min por dia) NÃO roda aqui: minutos do Actions em repositório privado são pagos (D274). Roda no Mac do dono por
 # launchd (etl/deploy/launchd-sapl-prod.sh). ETL_TASKS_EXCLUDE tira a tarefa desta chamada e a fonte "sapl" do alerta de prazo daqui; o site e o vigia
 # continuam acusando se ela envelhecer. sapl.ales (5 Assembleias, leve) continua aqui.
-# Actions fixadas por SHA (tag no comentário). Pendente: travar dependências do pip com hash (--require-hashes).
+# Actions fixadas por SHA (tag no comentário). Dependências travadas pelo etl/uv.lock (uv sync --frozen).
 name: etl
 on:
   schedule:
@@ -40,9 +40,10 @@ jobs:
           path: etl/.cache
           key: etl-cache-${{ github.run_id }}
           restore-keys: etl-cache-
-      - run: pip install -e .
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - run: uv sync --frozen  # versões do uv.lock, as mesmas da pauta, do rascunho e do CI
       - name: run-due
-        # segredos só neste passo (não nas actions de terceiros nem no pip); input via env, nunca interpolado no shell
+        # segredos só neste passo (não nas actions de terceiros nem na instalação); input via env, nunca interpolado no shell
         env:
           ONLY: ${{ inputs.only }}
           ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
@@ -51,8 +52,8 @@ jobs:
           ETL_TASKS_EXCLUDE: "sapl.todas"  # roda no Mac (D274); nomes em schedule.TASKS, desconhecido = erro
           ETL_DEADLINE_MIN: "320"  # abaixo do timeout do job: a agenda adia o que não cabe e sempre alerta
         run: |
-          if [ -n "$ONLY" ]; then python -m civico_etl.cli run-due --only "$ONLY" --force
-          else python -m civico_etl.cli run-due; fi
+          if [ -n "$ONLY" ]; then uv run --frozen python -m civico_etl.cli run-due --only "$ONLY" --force
+          else uv run --frozen python -m civico_etl.cli run-due; fi
       # exit 2 (alerta) deixa o run vermelho de propósito; o cache e o relatório são salvos mesmo assim
       - if: always()
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
