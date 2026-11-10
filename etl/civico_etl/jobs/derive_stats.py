@@ -492,9 +492,14 @@ def run_derive(conn: psycopg.Connection) -> None:
         log.info("executivo fora do TSE: %d mandato(s) gravado(s)", k)
     # party_memberships é derivada: reconstrói inteira na mesma transação (o app lê person_current_party)
     cur.execute(f"create temp table tmp_pm on commit drop as {PARTY_SQL}")
-    cur.execute("delete from party_memberships")
-    cur.execute("insert into party_memberships (person_id, party_id, from_on, to_on) select person_id, party_id, from_on, to_on from tmp_pm")
-    log.info("partidos: %d filiações na linha do tempo", cur.rowcount)
+    # Só troca o que mudou: apagar e reinserir tudo gerava 17 milhões de inserts/deletes para 139 mil linhas e inchava os índices.
+    cur.execute("""delete from party_memberships pm where not exists (select 1 from tmp_pm t
+                   where t.person_id = pm.person_id and t.party_id = pm.party_id and t.from_on = pm.from_on and t.to_on is not distinct from pm.to_on)""")
+    gone = cur.rowcount
+    cur.execute("""insert into party_memberships (person_id, party_id, from_on, to_on) select t.person_id, t.party_id, t.from_on, t.to_on from tmp_pm t
+                   where not exists (select 1 from party_memberships pm where pm.person_id = t.person_id and pm.party_id = t.party_id
+                   and pm.from_on = t.from_on and pm.to_on is not distinct from t.to_on)""")
+    log.info("partidos: %d filiações na linha do tempo (%d novas, %d removidas)", cur.execute("select count(*) from party_memberships").fetchone()[0], cur.rowcount, gone)
     cur.execute(STATS_SQL)
     n = cur.rowcount
     cur.execute(COVERAGE_SQL)
