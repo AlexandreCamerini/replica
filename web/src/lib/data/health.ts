@@ -1,10 +1,12 @@
 // D14 · frescor por fonte para o vigia externo (GET /api/health/fontes). Sem segredo: só nome da fonte, carimbo e idade.
 // buildHealth é puro (testável sem banco); getHealth lê pela camada de dados existente (listSourceStatus), sem tocar em pg.ts.
-import { SOURCE_META, freshness } from "../sources";
+import { SOURCE_META, freshness } from "../sources.ts"; // com extensão: o runner de teste (node --test) não resolve import sem ela
 import type { SourceStatus } from "./types";
 
-/** Fora do prazo numa destas = a página principal do produto está velha: o vigia responde 503 e o job falha. */
-export const ESSENTIAL = ["camara", "senado", "pauta"] as const;
+/** Fora do prazo numa destas = a página principal do produto está velha: o vigia responde 503 e o job falha.
+ * `sapl` entra porque roda só no launchd de um Mac (D274), fora do Actions, e nenhum alerta do ETL cobre a parada dele: o vigia é o único aviso ativo.
+ * Fontes que aguardam chave de API (transparencia, cgu) ficam de fora de propósito: sem a chave o carimbo nunca existe e isso não é falha. */
+export const ESSENTIAL = ["camara", "senado", "pauta", "sapl"] as const;
 /** Pauta não está em SOURCE_META (é um conjunto de datasets `pauta.*` das duas casas). O workflow etl-pauta roda a cada 30 min em dia útil e a cada 3 h no fim de semana; 36 h dá folga para o cron do GitHub pular disparos. */
 export const PAUTA_MAX_AGE_H = 36;
 
@@ -26,9 +28,12 @@ export function buildHealth(status: SourceStatus[], now: number = Date.now()): H
   // Câmara e Senado: só os datasets da própria casa. O carimbo da fonte inteira (lastRefreshedAt) inclui `pauta.*` e `agenda.*`,
   // que são lidos de hora em hora e mascarariam um diário parado. `.equipe` é semanal e também fica de fora do máximo.
   const core = (k: string) => latest(all.filter((d) => d.dataset.startsWith(k + ".") && !d.dataset.endsWith(".equipe") && !d.dataset.includes(".noturna.")).map((d) => d.refreshedAt));
+  // SAPL das câmaras: só `sapl.*` de carga. `sapl.descoberta` carimba mesmo sem nenhuma câmara lida (schedule.NOT_FRESHNESS) e mascararia a tarefa parada.
+  const saplAt = latest(all.filter((d) => d.dataset.startsWith("sapl.") && d.dataset !== "sapl.descoberta").map((d) => d.refreshedAt));
   const rows: { key: string; name: string | null; at: string | null; max: number; alerta?: number }[] = [
     ...["camara", "senado"].map((k) => ({ key: k, name: bySlug.get(k)?.name ?? null, at: core(k), max: SOURCE_META[k].maxAgeHours, alerta: ALERTA_CASA_H })),
     { key: "pauta", name: "Pauta do Congresso", at: pautaAt, max: PAUTA_MAX_AGE_H },
+    { key: "sapl", name: bySlug.get("sapl")?.name ?? null, at: saplAt, max: SOURCE_META.sapl.maxAgeHours },
     ...Object.keys(SOURCE_META)
       .filter((k) => !isEssential(k))
       .map((k) => ({ key: k, name: bySlug.get(k)?.name ?? null, at: bySlug.get(k)?.lastRefreshedAt ?? null, max: SOURCE_META[k].maxAgeHours })),

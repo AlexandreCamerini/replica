@@ -4,6 +4,11 @@
 # (o log passa por um filtro que troca a URI e a senha por marcadores caso algum erro as imprima).
 # run-due normal: sem --force, respeita carimbo (20 h), lock de sessão (próprio: etl.scheduler.sapl, não disputa o do Actions, que exclui esta tarefa;
 # o lock por dataset de cada câmara continua valendo contra run manual) e ETL_DEADLINE_MIN.
+# Alerta: ETL_ALERT_WEBHOOK (Keychain, mesmo serviço) é OBRIGATÓRIO: sem ele o script sai com 78 e mensagem no log em vez de rodar mudo, porque esta
+# tarefa não roda no Actions (D274) e nenhum outro alerta cobre a parada. Falha em pré-condição (URI, venv) também dispara o webhook, antes do Python.
+# Prazo (ETL_DEADLINE_MIN) = timeout da tarefa sapl.todas (schedule.py: 3 h = 180 min) + RESERVE_MIN (45) = 225. Conta: a tarefa pode gastar
+# --orcamento-min 150 (não começa câmara nova depois disso) + até 25 min na câmara em curso (HOUSE_MAX_MIN) = 175 min < 180 min; com prazo menor,
+# task_timeout_h corta o timeout (200 - 45 = 155 min) e a agenda mata a tarefa com exit 124 quando a fila passa de 150 min.
 # Variáveis para teste: CIVICO_KEYCHAIN_SERVICE, CIVICO_ETL_PYTHON, CIVICO_SAPL_LOG, CIVICO_SAPL_STATE.
 set -euo pipefail
 umask 077
@@ -18,16 +23,28 @@ if [[ -f "$LOG" && "$(stat -f %z "$LOG")" -gt "$MAX_LOG" ]]; then mv -f "$LOG" "
 exec >>"$LOG" 2>&1
 echo "== $(date '+%Y-%m-%d %H:%M:%S') run-due sapl.todas (prod)"
 
-URI="$(security find-generic-password -s "$SERVICE" -a ETL_DATABASE_URL -w 2>/dev/null)" || { echo "sem a URI no Keychain (serviço $SERVICE); rode launchd-sapl-prod.sh install" >&2; exit 1; }
-[[ "$URI" =~ ^postgres(ql)?://[^[:space:]]+$ ]] || { echo "o item do Keychain não parece uma URI postgres://" >&2; exit 1; }
-[[ -x "$PY" ]] || { echo "falta $PY (cd etl && python3 -m venv .venv && .venv/bin/pip install -e .)" >&2; exit 1; }
+# O webhook vem do Keychain primeiro: as pré-condições abaixo usam-no para avisar. Nunca vai a argv nem a log (curl lê a URL por stdin).
+HOOK="$(security find-generic-password -s "$SERVICE" -a ETL_ALERT_WEBHOOK -w 2>/dev/null)" || HOOK=""
+alert() { # $1 = mensagem sem aspas nem barra invertida (JSON montado à mão); falha do alerta só vai ao log
+  [[ -n "$HOOK" ]] || return 0
+  printf 'url = "%s"\n' "$HOOK" | curl -sS -m 15 -K - -H 'Content-Type: application/json' -d "{\"text\": \"sapl.todas (prod, launchd): $1\"}" >/dev/null 2>&1 \
+    || echo "webhook de alerta falhou ao enviar" >&2
+}
+die() { echo "$1" >&2; alert "$1"; exit 1; }
+if [[ -z "$HOOK" ]]; then
+  echo "sem ETL_ALERT_WEBHOOK no Keychain (serviço $SERVICE): este job roda fora do Actions e não pode rodar sem alerta. security add-generic-password -U -s $SERVICE -a ETL_ALERT_WEBHOOK -w" >&2
+  exit 78
+fi
+
+URI="$(security find-generic-password -s "$SERVICE" -a ETL_DATABASE_URL -w 2>/dev/null)" || die "sem a URI no Keychain (serviço $SERVICE); rode launchd-sapl-prod.sh install"
+[[ "$URI" =~ ^postgres(ql)?://[^[:space:]]+$ ]] || die "o item do Keychain não parece uma URI postgres://"
+[[ -x "$PY" ]] || die "falta $PY (cd etl && python3 -m venv .venv && .venv/bin/pip install -e .)"
 
 export ETL_DATABASE_URL="$URI"
 unset URI
-if HOOK="$(security find-generic-password -s "$SERVICE" -a ETL_ALERT_WEBHOOK -w 2>/dev/null)"; then export ETL_ALERT_WEBHOOK="$HOOK"; fi  # opcional
-unset HOOK
+export ETL_ALERT_WEBHOOK="$HOOK"
 export ETL_TASKS_INCLUDE=sapl.todas
-export ETL_DEADLINE_MIN="${ETL_DEADLINE_MIN:-200}"
+export ETL_DEADLINE_MIN="${ETL_DEADLINE_MIN:-225}"
 export ETL_STATE_DIR="${CIVICO_SAPL_STATE:-$HOME/Library/Application Support/civico-etl-sapl}"
 mkdir -p "$ETL_STATE_DIR"
 

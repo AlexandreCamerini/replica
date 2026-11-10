@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import uuid
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -48,6 +49,80 @@ def test_wrapper_roda_so_o_sapl_das_camaras_e_respeita_prazo():
     assert "ETL_TASKS_INCLUDE=sapl.todas" in w and "ETL_DEADLINE_MIN" in w and "civico_etl.cli run-due" in w
 
 
+def test_deadline_padrao_cobre_timeout_da_tarefa_mais_reserva():
+    """Se o prazo for menor que timeout_h + RESERVE_MIN, task_timeout_h corta a tarefa e a agenda a mata com exit 124 (achado M16)."""
+    from civico_etl import schedule as S
+
+    m = re.search(r"ETL_DEADLINE_MIN:-(\d+)", WRAP.read_text())
+    assert m
+    deadline = int(m.group(1))
+    task = next(t for t in S.TASKS if t.name == "sapl.todas")
+    assert deadline >= task.timeout_h * 60 + S.RESERVE_MIN
+    assert S.task_timeout_h(task.timeout_h, 0, deadline) == task.timeout_h  # a tarefa recebe o timeout inteiro, não um cortado
+    argv = task.argv(date.today())
+    orcamento = int(argv[argv.index("--orcamento-min") + 1])
+    assert orcamento + 25 <= task.timeout_h * 60  # orçamento + prazo de uma câmara (HOUSE_MAX_MIN) cabem no timeout
+
+
+# --- pré-condições e alerta, sem Keychain real: `security` e `curl` falsos no PATH -------------------------------------------------------
+needs_mac = pytest.mark.skipif(sys.platform != "darwin", reason="o wrapper usa stat -f (macOS)")
+
+
+def _stub_env(tmp_path, items: dict[str, str], py_ok: bool = True):
+    """security falso lê <dir>/<conta>; curl falso grava argv e stdin em curl.rec. Retorna (env, log, curl_rec)."""
+    bin_, kc = tmp_path / "bin", tmp_path / "kc"
+    bin_.mkdir(), kc.mkdir()
+    for k, v in items.items():
+        (kc / k).write_text(v)
+    (bin_ / "security").write_text(f'#!/bin/bash\nwhile [ "$1" != "-a" ] && [ $# -gt 0 ]; do shift; done\nf="{kc}/$2"\n[ -f "$f" ] && cat "$f" || exit 44\n')
+    rec = tmp_path / "curl.rec"
+    (bin_ / "curl").write_text(f'#!/bin/bash\necho "ARGV: $*" >> "{rec}"\ncat >> "{rec}"\n')
+    py = tmp_path / "py"
+    py.write_text('#!/bin/bash\necho "PYTHON RODOU hook=${ETL_ALERT_WEBHOOK:+set} deadline=$ETL_DEADLINE_MIN"\nexit 0\n')
+    for f in (bin_ / "security", bin_ / "curl", py):
+        f.chmod(f.stat().st_mode | stat.S_IXUSR)
+    log = tmp_path / "sapl.log"
+    env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}", "CIVICO_ETL_PYTHON": str(py if py_ok else tmp_path / "nao-existe"),
+           "CIVICO_SAPL_LOG": str(log), "CIVICO_SAPL_STATE": str(tmp_path / "state")}
+    return env, log, rec
+
+
+HOOK_URL = "https://hooks.exemplo.test/T000/SEGREDO-DO-HOOK"
+
+
+@needs_mac
+def test_sem_webhook_nao_roda_mudo(tmp_path):
+    env, log, rec = _stub_env(tmp_path, {"ETL_DATABASE_URL": FAKE_URI})
+    r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
+    assert r.returncode == 78
+    assert "sem ETL_ALERT_WEBHOOK" in log.read_text() and "PYTHON RODOU" not in log.read_text()
+
+
+@needs_mac
+@pytest.mark.parametrize("items, py_ok, msg", [
+    ({}, True, "sem a URI no Keychain"),
+    ({"ETL_DATABASE_URL": "mysql://x"}, True, "não parece uma URI"),
+    ({"ETL_DATABASE_URL": FAKE_URI}, False, "falta "),
+])
+def test_precondicao_falha_dispara_webhook_antes_do_python(tmp_path, items, py_ok, msg):
+    env, log, rec = _stub_env(tmp_path, {**items, "ETL_ALERT_WEBHOOK": HOOK_URL}, py_ok)
+    r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
+    assert r.returncode == 1
+    text = log.read_text()
+    assert msg in text and "PYTHON RODOU" not in text and HOOK_URL not in text and FAKE_PASS not in text
+    sent = rec.read_text()
+    assert msg in sent and "sapl.todas" in sent and "ARGV: " in sent
+    assert HOOK_URL in sent.split("\n", 1)[1] and HOOK_URL not in sent.split("\n", 1)[0]  # a URL vai por stdin (-K -), nunca em argv
+
+
+@needs_mac
+def test_caminho_feliz_repassa_webhook_e_prazo_ao_python(tmp_path):
+    env, log, rec = _stub_env(tmp_path, {"ETL_DATABASE_URL": FAKE_URI, "ETL_ALERT_WEBHOOK": HOOK_URL})
+    r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
+    assert r.returncode == 0
+    assert "PYTHON RODOU hook=set deadline=225" in log.read_text() and not rec.exists()  # sem falha, o wrapper não alerta
+
+
 @pytest.mark.skipif(sys.platform != "darwin" or not shutil.which("security") or os.environ.get("CIVICO_TEST_KEYCHAIN") != "1",
                     reason="usa o Keychain real com serviço de teste: CIVICO_TEST_KEYCHAIN=1 no macOS")
 def test_ponta_a_ponta_keychain_de_teste(tmp_path):
@@ -64,6 +139,7 @@ def test_ponta_a_ponta_keychain_de_teste(tmp_path):
     add = ["security", "add-generic-password", "-U", "-s", service, "-a", "ETL_DATABASE_URL", "-w", FAKE_URI]  # URI FALSA de teste
     try:
         subprocess.run(add, check=True, capture_output=True)
+        subprocess.run(["security", "add-generic-password", "-U", "-s", service, "-a", "ETL_ALERT_WEBHOOK", "-w", "http://127.0.0.1:1/hook"], check=True, capture_output=True)  # webhook obrigatório; porta fechada: o alerta falha rápido
         r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
         assert r.returncode == 2  # o exit do run-due é propagado pelo pipe de redação
         text = log.read_text()
@@ -80,4 +156,5 @@ def test_ponta_a_ponta_keychain_de_teste(tmp_path):
         r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
         assert r.returncode == 1 and "sem a URI no Keychain" in log.read_text()
     finally:
-        subprocess.run(["security", "delete-generic-password", "-s", service, "-a", "ETL_DATABASE_URL"], capture_output=True)
+        for acct in ("ETL_DATABASE_URL", "ETL_ALERT_WEBHOOK"):
+            subprocess.run(["security", "delete-generic-password", "-s", service, "-a", acct], capture_output=True)

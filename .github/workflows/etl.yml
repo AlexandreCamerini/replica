@@ -9,8 +9,9 @@
 # nas janelas. As constantes de "17 */3" repetem-se em schedule.py (TICK_*) e web/src/lib/sources.ts; test_schedule.py confere.
 # O cache de downloads (etl/.cache) é preservado entre execuções para o TSE e o SAPL não baixarem tudo de novo.
 # SAPL das câmaras (sapl.todas, ~150 min por dia) NÃO roda aqui: minutos do Actions em repositório privado são pagos (D274). Roda no Mac do dono por
-# launchd (etl/deploy/launchd-sapl-prod.sh). ETL_TASKS_EXCLUDE tira a tarefa desta chamada e a fonte "sapl" do alerta de prazo daqui; o site e o vigia
-# continuam acusando se ela envelhecer. sapl.ales (5 Assembleias, leve) continua aqui.
+# launchd (etl/deploy/launchd-sapl-prod.sh). ETL_TASKS_EXCLUDE tira a tarefa desta chamada e a fonte "sapl" do alerta de prazo daqui. Quem acusa a parada
+# é o vigia (vigia.yml: "sapl" é fonte essencial em web/src/lib/data/health.ts, falha se os carimbos sapl.* passarem de 8 dias) e o webhook obrigatório do
+# wrapper (run-due-sapl-prod.sh, que avisa também falha de pré-condição). Mac desligado: só o vigia pega, e só depois de 8 a 9 dias (régua da fonte + checagem diária). sapl.ales (5 Assembleias, leve) continua aqui.
 # Actions fixadas por SHA (tag no comentário). Dependências travadas pelo etl/uv.lock (uv sync --frozen).
 name: etl
 on:
