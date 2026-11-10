@@ -54,7 +54,8 @@ test.describe("F01 eleitor descobre quem o representa", () => {
     await page.goto("/representantes");
     await page.getByRole("combobox", { name: /cidade ou estado/i }).fill("bom jesus");
     const opts = page.getByRole("option", { name: /^Bom Jesus/ });
-    await expect(opts).toHaveCount(4);
+    await expect(opts.first()).toBeVisible();
+    expect(await opts.count()).toBeGreaterThanOrEqual(4); // dados reais têm 5 homônimos exatos mais "Bom Jesus da…"
     for (const uf of ["PB", "PI", "RS", "SC"]) await expect(page.getByRole("option", { name: new RegExp(`Bom Jesus.*cidade · ${uf}`) })).toBeVisible();
   });
 
@@ -117,7 +118,7 @@ test.describe("F01 eleitor descobre quem o representa", () => {
       .toBe(true);
     await opt.tap(); // celular: toque, não clique
     await expect(page).toHaveURL(/cidade=3509502/);
-    const overflow = async () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    const overflow = async () => page.evaluate(() => document.documentElement.scrollWidth - 390);
     expect(await overflow()).toBeLessThanOrEqual(0);
     const first = page.locator('a[href^="/p/"]').first();
     const box = await first.locator("xpath=ancestor::li[1]").boundingBox(); // o cartão inteiro é a área de toque (::after do link)

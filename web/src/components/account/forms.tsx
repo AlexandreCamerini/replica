@@ -169,8 +169,9 @@ const KINDS = [
   { v: "ideia", l: "Ideia para o site" },
   { v: "outro", l: "Outro assunto" },
 ];
+const RESPOSTA = { v: "direito_resposta", l: "Direito de resposta" };
 
-export function SuggestionForm({ kind, person, personName, page }: { kind?: string; person?: string; personName?: string; page?: string }) {
+export function SuggestionForm({ kind, person, personName, page, city, bodyHint }: { kind?: string; person?: string; personName?: string; page?: string; city?: string; bodyHint?: string }) {
   const [state, action, pending] = useActionState(submitSuggestion, {});
   if (state.ok)
     return (
@@ -193,7 +194,7 @@ export function SuggestionForm({ kind, person, personName, page }: { kind?: stri
       )}
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-sm font-semibold text-fg">Sobre o que é?</legend>
-        {KINDS.map((k) => (
+        {(person ? [RESPOSTA, ...KINDS] : KINDS).map((k) => (
           <label key={k.v} className="flex items-center gap-2 text-sm text-fg">
             <input type="radio" name="kind" value={k.v} defaultChecked={(f.kind || kind || "algo_errado") === k.v} className="size-4 accent-[var(--accent)]" />
             {k.l}
@@ -204,12 +205,12 @@ export function SuggestionForm({ kind, person, personName, page }: { kind?: stri
         <label htmlFor="sug-body" className="text-sm font-semibold text-fg">
           Mensagem
         </label>
-        <textarea id="sug-body" name="body" required minLength={5} maxLength={5000} rows={6} defaultValue={f.body} className={clsx(input, "h-auto py-3")} aria-describedby="msg-ajuda" />
+        <textarea id="sug-body" name="body" required minLength={5} maxLength={5000} rows={6} defaultValue={f.body ?? bodyHint} className={clsx(input, "h-auto py-3")} aria-describedby="msg-ajuda" />
         <span id="msg-ajuda" className="text-xs text-muted">
           Se for correção, mande o link da fonte oficial. Isso acelera.
         </span>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-fg">
           Seu nome
           <input name="name" required maxLength={120} autoComplete="name" defaultValue={f.name} className={input} />
@@ -221,7 +222,7 @@ export function SuggestionForm({ kind, person, personName, page }: { kind?: stri
       </div>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-fg">
         Cidade (opcional)
-        <input name="city" maxLength={120} autoComplete="address-level2" defaultValue={f.city} className={input} />
+        <input name="city" maxLength={120} autoComplete="address-level2" defaultValue={f.city ?? city} className={input} />
       </label>
       <Turnstile />
       <Alert state={state} />

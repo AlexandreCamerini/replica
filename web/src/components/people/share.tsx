@@ -42,7 +42,7 @@ export function WhatsAppLink({ text, path }: { text: string; path: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex h-8 items-center gap-1.5 rounded-pill border-[1.5px] border-border-input bg-surface px-3 text-sm font-semibold text-fg outline-none hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      className="inline-flex h-11 items-center gap-1.5 border border-fg bg-surface px-4 text-sm font-semibold text-fg outline-none hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
     >
       <Link2 aria-hidden className="size-4" />
       WhatsApp

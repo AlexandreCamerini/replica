@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Direção de arte · sistema</title>
+<script src="./support.js"></script>
+<script src="dados.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Barlow+Condensed:wght@600;700&amp;display=swap">
+<style>
+body{margin:0}
+.root{--paper:#f3efe6;--sheet:#fbf9f4;--ink:#1c2226;--rule:#bdb6a6;--muted:#545a5e;--tint:#9a9d9b;--ok:#1f6f4a;--warn:#8a5a00;--err:#9b2c2c;--grid:rgba(28,34,38,.045);
+  width:1440px;box-sizing:border-box;padding:40px 48px 56px;font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px;display:flex;flex-direction:column;gap:28px}
+.serif{font-family:Newsreader,Georgia,serif;font-optical-sizing:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.disp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;line-height:.9}
+.lbl{font:500 11px/1.4 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.plate{background:var(--sheet);border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:5px;margin:6px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--ink);background:var(--sheet);font:500 14px "IBM Plex Sans",sans-serif;text-decoration:none;color:var(--ink)}
+.btn.main{background:var(--ink);color:var(--paper)}
+.chip{display:inline-flex;flex-direction:column;gap:3px;min-height:44px;padding:8px 12px;border:1px solid var(--rule);background:var(--sheet);text-align:left;color:var(--ink);font-size:12.5px}
+.chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--paper)}
+.sq{display:inline-block;width:14px;height:14px;border:1.5px solid var(--ink);box-sizing:border-box;flex:none;background:var(--sheet)}
+.vS{background:var(--ink)}
+.vN{background:repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px)}
+.vA{background:var(--sheet);border-style:dotted;border-width:2px}
+.stamp{display:inline-flex;align-items:center;min-height:26px;padding:0 10px;border:1.5px solid var(--ink);font:600 11px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;transform:rotate(-2deg);background:var(--sheet)}
+.stamp.warn{border-color:var(--warn);color:var(--warn)}.stamp.err{border-color:var(--err);color:var(--err)}.stamp.ok{border-color:var(--ok);color:var(--ok)}
+.money{display:inline-flex;align-items:center;min-height:28px;padding:0 12px;border:1px solid var(--ink);font:600 13px "IBM Plex Sans",sans-serif}
+.ttag{display:inline-flex;align-items:center;min-height:28px;padding:0 12px;border:1px solid var(--rule);background:var(--paper);font:500 13px "IBM Plex Sans",sans-serif}
+.quote{margin:0;padding:12px 14px;background:var(--paper);border-left:2px solid var(--ink);display:flex;flex-direction:column;gap:6px}
+.quote blockquote{margin:0;font:italic 500 15px/1.5 Newsreader,Georgia,serif}
+.sw{width:100%;height:64px;border:1px solid var(--ink);box-sizing:border-box}
+.row{display:grid;gap:24px}
+.tok{display:flex;flex-direction:column;gap:6px}
+.tok b{font:600 12px "IBM Plex Mono",monospace}
+.tok span{font-size:12.5px;color:var(--muted);line-height:1.4}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{text-align:left;font:500 11px "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 10px 6px 0;border-bottom:1px solid var(--ink)}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.4}
+.bar{display:block;height:22px;border:1px solid var(--ink);box-sizing:border-box;background:linear-gradient(90deg,var(--ink) 0 62%,transparent 62%),repeating-linear-gradient(45deg,var(--ink) 0 1.3px,var(--sheet) 0 3.4px);background-size:100% 100%,84% 100%;background-repeat:no-repeat;background-color:var(--sheet)}
+.st{fill:url(#g-ex);stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
+</style>
+</helmet>
+<div class="root">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span class="lbl">Direção de arte · quem·representa · "No seu bolso"</span>
+      <h1 class="serif" style="margin: 0; font-size: 56px; line-height: 1; font-weight: 500">Papel e tinta. Uma cor só.</h1>
+      <p style="margin: 0; font-size: 16px; line-height: 1.5; max-width: 860px">Um jornal que conta, sem opinião, o que Brasília decide e mexe no bolso. O voto nunca é cor: é padrão (cheio, hachura, pontilhado, vazio). A única cor de quantidade é o cinza que enche o estado. Verde, âmbar e vermelho só dizem se o sistema está em dia.</p>
+    </div>
+    <span class="stamp">Sistema · v1 · 06/11/2026</span>
+  </div>
+
+  <div class="row" style="grid-template-columns: repeat(3, minmax(0, 1fr))">
+    <section class="plate">
+      <span class="lbl">Cor · tema claro</span>
+      <div class="row" style="grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+        <div class="tok"><div class="sw" style="background: #f3efe6"></div><b>--paper #f3efe6</b><span>fundo da página, com grade de 24 px</span></div>
+        <div class="tok"><div class="sw" style="background: #fbf9f4"></div><b>--sheet #fbf9f4</b><span>prancha; texto ink 15,6:1</span></div>
+        <div class="tok"><div class="sw" style="background: #1c2226"></div><b>--ink #1c2226</b><span>texto, traço, Sim</span></div>
+        <div class="tok"><div class="sw" style="background: #9a9d9b"></div><b>--tint #9a9d9b</b><span>única cor de quantidade; ink sobre ela 4,6:1</span></div>
+        <div class="tok"><div class="sw" style="background: #545a5e"></div><b>--muted #545a5e</b><span>texto secundário; sobre sheet 6,9:1</span></div>
+        <div class="tok"><div class="sw" style="background: #bdb6a6"></div><b>--rule #bdb6a6</b><span>linhas finas, só decoração</span></div>
+      </div>
+      <span class="lbl">Só estado do sistema</span>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap"><span class="stamp ok">Virou lei</span><span class="stamp warn">Pauta desatualizada</span><span class="stamp err">Texto fora do ar</span></div>
+      <span class="lbl">Tema escuro</span>
+      <div style="display: flex; gap: 6px"><div class="sw" style="background: #121518; height: 28px"></div><div class="sw" style="background: #1a1e22; height: 28px"></div><div class="sw" style="background: #ebe6dc; height: 28px"></div><div class="sw" style="background: #6e7270; height: 28px"></div><div class="sw" style="background: #a8a397; height: 28px"></div></div>
+    </section>
+
+    <section class="plate">
+      <span class="lbl">Tipografia · 4 famílias, cada uma com um papel</span>
+      <span class="serif" style="font-size: 40px; line-height: 1.05; font-weight: 500">Newsreader 500 · títulos e frases do estado</span>
+      <span class="disp" style="font-size: 64px">318 · 63%</span>
+      <span class="mono" style="font-size: 12px; color: var(--muted)">Barlow Condensed 700 · números grandes, tabular</span>
+      <span style="font-size: 16px; line-height: 1.5">IBM Plex Sans 400/500/600 · corpo, botões e cartões. Frases de até 15 palavras.</span>
+      <span class="mono" style="font-size: 13px">IBM Plex Mono · PL 79/2020 · 05/11/2026 · p. 3</span>
+      <span class="lbl">IBM Plex Mono 11 px uppercase · rótulo de seção</span>
+      <table>
+        <tr><th>Papel</th><th>Tamanho</th><th>Onde</th></tr>
+        <tr><td>Display</td><td>56–160 px</td><td>Contador do bolso, % do estado</td></tr>
+        <tr><td>Título</td><td>28–40 px</td><td>Proposta, frase do estado, nome do deputado</td></tr>
+        <tr><td>Corpo</td><td>15–16 px / 1,5</td><td>Respostas, listas, explicações</td></tr>
+        <tr><td>Rótulo</td><td>11 px mono</td><td>Seções, datas, fontes</td></tr>
+      </table>
+    </section>
+
+    <section class="plate">
+      <span class="lbl">Forma · espaço · elevação</span>
+      <p style="margin: 0; font-size: 14px; line-height: 1.5">Raio 0 em tudo. Sem sombra. Elevação é borda dupla: 1 px dentro, 1 px fora com 5 px de ar. Espaço em 4 · 8 · 12 · 16 · 18 · 24 · 32 · 40 · 64. Grade de fundo de 24 px.</p>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center"><a class="btn main" href="#">Ação principal</a><a class="btn" href="#">Secundária</a><span class="chip on"><b class="mono" style="font-size: 12px">PLP 114/2026</b><span>Seletor ligado</span></span><span class="chip"><b class="mono" style="font-size: 12px">PLP 74/2026</b><span>Seletor</span></span></div>
+      <span class="lbl">Alvo mínimo 44 px · contraste mínimo 4,5:1, inclusive rótulos</span>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap"><span class="money">Mexe com dinheiro: contribuição de empresas</span><span class="ttag">Trabalho e aposentadoria</span><span class="ttag">Educação</span></div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap"><span class="stamp">Aguardando revisão</span><span class="stamp">Revisado por pessoa · 04/11</span><span class="stamp">Aprovada na Câmara</span><span class="stamp">Exemplo ilustrativo</span></div>
+      <figure class="quote"><span class="mono" style="font-size: 11px; color: var(--muted)">Texto oficial · p. 1</span><blockquote>“para dispor sobre a destinação das contribuições sociais compulsórias das empresas do setor de transporte aéreo e portuário”</blockquote></figure>
+    </section>
+  </div>
+
+  <div class="row" style="grid-template-columns: repeat(3, minmax(0, 1fr))">
+    <section class="plate">
+      <span class="lbl">O voto é padrão, nunca cor</span>
+      <table>
+        <tr><th>Padrão</th><th>Significa</th><th>Conta no %</th></tr>
+        <tr><td><i class="sq vS"></i></td><td>Votou Sim</td><td>sim</td></tr>
+        <tr><td><i class="sq vN"></i></td><td>Votou Não</td><td>sim</td></tr>
+        <tr><td><i class="sq vA"></i></td><td>Abstenção</td><td>sim</td></tr>
+        <tr><td><i class="sq"></i></td><td>Sem voto registrado, ou presidia a sessão</td><td>não</td></tr>
+      </table>
+      <span class="lbl">Barra única das 513 cadeiras</span>
+      <span class="bar" aria-hidden="true"></span>
+      <span class="mono" style="font-size: 12px; color: var(--muted)">318 Sim · 113 Não · 1 abstenção · 81 fora</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted)">Partido aparece em texto mono, nunca em cor ou logotipo.</p>
+    </section>
+
+    <section class="plate">
+      <span class="lbl">Interação-assinatura · o estado que enche</span>
+      <div style="display: flex; gap: 18px; align-items: center">
+        <svg viewBox="{{vb}}" width="220" height="150" preserveAspectRatio="xMidYMid meet" aria-hidden="true" style="overflow: visible"><defs><linearGradient id="g-ex" x1="0" y1="1" x2="0" y2="0"><stop offset="63%" style="stop-color: var(--tint)"></stop><stop offset="63%" style="stop-color: var(--sheet)"></stop></linearGradient></defs><path class="st" d="{{spd}}"></path></svg>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="disp" style="font-size: 56px">63%</span>
+          <span style="font-size: 14px; line-height: 1.45">Cada estado enche de baixo para cima até a parte de quem votou que escolheu Sim. O mesmo desenho no Brasil inteiro, no estado ampliado e na miniatura do deputado.</span>
+          <span class="mono" style="font-size: 11.5px; color: var(--muted)">São Paulo, contorno oficial do IBGE · PLP 114/2026.</span>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 13px; line-height: 1.5">Sem animação de enchimento: o estado já aparece cheio. Honestidade antes de espetáculo, e nada compete com o número.</p>
+    </section>
+
+    <section class="plate">
+      <span class="lbl">As outras duas assinaturas</span>
+      <div style="display: flex; flex-direction: column; gap: 6px"><span class="lbl" style="color: var(--ink)">No seu bolso · 05/11 a 19/11</span><span class="disp" style="font-size: 96px">2</span><span class="serif" style="font-size: 22px; line-height: 1.2">propostas na pauta podem mexer no que você paga ou recebe.</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--rule)"><span style="color: var(--muted); text-decoration: underline">Brasil</span><span style="color: var(--muted)">›</span><span style="color: var(--muted); text-decoration: underline">São Paulo</span><span style="color: var(--muted)">›</span><b>Jilmar Tatto</b></div>
+      <span style="font-size: 13px; line-height: 1.5; color: var(--muted)">Contador com a lista logo abaixo, nunca contagem regressiva. Trilha sempre visível; trocar a votação não perde o nível.</span>
+    </section>
+  </div>
+
+  <div class="row" style="grid-template-columns: 2fr 1fr">
+    <section class="plate">
+      <span class="lbl">Estados de produto · todos desenhados, nenhum inventa número</span>
+      <table>
+        <tr><th>Estado</th><th>O que a pessoa lê</th><th>Ação</th></tr>
+        <tr><td>Vazio</td><td>Nenhuma proposta mexe no bolso nesta semana. A pauta é lida a cada 30 min.</td><td>Ver a pauta inteira</td></tr>
+        <tr><td>Carregando</td><td>Esqueleto nas dimensões finais, sem texto.</td><td>—</td></tr>
+        <tr><td>Erro de leitura</td><td>Não conseguimos ler a pauta da Câmara. Última leitura: 05/11, 00:02.</td><td>Tentar de novo</td></tr>
+        <tr><td>Aguardando revisão</td><td>A IA leu; uma pessoa ainda não conferiu. "Mexe com dinheiro" só aparece depois.</td><td>Ver o trecho</td></tr>
+        <tr><td>Revisado por pessoa</td><td>Selo com a data. Erro corrigido vai para Correções.</td><td>—</td></tr>
+        <tr><td>Pauta desatualizada</td><td>Selo âmbar: a Câmara mudou a pauta depois da nossa leitura.</td><td>Ver na Câmara</td></tr>
+        <tr><td>Texto oficial fora do ar</td><td>Selo vermelho: o site da Câmara não respondeu. Mostramos a última cópia.</td><td>Tentar de novo</td></tr>
+        <tr><td>Votada · Virou lei · Saiu da pauta · Reunião cancelada</td><td>Selo neutro com a data; o item sai do contador.</td><td>Ver como votaram</td></tr>
+      </table>
+    </section>
+    <section class="plate">
+      <span class="lbl">Critérios de aceite</span>
+      <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 4px">
+        <li>LCP ≤ 2,5 s no celular: o LCP é texto (o número do bolso), fontes em WOFF2 subset com preload.</li>
+        <li>INP ≤ 200 ms: trocar nível ou votação não anima layout; só opacity.</li>
+        <li>CLS ≤ 0,1: mapa com altura fixa; esqueleto nas dimensões finais.</li>
+        <li>Contraste ≥ 4,5:1 em todo texto, inclusive mono 11 px.</li>
+        <li>Alvo ≥ 44 px; no celular os estados pequenos abrem pela grade de siglas.</li>
+        <li>Teclado e leitor de tela: botão, link e select reais; trilha é nav.</li>
+        <li>`prefers-reduced-motion`: nenhuma transição.</li>
+        <li>Zero palavra avaliativa: teste automático no build.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1780}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const Q = window.QR, b = Q.BOX.SP, m = Math.max(b[2], b[3]) * .06;
+    return {spd: Q.PATHS.SP, vb: `${b[0] - m} ${b[1] - m} ${b[2] + 2 * m} ${b[3] + 2 * m}`};
+  }
+}
+</script>
+</body>
+</html>

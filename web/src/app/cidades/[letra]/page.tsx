@@ -67,7 +67,7 @@ export default async function Page({ params }: Props) {
           ))}
         </div>
       )}
-      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} />
+      <SourceFooter source={stamp.source} href={stamp.sourceUrl} updatedAt={stamp.refreshedAt} dataset={stamp.dataset} />
     </Container>
   );
 }

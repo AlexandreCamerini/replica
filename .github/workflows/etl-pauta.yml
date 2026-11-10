@@ -1,0 +1,63 @@
+# Lê a pauta da Câmara e do Senado (hoje a +14 dias). É o que mantém "Pauta lida em" fresco no site:
+# acima de 24 h sem leitura, a Entrada e a Pauta mostram o aviso de pauta não atualizada.
+#
+# Horários em UTC (Brasília = UTC-3). O cron do GitHub atrasa minutos sob carga e pode pular um disparo;
+# a janela de 30 min absorve isso. Dois disparos não rodam juntos: concurrency + advisory lock do job.
+# Precisa do secret ETL_DATABASE_URL (role de escrita). Sem ele, o run termina com aviso e não falha.
+# REVALIDATE_URL/REVALIDATE_SECRET são opcionais: as páginas da pauta já se renovam a cada 10 min.
+name: etl · pauta
+
+on:
+  schedule:
+    - cron: "*/30 11-23 * * 1-5" # seg–sex, 08:00–20:30 em Brasília
+    - cron: "*/30 0-1 * * 2-6" # seg–sex, 21:00–22:30 em Brasília
+    - cron: "0 */3 * * 0,6" # fim de semana, a cada 3 h (evita o aviso de 24 h)
+  workflow_dispatch:
+
+concurrency:
+  group: etl-pauta
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  pauta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: etl
+    env:
+      ETL_DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
+      REVALIDATE_URL: ${{ secrets.REVALIDATE_URL }}
+      REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+    steps:
+      - name: Banco configurado?
+        id: gate
+        # antes do checkout a pasta etl/ não existe: o default working-directory quebrava este passo (o job nunca rodou)
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -z "$ETL_DATABASE_URL" ]; then
+            echo "::notice::ETL_DATABASE_URL não definido; pauta não lida."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ok == 'true'
+      - uses: astral-sh/setup-uv@v6
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          enable-cache: true
+          cache-dependency-glob: etl/uv.lock
+      # cache HTTP do ETL (ETag/Last-Modified): poupa a Câmara de baixar de novo o que não mudou
+      - uses: actions/cache@v4
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          path: etl/.cache
+          key: etl-http-pauta-${{ github.run_id }}
+          restore-keys: etl-http-pauta-
+      - name: Ler a pauta
+        if: steps.gate.outputs.ok == 'true'
+        run: uv run --frozen civico-etl pauta

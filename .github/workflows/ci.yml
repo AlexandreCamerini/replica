@@ -1,0 +1,64 @@
+# Gate de PR e de main: a suite do ETL contra um Postgres recém-migrado e o typecheck do servidor MCP.
+# Sem segredo nenhum: o banco é o serviço do próprio job. Nada aqui toca produção.
+#
+# Banco do CI = db/migrate.sh --local + seed + etl/tests/fixtures/base.sql (país, regiões, UFs, Câmara e Senado).
+# Regressões que conferem dado real (fixture `carga`) pulam com "banco sem carga"; rodam no banco local carregado.
+# Teste pulado por "banco indisponível" é falha: sem isso o resumo sai verde sem um único teste de banco ter rodado.
+# Os testes do MCP (mcp/test) pedem o banco carregado e por isso não entram; aqui só o typecheck.
+# Actions fixadas por SHA (tag no comentário).
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency: { group: "ci-${{ github.ref }}", cancel-in-progress: true }
+permissions: { contents: read }
+
+jobs:
+  etl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: civico }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/civico
+      ETL_DATABASE_URL: postgres://postgres:postgres@localhost:5432/civico
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: etl/uv.lock
+      - name: migrações
+        run: db/migrate.sh --local
+      - name: dependências (uv.lock)
+        working-directory: etl
+        run: uv sync --frozen --extra dev
+      - name: seed e base de teste
+        working-directory: etl
+        run: |
+          uv run --frozen civico-etl seed
+          psql "$DATABASE_URL" -X -q -v ON_ERROR_STOP=1 -f tests/fixtures/base.sql
+      - name: pytest
+        working-directory: etl
+        run: |
+          set -o pipefail
+          uv run --frozen pytest -q -rs | tee "$RUNNER_TEMP/pytest.txt"
+          if grep -q "banco indisponível" "$RUNNER_TEMP/pytest.txt"; then
+            echo "::error::testes de banco pulados: o Postgres do job não respondeu"
+            exit 1
+          fi
+
+  mcp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults: { run: { working-directory: mcp } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: npm ci
+      - run: npm run typecheck

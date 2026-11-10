@@ -11,14 +11,16 @@ export function hrefWith(base: string, current: Params, patch: Params, hash?: st
   return `${base}${s ? `?${s}` : ""}${hash ? `#${hash}` : ""}`;
 }
 
-export function LinkChip({ href, active, scroll = false, children }: { href: string; active?: boolean; scroll?: boolean; children: React.ReactNode }) {
+/** `tall`: alvo de 44 px (design v1). Os chips de período seguem em 32 px até a barra inteira migrar. */
+export function LinkChip({ href, active, scroll = false, tall = false, children }: { href: string; active?: boolean; scroll?: boolean; tall?: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
       scroll={scroll}
       aria-current={active ? "true" : undefined}
       className={clsx(
-        "inline-flex h-8 shrink-0 items-center rounded-pill border-[1.5px] px-3 text-sm font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+        "inline-flex shrink-0 items-center rounded-pill border-[1.5px] px-3 text-sm font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+        tall ? "min-h-11" : "h-8",
         active ? "border-surface-inverse bg-surface-inverse text-on-inverse" : "border-border bg-surface text-fg hover:border-border-input",
       )}
     >
@@ -49,9 +51,10 @@ export const fieldCls =
 
 export function SelectField({ label, name, value, options }: { label: string; name: string; value?: string; options: { value: string; label: string }[] }) {
   return (
-    <label className="flex flex-col gap-1 text-xs font-semibold text-fg">
+    <label className="flex min-w-0 max-w-full flex-col gap-1 text-xs font-semibold text-fg">
       {label}
-      <select name={name} defaultValue={value ?? ""} className={fieldCls}>
+      {/* max-w-full: a opção mais longa (categoria da cota) não pode alargar a página no celular */}
+      <select name={name} defaultValue={value ?? ""} className={`${fieldCls} max-w-full`}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

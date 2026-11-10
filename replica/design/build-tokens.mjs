@@ -85,9 +85,7 @@ const twCss = `${header}
   --color-current: currentColor;
 ${colorMap}
   --font-*: initial;
-  --font-sans: var(--ds-font-sans);
-  --font-display: var(--ds-font-display);
-  --font-mono: var(--ds-font-mono);
+${Object.keys(t.font).map((k) => `  --font-${k}: var(--ds-font-${k});`).join("\n")}
   --text-*: initial;
 ${typeMap}
   --radius-*: initial;

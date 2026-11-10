@@ -109,7 +109,7 @@ export async function deleteAccount(_: FormState, form: FormData): Promise<FormS
 
 // ---------- sugestões (S25) ----------
 const suggestion = z.object({
-  kind: z.enum(["ideia", "informacao_faltando", "algo_errado", "fonte_de_dados", "outro"], { message: "Escolha o tipo da mensagem." }),
+  kind: z.enum(["ideia", "informacao_faltando", "algo_errado", "fonte_de_dados", "outro", "direito_resposta"], { message: "Escolha o tipo da mensagem." }),
   body: z.string().trim().min(5, "Escreva pelo menos 5 caracteres.").max(5000, "No máximo 5.000 caracteres."),
   name: z.string().trim().min(1, "Diga como podemos chamar você.").max(120),
   email,
@@ -124,6 +124,7 @@ export async function submitSuggestion(_: FormState, form: FormData): Promise<Fo
   if (String(form.get("website") ?? "")) return { ok: true }; // honeypot: robô preencheu o campo invisível
   const parsed = suggestion.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0].message, fields };
+  if (parsed.data.kind === "direito_resposta" && !parsed.data.person) return { error: "O direito de resposta é sobre uma pessoa: abra pelo link no fim da página dela.", fields };
   const ip = await clientIp();
   if (!(await verifyCaptcha(form.get("cf-turnstile-response") as string | null, ip))) return { error: "Não deu para confirmar que você não é um robô.", fields };
   const day = new Date().toISOString().slice(0, 10);
@@ -132,6 +133,7 @@ export async function submitSuggestion(_: FormState, form: FormData): Promise<Fo
   const [{ n }] = await sql`select count(*)::int as n from suggestions where ip_hash = ${ipHash} and created_at > now() - interval '1 hour'`;
   if (Number(n) >= 5) return { error: "Recebemos várias mensagens daqui na última hora. Tente mais tarde.", fields };
   const person = parsed.data.person ? await data.getPerson(parsed.data.person) : null;
+  if (parsed.data.kind === "direito_resposta" && !person) return { error: "Não achamos essa pessoa. Abra o link pela página dela.", fields };
   const page = parsed.data.page && /^\/(?![/\\])/.test(parsed.data.page) ? parsed.data.page : null;
   await sql`insert into suggestions (kind, body, name, email, city, person_id, page_path, ip_hash)
             values (${parsed.data.kind}, ${parsed.data.body}, ${parsed.data.name}, ${parsed.data.email}, ${parsed.data.city}, ${person?.person.id ?? null}, ${page}, ${ipHash})`;

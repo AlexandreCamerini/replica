@@ -1,0 +1,47 @@
+# D14 · vigia externo de frescor. Independente do ETL: se a agenda parar, o ETL não tem como avisar; este job, que roda no
+# GitHub e não depende de nenhum secret, bate no site em produção e falha se as fontes essenciais (Câmara, Senado, pauta)
+# estiverem velhas. Job vermelho = e-mail do GitHub para quem mantém o workflow (Settings > Notifications > Actions).
+# Limites e estados: web/src/lib/data/health.ts. Sem actions de terceiros (só curl e jq da imagem), então não há SHA a fixar.
+# URL: variável de repositório VIGIA_URL (padrão abaixo). Atenção: o GitHub desliga cron de repositório sem atividade por 60 dias.
+name: vigia · frescor das fontes
+
+on:
+  schedule:
+    - cron: "15 12 * * *" # todo dia 09:15 em Brasília
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: vigia
+  cancel-in-progress: false
+
+jobs:
+  fontes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      VIGIA_URL: ${{ vars.VIGIA_URL || 'https://replica-virid-sigma.vercel.app/api/health/fontes' }}
+    steps:
+      - name: Consultar /api/health/fontes
+        run: |
+          set -uo pipefail
+          summary() { printf '%s\n' "$@" >> "$GITHUB_STEP_SUMMARY"; }
+          fail() { echo "::error::$1"; summary "### Vigia: FALHOU" "" "$1"; exit 1; }
+          case "$VIGIA_URL" in https://*) ;; *) fail "VIGIA_URL precisa começar com https:// (veio '$VIGIA_URL')";; esac
+          body="$(mktemp)"; code=000
+          for i in 1 2; do # só repete se a rede falhar; 503 do endpoint é resposta, não falha de rede
+            if code="$(curl -sS -m 30 -o "$body" -w '%{http_code}' -H 'Accept: application/json' "$VIGIA_URL")"; then break; fi
+            code=000; sleep 10
+          done
+          [ "$code" != "000" ] || fail "sem resposta de $VIGIA_URL em 30 s (timeout ou erro de rede, 2 tentativas)"
+          jq -e 'type == "object" and (.ok | type == "boolean") and (.fontes | type == "array")' "$body" >/dev/null 2>&1 \
+            || fail "resposta HTTP $code não é o JSON esperado (ok/fontes). Primeiros bytes: $(head -c 200 "$body" | tr -d '\n\r')"
+          summary "### Vigia: fontes de dados" "" "GET \`$VIGIA_URL\` → HTTP $code" "" \
+            "| fonte | essencial | estado | idade (h) | limite do site (h) | limite do vigia (h) |" "|---|---|---|---|---|---|"
+          jq -r '.fontes[] | "| \(.fonte) | \(if .essencial then "sim" else "não" end) | \(.estado) | \(.idadeHoras // "—") | \(.maxAgeHours) | \(.alertaHoras) |" | gsub("[\\n\\r]"; " ")' "$body" >> "$GITHUB_STEP_SUMMARY"
+          ruim="$(jq -r '(.essenciaisComProblema // []) | join(", ")' "$body")"
+          if [ "$code" != "200" ] || [ "$(jq -r .ok "$body")" != "true" ]; then
+            fail "fonte(s) essencial(is) fora do prazo ou sem dado: ${ruim:-nenhuma listada} (HTTP $code). Veja a tabela no resumo do job."
+          fi
+          summary "" "Tudo em dia."
