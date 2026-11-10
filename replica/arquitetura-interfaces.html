@@ -1,0 +1,315 @@
+<title>Mapa de Interfaces do Replica</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: prancha técnica — diagrama no topo, ficha da interface ao lado, tabela completa abaixo. */
+:root {
+  --bg: #f5f6f4; --surface: #ffffff; --zone: #eceeea; --fg: #1d2420; --muted: #5d6862; --line: #b9c1bb;
+  --accent: #0f7a5c; --accent-soft: #d8efe6; --warn: #a8640a; --warn-soft: #f8ead2; --plan: #7c8580; --plan-soft: #eceeed;
+  --hl: #c2410c;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121614; --surface: #1a201d; --zone: #1f2622; --fg: #e3e8e4; --muted: #9aa59f; --line: #3d4842;
+  --accent: #4cc79f; --accent-soft: #173a2e; --warn: #e2a645; --warn-soft: #3a2c14; --plan: #8b958f; --plan-soft: #262d29;
+  --hl: #fb8c4c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121614; --surface: #1a201d; --zone: #1f2622; --fg: #e3e8e4; --muted: #9aa59f; --line: #3d4842;
+  --accent: #4cc79f; --accent-soft: #173a2e; --warn: #e2a645; --warn-soft: #3a2c14; --plan: #8b958f; --plan-soft: #262d29;
+  --hl: #fb8c4c; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1480px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+header h1 { font-family: var(--f-display); font-weight: 600; font-size: 30px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 6px 0 0; color: var(--muted); max-width: 75ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; font-size: 12.5px; color: var(--muted); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 26px; height: 0; border-top: 2px solid var(--accent); }
+.sw.p { border-top-color: var(--warn); }
+.sw.r { border-top: 2px dashed var(--plan); }
+.top { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .top { grid-template-columns: minmax(0, 1fr); } }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 980px; height: auto; }
+svg text { font-family: var(--f-body); fill: var(--fg); }
+.z rect { fill: var(--zone); stroke: var(--line); }
+.z .zt { font-family: var(--f-display); font-weight: 600; font-size: 14px; }
+.z .zs { font-size: 11px; fill: var(--muted); }
+.n rect { fill: var(--surface); stroke: var(--line); }
+.n.plan rect { stroke-dasharray: 4 3; fill: var(--plan-soft); }
+.n.plan text { fill: var(--muted); }
+.n text { font-size: 12px; }
+.n .s { font-size: 10.5px; fill: var(--muted); font-family: var(--f-mono); }
+.e path { fill: none; stroke-width: 1.6; stroke: var(--accent); }
+.e.parcial path { stroke: var(--warn); }
+.e.plan path { stroke: var(--plan); stroke-dasharray: 5 4; }
+.e .b circle { fill: var(--surface); stroke: var(--accent); stroke-width: 1.6; }
+.e.parcial .b circle { stroke: var(--warn); }
+.e.plan .b circle { stroke: var(--plan); stroke-dasharray: 2 2; }
+.e .b text { font-family: var(--f-mono); font-size: 10px; font-weight: 500; text-anchor: middle; dominant-baseline: central; }
+.e { cursor: pointer; }
+.e path.hit { stroke: transparent !important; stroke-width: 12 !important; stroke-dasharray: none !important; fill: none; }
+.e.on path:not(.hit) { stroke: var(--hl); stroke-width: 2.6; stroke-dasharray: none; }
+.e.on .b circle { stroke: var(--hl); fill: var(--hl); stroke-dasharray: none; }
+.e.on .b text { fill: var(--surface); }
+svg.dim .e:not(.on) { opacity: .28; }
+.e:focus-visible { outline: none; }
+.e:focus-visible .b circle { stroke-width: 3; }
+aside.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px 18px 20px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+aside .id { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+aside h2 { font-family: var(--f-display); font-weight: 600; font-size: 19px; margin: 2px 0 10px; text-wrap: balance; }
+aside dl { margin: 0; display: grid; gap: 10px; }
+aside dt { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+aside dd { margin: 2px 0 0; }
+aside .hint { color: var(--muted); font-size: 13px; }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.pill.parcial { background: var(--warn-soft); color: var(--warn); }
+.pill.plan { background: var(--plan-soft); color: var(--plan); }
+code, .mono { font-family: var(--f-mono); font-size: 12px; }
+section h2 { font-family: var(--f-display); font-weight: 600; font-size: 20px; margin: 0 0 10px; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; min-width: 1100px; font-size: 13px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { font-family: var(--f-mono); font-weight: 500; white-space: nowrap; }
+tbody tr { cursor: pointer; }
+.fichas { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.ficha { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.ficha.plan { border-style: dashed; }
+.ficha header { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.ficha h3 { margin: 0; font-family: var(--f-display); font-weight: 600; font-size: 16px; }
+.ficha .rel { font-family: var(--f-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.ficha dl { margin: 0; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 5px 10px; font-size: 12.5px; }
+.ficha dt { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding-top: 2px; }
+.ficha dd { margin: 0; overflow-wrap: anywhere; }
+.ficha .probe { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 4px; font-size: 12.5px; }
+.ficha .probe .h { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ficha .probe .code { font-family: var(--f-mono); font-weight: 500; }
+.ficha .probe p { margin: 0; color: var(--muted); }
+tbody tr:hover { background: var(--zone); }
+tbody tr.on { background: var(--accent-soft); }
+tbody tr.on td:first-child { color: var(--hl); }
+td ul { margin: 0; padding-left: 16px; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.notes div { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+.notes h3 { margin: 0 0 6px; font-size: 14px; }
+.notes p { margin: 0; color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: no-preference) { .e path, .e .b circle, tbody tr { transition: stroke .15s, opacity .15s, background .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Replica · elementos e interfaces</h1>
+    <p>Retrato do código na branch <code>claude/replica-current-architecture-6e591c</code>, em 2026-11-03. Cada número no diagrama é uma interface. Clique nele (ou na linha da tabela) para ver o que trafega, em que protocolo, com que credencial e em que cadência.</p>
+    <div class="legend">
+      <span><i class="sw"></i>ok: código no repo e verificado</span>
+      <span><i class="sw p"></i>parcial: existe, com lacuna conhecida</span>
+      <span><i class="sw r"></i>planejado (R2–R5), sem código</span>
+    </div>
+  </header>
+
+  <div class="top">
+    <div class="diagram">
+      <svg id="d" viewBox="0 0 1280 760" role="img" aria-label="Diagrama de arquitetura do Replica com 18 interfaces numeradas">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker>
+        </defs>
+
+        <!-- zonas -->
+        <g class="z"><rect x="20" y="170" width="230" height="420" rx="6"/><text class="zt" x="34" y="192">Fontes oficiais</text><text class="zs" x="34" y="196" dy="12">pull, sem webhook</text></g>
+        <g class="z"><rect x="320" y="170" width="250" height="420" rx="6"/><text class="zt" x="334" y="192">ETL · Fly Machine</text><text class="zs" x="334" y="196" dy="12">Python 3.12 · civico_etl</text></g>
+        <g class="z"><rect x="640" y="170" width="230" height="420" rx="6"/><text class="zt" x="654" y="192">Supabase</text><text class="zs" x="654" y="196" dy="12">local: Postgres 16 na 54329</text></g>
+        <g class="z"><rect x="940" y="170" width="320" height="420" rx="6"/><text class="zt" x="954" y="192">Vercel · Next.js 15</text><text class="zs" x="1080" y="192">App Router · Node</text></g>
+        <g class="z"><rect x="940" y="20" width="320" height="100" rx="6"/><text class="zt" x="954" y="40">Consumidores</text></g>
+
+        <!-- fontes -->
+        <g class="n"><rect x="35" y="215" width="200" height="32" rx="4"/><text x="45" y="235">IBGE · localidades, malhas</text></g>
+        <g class="n"><rect x="35" y="255" width="200" height="32" rx="4"/><text x="45" y="275">TSE · CDN (zip CSV)</text></g>
+        <g class="n"><rect x="35" y="295" width="200" height="32" rx="4"/><text x="45" y="315">Câmara · API v2 + arquivos</text></g>
+        <g class="n"><rect x="35" y="335" width="200" height="32" rx="4"/><text x="45" y="355">Senado · Dados Abertos</text></g>
+        <g class="n plan"><rect x="35" y="385" width="200" height="32" rx="4"/><text x="45" y="405">Transparência (chave) · R2</text></g>
+        <g class="n plan"><rect x="35" y="425" width="200" height="32" rx="4"/><text x="45" y="445">Receita · SIDRA · BCB · R5</text></g>
+        <g class="n plan"><rect x="35" y="465" width="200" height="32" rx="4"/><text x="45" y="485">TSE apuração · STF · R5</text></g>
+        <g class="n plan"><rect x="35" y="505" width="200" height="32" rx="4"/><text x="45" y="525">ALEs · SAPL · R3/R4</text></g>
+        <g class="n plan"><rect x="35" y="545" width="200" height="32" rx="4"/><text x="45" y="565">Fotos oficiais (espelho)</text></g>
+
+        <!-- ETL -->
+        <g class="n"><rect x="345" y="215" width="210" height="32" rx="4"/><text x="355" y="235">supercronic → civico-etl &lt;job&gt;</text></g>
+        <g class="n"><rect x="345" y="255" width="210" height="48" rx="4"/><text x="355" y="274">db.run(): lock · ingest_runs</text><text class="s" x="355" y="292">checksum · COPY · upsert · stamp</text></g>
+        <g class="n"><rect x="345" y="315" width="210" height="44" rx="4"/><text x="355" y="333">http.py</text><text class="s" x="355" y="350">ETag · 5 req/s · retry</text></g>
+        <g class="n"><rect x="345" y="371" width="210" height="32" rx="4"/><text x="355" y="391">DuckDB · remotezip (Range)</text></g>
+        <g class="n"><rect x="345" y="415" width="210" height="44" rx="4"/><text x="355" y="433">identity.dedupe</text><text class="s" x="355" y="450">derive.stats · check</text></g>
+        <g class="n plan"><rect x="345" y="530" width="210" height="40" rx="4"/><text x="355" y="547">cache em disco</text><text class="s" x="355" y="562">hoje .cache local · Volume 50 GB</text></g>
+
+        <!-- Supabase -->
+        <g class="n"><rect x="655" y="215" width="200" height="160" rx="4"/>
+          <text x="665" y="235" font-weight="600">Postgres 16</text>
+          <text class="s" x="665" y="255">64 tabelas · RLS</text>
+          <text class="s" x="665" y="271">Data API desligada</text>
+          <text class="s" x="665" y="295">roles:</text>
+          <text class="s" x="665" y="311">etl_writer (a criar)</text>
+          <text class="s" x="665" y="327">web_reader  select</text>
+          <text class="s" x="665" y="343">web_writer → authenticated</text>
+          <text class="s" x="665" y="361">fatos · stamps · profiles</text></g>
+        <g class="n"><rect x="655" y="390" width="200" height="60" rx="4"/><text x="665" y="412">Auth · OTP por e-mail</text><text class="s" x="665" y="430">dev local · supabase em prod</text></g>
+        <g class="n plan"><rect x="655" y="465" width="200" height="40" rx="4"/><text x="665" y="482">Storage · fotos ≤ 200 KB</text><text class="s" x="665" y="497">R2</text></g>
+
+        <!-- Vercel -->
+        <g class="n"><rect x="955" y="210" width="290" height="32" rx="4"/><text x="965" y="230">CDN + WAF (rate limit por rota)</text></g>
+        <g class="z"><rect x="955" y="256" width="290" height="262" rx="4" style="fill:none;stroke-dasharray:2 3"/><text class="zs" x="965" y="270">servidor Next.js</text></g>
+        <g class="n"><rect x="965" y="278" width="270" height="44" rx="4"/><text x="975" y="296">Páginas RSC · rotas /api/*</text><text class="s" x="975" y="313">/representantes /p/[slug] /comparar …</text></g>
+        <g class="n"><rect x="965" y="340" width="150" height="44" rx="4"/><text x="975" y="358">lib/data (Proxy)</text><text class="s" x="975" y="375">pg.ts · DataSource</text></g>
+        <g class="n"><rect x="1135" y="340" width="100" height="44" rx="4"/><text x="1145" y="358">Data Cache</text><text class="s" x="1145" y="375">tags · 1 h</text></g>
+        <g class="n"><rect x="965" y="395" width="270" height="60" rx="4"/><text x="975" y="415">server actions (account.ts)</text><text class="s" x="975" y="432">sendCode verifyCode toggleFollow</text><text class="s" x="975" y="446">updateDigest deleteAccount sugestão</text></g>
+        <g class="n"><rect x="965" y="465" width="270" height="40" rx="4"/><text x="975" y="483">POST /api/revalidate</text><text class="s" x="975" y="498">revalidateTag</text></g>
+        <g class="n plan"><rect x="955" y="535" width="290" height="36" rx="4"/><text x="965" y="557">Vercel Cron · digest, rollup · R2</text></g>
+
+        <!-- consumidores -->
+        <g class="n"><rect x="950" y="52" width="95" height="56" rx="4"/><text x="960" y="74">Navegador</text><text class="s" x="960" y="92">PWA</text></g>
+        <g class="n plan"><rect x="1055" y="52" width="95" height="56" rx="4"/><text x="1065" y="74">WhatsApp</text><text class="s" x="1065" y="92">redes · OG</text></g>
+        <g class="n plan"><rect x="1160" y="52" width="90" height="56" rx="4"/><text x="1170" y="74">Clientes</text><text class="s" x="1170" y="92">MCP · R5</text></g>
+
+        <!-- serviços externos -->
+        <g class="n"><rect x="640" y="40" width="230" height="60" rx="4"/><text x="652" y="62">Cloudflare Turnstile</text><text class="s" x="652" y="82">widget · siteverify</text></g>
+        <g class="n plan"><rect x="640" y="640" width="230" height="60" rx="4"/><text x="652" y="662">Resend</text><text class="s" x="652" y="682">SMTP do Auth · API · webhook</text></g>
+        <g class="n plan"><rect x="320" y="640" width="250" height="60" rx="4"/><text x="332" y="662">Sentry</text><text class="s" x="332" y="682">erros · cron check-in · R2</text></g>
+        <g class="n"><rect x="20" y="640" width="230" height="60" rx="4"/><text x="32" y="662">Repositório · web/public/geo</text><text class="s" x="32" y="682">entra no build da Vercel</text></g>
+
+        <!-- interfaces -->
+        <g class="e" data-i="I1" tabindex="0"><path class="hit" d="M250 340 L345 340"/><path d="M250 340 L343 340" marker-end="url(#ar)"/><g class="b"><circle cx="287" cy="340" r="11"/><text x="287" y="340">1</text></g></g>
+        <g class="e parcial" data-i="I2" tabindex="0"><path class="hit" d="M345 352 L333 352 L333 550 L345 550"/><path d="M345 352 L333 352 L333 550 L343 550" marker-start="url(#ar)" marker-end="url(#ar)"/><g class="b"><circle cx="333" cy="490" r="11"/><text x="333" y="490">2</text></g></g>
+        <g class="e parcial" data-i="I3" tabindex="0"><path class="hit" d="M555 279 L655 279"/><path d="M555 279 L653 279" marker-end="url(#ar)"/><g class="b"><circle cx="605" cy="279" r="11"/><text x="605" y="279">3</text></g></g>
+        <g class="e" data-i="I4" tabindex="0"><path class="hit" d="M555 445 L600 445 L600 610 L925 610 L925 485 L965 485 M1235 485 L1252 485 L1252 362 L1235 362"/><path d="M555 445 L600 445 L600 610 L925 610 L925 485 L963 485" marker-end="url(#ar)"/><path d="M1235 485 L1252 485 L1252 362 L1237 362" marker-end="url(#ar)"/><g class="b"><circle cx="760" cy="610" r="11"/><text x="760" y="610">4</text></g></g>
+        <g class="e plan" data-i="I5" tabindex="0"><path class="hit" d="M570 485 L655 485"/><path d="M570 485 L653 485" marker-end="url(#ar)"/><g class="b"><circle cx="620" cy="485" r="11"/><text x="620" y="485">5</text></g></g>
+        <g class="e" data-i="I6" tabindex="0"><path class="hit" d="M370 590 L370 620 L135 620 L135 640"/><path d="M370 590 L370 620 L135 620 L135 638" marker-end="url(#ar)"/><g class="b"><circle cx="250" cy="620" r="11"/><text x="250" y="620">6</text></g></g>
+        <g class="e" data-i="I7" tabindex="0"><path class="hit" d="M965 362 L855 362"/><path d="M965 362 L857 362" marker-end="url(#ar)"/><g class="b"><circle cx="928" cy="362" r="11"/><text x="928" y="362">7</text></g></g>
+        <g class="e" data-i="I8" tabindex="0"><path class="hit" d="M1115 362 L1135 362"/><path d="M1115 362 L1135 362" marker-start="url(#ar)" marker-end="url(#ar)"/><g class="b"><circle cx="1125" cy="330" r="11"/><text x="1125" y="330">8</text></g></g>
+        <g class="e" data-i="I9" tabindex="0"><path class="hit" d="M965 403 L905 403 L905 330 L855 330"/><path d="M965 403 L905 403 L905 330 L857 330" marker-end="url(#ar)"/><g class="b"><circle cx="940" cy="403" r="11"/><text x="940" y="403">9</text></g></g>
+        <g class="e parcial" data-i="I10" tabindex="0"><path class="hit" d="M965 425 L855 425"/><path d="M965 425 L857 425" marker-end="url(#ar)"/><g class="b"><circle cx="918" cy="425" r="11"/><text x="918" y="425">10</text></g></g>
+        <g class="e plan" data-i="I11" tabindex="0"><path class="hit" d="M855 440 L862 440 L862 640"/><path d="M855 440 L862 440 L862 638" marker-end="url(#ar)"/><g class="b"><circle cx="862" cy="560" r="11"/><text x="862" y="560">11</text></g></g>
+        <g class="e parcial" data-i="I12" tabindex="0"><path class="hit" d="M950 66 L870 66 M965 447 L885 447 L885 88 L870 88"/><path d="M950 66 L872 66" marker-end="url(#ar)"/><path d="M965 447 L885 447 L885 88 L872 88" marker-end="url(#ar)"/><g class="b"><circle cx="910" cy="66" r="11"/><text x="910" y="66">12</text></g><g class="b"><circle cx="885" cy="240" r="11"/><text x="885" y="240">12</text></g></g>
+        <g class="e" data-i="I13" tabindex="0"><path class="hit" d="M997 108 L997 210"/><path d="M997 108 L997 208" marker-start="url(#ar)" marker-end="url(#ar)"/><g class="b"><circle cx="997" cy="152" r="11"/><text x="997" y="152">13</text></g></g>
+        <g class="e plan" data-i="I14" tabindex="0"><path class="hit" d="M1102 108 L1102 210"/><path d="M1102 108 L1102 208" marker-start="url(#ar)" marker-end="url(#ar)"/><g class="b"><circle cx="1102" cy="152" r="11"/><text x="1102" y="152">14</text></g></g>
+        <g class="e plan" data-i="I15" tabindex="0"><path class="hit" d="M1205 108 L1205 210"/><path d="M1205 108 L1205 208" marker-start="url(#ar)" marker-end="url(#ar)"/><g class="b"><circle cx="1205" cy="152" r="11"/><text x="1205" y="152">15</text></g></g>
+        <g class="e plan" data-i="I16" tabindex="0"><path class="hit" d="M955 553 L935 553 L935 668 L870 668"/><path d="M955 553 L935 553 L935 668 L872 668" marker-end="url(#ar)"/><g class="b"><circle cx="935" cy="630" r="11"/><text x="935" y="630">16</text></g></g>
+        <g class="e plan" data-i="I17" tabindex="0"><path class="hit" d="M870 690 L1010 690 L1010 590"/><path d="M870 690 L1010 690 L1010 592" marker-end="url(#ar)"/><g class="b"><circle cx="960" cy="690" r="11"/><text x="960" y="690">17</text></g></g>
+        <g class="e plan" data-i="I18" tabindex="0"><path class="hit" d="M480 590 L480 640 M1100 590 L1100 740 L530 740 L530 700"/><path d="M480 590 L480 638" marker-end="url(#ar)"/><path d="M1100 590 L1100 740 L530 740 L530 702" marker-end="url(#ar)"/><g class="b"><circle cx="480" cy="615" r="11"/><text x="480" y="615">18</text></g><g class="b"><circle cx="800" cy="740" r="11"/><text x="800" y="740">18</text></g></g>
+      </svg>
+    </div>
+
+    <aside class="card" id="card" aria-live="polite">
+      <div class="id">nenhuma interface selecionada</div>
+      <h2>Escolha um número no diagrama</h2>
+      <p class="hint">A ficha mostra origem e destino, protocolo, credencial, o conteúdo que trafega, a cadência e o estado no código. As setas apontam no sentido do dado (pull de fonte: dado chega ao ETL).</p>
+    </aside>
+  </div>
+
+  <section>
+    <h2>As 18 interfaces</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>De → para</th><th>Protocolo</th><th>Credencial</th><th>O que trafega</th><th>Cadência</th><th>Estado</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Fontes de entrada · ficha e sondagem de 2026-11-03</h2>
+    <p style="margin:0 0 10px;color:var(--muted);max-width:90ch">Uma ficha por fonte: contrato (formato, credencial, cadência, volume, licença, job e tabelas de destino) e o resultado da sondagem de hoje. Sondagem: um GET por endpoint, com os mesmos caminhos dos jobs; nos arquivos grandes, Range de 1 byte. Confere se a fonte responde e publica o que o job espera. Não roda a carga.</p>
+    <div class="fichas" id="fichas"></div>
+    <p style="margin:10px 0 0;color:var(--muted);font-size:13px;max-width:90ch">Achado para o ETL: o TSE regrava os zips todo dia; Last-Modified e ETag mudam até nos arquivos de 2024, então o GET condicional não evita download. tse.votos e tse.contas já leem por Range com CRC32 do membro; tse.candidatos ainda baixa o zip inteiro e deve migrar para o mesmo caminho. Sondagem feita pelo proxy do sandbox: "sem resposta" pode ser host errado ou DNS, não necessariamente fora do ar.</p>
+  </section>
+
+  <section>
+    <h2>O que o desenho deixa explícito</h2>
+    <div class="notes">
+      <div><h3>O banco é o barramento</h3><p>ETL e app nunca conversam por dado. O ETL escreve no Postgres (3) e só avisa o app pela invalidação de cache (4). Não há fila nem broker.</p></div>
+      <div><h3>Leitura pública não toca o banco a cada visita</h3><p>Toda leitura passa por lib/data → Data Cache (8). O banco só é consultado no miss (7), com o role web_reader. Medido: 2ª visita ao crachá faz 0 queries.</p></div>
+      <div><h3>Escrita de usuário tem caminho próprio</h3><p>Só as server actions escrevem (9), como web_writer em transação com role authenticated. A RLS do usuário vale. Leituras de conta ficam fora do cache.</p></div>
+      <div><h3>Lacunas de interface antes do R0</h3><p>3: role etl_writer ainda não existe (migração 0005). 2: cache do ETL some em machine efêmera. 1: http.py repete retry em qualquer 4xx; só 408, 429 e 5xx deveriam.</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const I = {
+  I1: { t: "Fontes oficiais → ETL (http.py)", from: "IBGE, TSE, Câmara, Senado", to: "civico_etl.http", proto: "HTTPS GET. JSON paginado (Câmara: links rel=next, até 100 itens), CSV latin-1 com ; dentro de zip (TSE, lido por HTTP Range só no membro necessário), GeoJSON/SVG (IBGE malhas v3).", auth: "Nenhuma. Transparência (R2) exige o header chave-api-dados.", what: ["Vai: GET com ETag / If-Modified-Since e User-Agent identificado", "Volta: municípios e UFs; malhas por UF", "TSE: candidaturas, bens declarados, votos por município, prestação de contas (eleitos; não eleitos só com --all)", "Câmara: deputados, votações e votos, proposições, cota parlamentar, comissões, discursos", "Senado: senadores, votações abertas (secretas ficam de fora)"], cad: "Câmara e Senado diário 06:00 BRT · TSE semanal em ano eleitoral · IBGE anual. 5 req/s por host, retry 2-4-8-16 s.", st: "ok", note: "Furo: qualquer 4xx (400, 401, 403) entra no retry. Só 408, 429 e 5xx são transitórios. 404 vira \"ainda não publicado\" e não falha o run." },
+  I2: { t: "http.py ↔ cache em disco", from: "civico_etl.http", to: "ETL_CACHE_DIR", proto: "Sistema de arquivos.", auth: "—", what: ["Corpo da resposta por URL", "ETag e Last-Modified para o GET condicional", "Zips do TSE (vários GB)"], cad: "Toda requisição.", st: "parcial", note: "Hoje é etl/.cache local. Em machine efêmera some e o TSE é baixado de novo a cada run. Plano: Fly Volume de 50 GB (integration.md §5, §7.4)." },
+  I3: { t: "ETL → Postgres", from: "civico_etl.db", to: "Postgres (tabelas de dados)", proto: "psycopg, conexão direta em modo sessão (5432). Nunca pelo pooler em modo transação: o advisory lock e a temp table do COPY precisam da sessão.", auth: "ETL_DATABASE_URL. Hoje sem role dedicada; etl_writer (sem DDL, bypassrls) entra na migração 0005.", what: ["pg_try_advisory_lock(hashtext(dataset))", "ingest_runs: status, checksum de entrada, rows_upserted, rows_rejected, erro", "COPY para temp table → INSERT … ON CONFLICT DO UPDATE nas tabelas-fato (people, mandates, votes, proposals, expenses, candidacies…)", "dataset_stamps, só no sucesso", "identity_match_queue para casamento abaixo de 0,9", "derive.stats: person_period_stats e data_coverage"], cad: "Por run de job. Commit atômico; na falha, rollback e o dado anterior fica no ar.", st: "parcial", note: "db.py ainda manda usar service_role, que no Supabase é nologin." },
+  I4: { t: "ETL → /api/revalidate → Data Cache", from: "derive.stats", to: "Next.js route handler", proto: "HTTPS POST JSON. Dentro do app: revalidateTag para cada tag.", auth: "Authorization: Bearer REVALIDATE_SECRET, comparado em tempo constante. WAF 10/min por IP.", what: ["Vai: {\"tags\": [\"data\"]}", "Aceita até 5000 tags no formato ^[a-z0-9:_-]{1,80}$; o excedente é descartado", "Volta: 200 {revalidated: n} · 401 segredo errado · 400 JSON inválido ou tags vazias"], cad: "Fim de cada derive.stats, uma invalidação global por run.", st: "ok", note: "Se falhar, o ETL loga warning e o dado novo aparece no vencimento do TTL (1 h dado, 10 min home). Tags finas person:<id> ficam para os jobs de 15 min." },
+  I5: { t: "ETL → Supabase Storage", from: "job da casa (Câmara/Senado)", to: "Storage", proto: "Storage API (HTTPS).", auth: "Service key, só nos secrets do Fly.", what: ["Fotos oficiais espelhadas, até 200 KB cada (~2 GB no total)"], cad: "Junto do job da casa.", st: "plan", note: "R2. Hoje o crachá usa a URL da fonte, sem espelho." },
+  I6: { t: "ETL (ibge.malhas) → repositório", from: "ibge.malhas", to: "web/public/geo", proto: "Arquivos no repo; entram no build.", auth: "—", what: ["28 arquivos SVG/JSON: Brasil por UF e municípios por UF"], cad: "Manual, quando muda a malha (município novo).", st: "ok", note: "Não passa pelo banco. Mudança de malha exige commit e deploy." },
+  I7: { t: "lib/data → Postgres", from: "lib/data/pg.ts", to: "Postgres", proto: "postgres.js pelo pooler em modo transação (6543), prepare:false. SQL em tagged template, parametrizado.", auth: "DATABASE_URL com o role web_reader: só select, policy public_read nas tabelas públicas.", what: ["Vai: consultas de pessoas, mandatos, votos, propostas, gastos, lugares, contadores, stamps", "Volta: linhas como JSON puro (datas em string ISO)"], cad: "Só no miss do Data Cache.", st: "ok", note: "Sem fallback para o dataset demo em produção: sem DATA_SOURCE=pg, index.ts lança erro." },
+  I8: { t: "lib/data ↔ Data Cache", from: "Proxy em lib/data/index.ts", to: "unstable_cache do Next", proto: "Chamada em processo.", auth: "—", what: ["Chave: [\"data\", método, argumentos]", "Tags: data, ds:<método>, person:<id>, place:<ibge>", "Valor: retorno JSON do método"], cad: "TTL 3600 s. Home com ISR de 600 s.", st: "ok", note: "Só com DATA_SOURCE=pg. Medido em build de produção: 1ª visita ao crachá 10 transações, 2ª visita 0." },
+  I9: { t: "server actions → Postgres", from: "lib/account.ts, lib/follows.ts", to: "Postgres (dados de usuário)", proto: "postgres.js, cada operação numa transação com set role authenticated e request.jwt.claim.sub.", auth: "DATABASE_WRITE_URL com o role web_writer (migração 0003). A RLS do usuário vale.", what: ["profiles: consentimento, frequência do digest", "follows: personId, limite de 200 por conta (trigger)", "suggestions", "Leituras de conta (isFollowing, myFollows) fora do cache"], cad: "Por ação do usuário.", st: "ok", note: "deleteAccount apaga em cascata (LGPD)." },
+  I10: { t: "server actions → Auth", from: "sendCode, verifyCode, signOut", to: "AuthProvider (dev / Supabase Auth)", proto: "Supabase Auth API (HTTPS) em produção; provedor dev local.", auth: "Anon key + CAPTCHA nativo do Auth (Turnstile).", what: ["Vai: e-mail (pede o código) ou e-mail + código de 6 dígitos", "Volta: sempre ok no envio (não revela se a conta existe); sessão em cookie na verificação", "Redirect para volta validado com ^/(?![/\\\\])"], cad: "Por login. Rate limit do Auth: 3/h por e-mail, 30/h por IP.", st: "parcial", note: "Código pronto; falta a conta Supabase (R2). currentUser() engole DynamicServerError sem NEXT_PUBLIC_SUPABASE_URL (correção em sessão separada)." },
+  I11: { t: "Supabase Auth → Resend", from: "Auth", to: "Resend", proto: "SMTP.", auth: "API key do Resend no painel do Supabase.", what: ["E-mail com o código OTP"], cad: "Por pedido de código.", st: "plan", note: "R2." },
+  I12: { t: "Turnstile: navegador e servidor", from: "Navegador · server actions", to: "Cloudflare Turnstile", proto: "Widget api.js no navegador; servidor faz POST em /turnstile/v0/siteverify com timeout de 5 s.", auth: "Site key (pública) no widget; secret no servidor.", what: ["Navegador → widget: desafio, volta um token", "Servidor → siteverify: secret + token + IP do cliente", "Volta: success true/false"], cad: "Por envio de sugestão, OTP e follow anônimo.", st: "parcial", note: "Fail-closed em produção sem chave: a ação recusa. Código pronto em lib/captcha.ts; falta a chave." },
+  I13: { t: "Navegador ↔ Vercel", from: "Navegador", to: "CDN + WAF → Next.js", proto: "HTTPS. HTML/RSC, JSON e POST de server action.", auth: "Público. Sessão em cookie só nas páginas de conta.", what: ["Páginas RSC com rodapé \"Fonte · atualizado em\" em todo bloco", "GET /api/places?q= → [{ibge, name, uf, kind}], até 10", "GET /api/people/search · /api/people/[slug]/{proposals,votes,expenses} → {items, nextCursor, counts}", "GET /api/compare/agreement?p=&period= → {pairs, diffs}", "GET /api/me → {signedIn} (no-store)", "POST server action: FormData + token Turnstile"], cad: "Por visita.", st: "ok", note: "Páginas com searchParams renderizam por requisição na função; o dado vem do Data Cache." },
+  I14: { t: "WhatsApp e redes → card OG", from: "Crawler de link", to: "/api/og/p/[slug]", proto: "HTTPS GET.", auth: "Público, cache de CDN.", what: ["PNG 1200×630 do crachá", "Metadados OG da página (generateMetadata já existe)"], cad: "Cache de 1 dia.", st: "plan", note: "R2. Hoje existe só o generateMetadata de /p/[slug], sem imagem gerada." },
+  I15: { t: "Clientes MCP → /api/mcp", from: "Assistentes de IA", to: "/api/mcp", proto: "Streamable HTTP, JSON-RPC.", auth: "Público; 30/min por IP no WAF.", what: ["10 ferramentas só de leitura sobre lib/data", "Cada item com fonte + atualizado_em", "Sem SQL livre, sem ordenação por métrica (neutralidade)"], cad: "Por chamada.", st: "plan", note: "R5. Hoje só existe a página informativa /mcp." },
+  I16: { t: "Vercel Cron → Resend (digest)", from: "Cron + route handler", to: "Resend API", proto: "HTTPS (API do Resend).", auth: "API key do Resend.", what: ["Digest com activity_events dos monitorados", "Cabeçalho List-Unsubscribe-Post (RFC 8058) com token HMAC para /descadastrar"], cad: "Diário ou semanal, conforme profiles.digest.", st: "plan", note: "R2." },
+  I17: { t: "Resend → webhook do app", from: "Resend", to: "rota de webhook", proto: "HTTPS POST assinado (Svix).", auth: "Signing secret; rejeita timestamp com mais de 5 min.", what: ["email.bounced, email.complained", "Efeito: profiles.digest = 'off'"], cad: "Por evento.", st: "plan", note: "R2." },
+  I18: { t: "ETL e app → Sentry", from: "ETL (Fly) · Next.js (Vercel)", to: "Sentry", proto: "SDK (HTTPS).", auth: "DSN.", what: ["Exceções e 5xx do app", "Check-in de cron por job: início, sucesso, falha; ausência de check-in alerta"], cad: "Por evento e por run.", st: "plan", note: "R2. Até lá, o sinal é ingest_runs.status e civico-etl check." }
+};
+// fichas por fonte: contrato (integration.md §2.1) + sondagem de 2026-11-03 (§2.4)
+const F = [
+  { n: "IBGE Localidades", rel: "ok", fmt: "REST JSON (/api/v1/localidades/estados, /municipios?view=nivelado)", auth: "nenhuma", cad: "anual + manual", vol: "~5,6 mil linhas, 1 s", lic: "CC BY 4.0", job: "ibge.places", dst: "places, legislative_bodies", http: "200", v: ["ok", "disponível"], obs: "JSON; municípios 2,4 MB em 0,2 s." },
+  { n: "IBGE Malhas v3", rel: "ok", fmt: "REST GeoJSON (/api/v3/malhas)", auth: "nenhuma", cad: "manual (município novo)", vol: "28 arquivos", lic: "CC BY 4.0", job: "ibge.malhas", dst: "web/public/geo (arquivo, fora do banco)", http: "200", v: ["ok", "disponível"], obs: "GeoJSON do Brasil por UF, 98 KB." },
+  { n: "TSE Dados Abertos", rel: "ok", fmt: "zip no CDN, CSV latin-1 com ;", auth: "nenhuma", cad: "semanal em ano eleitoral, mensal fora", vol: "candidaturas dezenas de MB; votos ~450 MB; contas até 1,3 GB por eleição", lic: "ODbL / LAI", job: "tse.candidatos, tse.votos, tse.contas", dst: "elections, contests, candidacies, asset_declarations, mandates", http: "206", v: ["ok", "2026 publicado"], obs: "2026: candidaturas 3,3 MB (30 membros, 23,9 MB de CSV), bens 3,8 MB, votos 446 MB, contas 362 MB (em consolidação). Range aceito. Zips regravados todo dia: ETag e Last-Modified mudam; tse.candidatos ainda baixa o zip inteiro." },
+  { n: "TSE divulgação", rel: "R5", fmt: "JSON público da apuração", auth: "nenhuma", cad: "dia de eleição, 1 min", vol: "pequeno, muitas chamadas", lic: "LAI", job: "tse.apuracao", dst: "live_count_snapshots", http: "200", v: ["ok", "disponível"], obs: "ele-c.json lista 2026 federal e estadual, 1º e 2º turnos (6257–6260). Serve para o ensaio de apuração." },
+  { n: "Câmara API v2 + extras", rel: "ok", fmt: "REST JSON paginado (links rel=next, itens ≤ 100)", auth: "nenhuma", cad: "diária 06:00 BRT", vol: "882 detalhes de deputado; contato, comissões, discursos", lic: "CC0", job: "camara.diario, parlamento.extras", dst: "people, mandates, party_memberships, committees, committee_memberships, mandate_contacts, speeches", http: "200", v: ["ok", "disponível"], obs: "/deputados em 0,1 s; /discursos em 0,6 s." },
+  { n: "Câmara arquivos", rel: "ok", fmt: "CSV/JSON anuais; cota em zip", auth: "nenhuma", cad: "diária (reprocessa o ano corrente)", vol: "224 mil votos, 38,9 mil proposições, 306 mil lançamentos em ~3 min", lic: "CC0", job: "camara.diario", dst: "voting_events, votes, party_orientations, proposals, proposal_authors, sessions, attendance, expenses, laws", http: "206", v: ["ok", "disponível"], obs: "2026: votos 17,6 MB, proposições 41,3 MB, cota 4,5 MB. Cabeçalho do CSV de votos igual ao esperado." },
+  { n: "Câmara agenda", rel: "R2", fmt: "REST JSON (/eventos)", auth: "nenhuma", cad: "15 min, seg–sex 08–22h", vol: "pequeno", lic: "CC0", job: "camara.agenda", dst: "session_agenda_items", http: "200", v: ["ok", "disponível"], obs: "JSON em 0,4 s." },
+  { n: "Senado Dados Abertos", rel: "parcial", fmt: "REST JSON (/senador/lista/atual, /senador/{cod}/votacoes)", auth: "nenhuma", cad: "diária", vol: "81 + afastados, 1,8 mil votos", lic: "LAI", job: "senado.diario, parlamento.extras", dst: "people, mandates, party_memberships, voting_events, votes, proposals, sessions", http: "200", v: ["ok", "disponível"], obs: "Votações por senador leva 1,5 s. Votação secreta devolve \"Votou\"; só abertas entram." },
+  { n: "Senado agenda", rel: "R2", fmt: "REST JSON (/plenario/agenda/mes)", auth: "nenhuma", cad: "15 min", vol: "pequeno", lic: "LAI", job: "senado.agenda", dst: "session_agenda_items", http: "200", v: ["ok", "disponível"], obs: "JSON 39 KB." },
+  { n: "Portal da Transparência", rel: "R2 / R5", fmt: "REST JSON", auth: "header chave-api-dados (cadastro gov.br)", cad: "diária 03:00 (emendas), mensal (cartão)", vol: "emendas: dezenas de mil por ano", lic: "LAI", job: "transparencia.emendas, .cartao", dst: "amendments, corporate_card_expenses", http: "401", v: ["parcial", "precisa de chave"], obs: "API ativa; recusa sem chave. O cadastro é pré-requisito do R2." },
+  { n: "Receita (arrecadação)", rel: "R5", fmt: "planilha/CSV em dados.gov.br", auth: "nenhuma", cad: "mensal, dia 5 (fonte com ~3 meses de atraso)", vol: "pequeno", lic: "LAI", job: "receita.arrecadacao", dst: "tax_revenues", http: "200", v: ["parcial", "não conferido"], obs: "A página do conjunto está no ar; o arquivo não foi baixado." },
+  { n: "IBGE SIDRA · BCB SGS", rel: "R5", fmt: "REST JSON", auth: "nenhuma", cad: "mensal", vol: "pequeno", lic: "CC BY / LAI", job: "indicadores", dst: "yearly_indicators", http: "200", v: ["ok", "disponível"], obs: "SIDRA tabela 1737 e SGS 433 respondem em 0,1 s." },
+  { n: "STF", rel: "R5", fmt: "sem API oficial; painéis e downloads do portal", auth: "nenhuma", cad: "diária 07:00", vol: "pequeno", lic: "LAI", job: "stf", dst: "stf_ministers, stf_cases, stf_case_events", http: "403 / 200", v: ["plan", "sem API"], obs: "Raiz da transparência recusa mesmo com UA de navegador; Corte Aberta é painel HTML. Raspar fica fora; decisão no R5." },
+  { n: "Assembleias (ALEs)", rel: "R3", fmt: "heterogêneo: API, CSV, PDF, nada", auth: "varia", cad: "diária, só UF com adapter", vol: "varia", lic: "varia", job: "ale.<uf>", dst: "mesmas tabelas legislativas", http: "200", v: ["parcial", "por UF"], obs: "ALMG tem API JSON; ALESP só página de downloads. Adapter por UF." },
+  { n: "SAPL / Interlegis", rel: "R4", fmt: "REST do SAPL 3.x (Django REST)", auth: "nenhuma", cad: "noturno, lotes de ~200 câmaras", vol: "varia", lic: "LAI", job: "sapl.<ibge>", dst: "mesmas tabelas legislativas (municipal)", http: "2× 200 · 503 · 3× sem resposta", v: ["parcial", "2 de 6"], obs: "Campinas e Acre devolvem JSON; Recife 503; 3 hosts sem resposta (pode ser host errado). O adapter genérico terá cobertura parcial." },
+  { n: "Fotos oficiais", rel: "parcial", fmt: "URL da Câmara e do Senado", auth: "nenhuma", cad: "junto do job da casa", vol: "~2 GB espelhados", lic: "verificar por fonte", job: "dentro do job da casa", dst: "Supabase Storage (R2); hoje só a URL", http: "200", v: ["parcial", "acima do teto"], obs: "Câmara 48 KB; Senado 233 KB, acima dos 200 KB. O espelho precisa redimensionar." }
+];
+const RELP = r => r === "ok" ? "" : (r === "parcial" ? "parcial" : "plan");
+const renderF = () => document.getElementById("fichas").innerHTML = F.map(f => `<article class="ficha ${f.rel.startsWith("R") ? "plan" : ""}">
+  <header><h3>${esc(f.n)}</h3><span class="rel">${f.rel === "ok" ? "em produção" : f.rel === "parcial" ? "parcial" : esc(f.rel)}</span></header>
+  <dl><dt>Formato</dt><dd>${esc(f.fmt)}</dd><dt>Credencial</dt><dd>${esc(f.auth)}</dd><dt>Cadência</dt><dd>${esc(f.cad)}</dd><dt>Volume</dt><dd>${esc(f.vol)}</dd><dt>Licença</dt><dd>${esc(f.lic)}</dd><dt>Job</dt><dd class="mono">${esc(f.job)}</dd><dt>Destino</dt><dd class="mono">${esc(f.dst)}</dd></dl>
+  <div class="probe"><div class="h"><span class="code">HTTP ${esc(f.http)}</span><span class="pill ${RELP(f.v[0])}">${esc(f.v[1])}</span></div><p>${esc(f.obs)}</p></div>
+</article>`).join("");
+const ST = { ok: ["ok", ""], parcial: ["parcial", "parcial"], plan: ["planejado", "plan"] };
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const rows = document.getElementById("rows"), card = document.getElementById("card"), svg = document.getElementById("d");
+for (const [k, v] of Object.entries(I)) {
+  const tr = document.createElement("tr");
+  tr.dataset.i = k; tr.tabIndex = 0;
+  tr.innerHTML = `<td>${k.slice(1)}</td><td><strong>${esc(v.t)}</strong></td><td>${esc(v.proto)}</td><td>${esc(v.auth)}</td><td><ul>${v.what.map(w => `<li>${esc(w)}</li>`).join("")}</ul></td><td>${esc(v.cad)}</td><td><span class="pill ${ST[v.st][1]}">${ST[v.st][0]}</span></td>`;
+  rows.append(tr);
+}
+function pick(k, scroll) {
+  const v = I[k];
+  document.querySelectorAll(".e, #rows tr").forEach(el => el.classList.toggle("on", el.dataset.i === k));
+  svg.classList.add("dim");
+  card.innerHTML = `<div class="id">interface ${k.slice(1)} · <span class="pill ${ST[v.st][1]}">${ST[v.st][0]}</span></div><h2>${esc(v.t)}</h2><dl>
+    <div><dt>Origem → destino</dt><dd>${esc(v.from)} → ${esc(v.to)}</dd></div>
+    <div><dt>Protocolo</dt><dd>${esc(v.proto)}</dd></div>
+    <div><dt>Credencial</dt><dd>${esc(v.auth)}</dd></div>
+    <div><dt>O que trafega</dt><dd><ul style="margin:0;padding-left:16px">${v.what.map(w => `<li>${esc(w)}</li>`).join("")}</ul></dd></div>
+    <div><dt>Cadência</dt><dd>${esc(v.cad)}</dd></div>
+    <div><dt>Observação</dt><dd>${esc(v.note)}</dd></div></dl>`;
+  if (scroll) document.querySelector(`tbody tr[data-i="${k}"]`).scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+document.querySelectorAll(".e").forEach(g => {
+  g.addEventListener("click", () => pick(g.dataset.i, false));
+  g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(g.dataset.i, false); } });
+});
+rows.addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) { pick(tr.dataset.i, false); svg.scrollIntoView({ block: "nearest", behavior: "smooth" }); } });
+rows.addEventListener("keydown", e => { const tr = e.target.closest("tr"); if (tr && e.key === "Enter") pick(tr.dataset.i, false); });
+svg.addEventListener("click", e => { if (!e.target.closest(".e")) { svg.classList.remove("dim"); document.querySelectorAll(".on").forEach(el => el.classList.remove("on")); } });
+const h = (location.hash || "").slice(1).toUpperCase();
+pick(I[h] ? h : "I4", false);
+renderF();
+</script>
