@@ -12,7 +12,7 @@ def test_mesma_expressao_no_derive_e_no_check():
     assert any(tb in q for n, q in CHECKS if "própria casa" in n)
 
 
-def test_ultimo_evento_do_dia_vence(conn):
+def test_ultimo_evento_do_dia_vence(conn, carga):
     # Câmara, /historico de 220612 (Bebeto): 01/02/2023 12:05 posse pelo PTB; 13:22 "Alteração de partido" para PP
     rows = conn.execute(
         f"""select pa.acronym from party_observations po join people p on p.id = po.person_id join parties pa on pa.id = po.party_id

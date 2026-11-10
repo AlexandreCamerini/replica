@@ -29,12 +29,12 @@ def test_lista_curada_tem_acao_e_fonte():
         assert x["fonte"].startswith("https://")
 
 
-def test_quem_governa_bate_com_a_lista(conn):
+def test_quem_governa_bate_com_a_lista(conn, carga):
     assert _n(conn, _q("lista conferida na fonte oficial")) == 0
     assert _n(conn, _q("termina até hoje")) == 0
 
 
-def test_df_rj_rr_nao_mostram_quem_saiu(conn):
+def test_df_rj_rr_nao_mostram_quem_saiu(conn, carga):
     rows = conn.execute(
         """select pl.uf, p.slug from mandates m join offices o on o.id = m.office_id and o.slug = 'governador'
            join places pl on pl.id = m.place_id join people p on p.id = m.person_id
@@ -43,7 +43,7 @@ def test_df_rj_rr_nao_mostram_quem_saiu(conn):
     assert {(r["uf"], r["slug"]) for r in rows} == {("DF", "celina-leao")}
 
 
-def test_check_pega_governador_que_ja_saiu(conn):
+def test_check_pega_governador_que_ja_saiu(conn, carga):
     # regressão do BUG-031: Ibaneis de volta a "em exercício" tem de quebrar os dois invariantes (desfeito no fim)
     with conn.transaction(force_rollback=True):
         conn.execute(

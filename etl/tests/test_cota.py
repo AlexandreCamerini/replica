@@ -56,7 +56,7 @@ def _check(name_part: str) -> str:
     return next(q for n, q in CHECKS if name_part in n)
 
 
-def test_amostra_de_cota_bate_com_a_camara(conn):
+def test_amostra_de_cota_bate_com_a_camara(conn, carga):
     assert len(COTA_REFERENCIA) >= 5
     assert list(conn.execute(_check("cota: amostra fixa")).fetchone().values())[0] == 0
 
@@ -103,7 +103,7 @@ def test_nenhuma_complementacao_negativa_no_banco(conn):
     assert list(conn.execute(_check("nunca negativas")).fetchone().values())[0] == 0
 
 
-def test_luciano_vieira_2024_bate_com_a_pagina(conn):
+def test_luciano_vieira_2024_bate_com_a_pagina(conn, carga):
     row = conn.execute(
         """select sum(x.amount_cents) as s from expenses x where x.source_key ~ '^cota(api)?2024:220616:'"""
     ).fetchone()

@@ -143,7 +143,7 @@ def test_upsert_idempotente_e_invariante(conn):
         conn.execute("update amendments set paid_cents = committed_cents + 2 where source_key = %s", (key,))
         assert list(conn.execute(check).fetchone().values())[0] == 1
         # emenda de bancada ligada a uma pessoa quebra a outra
-        pid = conn.execute("select id from people limit 1").fetchone()["id"]
+        pid = conn.execute("insert into people (slug, display_name) values ('zz-teste-emenda-bancada', 'Teste Emenda') returning id").fetchone()["id"]
         conn.execute("update amendments set person_id = %s where api_code = '2'", (pid,))
         assert list(conn.execute(vinculo).fetchone().values())[0] >= 1
     assert conn.execute("select count(*) as n from amendments").fetchone()["n"] == before
