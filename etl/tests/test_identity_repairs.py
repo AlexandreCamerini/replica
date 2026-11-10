@@ -193,7 +193,7 @@ def _vereador_rebaixado(conn) -> tuple[str, str, str]:
     return pid, str(mid), str(ct["place_id"])
 
 
-def test_mandato_rebaixado_sai_do_exercicio_idempotente(conn):
+def test_mandato_rebaixado_sai_do_exercicio_idempotente(conn, carga):
     when = lambda y: date(2026, 11, 4)  # noqa: E731
     with conn.transaction(force_rollback=True):
         base = repairs.demote_tse_mandates(conn, apply=False, published_on=when, commit=False)
@@ -207,7 +207,7 @@ def test_mandato_rebaixado_sai_do_exercicio_idempotente(conn):
         assert repairs.demote_tse_mandates(conn, apply=True, published_on=when, commit=False) == 0  # segunda execução
 
 
-def test_casa_vence_quando_o_sapl_confirma(conn):
+def test_casa_vence_quando_o_sapl_confirma(conn, carga):
     when = lambda y: date(2026, 11, 4)  # noqa: E731
     with conn.transaction(force_rollback=True):
         base = repairs.demote_tse_mandates(conn, apply=False, published_on=when, commit=False)
@@ -222,7 +222,7 @@ def test_casa_vence_quando_o_sapl_confirma(conn):
         assert conn.execute("select status from mandates where id = %s", (mid,)).fetchone()["status"] == "em_exercicio"
 
 
-def test_check_de_cadeiras_pega_vereador_a_mais(conn):
+def test_check_de_cadeiras_pega_vereador_a_mais(conn, carga):
     q = f"select count(*) n from ({VEREADORES_ACIMA_DO_TETO}) x"
     with conn.transaction(force_rollback=True):
         before = conn.execute(q).fetchone()["n"]
