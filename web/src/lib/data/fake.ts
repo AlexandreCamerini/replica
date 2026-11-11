@@ -574,6 +574,7 @@ const asmDemo = (uf: string): AssemblyInfo => ({
     stampDataset: null,
   })),
 });
+export const DEMO_SAPL_IBGE = "3550308";
 function entradaDemo(personId: string): EntradaCobertura {
   const m = mainMandate(personId);
   const place = m ? store().placeByIbge.get(m.placeIbge) : undefined;
@@ -586,7 +587,8 @@ function entradaDemo(personId: string): EntradaCobertura {
     coberturaLugar: m?.office === "vereador" ? coverageFor(m.placeIbge).map((c) => ({ dataset: c.dataset, status: c.status, reason: c.reason, evidenceUrl: null })) : [],
     carimbos: CARIMBOS_DEMO,
     assembleia: estadual && uf ? asmDemo(uf) : null,
-    sapl: null,
+    // vereadores da capital paulista: câmara "lida pelo SAPL", dado fora desta página (carregado_fora_da_pagina)
+    sapl: m?.office === "vereador" && m.placeIbge === DEMO_SAPL_IBGE ? { nome: "SAPL das Câmaras Municipais (demonstração)", url: null, em: "2026-11-01T06:10:00-03:00" } : null,
     casa: m?.office === "vereador" && place ? `Câmara Municipal de ${place.name} (${uf})` : estadual && uf ? houseName(uf) : null,
   };
 }

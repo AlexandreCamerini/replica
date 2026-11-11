@@ -47,9 +47,10 @@ export const ESTADO_COBERTURA: Record<Exclude<EstadoCobertura, "lido">, string> 
   sem_fonte: "A fonte não publica.",
   fonte_sem_adaptador: "Está só no portal oficial. Ainda não lemos.",
   nao_carregado: "Ainda não carregamos esse dado.",
+  carregado_fora_da_pagina: "Já carregamos, mas esta página ainda não mostra esse dado.",
   nao_conferido: "Ainda não conferimos se a fonte publica.",
   nao_se_aplica: "Este cargo não tem esse dado.",
-  fora_do_mandato: "Ainda não tomou posse.",
+  fora_do_mandato: "Fora do exercício do mandato.",
 };
 /** Conjunto lido e sem registro: "não há" com a data da leitura (sem data: diz que não está registrada). */
 export const naoHaNaLeitura = (oQue: string, lidoEm: string | null) =>

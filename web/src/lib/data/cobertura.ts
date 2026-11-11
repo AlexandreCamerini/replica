@@ -57,6 +57,8 @@ export const CARIMBO_CONGRESSO: Record<"camara" | "senado", Record<ConjuntoPesso
 /** Todas as famílias que o leitor consulta (uma consulta só em dataset_stamps). */
 export const FAMILIAS_CARIMBO = [...new Set(Object.values(CARIMBO_CONGRESSO).flatMap((m) => Object.values(m).filter((x): x is string => !!x)))].sort();
 
+/** conjuntos que só existem no exercício do cargo */
+const EXERCICIO: ReadonlySet<ConjuntoPessoa> = new Set(["presenca", "votos", "gastos", "equipe", "comissoes"]);
 const EXECUTIVO: ReadonlySet<OfficeSlug> = new Set(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
 /** chave de data_coverage de cada conjunto da casa legislativa (só esses quatro existem em data_coverage por lugar) */
 const CHAVE_COBERTURA: Partial<Record<ConjuntoPessoa, string>> = { presenca: "presenca", votos: "votos", propostas: "propostas", gastos: "gastos_gabinete" };
@@ -81,7 +83,15 @@ const MOTIVO = {
   semAssembleia: "Ainda não conferimos o que a Assembleia publica.",
   semLinha: "Ainda não conferimos se a casa publica este dado.",
   semTse: "As candidaturas do TSE ainda não foram carregadas.",
-  saplFora: "A Câmara Municipal é lida pelo SAPL, mas esse dado do SAPL ainda não entra nesta página.",
+  saplFora: "Lido no SAPL da Câmara Municipal; o dado do SAPL ainda não entra nesta página.",
+  saplAssembleia: "Lido no SAPL da Assembleia; o dado do SAPL ainda não entra nesta página.",
+  foraExercicio: {
+    licenciado: "Está licenciado: esta leitura cobre o exercício do cargo.",
+    afastado: "Está afastado: esta leitura cobre o exercício do cargo.",
+    encerrado: "O mandato terminou: esta leitura cobre o exercício do cargo.",
+    renunciou: "Renunciou ao mandato: esta leitura cobre o exercício do cargo.",
+    cassado: "O mandato foi cassado: esta leitura cobre o exercício do cargo.",
+  } as Partial<Record<MandateStatus, string>>,
 } as const;
 
 const DE_COBERTURA: Record<Exclude<CoverageStatus, "no_site">, EstadoCobertura> = {
@@ -122,6 +132,8 @@ function umConjunto(c: ConjuntoPessoa, e: EntradaCobertura): CoberturaConjunto {
   const { office } = e;
   if (!office) return item(c, "nao_carregado", MOTIVO.semMandato);
   if (e.status === "eleito_aguardando_posse") return item(c, "fora_do_mandato", MOTIVO.posse);
+  // fora do exercício, a leitura do cargo (presença, votos, gastos, equipe, comissões) não sustenta "não há"
+  if (e.status && e.status !== "em_exercicio" && EXERCICIO.has(c)) return item(c, "fora_do_mandato", MOTIVO.foraExercicio[e.status] ?? "O mandato não está em exercício: esta leitura cobre o exercício do cargo.");
   if (EXECUTIVO.has(office)) {
     const m = MOTIVO.executivo[c];
     return m ? item(c, "nao_se_aplica", m) : item(c, "nao_carregado", MOTIVO.naoLemosExecutivo);
@@ -150,11 +162,14 @@ function umConjunto(c: ConjuntoPessoa, e: EntradaCobertura): CoberturaConjunto {
     const it = a?.items.find((x) => x.dataset === chave);
     if (!a || !it) return item(c, "nao_conferido", MOTIVO.semAssembleia, e.casa ? { nome: e.casa, url: null } : null);
     if (it.status === "no_site" && it.refreshedAt && a.source) return lido(c, { nome: a.source.name, url: a.source.url, em: it.refreshedAt });
+    // Assembleia lida pelo SAPL (carimbo sapl-ale.*): o dado está em sapl_*, fora das leituras desta página
+    if (it.refreshedAt && it.stampDataset?.startsWith("sapl-ale.") && a.source)
+      return item(c, "carregado_fora_da_pagina", MOTIVO.saplAssembleia, { nome: a.source.name, url: a.source.url });
     if (it.status === "no_site") return item(c, "nao_carregado", it.reason || MOTIVO.semCarimbo, { nome: a.houseName, url: it.evidenceUrl });
     return item(c, DE_COBERTURA[it.status], it.reason, { nome: a.houseName, url: it.evidenceUrl });
   }
   // vereador casado no SAPL: o dado está nas tabelas do SAPL, que presença, votos e propostas desta leitura ainda não
   // usam; dizer "lido" faria lista vazia virar "não há". Gastos vêm da cobertura do município.
-  if (office === "vereador" && e.sapl && c !== "gastos") return item(c, "nao_carregado", MOTIVO.saplFora, { nome: e.sapl.nome, url: e.sapl.url });
+  if (office === "vereador" && e.sapl && c !== "gastos") return item(c, "carregado_fora_da_pagina", MOTIVO.saplFora, { nome: e.sapl.nome, url: e.sapl.url });
   return deLinha(c, e.coberturaLugar.find((x) => x.dataset === chave), null, e.casa);
 }

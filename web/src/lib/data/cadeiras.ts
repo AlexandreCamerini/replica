@@ -29,6 +29,8 @@ export function cadeirasDaUf(casa: Body, uf: string): number | null {
 export const PORUF_MOTIVO = {
   secreta: "Votação secreta: a fonte não publica o voto de cada pessoa, então não há placar por estado.",
   semVotos: "A fonte não publicou o voto de cada pessoa nesta votação, então não há placar por estado.",
+  /** sem flag da fonte: o banco só sabe que não há voto individual carregado, não por quê */
+  semLinhas: "Não há voto individual carregado para esta votação, então não há placar por estado.",
 } as const;
 
 const zero = (): Record<VoteValue, number> => ({ sim: 0, nao: 0, abstencao: 0, obstrucao: 0, art17: 0, nao_votou: 0 });
@@ -40,7 +42,8 @@ const zero = (): Record<VoteValue, number> => ({ sim: 0, nao: 0, abstencao: 0, o
  */
 export function placarPorUf(ev: { body: Body; isSecret?: boolean; openNoVotes?: boolean }, votos: { uf: string | null; value: VoteValue }[]): PlacarPorUf {
   if (ev.isSecret) return { kind: "lacuna", motivo: PORUF_MOTIVO.secreta };
-  if (ev.openNoVotes || votos.length === 0) return { kind: "lacuna", motivo: PORUF_MOTIVO.semVotos };
+  if (ev.openNoVotes) return { kind: "lacuna", motivo: PORUF_MOTIVO.semVotos };
+  if (votos.length === 0) return { kind: "lacuna", motivo: PORUF_MOTIVO.semLinhas };
   const by = new Map<string, PlacarUf>();
   for (const uf of Object.keys(CADEIRAS_CAMARA).sort()) by.set(uf, { uf, cadeiras: cadeirasDaUf(ev.body, uf)!, contagem: zero(), registros: 0 });
   let semUf = 0;

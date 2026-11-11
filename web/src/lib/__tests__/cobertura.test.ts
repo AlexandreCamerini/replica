@@ -54,6 +54,23 @@ test("Executivo: plenário, cota, comissões e emendas não se aplicam; patrimô
   assert.equal(estado(cs, "patrimonio"), "lido");
 });
 
+test("fora do exercício (licenciado, encerrado): presença, votos, gastos, equipe e comissões não viram 'não há'", () => {
+  for (const status of ["licenciado", "encerrado", "afastado"] as const) {
+    const cs = coberturaDe({ ...base, office: "deputado_federal", status, faltaFederal: [], carimbos: todos });
+    for (const c of ["presenca", "votos", "gastos", "equipe", "comissoes"]) assert.equal(estado(cs, c), "fora_do_mandato", `${status} ${c}`);
+    assert.equal(estado(cs, "propostas"), "lido");
+  }
+});
+
+test("Assembleia lida pelo SAPL: carregado, fora desta página (nunca 'não carregamos' ao lado de 'lida do SAPL')", () => {
+  const asm: AssemblyInfo = {
+    uf: "RO", houseName: "Assembleia Legislativa de Rondônia", read: true, source: { name: "SAPL da Assembleia Legislativa", url: "https://sapl.al.ro.leg.br" },
+    items: [{ dataset: "presenca", label: "", status: "carregando", reason: "lida do SAPL", evidenceUrl: null, checkedOn: null, refreshedAt: "2026-11-09T09:29:45Z", stampDataset: "sapl-ale.presenca" }],
+  };
+  const cs = coberturaDe({ ...base, office: "deputado_estadual", status: "em_exercicio", assembleia: asm });
+  assert.equal(estado(cs, "presenca"), "carregado_fora_da_pagina");
+});
+
 test("aguardando posse: fora do mandato (patrimônio continua lido)", () => {
   const cs = coberturaDe({ ...base, office: "deputado_federal", status: "eleito_aguardando_posse", carimbos: todos });
   assert.equal(estado(cs, "presenca"), "fora_do_mandato");
@@ -97,7 +114,7 @@ test("Assembleia e Câmara Municipal: data_coverage vira estado; `no_site` sem c
   assert.equal(estado(ver, "propostas"), "nao_conferido"); // sem linha
   // SAPL casado: o dado está nas tabelas do SAPL, fora das leituras da página; não vira "lido" (lista vazia não é "não há")
   const sapl = coberturaDe({ ...base, office: "vereador", status: "em_exercicio", sapl: k("SAPL"), coberturaLugar: [] });
-  assert.equal(estado(sapl, "propostas"), "nao_carregado");
+  assert.equal(estado(sapl, "propostas"), "carregado_fora_da_pagina");
   assert.equal(sapl.find((x) => x.conjunto === "propostas")!.fonte?.nome, "SAPL");
   assert.equal(estado(sapl, "gastos"), "nao_conferido");
 });
@@ -110,6 +127,7 @@ test("os casos acima emitem todos os estados do contrato", () => {
     { ...base, office: "prefeito", status: "em_exercicio" },
     { ...base, office: "deputado_federal", status: "eleito_aguardando_posse" },
     { ...base, office: "vereador", status: "em_exercicio", coberturaLugar: [{ dataset: "votos", status: "so_portal", reason: "x", evidenceUrl: null }] },
+    { ...base, office: "vereador", status: "em_exercicio", sapl: k("SAPL") },
   ];
   for (const e of casos) for (const x of coberturaDe(e)) vistos.add(x.estado);
   assert.deepEqual([...vistos].sort(), [...ESTADOS_COBERTURA].sort());

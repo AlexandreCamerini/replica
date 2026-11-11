@@ -1109,6 +1109,8 @@ test.describe("cobertura por pessoa", () => {
     { slug: "carlos-machado-sp", quem: "governador (Executivo)", estados: ["nao_se_aplica"] },
     { slug: "alvaro-cardoso-rj", quem: "eleito aguardando posse", estados: ["fora_do_mandato"] },
     { slug: "alvaro-coutinho-sp", quem: "vereador", estados: ["sem_fonte", "fonte_sem_adaptador"] },
+    // vereador da capital paulista: a demo marca a câmara como lida pelo SAPL (DEMO_SAPL_IBGE)
+    { slug: "alvaro-teixeira-sp-2", quem: "vereador com câmara lida pelo SAPL", estados: ["carregado_fora_da_pagina"] },
   ];
   for (const c of CASOS)
     test(`Pessoa: ${c.quem} mostra ${c.estados.join(", ")} com frase e motivo, nunca zero`, async ({ page }) => {
@@ -1134,7 +1136,7 @@ test.describe("cobertura por pessoa", () => {
         else expect(t, e).toBe(frases.get(e));
       }
     }
-    expect([...frases.keys()].sort()).toEqual(["fonte_sem_adaptador", "fora_do_mandato", "nao_carregado", "nao_conferido", "nao_se_aplica", "sem_fonte"]);
+    expect([...frases.keys()].sort()).toEqual(["carregado_fora_da_pagina", "fonte_sem_adaptador", "fora_do_mandato", "nao_carregado", "nao_conferido", "nao_se_aplica", "sem_fonte"]);
     expect(new Set(frases.values()).size, "uma frase por estado").toBe(frases.size);
   });
 

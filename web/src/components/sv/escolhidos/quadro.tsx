@@ -86,7 +86,7 @@ function Presenca({ p }: { p: Escolhido }) {
   const g = p.presenca;
   const q = "Foi trabalhar?";
   const fonte = fonteCob(p.casa, "presença", p.cobertura?.presenca);
-  if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.presenca} oQue="presença em sessão de votação" motivo={p.posse} falhou={p.falhou.presenca} />;
+  if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.presenca} oQue={`presença em sessão de votação em ${p.ano}`} motivo={p.posse} falhou={p.falhou.presenca} />;
   const faltas = g.absent + g.justified;
   return (
     <Linha id={`${p.slug}-q1`} pergunta={q} fonte={fonte}>

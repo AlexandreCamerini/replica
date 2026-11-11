@@ -806,8 +806,9 @@ export const pgSource: DataSource = {
     const ufsAsm = [...new Set(mands.filter((m) => m.office === "deputado_estadual" || m.office === "deputado_distrital").map((m) => String(m.uf ?? "")).filter(Boolean))];
     const [cov, asms] = await Promise.all([
       lugares.length ? sql`select place_id, dataset, status, reason, evidence_url from data_coverage where place_id = any(${lugares}::uuid[])` : Promise.resolve([] as Row[]),
-      // Assembleia: uma leitura por UF distinta (no máximo 27), não por pessoa; falha vira "não conferido", não exceção
-      Promise.all(ufsAsm.map(async (uf) => [uf, await pgSource.getAssembly(uf).catch(() => null)] as const)),
+      // Assembleia: uma leitura por UF distinta (no máximo 27), não por pessoa
+      // falha de leitura lança (o chamador tem o .catch e não afirma estado), em vez de virar "não conferido" no cache
+      Promise.all(ufsAsm.map(async (uf) => [uf, await pgSource.getAssembly(uf)] as const)),
     ]);
     const asmOf = new Map(asms);
     const carimbo: Record<string, CarimboFonte | null> = Object.fromEntries(

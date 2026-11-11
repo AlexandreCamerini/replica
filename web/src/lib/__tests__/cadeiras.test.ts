@@ -52,5 +52,6 @@ test("placar por UF: soma das UFs mais `semUf` fecha com os registros; ordem alf
 test("placar por UF: sem voto individual é lacuna com motivo, nunca tabela de zeros", () => {
   assert.deepEqual(placarPorUf({ body: "senado", isSecret: true }, [{ uf: "SP", value: "sim" }]), { kind: "lacuna", motivo: PORUF_MOTIVO.secreta });
   assert.deepEqual(placarPorUf({ body: "camara", openNoVotes: true }, []), { kind: "lacuna", motivo: PORUF_MOTIVO.semVotos });
-  assert.deepEqual(placarPorUf({ body: "camara" }, []), { kind: "lacuna", motivo: PORUF_MOTIVO.semVotos });
+  // sem flag da fonte, o motivo é neutro: o banco não sabe por que não há voto individual
+  assert.deepEqual(placarPorUf({ body: "camara" }, []), { kind: "lacuna", motivo: PORUF_MOTIVO.semLinhas });
 });

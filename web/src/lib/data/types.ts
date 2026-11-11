@@ -520,9 +520,12 @@ export type ConjuntoPessoa = (typeof CONJUNTOS_PESSOA)[number];
  *   `missing_datasets` do derive.stats, ou conjunto que o ETL não lê para este cargo).
  * - `nao_conferido`: ainda não conferimos se a fonte publica (data_coverage `desconhecido` ou sem linha).
  * - `nao_se_aplica`: o cargo não tem esse conjunto (Executivo não vota em plenário nem tem cota de gabinete).
- * - `fora_do_mandato`: eleito que ainda não tomou posse: não há presença, votos nem gastos no cargo.
+ * - `carregado_fora_da_pagina`: o dado foi carregado (há carga: SAPL da câmara ou da Assembleia), mas as leituras desta
+ *   página (presença, votos, propostas) ainda não o usam. Não é "não há" nem "não carregamos".
+ * - `fora_do_mandato`: o mandato principal não está em exercício (aguardando posse, licenciado, afastado, encerrado…):
+ *   a leitura de presença, votos, gastos, equipe e comissões cobre o exercício do cargo.
  */
-export const ESTADOS_COBERTURA = ["lido", "sem_fonte", "fonte_sem_adaptador", "nao_carregado", "nao_conferido", "nao_se_aplica", "fora_do_mandato"] as const;
+export const ESTADOS_COBERTURA = ["lido", "sem_fonte", "fonte_sem_adaptador", "nao_carregado", "carregado_fora_da_pagina", "nao_conferido", "nao_se_aplica", "fora_do_mandato"] as const;
 export type EstadoCobertura = (typeof ESTADOS_COBERTURA)[number];
 export type CoberturaConjunto = {
   conjunto: ConjuntoPessoa;

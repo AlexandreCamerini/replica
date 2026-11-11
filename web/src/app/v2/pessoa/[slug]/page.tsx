@@ -287,7 +287,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : gradeR && !gradeR.ok ? (
           <Falha />
         ) : (
-          <SemCobertura cob={cob("presenca")} oQue="presença em sessão de votação" status={stPres.status} motivo={!legis ? MOTIVO_PLENARIO : stPres.motivo} />
+          <SemCobertura cob={cob("presenca")} oQue={`presença em sessão de votação em ${hoje.ano - 1} e ${hoje.ano}`} status={stPres.status} motivo={!legis ? MOTIVO_PLENARIO : stPres.motivo} />
         )}
       </Linha>
 
@@ -316,7 +316,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : gastosR && !gastosR.ok ? (
           <Falha />
         ) : (
-          <SemCobertura cob={cob("gastos")} oQue="gasto do gabinete" status={stGastos.status} motivo={!legis ? MOTIVO_COTA : (stGastos.motivo ?? (body === "senado" ? "O Senado tem verba própria, com outra fonte." : null))} />
+          <SemCobertura cob={cob("gastos")} oQue={`gasto do gabinete em ${hoje.ano - 1} e ${hoje.ano}`} status={stGastos.status} motivo={!legis ? MOTIVO_COTA : (stGastos.motivo ?? (body === "senado" ? "O Senado tem verba própria, com outra fonte." : null))} />
         )}
       </Linha>
 
