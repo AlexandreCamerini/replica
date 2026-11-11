@@ -41,6 +41,10 @@ STATUS = {
     "Suplência": "encerrado", "Fim de Mandato": "encerrado", "Vacância": "encerrado", "Falecimento": "encerrado",
     "Cassado": "cassado", "Renúncia": "renunciou",
 }
+OPEN = ("em_exercicio", "licenciado", "afastado")  # mandato aberto: ocupa (ou guarda) a cadeira
+# teto do BUG-050: numa rodada normal sai um suplente ou outro (nov/2026: 26 abertos, 1 a fechar); acima disso é a fonte que
+# mudou, e nenhum é encerrado
+MAX_CLOSE = 5
 VOTE = {"Sim": "sim", "Não": "nao", "Abstenção": "abstencao", "Obstrução": "obstrucao", "Artigo 17": "art17", "Branco": "nao_votou"}
 ORIENT = {"Sim": "sim", "Não": "nao", "Liberado": "liberado", "Obstrução": "obstrucao", "Abstenção": "abstencao"}
 ACTOR_KIND = {"governo": "governo", "maioria": "maioria", "minoria": "minoria", "oposição": "oposicao", "oposicao": "oposicao"}
@@ -218,6 +222,7 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
         with run(conn, "camara.deputados", "camara") as r:  # detalhes mudam sem a lista mudar: sempre roda
             start, end = LEGISLATURES[leg]
             mandates, memberships = [], []
+            gone: dict[str, tuple[date | None, str]] = {}  # suplente listado que deixou o exercício: pid -> (data da Câmara, status)
             # mandatos já conhecidos do cargo (TSE ou run anterior): evita sobreposição e reconhece titular eleito
             existing: dict[tuple[str, str], list[tuple[date, date]]] = defaultdict(list)
             for row in conn.execute("select person_id, place_id, started_on, ends_on from mandates where office_id = %s", (ctx.office,)):
@@ -245,14 +250,24 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
                 if titular:
                     started = start
                 else:
-                    if status not in ("em_exercicio", "licenciado", "afastado"):
-                        continue  # suplente que não está exercendo: sem mandato próprio
+                    if status not in OPEN:
+                        # suplente que não está exercendo: sem mandato novo. Se um run anterior abriu o mandato de suplente,
+                        # ele é encerrado depois do upsert (BUG-050: o titular voltou e o suplente ficava em exercício para sempre)
+                        gone[pid] = (parse_date(st.get("data")), status)
+                        continue
                     started = max(parse_date(st.get("data")) or start, start)
-                    # já existe mandato que cobre a data (run anterior): reaproveita a chave para não sobrepor
-                    for s, e in known:
-                        if s <= started < e:
-                            started = s
+                    # mandato conhecido (run anterior) que cruza [started, end): reaproveita a chave do aberto (fim = fim da
+                    # legislatura) para não sobrepor; um já encerrado guarda o histórico e o novo começa no fim dele. Cobre a
+                    # volta com data antiga ou sem data (started = início da legislatura), que antes sobreporia o encerrado
+                    while True:
+                        over = [(s, e) for s, e in known if s < end and e > started]
+                        opened = [s for s, e in over if e >= end]
+                        if opened:
+                            started = min(opened)
                             break
+                        if not over:
+                            break
+                        started = max(e for _, e in over)
                 mandates.append((pid, ctx.office, place, ctx.body, party, "titular" if titular else "suplente_em_exercicio", status, started, end, f"TSE {start.year - 1}", "camara"))
                 if party:
                     # observação de partido (D05): mesma chave do /historico, que o job de presença também grava
@@ -268,6 +283,17 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
             # partido: observação datada; party_memberships é reconstruída no derive.stats (linha do tempo de todas as fontes)
             upsert(conn, "party_observations", ["person_id", "party_id", "observed_on", "source", "source_key"], memberships, ["source", "source_key"], update=["person_id", "party_id", "observed_on"])
             ctx.people.flush()
+            listed = {str(d0["id"]) for d0 in listing}
+            # savepoint: se o encerramento falhar, o upsert acima fica e o run fecha como parcial em vez de cair inteiro.
+            # Encerrados não entram em rows_upserted (contagem do upsert); vão na nota própria
+            notes_before = list(r.notes)
+            try:
+                with conn.transaction():
+                    close_suplentes(conn, ctx, r, gone, listed, start, end)
+            except Exception as e:  # noqa: BLE001
+                log.exception("câmara: encerramento de suplentes (BUG-050) falhou")
+                r.notes = notes_before  # o savepoint desfez os encerramentos: a nota deles não vale
+                r.partial(f"encerramento de suplentes (BUG-050) falhou, nenhum encerrado: {type(e).__name__}: {e}"[:500])
             if not limit:
                 # eleito pelo TSE que a Câmara não lista na legislatura: não tomou posse (renúncia antes da posse, outro cargo)
                 cur = conn.execute(
@@ -282,6 +308,76 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
             r.notes.append(f"checksum da lista: {checksum[:64]}…")
     except SkipUnchanged:
         return
+
+
+def _today() -> date:
+    """Hoje do encerramento de suplente; função própria para o teste congelar a data (a legislatura 57 acaba em 2027-02-01)."""
+    return date.today()
+
+
+def close_suplentes(conn: psycopg.Connection, ctx: _Ctx, r: Run, gone: dict[str, tuple[date | None, str]], listed: set[str],
+                    start: date, end: date) -> int:
+    """BUG-050: encerra o mandato `suplente_em_exercicio` aberto de quem a Câmara lista na legislatura com situação fora do
+    exercício (`gone`, ex.: "Suplência"). Nunca apaga linha. Fim = `ultimoStatus.data`, com teto em hoje (check `mandate_order`).
+
+    Não encerra (só anota no run):
+    - suplente aberto ausente da listagem: a listagem da legislatura traz todo mundo que passou por ela, então ausência é
+      anomalia da fonte (paginação curta, outra legislatura), não saída; encerrar gravaria uma data fabricada;
+    - data da fonte anterior ao início do mandato (`ultimoStatus.data` também muda com troca de partido): seria um mandato inventado;
+    - mandato iniciado hoje (fim > início não cabe até hoje);
+    - tudo, se a rodada encerraria mais de MAX_CLOSE de uma vez (teto de segurança: conferir a fonte).
+    Sem data na fonte: encerra com a data de hoje e anota que a data não veio da fonte."""
+    today = _today()
+    rows = conn.execute(
+        """select m.id, m.person_id, m.started_on, m.ends_on, p.slug,
+                  array(select e.external_id from person_external_ids e join sources s on s.id = e.source_id
+                        where e.person_id = m.person_id and s.slug = 'camara') as camara_ids
+           from mandates m join people p on p.id = m.person_id
+           where m.office_id = %s and m.role = 'suplente_em_exercicio' and m.status = any(%s)
+             and m.started_on >= %s and m.started_on < %s""",
+        (ctx.office, list(OPEN), start, end),
+    ).fetchall()
+    # uma nota por motivo (MAX_NOTES): motivo -> "slug [id Câmara]"
+    why: dict[str, list[str]] = defaultdict(list)
+    plan: list[tuple[Any, str, date, str]] = []  # (mandate id, status, fim, rótulo)
+    for row in sorted(rows, key=lambda x: x["slug"]):
+        pid = str(row["person_id"])
+        tag = f"{row['slug']} [camara {','.join(sorted(row['camara_ids'])) or '?'}]"
+        if pid not in gone:
+            if row["camara_ids"] and not set(row["camara_ids"]) & listed:
+                why["suplente(s) com mandato aberto ausente(s) da listagem da legislatura: não encerrado(s)"].append(tag)
+            continue
+        data, status = gone[pid]
+        if data is None:
+            data = today
+            why["suplente(s) fora do exercício sem ultimoStatus.data na Câmara: fim = data de hoje, que NÃO veio da fonte"].append(tag)
+        elif data < row["started_on"]:
+            why["suplente(s) fora do exercício com data da fonte anterior ao início do mandato: não encerrado(s)"].append(
+                f"{tag} (fonte {data}, início {row['started_on']})")
+            continue
+        fim = min(data, today, row["ends_on"])
+        if fim <= row["started_on"]:
+            why["suplente(s) fora do exercício com mandato iniciado hoje: não encerrado(s)"].append(tag)
+            continue
+        plan.append((row["id"], status, fim, f"{tag} ({status}, {fim})"))
+    if len(plan) > MAX_CLOSE:
+        msg = f"{len(plan)} suplentes a encerrar acima do teto de {MAX_CLOSE}: nenhum encerrado; conferir a fonte: " + ", ".join(p[3] for p in plan)
+        log.warning("câmara: %s", msg)
+        r.partial(msg[:2000])
+        plan = []
+    for mid, status, fim, _ in plan:
+        conn.execute(
+            "update mandates set status = %s, ends_on = %s, status_source = 'camara', updated_at = now() where id = %s",
+            (status, fim, mid),
+        )
+    if plan:
+        # quem foi encerrado vai para o log do Actions e para o topo das notas, fora do limite MAX_NOTES de r.note
+        msg = f"{len(plan)} suplente(s) fora do exercício encerrado(s) (fora de rows_upserted): {', '.join(p[3] for p in plan)}"
+        log.warning("câmara: %s", msg)
+        r.notes.insert(0, msg)
+    for k, v in why.items():
+        r.note(f"{len(v)} {k}: {', '.join(v)}")
+    return len(plan)
 
 
 def run_camara_noturna(conn: psycopg.Connection, *, days: int = 3, force: bool = False) -> None:
