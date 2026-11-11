@@ -12,7 +12,9 @@ on:
   push:
     branches: [main]
 # Na main nenhum run é cancelado: cada commit mergeado termina o próprio gate. Em PR, o push mais novo cancela o anterior.
-concurrency: { group: "ci-${{ github.ref }}", cancel-in-progress: ${{ github.ref != 'refs/heads/main' }} }
+concurrency:
+  group: "ci-${{ github.ref }}"
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions: { contents: read }
 
 jobs:
