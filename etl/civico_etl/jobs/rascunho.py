@@ -29,7 +29,7 @@ import httpx
 import psycopg
 from pypdf import PdfReader
 
-from .. import drafting
+from .. import drafting, verification
 from ..db import run
 from ..http import fetch, fetch_json
 
@@ -83,6 +83,7 @@ class PgStore:
     def __init__(self, conn: psycopg.Connection):
         self.conn = conn
         self._wide: bool | None = None
+        self._verif: bool | None = None
 
     def wide(self) -> bool:
         """A migração 0090 (colunas de uso/custo) já foi aplicada? Sem ela o rascunho grava só o que gravava antes."""
@@ -90,11 +91,24 @@ class PgStore:
             self._wide = bool(self.conn.execute("select 1 from information_schema.columns where table_name = 'answer_drafts' and column_name = 'cost_usd'").fetchone())
         return self._wide
 
+    def verif(self) -> bool:
+        """A migração 0130 (verificação agêntica) já foi aplicada?"""
+        if self._verif is None:
+            self._verif = bool(self.conn.execute("select 1 from information_schema.columns where table_name = 'answer_drafts' and column_name = 'verifier_version'").fetchone())
+        return self._verif
+
     def seen(self, m: dict[str, Any], sha: str, prompt_version: int | None = None) -> bool:
+        # D293: proposta barrada pela verificação conta como vista. Sem isso o job diário redigiria de novo o mesmo PDF até
+        # alguma versão passar, e uma taxa pequena de erro por tentativa vira certeza. Só destrava com PDF novo, prompt de
+        # rascunho novo ou verificadores novos (verifier_version diferente do atual).
+        barred = " or (status = 'barrado' and verifier_version = %s)" if self.verif() else ""
+        args: list[Any] = [m["body_id"], m["prop_type"], m["prop_number"], m["prop_year"], sha, prompt_version or drafting.PROMPT_VERSION]
+        if barred:
+            args.append(verification.VERIFIER_VERSION)
         return bool(self.conn.execute(
-            """select 1 from answer_drafts where body_id = %s and prop_type = %s and prop_number = %s and prop_year = %s
-               and source_sha256 = %s and prompt_version = %s and status in ('rascunho', 'publicado')""",
-            (m["body_id"], m["prop_type"], m["prop_number"], m["prop_year"], sha, prompt_version or drafting.PROMPT_VERSION),
+            f"""select 1 from answer_drafts where body_id = %s and prop_type = %s and prop_number = %s and prop_year = %s
+               and source_sha256 = %s and prompt_version = %s and (status in ('rascunho', 'publicado'){barred})""",
+            args,
         ).fetchone())
 
     def save(self, p: Prep, answers: dict[str, Any], checks: dict[str, Any], served_by: str, u: drafting.Usage, cost: float | None) -> None:

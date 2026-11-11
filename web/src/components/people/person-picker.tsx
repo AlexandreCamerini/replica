@@ -4,6 +4,7 @@ import { Loader2, Search, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ComboBox, Input, Label, ListBox, ListBoxItem, Popover, Text } from "react-aria-components";
+import { COMPARE_MIN } from "@/lib/compare";
 import { OpenWhenReady } from "@/components/ui/search-combobox";
 
 type Row = { slug: string; name: string; office: string; place: string; party: string };
@@ -63,7 +64,7 @@ export function PersonPicker({ current, max }: { current: string[]; max: number 
         {status === "loading" && <Loader2 aria-label="Buscando" className="absolute top-1/2 right-4 size-5 -translate-y-1/2 animate-spin text-muted" />}
       </div>
       <Text slot="description" className="text-xs text-muted">
-        {full ? "Tire alguém para adicionar outra pessoa." : `De 2 a ${max} pessoas. Cargos diferentes também valem: o que não se aplica aparece como “—”.`}
+        {full ? "Tire alguém para adicionar outra pessoa." : `De ${COMPARE_MIN} a ${max} pessoas. Cargos diferentes também valem: o que não se aplica aparece como “—”.`}
       </Text>
       <Popover offset={6} className="z-50 w-(--trigger-width) overflow-auto rounded-md border border-border bg-surface p-1 shadow-pop">
         <ListBox

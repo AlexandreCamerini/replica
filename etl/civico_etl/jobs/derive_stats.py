@@ -173,6 +173,16 @@ on conflict (person_id, period) do update set
   votes_registered = excluded.votes_registered, party_aligned = excluded.party_aligned, party_alignment_total = excluded.party_alignment_total,
   expenses_cents = excluded.expenses_cents, speeches = excluded.speeches, committees = excluded.committees, top_topics = excluded.top_topics, missing_datasets = excluded.missing_datasets,
   computed_at = excluded.computed_at, updated_at = now()
+where (person_period_stats.presence_present, person_period_stats.presence_total, person_period_stats.proposals_principal,
+       person_period_stats.proposals_cosigned, person_period_stats.proposals_law_eligible, person_period_stats.laws_from_proposals,
+       person_period_stats.votes_registered, person_period_stats.party_aligned, person_period_stats.party_alignment_total,
+       person_period_stats.expenses_cents, person_period_stats.speeches, person_period_stats.committees,
+       person_period_stats.top_topics, person_period_stats.missing_datasets)
+  is distinct from
+      (excluded.presence_present, excluded.presence_total, excluded.proposals_principal, excluded.proposals_cosigned,
+       excluded.proposals_law_eligible, excluded.laws_from_proposals, excluded.votes_registered, excluded.party_aligned,
+       excluded.party_alignment_total, excluded.expenses_cents, excluded.speeches, excluded.committees,
+       excluded.top_topics, excluded.missing_datasets)
 """
 
 
@@ -482,9 +492,14 @@ def run_derive(conn: psycopg.Connection) -> None:
         log.info("executivo fora do TSE: %d mandato(s) gravado(s)", k)
     # party_memberships é derivada: reconstrói inteira na mesma transação (o app lê person_current_party)
     cur.execute(f"create temp table tmp_pm on commit drop as {PARTY_SQL}")
-    cur.execute("delete from party_memberships")
-    cur.execute("insert into party_memberships (person_id, party_id, from_on, to_on) select person_id, party_id, from_on, to_on from tmp_pm")
-    log.info("partidos: %d filiações na linha do tempo", cur.rowcount)
+    # Só troca o que mudou: apagar e reinserir tudo gerava 17 milhões de inserts/deletes para 139 mil linhas e inchava os índices.
+    cur.execute("""delete from party_memberships pm where not exists (select 1 from tmp_pm t
+                   where t.person_id = pm.person_id and t.party_id = pm.party_id and t.from_on = pm.from_on and t.to_on is not distinct from pm.to_on)""")
+    gone = cur.rowcount
+    cur.execute("""insert into party_memberships (person_id, party_id, from_on, to_on) select t.person_id, t.party_id, t.from_on, t.to_on from tmp_pm t
+                   where not exists (select 1 from party_memberships pm where pm.person_id = t.person_id and pm.party_id = t.party_id
+                   and pm.from_on = t.from_on and pm.to_on is not distinct from t.to_on)""")
+    log.info("partidos: %d filiações na linha do tempo (%d novas, %d removidas)", cur.execute("select count(*) from party_memberships").fetchone()[0], cur.rowcount, gone)
     cur.execute(STATS_SQL)
     n = cur.rowcount
     cur.execute(COVERAGE_SQL)

@@ -6,12 +6,13 @@ import { PersonPicker } from "@/components/people/person-picker";
 import { LinkChip, SelectField } from "@/components/profile/ui";
 import { NotPublished, SourceFooter } from "@/components/ui/data";
 import { data, type Person } from "@/lib/data";
+import { COMPARE_MAX, COMPARE_RANGE } from "@/lib/compare";
 import { age, count, date, money } from "@/lib/format";
 import { campaignTotals, joinYears } from "@/lib/campaign";
 
-export const metadata: Metadata = { title: "Comparar", description: "De 2 a 5 pessoas lado a lado, com os mesmos dados oficiais." };
+export const metadata: Metadata = { title: "Comparar", description: `${COMPARE_RANGE} lado a lado, com os mesmos dados oficiais.` };
 
-const MAX = 5;
+const MAX = COMPARE_MAX;
 const SLUG = /^[a-z0-9-]{1,120}$/;
 type SP = Promise<{ p?: string; periodo?: string; par?: string; tema?: string; nd?: string }>;
 
@@ -235,7 +236,7 @@ async function CompareTable({ people, periodoRaw, sp }: { people: Person[]; peri
             <a href={l.href} className="underline underline-offset-2 hover:text-fg">
               {l.source}
             </a>{" "}
-            · atualizado em <time dateTime={l.updatedAt}>{new Date(l.updatedAt).toLocaleDateString("pt-BR")}</time>
+            · atualizado em <time dateTime={l.updatedAt}>{date(l.updatedAt)}</time>
           </li>
         ))}
       </ul>

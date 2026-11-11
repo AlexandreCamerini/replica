@@ -4,6 +4,7 @@ import { DemoBanner } from "@/components/shell/bars";
 import { CompareProvider } from "@/components/shell/compare";
 import { AppFooter } from "@/components/shell/footer";
 import { AppHeader } from "@/components/shell/header";
+import { LegacyOnly } from "@/components/sv/legacy-only";
 import { data } from "@/lib/data";
 
 // Design v1 (design/v1/DIRECAO.md): Newsreader para títulos e frases, IBM Plex Sans no corpo, IBM Plex Mono em rótulos,
@@ -54,12 +55,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           Pular para o conteúdo
         </a>
         <CompareProvider>
-          <DemoBanner />
-          <AppHeader readAt={readAt} />
+          <LegacyOnly>
+            <DemoBanner />
+            <AppHeader readAt={readAt} />
+          </LegacyOnly>
           <main id="conteudo" tabIndex={-1} className="pb-16 outline-none">
             {children}
           </main>
-          <AppFooter />
+          <LegacyOnly>
+            <AppFooter />
+          </LegacyOnly>
         </CompareProvider>
       </body>
     </html>

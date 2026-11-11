@@ -6,6 +6,7 @@ import { PlaceSearch } from "@/components/people/place-search";
 import { BigNumber, SourceFooter } from "@/components/ui/data";
 import { data } from "@/lib/data";
 import { REGIONS, UF_ROWS } from "@/lib/data/reference";
+import { COMPARE_RANGE } from "@/lib/compare";
 import { count } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Acervo", description: "Quem ocupa cargo eletivo, do vereador ao presidente, com dados oficiais." };
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Acervo", description: "Quem ocupa ca
 const PAGES = [
   { href: "/representantes", label: "Quem representa sua cidade", lead: "Do vereador ao presidente, a partir da sua cidade." },
   { href: "/quem", label: "Quem é quem", lead: "Busca por nome, cargo, partido ou estado." },
-  { href: "/comparar", label: "Comparar", lead: "Duas a quatro pessoas lado a lado." },
+  { href: "/comparar", label: "Comparar", lead: `${COMPARE_RANGE} lado a lado.` },
   { href: "/congresso", label: "Congresso", lead: "Votações do plenário da Câmara e do Senado." },
 ];
 
