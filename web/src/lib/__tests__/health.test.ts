@@ -46,3 +46,9 @@ test("sapl-ale vencida não derruba o vigia (fonte própria, não essencial)", (
   const r = buildHealth([...base(), src("sapl", [["sapl.sp-saopaulo", 3]]), src("sapl-ale", [["sapl-ale.ro", 20 * 24]])], NOW);
   assert.equal(r.ok, true);
 });
+
+test("sapl-ale fresco não mascara sapl.* vencido (prefixo é 'sapl.', não 'sapl')", () => {
+  const r = buildHealth([...base(), src("sapl", [["sapl.sp-saopaulo", 10 * 24]]), src("sapl-ale", [["sapl-ale.ro", 1]])], NOW);
+  assert.equal(r.ok, false);
+  assert.ok(r.essenciaisComProblema.includes("sapl"));
+});
