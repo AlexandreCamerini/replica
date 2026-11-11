@@ -10,6 +10,7 @@ export default defineConfig({
   fullyParallel: true,
   workers: 2, // 3 workers contra um único `next start` passam de 15 s em navegações; flakiness, não bug
   retries: 1,
+  forbidOnly: !!process.env.CI, // um test.only esquecido reprova o CI em vez de rodar um teste só e sair verde
   timeout: 60_000,
   expect: { timeout: 15_000 },
   reporter: [["list"], ["html", { open: "never" }]],
