@@ -669,7 +669,11 @@ test.describe("conteúdo", () => {
           if (re.test(texto)) falhas.push(`texto contém ${nome}`);
           if (re.test(html.replace(/<script[\s\S]*?<\/script>/g, ""))) falhas.push(`HTML contém ${nome}`);
         }
-        await expect(page.locator("footer.sv-rod")).toContainText("Conferido por agentes de IA, não por pessoa");
+        // o rodapé vale em toda página: diz a regra, nunca afirma quem conferiu ESTA página
+        await expect(page.locator("footer.sv-rod")).toContainText("Cada resposta diz quem conferiu e quando. Votos, presença e gastos vêm da fonte oficial, com data.");
+        await expect(page.locator("footer.sv-rod")).not.toContainText(/agentes de IA|por pessoa|não uma pessoa/i);
+        const desc = await page.locator('meta[name="description"]').getAttribute("content");
+        expect(desc ?? "", "description").not.toMatch(/Conferido por agentes|agentes de IA/i);
         // lacuna renderizada como 0 / R$ 0 (placar com contagem real fica de fora: 0 votos é dado, não lacuna)
         const zeros = await page.evaluate(() => {
           const out: string[] = [];
@@ -708,8 +712,10 @@ test.describe("conteúdo", () => {
     // todo campo sem resposta é lacuna nomeada, não frase afirmativa
     await expect(page.locator('[aria-labelledby="sv-d1"] .sv-lac')).toContainText("Aguardando conferência");
     await expect(page.locator('[aria-labelledby="sv-d5"] .sv-lac')).toContainText("Aguardando conferência");
-    // proveniência e verificação
-    await expect(page.locator('[aria-labelledby="sv-d10"]')).toContainText("Agentes de inteligência artificial (IA), não uma pessoa.");
+    // sem resposta publicada, o selo não afirma quem conferiu
+    const selo = page.locator('[aria-labelledby="sv-d10"]');
+    await expect(selo).toContainText("Esta proposta ainda não tem resposta publicada.");
+    await expect(selo).not.toContainText(/agentes de IA|por pessoa|não uma pessoa|Conferido com o texto oficial/i);
   });
 
   test("decisão respondida: os três estados nos campos certos; 'não trata disso' só no nao_diz", async ({ page, context }) => {
@@ -738,12 +744,30 @@ test.describe("conteúdo", () => {
     expect(await main.innerText()).not.toContain("Aguardando conferência");
   });
 
-  test("decisão: sem aparência de revisão humana e sem 'síntese não conferida'", async ({ page, context }) => {
-    await cookiesDoLeitor(context, "leitor");
-    for (const k of [KEY_SEM_RESPOSTA, KEY_RESPONDIDA]) {
-      await abrir(page, `/v2/decisao/${k}`);
+  // Quem conferiu bate com `verifiedBy` da resposta publicada da página, nos três ramos (fake: agentes, pessoa, sem registro).
+  const QUEM: { key: string; por: string; frase: RegExp; nunca: RegExp }[] = [
+    { key: KEY_RESPONDIDA, por: "agentes", frase: /Conferido com o texto oficial por agentes de IA em \d{2}\/\d{2}/, nunca: /revisad[ao] por pessoa|conferid[ao] por (uma )?pessoa/i },
+    { key: "camara-pl-9998-2026", por: "pessoa", frase: /Revisado por pessoa em \d{2}\/\d{2}/, nunca: /agentes de IA|não uma pessoa|não por pessoa/i },
+    { key: "camara-pl-9997-2026", por: "sem registro", frase: /Conferido com o texto oficial em \d{2}\/\d{2}/, nunca: /agentes de IA|por pessoa|não uma pessoa/i },
+  ];
+  for (const q of QUEM)
+    test(`decisão: quem conferiu bate com o dado (${q.por}) na resposta e no selo`, async ({ page, context }) => {
+      await cookiesDoLeitor(context, "leitor");
+      await abrir(page, `/v2/decisao/${q.key}`);
+      await expect(page.locator('[aria-labelledby="sv-d1"] .sv-conf')).toHaveText(q.frase);
+      await expect(page.locator('[aria-labelledby="sv-d10"] .sv-a')).toHaveText(q.frase);
       const t = await page.locator(".sv").innerText();
-      expect(t, k).not.toMatch(/conferid[ao] por uma pessoa|revisad[ao] por pessoa|revis[ãa]o humana|síntese não conferida/i);
+      expect(t, q.key).not.toMatch(q.nunca);
+      expect(t, q.key).not.toMatch(/revis[ãa]o humana|síntese não conferida/i);
+    });
+
+  test("selo de página sem resposta própria diz a regra e não afirma quem conferiu", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    for (const url of ["/v2", "/v2/acompanhando", "/v2/ajustes", "/v2/temas", "/v2/pessoa/helena-siqueira"]) {
+      await abrir(page, url);
+      const selo = page.locator("section.sv-quadro", { has: page.getByRole("heading", { name: "Quem conferiu isso?" }) });
+      await expect(selo, url).toContainText("Cada resposta diz quem conferiu e quando.");
+      await expect(selo, url).not.toContainText(/agentes de IA|por pessoa|não uma pessoa/i);
     }
   });
 

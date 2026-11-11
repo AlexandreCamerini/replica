@@ -392,11 +392,35 @@ export function Placar({ titulo, sim, nao, abs, sem, total }: { titulo: string; 
   );
 }
 
-/** Selo "Quem conferiu isso?": agentes de IA, não uma pessoa; data da leitura; links para o que foi conferido e para apontar erro. */
-export function Selo({ id = "quem-conferiu", numero, lidoEm, className }: { id?: string; numero?: number | string; lidoEm?: string | null; className?: string }) {
+/**
+ * Selo "Quem conferiu isso?". Só diz quem conferiu com a resposta publicada da própria página (`resposta`: `reviewedAt` e
+ * `verifiedBy`), pela mesma frase de `conferidoEm`. Sem `resposta`, diz a regra, que vale sempre; com `resposta: null`
+ * (página de uma proposta ainda sem resposta), diz que ainda não há resposta publicada. Data da leitura das fontes; links.
+ */
+export function Selo({
+  id = "quem-conferiu",
+  numero,
+  lidoEm,
+  resposta,
+  className,
+}: {
+  id?: string;
+  numero?: number | string;
+  lidoEm?: string | null;
+  /** omitido: página sem uma resposta própria; null: proposta sem resposta publicada */
+  resposta?: { em: string; por: VerifiedBy } | null;
+  className?: string;
+}) {
   return (
     <Quadro id={id} variante="fio" numero={numero} pergunta={SELO.pergunta} className={className}>
-      <Resposta tamanho="m">{SELO.resposta}</Resposta>
+      {resposta ? (
+        <Resposta tamanho="m">{conferidoEm(resposta.em, resposta.por)}.</Resposta>
+      ) : resposta === null ? (
+        <Resposta tamanho="m">{SELO.semResposta}</Resposta>
+      ) : (
+        <Resposta tamanho="m">{SELO.regra}</Resposta>
+      )}
+      {resposta !== undefined && <p className="sv-t">{SELO.regra}</p>}
       {lidoEm && <p className="sv-t">Leitura das fontes: {fmtDateTime(lidoEm)}.</p>}
       <p className="sv-selo__l">
         <Link href={SELO_HREF.verConferido}>{SELO.verConferido}</Link>

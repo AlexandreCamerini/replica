@@ -182,8 +182,9 @@ test("v2: cookie sv_sigo fora de ordem é mostrado em ordem alfabética, com a o
 test("v2: a decisão mostra os três estados de cada resposta e diz quem conferiu", async ({ page }) => {
   await page.goto("/v2/decisao/camara-pl-9999-2026");
   await expect(page.locator(".sv h1")).toHaveText("O que estão decidindo que mexe comigo?");
-  // conferida: frase + trecho + conferência por agentes de IA
+  // conferida: frase + trecho + quem conferiu, pelo `verifiedBy` da resposta (aqui, agentes), na resposta e no selo
   await expect(page.locator('[aria-labelledby="sv-d1"]')).toContainText(/Conferido com o texto oficial por agentes de IA em \d{2}\/\d{2}/);
+  await expect(page.locator('[aria-labelledby="sv-d10"]')).toContainText(/Conferido com o texto oficial por agentes de IA em \d{2}\/\d{2}/);
   // não conferida e "o texto não trata disso" são frases diferentes
   await expect(page.getByText("Ainda não conseguimos conferir esta resposta.").first()).toBeVisible();
   await expect(page.getByText("O texto oficial não trata disso.")).toHaveCount(1);
@@ -191,9 +192,9 @@ test("v2: a decisão mostra os três estados de cada resposta e diz quem conferi
   await page.goto("/v2/decisao/camara-pl-79-2020");
   await expect(page.getByText("Aguardando conferência").first()).toBeVisible();
   await expect(page.getByText("O texto oficial não trata disso.")).toHaveCount(0);
-  // a página diz que quem conferiu foram agentes de IA e não promete revisão humana
-  await expect(page.locator('[aria-labelledby="sv-d10"]')).toContainText("Agentes de inteligência artificial (IA), não uma pessoa.");
-  await expect(page.locator(".sv-main")).not.toContainText(/conferid[ao] por uma pessoa|revisad[ao] por pessoa/i);
+  // sem resposta publicada, a página não afirma quem conferiu (nem agentes, nem pessoa)
+  await expect(page.locator('[aria-labelledby="sv-d10"]')).toContainText("Esta proposta ainda não tem resposta publicada.");
+  await expect(page.locator(".sv-main")).not.toContainText(/conferid[ao] por uma pessoa|revisad[ao] por pessoa|por agentes de IA/i);
   // na demonstração, o exemplo vem marcado como exemplo
   await expect(page.getByText("Exemplo ilustrativo").first()).toBeVisible();
   // glossário/trecho: o resumo oficial abre sob demanda

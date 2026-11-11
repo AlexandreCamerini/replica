@@ -471,7 +471,7 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
         )}
       </Quadro>
 
-      <Selo id="sv-d10" numero={9} lidoEm={p.readAt} className="sv-gs" />
+      <Selo id="sv-d10" numero={9} lidoEm={p.readAt} resposta={a ? { em: a.reviewedAt, por: a.verifiedBy } : null} className="sv-gs" />
 
       <Proxima href="/v2/temas" pergunta="O que está em jogo no Congresso?" className="sv-gn" />
     </div>

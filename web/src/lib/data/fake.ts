@@ -45,6 +45,7 @@ import type {
   VotingEventSummary,
   ActivityItem,
   PautaEntry,
+  VerifiedBy,
 } from "./types";
 import { parseProposalKey, uniqueByKey } from "../pauta";
 
@@ -1053,9 +1054,9 @@ export const fakeSource: DataSource = {
   },
   async getPautaProposal(key) {
     if (!parseProposalKey(key)) return null;
-    const entry = demoPauta().find((e) => e.key === key);
+    const entry = [...demoPauta(), ...demoForaDaSemana()].find((e) => e.key === key);
     if (!entry) return null;
-    const answers = entry.key === DEMO_ANSWERED_KEY ? demoAnswers() : null;
+    const answers = entry.key === DEMO_ANSWERED_KEY ? demoAnswers() : entry.key in DEMO_QUEM_CONFERIU ? demoAnswers(DEMO_QUEM_CONFERIU[entry.key]) : null;
     return {
       // como no pg.ts: com "o que propõe" conferido, a frase vira o título simples
       entry: answers?.fields.o_que_propoe.says
@@ -1106,13 +1107,37 @@ function demoWeek() {
 /** Proposta sintética (número fora do usado pela Câmara) com respostas publicadas nos três estados. As outras duas seguem sem respostas. */
 export const DEMO_ANSWERED_KEY = "camara-pl-9999-2026";
 
+/**
+ * Propostas sintéticas fora da pauta da semana (só `getPautaProposal` as acha), para testar quem conferiu: uma revisada
+ * por pessoa (como o que a migração 0130 marcou) e outra publicada sem registro de quem conferiu (`verified_by` null).
+ */
+export const DEMO_QUEM_CONFERIU: Record<string, VerifiedBy> = { "camara-pl-9998-2026": "pessoa", "camara-pl-9997-2026": null };
+
+function demoForaDaSemana(): PautaEntry[] {
+  const { at } = demoWeek();
+  return [9998, 9997].map((number) => ({
+    key: `camara-pl-${number}-2026`,
+    body: "camara",
+    type: "PL",
+    number,
+    year: 2026,
+    summary: "Exemplo ilustrativo da demonstração: dispõe sobre a discriminação dos tributos na fatura de energia elétrica residencial.",
+    stage: "comissao",
+    committee: "CDC",
+    scheduledFor: at(-7, 14),
+    regime: "Ordinário (Art. 151, III, RICD)",
+    rapporteur: null,
+    reason: { theme: "Direito e Defesa do Consumidor", term: "tributo" },
+  }));
+}
+
 // Exemplo ilustrativo: frases e trechos inventados para a demonstração, não são de nenhum texto oficial.
-function demoAnswers(): PublishedAnswers {
+function demoAnswers(verifiedBy: VerifiedBy = "agentes"): PublishedAnswers {
   const diz = (text: string, quote: string, page: number): AnswerClaim => ({ state: "diz", says: true, text, quote, page });
   const vazio = (state: "nao_diz" | "nao_conferido"): AnswerClaim => ({ state, says: false, text: "", quote: "", page: 0 });
   return {
     reviewedAt: demoWeek().readAt,
-    verifiedBy: "agentes",
+    verifiedBy,
     sourceUrl: "https://www.camara.leg.br/",
     fields: {
       o_que_propoe: diz("Obriga a conta de luz a mostrar, em linha própria, quanto do valor é imposto.", "a fatura discriminará, em campo próprio, o valor dos tributos incidentes", 1),

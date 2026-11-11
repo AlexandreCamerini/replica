@@ -45,11 +45,16 @@ export function fraseCobertura(status: CoverageStatus | null | undefined): strin
   return status ? COBERTURA[status] : SEM_DADO;
 }
 
-/** Selo "Quem conferiu isso?" e rodapé. */
+/**
+ * Selo "Quem conferiu isso?" e rodapé. Quem conferiu só é dito quando a página tem uma resposta publicada, e pela frase de
+ * `conferidoEm` (agentes / pessoa / só a data). Votos, presença e gastos são dado oficial bruto: ninguém os "conferiu".
+ */
 export const SELO = {
   pergunta: "Quem conferiu isso?",
-  resposta: "Agentes de inteligência artificial (IA), não uma pessoa.",
-  rodape: "Conferido por agentes de IA, não por pessoa.",
+  /** regra que vale em qualquer página (rodapé, description e selo de página sem uma resposta própria): não afirma quem conferiu */
+  regra: "Cada resposta diz quem conferiu e quando. Votos, presença e gastos vêm da fonte oficial, com data.",
+  /** Decisão de proposta ainda sem resposta publicada */
+  semResposta: "Esta proposta ainda não tem resposta publicada.",
   verConferido: "Ver o que foi conferido",
   apontarErro: "Apontar um erro",
 } as const;

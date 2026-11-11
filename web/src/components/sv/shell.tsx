@@ -80,7 +80,7 @@ export function Rodape() {
       <div className="sv-wrap">
         <p>Fontes: Câmara dos Deputados, Senado Federal (pauta e votos) e Justiça Eleitoral (TSE), para cargos e cadeiras. Cada página diz de onde veio cada dado e quando foi lido.</p>
         <p>
-          <strong>{SELO.rodape}</strong>
+          <strong>{SELO.regra}</strong>
         </p>
         <ul className="sv-rod__l">
           {ROTAS.map((n) => (
