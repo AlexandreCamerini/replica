@@ -3,7 +3,7 @@ import type { AnswerClaim, VerifiedBy } from "@/lib/data";
 
 /** Selo neutro da Regra 3: diz quem conferiu a resposta publicada (`verifiedBy`), não que a proposta é boa. Frase única em sv/estados. */
 export function ReviewedBadge({ at, by }: { at: string; by?: VerifiedBy }) {
-  return <span className="stamp">{conferidoEm(at, by ?? null)}</span>;
+  return <span className="stamp">{conferidoEm(at, by ?? null, "v1")}</span>;
 }
 
 const DIRECTION: Record<NonNullable<AnswerClaim["direction"]>, string> = {

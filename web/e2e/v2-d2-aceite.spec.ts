@@ -761,6 +761,13 @@ test.describe("conteúdo", () => {
       expect(t, q.key).not.toMatch(/revis[ãa]o humana|síntese não conferida/i);
     });
 
+  test("v1: quem conferiu continua com a data completa (dd/mm/aaaa)", async ({ page }) => {
+    await page.goto(`/proposta/${KEY_RESPONDIDA}`);
+    const t = await page.locator("main").innerText();
+    expect(t).toMatch(/Conferido com o texto oficial por agentes de IA em \d{2}\/\d{2}\/\d{4}/);
+    expect(t).not.toMatch(/Conferido com o texto oficial por agentes de IA em \d{2}\/\d{2}(?!\/\d{4})/);
+  });
+
   test("selo de página sem resposta própria diz a regra e não afirma quem conferiu", async ({ page, context }) => {
     await cookiesDoLeitor(context, "leitor");
     for (const url of ["/v2", "/v2/acompanhando", "/v2/ajustes", "/v2/temas", "/v2/pessoa/helena-siqueira"]) {

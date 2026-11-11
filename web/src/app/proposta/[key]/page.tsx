@@ -254,7 +254,7 @@ export default async function Proposta({ params }: Props) {
         extra={
           p.answers && (
             <p className="mt-2 max-w-[65ch] text-sm text-muted">
-              Respostas rascunhadas por IA a partir do texto oficial. {conferidoEm(p.answers.reviewedAt, p.answers.verifiedBy)}.
+              Respostas rascunhadas por IA a partir do texto oficial. {conferidoEm(p.answers.reviewedAt, p.answers.verifiedBy, "v1")}.
               {p.answers.correction && <> Corrigidas em {date(p.answers.correction.correctedAt)}: {p.answers.correction.note}</>}
             </p>
           )
