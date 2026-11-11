@@ -301,6 +301,11 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
         return
 
 
+def _today() -> date:
+    """Hoje do encerramento de suplente; função própria para o teste congelar a data (a legislatura 57 acaba em 2027-02-01)."""
+    return date.today()
+
+
 def close_suplentes(conn: psycopg.Connection, ctx: _Ctx, r: Run, gone: dict[str, tuple[date | None, str]], listed: set[str],
                     start: date, end: date, *, complete: bool) -> int:
     """BUG-050: encerra o mandato `suplente_em_exercicio` aberto de quem deixou o exercício. Nunca apaga linha.
@@ -309,7 +314,7 @@ def close_suplentes(conn: psycopg.Connection, ctx: _Ctx, r: Run, gone: dict[str,
     fim = `ultimoStatus.data`; (2) o suplente sumiu da listagem: fim = hoje, e só com a listagem completa (`complete`:
     sem `limit` e ao menos MIN_LISTING ids), porque listagem vazia ou truncada não prova ausência. Sem id da Câmara não encerra.
     O fim fica em [started_on + 1, hoje] (check `mandate_order`); se o intervalo é vazio (mandato começou hoje), não mexe e anota."""
-    today = date.today()
+    today = _today()
     rows = conn.execute(
         """select m.id, m.person_id, m.started_on, m.ends_on, p.slug,
                   array(select e.external_id from person_external_ids e join sources s on s.id = e.source_id

@@ -22,6 +22,7 @@ LEG = 57
 START, END = cd.LEGISLATURES[LEG]
 ENTROU = date(2026, 7, 9)
 SAIU = date(2026, 11, 6)
+HOJE = date(2026, 11, 11)  # congelado (cd._today): o teste não quebra quando a legislatura 57 acabar
 
 
 class _Rollback(Exception):
@@ -55,6 +56,7 @@ def h(conn, monkeypatch):
         yield r
 
     monkeypatch.setattr(cd, "run", fake_run)
+    monkeypatch.setattr(cd, "_today", lambda: HOJE)
     monkeypatch.setattr(cd, "paginate_camara", lambda url, **kw: iter([{"id": i} for i in api.listing]))
     monkeypatch.setattr(cd, "fetch_json", lambda url, **kw: {"dados": api.dados[int(url.rstrip("/").rsplit("/", 1)[-1])]})
 
@@ -130,7 +132,7 @@ def test_suplente_sem_data_na_fonte_encerra_hoje_e_anota(h):
     h.rodar()
     h.api.status(990000502, situacao="Suplência", condicao="Suplente", data=None)
     r = h.rodar()
-    assert [(m["status"], m["ends_on"]) for m in h.mandatos(pid)] == [("encerrado", date.today())]
+    assert [(m["status"], m["ends_on"]) for m in h.mandatos(pid)] == [("encerrado", HOJE)]
     assert any("sem data na Câmara" in n for n in r.notes)
 
 
@@ -141,18 +143,18 @@ def test_data_da_fonte_fora_do_intervalo_e_presa_ao_mandato(h):
         h.api.status(dep, situacao="Exercício", condicao="Suplente", data=ENTROU)
     h.rodar()
     h.api.status(990000503, situacao="Fim de Mandato", condicao="Suplente", data=ENTROU - timedelta(days=30))
-    h.api.status(990000504, situacao="Suplência", condicao="Suplente", data=date.today() + timedelta(days=30))
+    h.api.status(990000504, situacao="Suplência", condicao="Suplente", data=HOJE + timedelta(days=30))
     h.rodar()
     assert [(m["status"], m["ends_on"]) for m in h.mandatos(antes)] == [("encerrado", ENTROU + timedelta(days=1))]
-    assert [(m["status"], m["ends_on"]) for m in h.mandatos(depois)] == [("encerrado", date.today())]
+    assert [(m["status"], m["ends_on"]) for m in h.mandatos(depois)] == [("encerrado", HOJE)]
 
 
 def test_mandato_que_comecou_hoje_nao_e_encerrado_e_anota(h):
     """started_on + 1 e "nunca depois de hoje" não cabem juntos: não mexe e deixa nota no run."""
     pid = h.pessoa(990000505, "hoje")
-    h.api.status(990000505, situacao="Exercício", condicao="Suplente", data=date.today())
+    h.api.status(990000505, situacao="Exercício", condicao="Suplente", data=HOJE)
     h.rodar()
-    h.api.status(990000505, situacao="Suplência", condicao="Suplente", data=date.today())
+    h.api.status(990000505, situacao="Suplência", condicao="Suplente", data=HOJE)
     r = h.rodar()
     assert [(m["status"], m["ends_on"]) for m in h.mandatos(pid)] == [("em_exercicio", END)]
     assert any("não encerrado" in n for n in r.notes)
@@ -211,7 +213,7 @@ def test_suplente_ausente_da_listagem_completa_e_encerrado(h, monkeypatch):
     h.rodar()
     h.api.listing.remove(990000532)
     r = h.rodar()
-    assert [(m["status"], m["ends_on"]) for m in h.mandatos(sumiu)] == [("encerrado", date.today())]
+    assert [(m["status"], m["ends_on"]) for m in h.mandatos(sumiu)] == [("encerrado", HOJE)]
     assert [m["status"] for m in h.mandatos(fica)] == ["em_exercicio"]
     assert any("zz-teste-bug050-sumiu" in n and "ausente" in n for n in r.notes)
 
