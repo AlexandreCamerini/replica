@@ -6,6 +6,7 @@ import { JaVale, JaValeLegenda, Lacuna, Nota, Prova } from "@/components/sv/ui";
 import { vigenciaDe } from "@/components/sv/vigencia";
 import { data, type AnswerClaim, type PautaEntry, type PautaOverview, type VerifiedBy } from "@/lib/data";
 import { casaEstadual } from "./lemos";
+import { FRASE_RESPOSTA, estadoResposta, type LeituraResposta } from "./semana-resposta";
 import { addDays, dayKey, dayNum, fmtRange, mondayOf, weekday } from "./datas";
 
 const MAX_RESPOSTAS = 6; // no máximo 6 leituras de respostas: só os primeiros itens exibidos que têm resposta publicada
@@ -32,17 +33,26 @@ type Muda = { claim: AnswerClaim; reviewedAt: string; verifiedBy: VerifiedBy };
 
 /**
  * "o que muda" só dos itens exibidos que têm respostas publicadas (`reviewedAt`), e só dos primeiros MAX_RESPOSTAS: cada
- * `getPautaProposal` custa várias consultas. Os demais mostram "Aguardando conferência." sem consulta.
+ * `getPautaProposal` custa várias consultas. Item com resposta e sem leitura (acima do limite) leva à página da decisão;
+ * leitura que falhou é dita como falha (`ok: false`); só item sem `reviewedAt` diz "Aguardando conferência."
+ * `falhar`: simulação de falha de leitura (só na demonstração, `?simular=erro`).
  */
-async function respostas(entries: PautaEntry[]): Promise<Map<string, Muda>> {
+async function respostas(entries: PautaEntry[], falhar: boolean): Promise<Map<string, LeituraResposta<Muda>>> {
   const keys = [...new Set(entries.filter((e) => e.reviewedAt).map((e) => e.key))].slice(0, MAX_RESPOSTAS);
-  const rows = await Promise.all(keys.map(async (k) => [k, await data.getPautaProposal(k).catch(() => null)] as const));
-  const out = new Map<string, Muda>();
-  for (const [k, p] of rows) {
-    const claim = p?.answers?.fields.o_que_muda;
-    // resposta publicada com "o que muda" fora de `diz` também entra: a tela diz que o campo não foi conferido
-    if (p?.answers && claim) out.set(k, { claim, reviewedAt: p.answers.reviewedAt, verifiedBy: p.answers.verifiedBy });
-  }
+  const out = new Map<string, LeituraResposta<Muda>>();
+  await Promise.all(
+    keys.map(async (k) => {
+      try {
+        if (falhar) throw new Error("falha simulada (demonstração)");
+        const p = await data.getPautaProposal(k);
+        const claim = p?.answers?.fields.o_que_muda;
+        // resposta publicada com "o que muda" fora de `diz` também entra: a tela diz que o campo não foi conferido
+        out.set(k, { ok: true, muda: p?.answers && claim ? { claim, reviewedAt: p.answers.reviewedAt, verifiedBy: p.answers.verifiedBy } : null });
+      } catch {
+        out.set(k, { ok: false });
+      }
+    }),
+  );
   return out;
 }
 
@@ -91,7 +101,20 @@ function Cabecalho({ sub, leg = true }: { sub?: string; leg?: boolean }) {
 }
 
 /** "Esta semana": faixa de segunda a domingo da pauta lida. Só eventos públicos; as pessoas escolhidas ficam em "Em quem eu votei". */
-export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { overview: PautaOverview | null; ufSigla: string | null; estadualLigado: boolean; hoje: string }) {
+export async function Semana({
+  overview,
+  ufSigla,
+  estadualLigado,
+  hoje,
+  simularFalha = false,
+}: {
+  overview: PautaOverview | null;
+  ufSigla: string | null;
+  estadualLigado: boolean;
+  hoje: string;
+  /** só na demonstração (`?simular=erro`): a leitura das respostas falha */
+  simularFalha?: boolean;
+}) {
   if (!overview || (!overview.reads.camara.readAt && !overview.reads.senado.readAt)) {
     return (
       <section className="sv-tl sv-tl--e sv-ge" aria-labelledby="inicio-semana">
@@ -112,7 +135,7 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
   const visiveis = dias.filter((d) => d === hoje || d === amanha || porDia.has(d));
   const vazios = dias.filter((d) => !visiveis.includes(d));
   const hojeNaFaixa = dias.includes(hoje);
-  const muda = await respostas(entries);
+  const muda = await respostas(entries, simularFalha);
   const falhou = overview.reads.camara.failed + overview.reads.senado.failed > 0;
   const lido = overview.week.readAt;
   const naoLidas = casasSemLeitura(overview);
@@ -141,7 +164,9 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
                 </p>
               )}
               {itens.map((e) => {
-                const lida = muda.get(e.key);
+                const leitura = muda.get(e.key);
+                const estado = estadoResposta(e.reviewedAt, leitura);
+                const lida = leitura?.ok ? leitura.muda : null;
                 const m = lida && lida.claim.state === "diz" && lida.claim.says ? lida : null;
                 const vig = vigenciaDe(e.type);
                 const colorir = !!m && vida < MAX_VIDA;
@@ -165,7 +190,18 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
                       </p>
                     ) : (
                       <p className="sv-t">
-                        <span className="sv-conf">{lida ? fraseSemAfirmacao(lida.claim.state) : `${AFIRMACAO.aguardando}.`}</span>
+                        {estado === "aguardando" ? (
+                          <span className="sv-conf">{AFIRMACAO.aguardando}.</span>
+                        ) : estado === "falhou" ? (
+                          <span className="sv-conf">{FRASE_RESPOSTA.falhou}</span>
+                        ) : estado === "na_pagina" || !lida ? (
+                          <Link className="sv-lk" href={`/v2/decisao/${e.key}`}>
+                            {FRASE_RESPOSTA.naPagina}
+                            <span className="sv-vh"> sobre {billLabel(e)}</span> <span aria-hidden="true">→</span>
+                          </Link>
+                        ) : (
+                          <span className="sv-conf">{fraseSemAfirmacao(lida.claim.state)}</span>
+                        )}
                       </p>
                     )}
                     {m && (
