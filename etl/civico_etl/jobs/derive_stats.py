@@ -186,6 +186,24 @@ where (person_period_stats.presence_present, person_period_stats.presence_total,
 """
 
 
+def sync_party_memberships(cur) -> tuple[int, int, int]:
+    """Faz party_memberships igual a tmp_pm mexendo só no que difere. Devolve (total, novas, removidas).
+
+    Apagar e reinserir tudo gerava 17 milhões de inserts/deletes para 139 mil linhas e inchava os índices. Depois do delete a tabela
+    é subconjunto de tmp_pm e o insert só acrescenta linhas de tmp_pm, então a EXCLUDE one_party_at_a_time e a unique
+    (person_id, from_on) não são violadas em nenhum passo intermediário (se tmp_pm é válido).
+    """
+    cur.execute("""delete from party_memberships pm where not exists (select 1 from tmp_pm t
+                   where t.person_id = pm.person_id and t.party_id = pm.party_id and t.from_on = pm.from_on and t.to_on is not distinct from pm.to_on)""")
+    removidas = cur.rowcount
+    cur.execute("""insert into party_memberships (person_id, party_id, from_on, to_on) select t.person_id, t.party_id, t.from_on, t.to_on from tmp_pm t
+                   where not exists (select 1 from party_memberships pm where pm.person_id = t.person_id and pm.party_id = t.party_id
+                   and pm.from_on = t.from_on and pm.to_on is not distinct from t.to_on)""")
+    novas = cur.rowcount  # lido logo após o INSERT: qualquer execute depois sobrescreve o rowcount
+    total = cur.execute("select count(*) as n from party_memberships").fetchone()
+    return (total["n"] if isinstance(total, dict) else total[0]), novas, removidas
+
+
 # D05: partido = linha do tempo. Observação mais recente vence; no mesmo dia, a casa (prio 1) vence o TSE (prio 0).
 # Candidatura do TSE observa o partido na data do 1º turno (filiação exigida 6 meses antes: aproximação conservadora).
 # BUG-022 / D182: quem está em exercício na Câmara ou no Senado tem o partido que a casa publica hoje. Candidatura do TSE
@@ -492,14 +510,8 @@ def run_derive(conn: psycopg.Connection) -> None:
         log.info("executivo fora do TSE: %d mandato(s) gravado(s)", k)
     # party_memberships é derivada: reconstrói inteira na mesma transação (o app lê person_current_party)
     cur.execute(f"create temp table tmp_pm on commit drop as {PARTY_SQL}")
-    # Só troca o que mudou: apagar e reinserir tudo gerava 17 milhões de inserts/deletes para 139 mil linhas e inchava os índices.
-    cur.execute("""delete from party_memberships pm where not exists (select 1 from tmp_pm t
-                   where t.person_id = pm.person_id and t.party_id = pm.party_id and t.from_on = pm.from_on and t.to_on is not distinct from pm.to_on)""")
-    gone = cur.rowcount
-    cur.execute("""insert into party_memberships (person_id, party_id, from_on, to_on) select t.person_id, t.party_id, t.from_on, t.to_on from tmp_pm t
-                   where not exists (select 1 from party_memberships pm where pm.person_id = t.person_id and pm.party_id = t.party_id
-                   and pm.from_on = t.from_on and pm.to_on is not distinct from t.to_on)""")
-    log.info("partidos: %d filiações na linha do tempo (%d novas, %d removidas)", cur.execute("select count(*) from party_memberships").fetchone()[0], cur.rowcount, gone)
+    total, novas, removidas = sync_party_memberships(cur)
+    log.info("partidos: %d filiações na linha do tempo (%d novas, %d removidas)", total, novas, removidas)
     cur.execute(STATS_SQL)
     n = cur.rowcount
     cur.execute(COVERAGE_SQL)
