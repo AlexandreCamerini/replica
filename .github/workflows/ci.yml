@@ -62,3 +62,97 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: npm ci
       - run: npm run typecheck
+
+  # Gate do web/ (Next 15, React 19). Sem segredo e sem banco: o build e os e2e usam a FONTE DEMO
+  # (DATA_SOURCE=demo, ALLOW_DEMO_DATA=1). Fontes vêm do Fontsource; nada busca fonte na rede.
+  # Três jobs em paralelo: verificação estática, build de produção e e2e (o webServer do Playwright faz o próprio build).
+  web-verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: npm ci
+        run: npm ci
+      - name: eslint
+        run: npx eslint src
+      - name: tsc
+        run: npx tsc --noEmit
+      - name: testes unitários
+        run: npm run test:unit
+
+  web-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults: { run: { working-directory: web } }
+    env:
+      DATA_SOURCE: demo
+      ALLOW_DEMO_DATA: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: npm ci
+        run: npm ci
+      - name: cache do Next (.next/cache)
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: web/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}-${{ hashFiles('web/src/**') }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}-
+      - name: next build
+        run: npx next build
+
+  web-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: npm ci
+        run: npm ci
+      - name: versão do Playwright
+        id: pw
+        run: echo "versao=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: cache dos navegadores
+        id: pwcache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.versao }}
+      # projetos desktop e mobile (Pixel 7) usam chromium; o headless shell é o que o modo headless executa (BUG-003)
+      - name: navegadores do Playwright (com dependências do sistema)
+        if: steps.pwcache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium chromium-headless-shell
+      - name: dependências do sistema (navegadores em cache)
+        if: steps.pwcache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      # o webServer do config faz `next build && next start -p 3200` com NEXT_DIST_DIR=.next-e2e e DATA_SOURCE=demo
+      - name: e2e (fonte demo)
+        run: npx playwright test
+        env:
+          CI: "true"
+      - name: relatório do Playwright
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
+          retention-days: 7
+          if-no-files-found: ignore
