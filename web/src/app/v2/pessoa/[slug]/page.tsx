@@ -9,6 +9,7 @@ import { FollowButton } from "@/components/sv/follow";
 import { fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
 import { Lacuna, Nota, Resposta, Selo } from "@/components/sv/ui";
 import { SEM_DADO } from "@/components/sv/estados";
+import { COOKIE_TEXTO } from "@/components/sv/prefs-shared";
 import { aguardaPosse, casaDoMandato, cobreLeis, fraseDesde, mandatoPrincipal, motivoPosse, rotuloGastos } from "@/components/sv/mandato";
 import { brl, brlCurto, fonteTexto, hojeBR, ler, listaE, mesAno, statusLacuna } from "@/components/sv/pessoa/format";
 import { GradePresenca } from "@/components/sv/pessoa/presenca";
@@ -569,7 +570,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
       <Selo lidoEm={lidoEm} />
 
       {outras.length > 0 && (
-        <Linha id="p15" pergunta="E as outras pessoas em quem votei?" fonte="Pessoas em ordem alfabética. A escolha fica neste navegador.">
+        <Linha id="p15" pergunta="E as outras pessoas em quem votei?" fonte={`Pessoas em ordem alfabética. ${COOKIE_TEXTO}`}>
           <p className="sv-selo__l">
             {outras.map((p) => (
               <Link key={p.slug} href={`/v2/pessoa/${p.slug}`}>

@@ -3,16 +3,23 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { COOKIE_TEXTO } from "./prefs-shared";
-import { FOLLOW_COOKIE, FOLLOW_MAX, parseFollows, serializeFollows } from "./follow-shared";
+import { FOLLOW_COOKIE, FOLLOW_MAX, FOLLOW_PATH, parseFollows, serializeFollows } from "./follow-shared";
 
 function read(): string[] {
   const m = document.cookie.split("; ").find((c) => c.startsWith(`${FOLLOW_COOKIE}=`));
   return parseFollows(m ? m.slice(FOLLOW_COOKIE.length + 1) : null);
 }
 
+/**
+ * Grava a lista em `path=/v2` (todos os leitores do cookie estão sob /v2: é opinião política, não vai para o resto do
+ * site) e com `secure` em https (em http://localhost, sem: os e2e rodam assim). Antes, apaga a versão antiga gravada em
+ * `path=/`, para não haver dois valores. Dívida registrada: gravar por server action com httpOnly.
+ */
 function write(slugs: string[]) {
   const v = serializeFollows(slugs);
-  document.cookie = v ? `${FOLLOW_COOKIE}=${v}; path=/; max-age=31536000; samesite=lax` : `${FOLLOW_COOKIE}=; path=/; max-age=0; samesite=lax`;
+  const secure = window.location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${FOLLOW_COOKIE}=; path=/; max-age=0; samesite=lax${secure}`;
+  document.cookie = v ? `${FOLLOW_COOKIE}=${v}; path=${FOLLOW_PATH}; max-age=31536000; samesite=lax${secure}` : `${FOLLOW_COOKIE}=; path=${FOLLOW_PATH}; max-age=0; samesite=lax${secure}`;
 }
 
 /** Marca ou desmarca uma pessoa como "em quem eu votei". A lista fica guardada num cookie neste navegador, e o servidor lê esse cookie. */

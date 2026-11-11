@@ -2,6 +2,8 @@
 // O servidor lê o cookie só para montar a página; a escolha não é registrada.
 export const FOLLOW_COOKIE = "sv_sigo";
 export const FOLLOW_MAX = 12;
+/** Caminho do cookie: só o /v2 o lê (pessoas em quem o leitor diz ter votado são dado sensível). */
+export const FOLLOW_PATH = "/v2";
 
 const SLUG = /^[a-z0-9-]{1,120}$/;
 
