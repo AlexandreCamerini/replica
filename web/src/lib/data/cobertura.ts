@@ -162,8 +162,10 @@ function umConjunto(c: ConjuntoPessoa, e: EntradaCobertura): CoberturaConjunto {
     const it = a?.items.find((x) => x.dataset === chave);
     if (!a || !it) return item(c, "nao_conferido", MOTIVO.semAssembleia, e.casa ? { nome: e.casa, url: null } : null);
     if (it.status === "no_site" && it.refreshedAt && a.source) return lido(c, { nome: a.source.name, url: a.source.url, em: it.refreshedAt });
-    // Assembleia lida pelo SAPL (carimbo sapl-ale.*): o dado está em sapl_*, fora das leituras desta página
-    if (it.refreshedAt && it.stampDataset?.startsWith("sapl-ale.") && a.source)
+    // Assembleia lida pelo SAPL (carimbo sapl-ale.*): o dado está em sapl_*, fora das leituras desta página. Só para o que
+    // data_coverage diz estar na carga (carregando/no_site): o carimbo do SAPL vale para a casa, não para cada conjunto
+    // (gastos não vêm do SAPL e seguem com o status próprio).
+    if (it.refreshedAt && it.stampDataset?.startsWith("sapl-ale.") && a.source && (it.status === "carregando" || it.status === "no_site"))
       return item(c, "carregado_fora_da_pagina", MOTIVO.saplAssembleia, { nome: a.source.name, url: a.source.url });
     if (it.status === "no_site") return item(c, "nao_carregado", it.reason || MOTIVO.semCarimbo, { nome: a.houseName, url: it.evidenceUrl });
     return item(c, DE_COBERTURA[it.status], it.reason, { nome: a.houseName, url: it.evidenceUrl });

@@ -65,10 +65,15 @@ test("fora do exercício (licenciado, encerrado): presença, votos, gastos, equi
 test("Assembleia lida pelo SAPL: carregado, fora desta página (nunca 'não carregamos' ao lado de 'lida do SAPL')", () => {
   const asm: AssemblyInfo = {
     uf: "RO", houseName: "Assembleia Legislativa de Rondônia", read: true, source: { name: "SAPL da Assembleia Legislativa", url: "https://sapl.al.ro.leg.br" },
-    items: [{ dataset: "presenca", label: "", status: "carregando", reason: "lida do SAPL", evidenceUrl: null, checkedOn: null, refreshedAt: "2026-11-09T09:29:45Z", stampDataset: "sapl-ale.presenca" }],
+    items: [
+      { dataset: "presenca", label: "", status: "carregando", reason: "lida do SAPL", evidenceUrl: null, checkedOn: null, refreshedAt: "2026-11-09T09:29:45Z", stampDataset: "sapl-ale.presenca" },
+      // o carimbo do SAPL é da casa: gastos, que o SAPL não traz, seguem com o status próprio
+      { dataset: "gastos_gabinete", label: "", status: "desconhecido", reason: "não lida", evidenceUrl: null, checkedOn: null, refreshedAt: "2026-11-09T09:29:45Z", stampDataset: "sapl-ale.despesas" },
+    ],
   };
   const cs = coberturaDe({ ...base, office: "deputado_estadual", status: "em_exercicio", assembleia: asm });
   assert.equal(estado(cs, "presenca"), "carregado_fora_da_pagina");
+  assert.equal(estado(cs, "gastos"), "nao_conferido");
 });
 
 test("aguardando posse: fora do mandato (patrimônio continua lido)", () => {
