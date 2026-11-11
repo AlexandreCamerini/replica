@@ -1,3 +1,28 @@
 /* Segue o Voto, D2 · tela Ajustes (/v2/ajustes).
    Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
-   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px. */
+   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px. Sem cor nos controles. */
+.sv .sv-pg--ajustes .sv-l3--dom{border-top-width:1.5px}
+.sv .sv-aj-uf{border-top:1.5px solid var(--tinta);padding-top:6px;max-width:520px}
+.sv .sv-aj-uf--destaque{border:3px solid var(--tinta);padding:10px 12px 12px}
+.sv .sv-aj-rot{display:flex;align-items:center;min-height:44px;font-size:14px;font-weight:700}
+.sv .sv-chk__t{flex:1 1 auto;font-size:19px;line-height:1.25;font-weight:800;letter-spacing:-.01em;margin:0}
+.sv .sv-chk input:focus-visible,.sv .sv-campo:focus-visible,.sv .sv-enviar:focus-visible,.sv .sv-cid input:focus-visible{outline:3px solid var(--tinta);outline-offset:3px}
+.sv .sv-aj-env{display:flex;align-items:center;min-height:48px;padding:2px 4px}
+.sv .sv-aj-ck{display:flex;flex-direction:column;gap:2px;font-size:15px;line-height:1.45}
+.sv .sv-aj-ck li{border-top:1.5px solid var(--tinta);padding:5px 0}
+.sv .sv-aj-ck code{font-size:13px;font-weight:700}
+@media (min-width:900px){
+  .sv .sv-pg--ajustes{grid-template-areas:
+    "u u u u u u u u u u u u"
+    "a a a a a a a a a a a a"
+    "b b b b b b b b b b b b"
+    "c c c c c c c c c c c c"
+    "e e e e e e e e e e e e"
+    "d d d d d d d d d d d d"
+    "s s s s s s s n n n n n"}
+  .sv .sv-pg--ajustes .sv-gs,.sv .sv-pg--ajustes .sv-gn{margin-top:14px}
+  .sv .sv-aj-env{padding:2px 0}
+}
+@media (min-width:1100px){
+  .sv .sv-aj-uf{max-width:560px}
+}

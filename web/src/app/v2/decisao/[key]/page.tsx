@@ -1,11 +1,30 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EXEMPLOS, GLOSSARIO, KIND_LABEL, type ImpactAnswer, type Kind } from "@/components/sv/exemplos";
-import { fraseSemAfirmacao } from "@/components/sv/estados";
+import { ExemploIlustrativo } from "@/components/sv/etiqueta";
+import { SEM_DADO } from "@/components/sv/estados";
+import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtWeekday } from "@/components/sv/fmt";
-import { Gap, Item, Label, List, Section, Src, Steps } from "@/components/sv/ui";
-import { data, type AnswerClaim, type PautaProposal, type PublishedAnswers } from "@/lib/data";
+import { COOKIE_TEXTO, readPrefs } from "@/components/sv/prefs";
+import {
+  Afirmacao,
+  Etiqueta,
+  Fonte,
+  JaVale,
+  JaValeLegenda,
+  Lacuna,
+  Nota,
+  Pergunta,
+  Placar,
+  Proxima,
+  Quadro,
+  Resposta,
+  Selo,
+  VotoMarca,
+} from "@/components/sv/ui";
+import { data, type AnswerClaim, type Body, type PautaStatus, type VoteValue, type VotingEventDetail } from "@/lib/data";
+import { deciders } from "@/lib/pauta";
 
 const KEY = /^[a-z0-9-]{3,80}$/;
 const load = (key: string) => (KEY.test(key) ? data.getPautaProposal(key) : Promise.resolve(null));
@@ -15,61 +34,94 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
   return { title: p ? billLabel(p.entry) : "Decisão não encontrada" };
 }
 
-function statusLine(p: PautaProposal): string | null {
-  switch (p.status.kind) {
+/** Tipo por extenso + sigla: "projeto de lei (PL)". A sigla nunca aparece sozinha na primeira ocorrência. */
+const TIPO_EXTENSO: Record<string, string> = {
+  PL: "projeto de lei",
+  PLP: "projeto de lei complementar",
+  PEC: "proposta de emenda à Constituição",
+  MPV: "medida provisória",
+  PLV: "projeto de lei de conversão",
+  PDL: "projeto de decreto legislativo",
+};
+const identificacao = (e: { type: string; number: number; year: number }) => `${TIPO_EXTENSO[e.type] ?? "proposta"} (${e.type}) ${e.number}/${e.year}`;
+
+function statusLinha(s: PautaStatus): string | null {
+  switch (s.kind) {
     case "saiu":
-      return `Saiu da pauta em ${fmtDate(p.status.at)}. A fonte não informa o motivo.`;
+      return `Saiu da pauta em ${fmtDate(s.at)}. A fonte não informa o motivo.`;
     case "reuniao_encerrada":
-      return `A reunião de ${fmtDate(p.status.at)} foi encerrada. O resultado ainda não consta.`;
+      return `A reunião de ${fmtDate(s.at)} foi encerrada. O resultado ainda não consta.`;
     case "reuniao_cancelada":
-      return `A reunião de ${fmtDate(p.status.at)} foi cancelada.`;
+      return `A reunião de ${fmtDate(s.at)} foi cancelada.`;
     case "sem_leitura":
-      return `Vista pela última vez na pauta em ${fmtDate(p.status.lastSeenAt)}.`;
+      return `Vista pela última vez na pauta em ${fmtDate(s.lastSeenAt)}.`;
     default:
       return null;
   }
 }
 
-// O que falta para valer, em palavras, conforme a etapa.
-const NEXT: Record<"comissao" | "plenario", string> = {
-  comissao: "Falta a comissão votar. Depois vêm o plenário, a outra Casa do Congresso e a assinatura do presidente.",
-  plenario: "Falta o plenário votar. Depois vêm a outra Casa do Congresso e a assinatura do presidente.",
+/** Direção do dinheiro, em palavras (contrato: entra / sai / dividido). Só quando a afirmação foi conferida. */
+const DIRECAO: Record<string, string> = {
+  entra: "O governo passa a arrecadar.",
+  sai: "O governo passa a gastar ou deixar de arrecadar.",
+  dividido: "O dinheiro é repartido entre entes ou fundos.",
 };
 
-/** Resposta revisada vira uma pergunta do cidadão: a frase, o tipo de afirmação e o trecho oficial que a sustenta. */
-function fromClaim(q: string, c: AnswerClaim): ImpactAnswer {
-  return c.says ? { q, a: c.text, kind: "texto", quote: c.quote ? `p. ${c.page}: ${c.quote}` : undefined } : { q, a: fraseSemAfirmacao(c.state), kind: "nao_sabemos" };
+const temResposta = (c: AnswerClaim | undefined) => Boolean(c && c.state !== "nao_conferido");
+
+// Esfera em palavra, sem estilo próprio. Quem não é parlamentar federal não vota esta proposta.
+type Esfera = { nivel: "federal" | "estadual" | "municipal"; texto: string; casa: Body | null; naoVota: string | null };
+function esferaDe(office: string): Esfera {
+  switch (office) {
+    case "deputado_federal":
+      return { nivel: "federal", texto: "Esfera: Federal · Câmara dos Deputados", casa: "camara", naoVota: null };
+    case "senador":
+      return { nivel: "federal", texto: "Esfera: Federal · Senado Federal", casa: "senado", naoVota: null };
+    case "presidente":
+    case "vice_presidente":
+      return { nivel: "federal", texto: "Esfera: Federal · Poder Executivo", casa: null, naoVota: "Não vota esta proposta: ela é votada no Congresso, em Brasília." };
+    case "deputado_estadual":
+      return { nivel: "estadual", texto: "Esfera: Estadual · Assembleia Legislativa", casa: null, naoVota: "Não vota esta proposta: ela é decidida em Brasília, não na Assembleia." };
+    case "deputado_distrital":
+      return { nivel: "estadual", texto: "Esfera: Estadual · Câmara Legislativa do Distrito Federal", casa: null, naoVota: "Não vota esta proposta: ela é decidida em Brasília, não na Câmara Legislativa." };
+    case "governador":
+    case "vice_governador":
+      return { nivel: "estadual", texto: "Esfera: Estadual · Poder Executivo", casa: null, naoVota: "Não vota esta proposta: ela é decidida em Brasília, não no governo do estado." };
+    case "vereador":
+      return { nivel: "municipal", texto: "Esfera: Municipal · Câmara Municipal", casa: null, naoVota: "Não vota esta proposta: ela é decidida em Brasília, não na Câmara Municipal." };
+    default:
+      return { nivel: "municipal", texto: "Esfera: Municipal · Poder Executivo", casa: null, naoVota: "Não vota esta proposta: ela é decidida em Brasília, não na prefeitura." };
+  }
 }
 
-function reviewedAnswers(a: PublishedAnswers): ImpactAnswer[] {
-  return [fromClaim("Quem é afetado?", a.fields.quem_recebe), fromClaim("O que muda na prática?", a.fields.o_que_muda), fromClaim("Quem paga a conta?", a.fields.quem_paga), fromClaim("Quanto dinheiro envolve?", a.fields.dinheiro)];
-}
+type Escolhido = { slug: string; nome: string; cargo: string; esfera: Esfera };
 
-const EMPTY: ImpactAnswer[] = ["Quem é afetado?", "O que muda na prática?", "Quem paga a conta?", "Quando começaria a valer?"].map((q) => ({ q, a: "Ainda não conseguimos conferir esta resposta.", kind: "nao_sabemos" as Kind }));
-
-// As cinco conferências da verificação agêntica (replica/verificacao-agentica.md).
-const CHECKS = [
-  { name: "O trecho existe", what: "Um programa confere que cada trecho citado está, palavra por palavra, no texto oficial." },
-  { name: "O trecho sustenta a frase", what: "Um agente que não viu a redação compara cada frase com o trecho e a página de onde ele saiu." },
-  { name: "Nada contradiz", what: "Outro agente lê o texto inteiro à procura de condição, prazo ou exceção que a frase tenha deixado de fora." },
-  { name: "Dá para entender", what: "Um agente no papel de leitor comum lê só as frases e responde o que muda, para quem e se já vale." },
-  { name: "Sem juízo", what: "Um programa barra palavras que dizem se a proposta é boa ou ruim." },
-];
-
-function Question({ x }: { x: ImpactAnswer }) {
-  return (
-    <div className="sv-q">
-      <h3>{x.q}</h3>
-      <p style={x.kind === "nao_sabemos" ? { fontWeight: 300 } : undefined}>{x.a}</p>
-      <span className={`sv-kind ${x.kind === "texto" ? "is-texto" : x.kind === "previsao" ? "is-previsao" : "is-nao"}`}>{KIND_LABEL[x.kind]}</span>
-      {x.quote && (
-        <details>
-          <summary>Ver o trecho do texto oficial</summary>
-          <p className="sv-quote">“{x.quote}”</p>
-        </details>
-      )}
-    </div>
+/** Pessoas do cookie sv_sigo, em ordem alfabética. Slug que não existe mais é ignorado. */
+async function carregarEscolhidos(slugs: string[]): Promise<Escolhido[]> {
+  const rows = await Promise.all(
+    slugs.map(async (slug) => {
+      const r = await data.getPerson(slug);
+      if (!r) return null;
+      const ms = await data.getMandates(r.person.id);
+      const m = ms.find((x) => x.status === "em_exercicio") ?? ms[0] ?? null;
+      if (!m) return null;
+      return { slug: r.person.slug, nome: r.person.displayName, cargo: m.officeName, esfera: esferaDe(m.office) } satisfies Escolhido;
+    }),
   );
+  return rows.filter((r): r is Escolhido => r !== null).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+// Obstrução é ato deliberado: não entra em "Sem voto"; sai numa nota própria, como no Início.
+const SEM_VOTO_DE: VoteValue[] = ["nao_votou", "art17"];
+const semVoto = (c: Record<VoteValue, number>) => SEM_VOTO_DE.reduce((s, v) => s + (c[v] ?? 0), 0);
+
+/** O que a fonte diz do voto de uma pessoa numa votação. */
+function votoNaVotacao(ev: VotingEventDetail, slug: string) {
+  const v = ev.votes.find((x) => x.slug === slug);
+  if (v) return <VotoMarca voto={v.value} />;
+  if (ev.isSecret) return <>Votação secreta: a fonte não publica o voto de cada pessoa.</>;
+  if (ev.openNoVotes) return <>A fonte não publicou o voto de cada pessoa nesta votação.</>;
+  return <>Não consta o voto desta pessoa nesta votação.</>;
 }
 
 export default async function Decisao({ params }: { params: Promise<{ key: string }> }) {
@@ -77,162 +129,286 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
   if (!p) notFound();
   const e = p.entry;
   const a = p.answers;
-  // Redação de demonstração: só na versão de demonstração e só quando não há resposta revisada.
-  const ex = !a && data.isDemo ? (EXEMPLOS[e.key] ?? null) : null;
-  const step = e.stage === "plenario" ? 2 : 1;
-  const where = e.stage === "plenario" ? `O plenário ${e.body === "camara" ? "da Câmara" : "do Senado"}, com todos os parlamentares da Casa` : `A comissão ${e.committee ?? ""} ${e.body === "camara" ? "da Câmara" : "do Senado"}`.replace("  ", " ");
-  const status = statusLine(p);
+  const campos = a?.fields ?? null;
+  const prefs = await readPrefs();
+  const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
 
-  const title = e.plain ?? ex?.title ?? billLabel(e);
-  const oneLine = a?.fields.o_que_propoe.says ? a.fields.o_que_propoe.text : (ex?.oneLine ?? null);
-  const answers = a ? reviewedAnswers(a) : (ex?.answers ?? EMPTY);
+  const [escolhidosTodos, eventosRaw] = await Promise.all([carregarEscolhidos(follows), Promise.all(p.votes.map((v) => data.getVotingEvent(v.id)))]);
+  const eventos = p.votes.map((v, i) => ({ v, ev: eventosRaw[i] }));
+  // Esferas ligadas nos Ajustes: federal sempre; estadual e municipal só se ligadas. As desligadas ficam de fora, com aviso.
+  const escolhidos = escolhidosTodos.filter((x) => x.esfera.nivel === "federal" || (x.esfera.nivel === "estadual" ? prefs.esferas.estadual : prefs.esferas.municipal));
+  const ocultos = escolhidosTodos.length - escolhidos.length;
+
+  const id = identificacao(e);
+  const onde = e.stage === "plenario" ? "plenário" : e.committee ? (/^comiss/i.test(e.committee) ? e.committee : `comissão ${e.committee}`) : "comissão";
+  const reuniao = fmtWeekday(e.scheduledFor);
+  const lida = p.readAt ? `lida em ${fmtDateTime(p.readAt)}` : "ainda não lida";
+  const fontePauta = `${BODY_NAME[e.body]}, pauta, ${lida}`;
+  const quem = deciders(e);
+  const status = statusLinha(p.status);
+  const aguardando = !a;
+
+  const semConta = !temResposta(campos?.quem_paga) && !temResposta(campos?.dinheiro) && !temResposta(campos?.estimativa_impacto) && p.authors.length === 0;
+  const dir = campos?.dinheiro.state === "diz" ? campos.dinheiro.direction : undefined;
+  const casasVotos = [...new Set(eventos.map(({ v, ev }) => ev?.body ?? (v.id.startsWith("senado") ? "senado" : "camara")))] as Body[];
 
   return (
-    <>
-      <div className="sv-grid is-7-5">
-        <div>
-          <Label>{e.reason.theme ?? "Proposta"}</Label>
-          <h1 className="sv-title sv-mt-1">{title}</h1>
-          <p className="sv-meta sv-mt-2">
-            {billLabel(e)}, {BODY_NAME[e.body]}
-            {p.presentedOn ? `. Apresentada em ${fmtDate(p.presentedOn)}` : ""}
-          </p>
-
-          {ex && <span className="sv-tag sv-mt-3">Exemplo ilustrativo: redação de demonstração</span>}
-
-          {oneLine ? (
-            <p className="sv-lead sv-mt-3">{oneLine}</p>
-          ) : (
-            <>
-              <p className="sv-lead sv-mt-3" style={{ fontSize: 17 }}>
-                {e.summary ?? "A fonte não publicou o resumo desta proposta."}
-              </p>
-              <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
-                Este é o resumo oficial, na linguagem da lei. A explicação simples só aparece depois de conferida com o texto oficial, frase por frase, por agentes de IA.
-              </p>
-            </>
-          )}
-
-          <p className="sv-status sv-mt-3">É uma proposta. Ainda não é lei.</p>
-          <Steps now={step} />
-          <p className="sv-mt-2" style={{ fontSize: 15.5, lineHeight: 1.4 }}>
-            {NEXT[e.stage]}
-          </p>
-          {status && <p className="sv-meta sv-mt-2">{status}</p>}
-        </div>
-
-        <div>
-          <Section label="Quem decide agora" first>
-            <p>
-              {where}. Reunião: {fmtWeekday(e.scheduledFor)}.
-            </p>
-            {e.rapporteur && <p>Relator, que sugere a versão final: {e.rapporteur}.</p>}
-          </Section>
-
-          <Section label="Quem propôs">
-            {p.authors.length === 0 ? (
-              <Gap>Não consta. A autoria ainda não foi carregada; está no texto oficial.</Gap>
-            ) : (
-              <List>
-                {p.authors.map((au) => (
-                  <Item key={au.slug} href={`/v2/pessoa/${au.slug}`} title={au.name} value={au.role === "principal" ? "autoria principal" : "coautoria"} />
-                ))}
-              </List>
-            )}
-          </Section>
-
-          <Section label="Onde verificar">
-            {p.fichaUrl ? (
-              <p>
-                <a href={p.fichaUrl} rel="noopener noreferrer">
-                  Texto oficial e tramitação na {BODY_NAME[e.body]}
-                </a>
-              </p>
-            ) : (
-              <Gap>O endereço do texto oficial ainda não foi carregado.</Gap>
-            )}
-            {oneLine && e.summary && (
-              <details>
-                <summary>Ler o resumo oficial, na linguagem da lei</summary>
-                <p className="sv-quote">{e.summary}</p>
-              </details>
-            )}
-          </Section>
-        </div>
+    <div className="sv-pg sv-pg--decisao">
+      <div className="sv-folio sv-gh">
+        <h1>O que estão decidindo que mexe comigo?</h1>
+        <p className="sv-so-larga">
+          {e.reason.theme ? `${e.reason.theme} · ` : ""}
+          {id} · {reuniao}
+        </p>
       </div>
 
-      {/* O centro da página: a decisão traduzida para a vida de quem lê. */}
-      <section className="sv-impact" aria-labelledby="h-impacto">
-        <Label>Em linguagem simples</Label>
-        <h2 id="h-impacto" className="sv-mt-1">
-          Como isso mexe com a sua vida
-        </h2>
-        <div className="sv-qa">
-          {answers.map((x) => (
-            <Question key={x.q} x={x} />
-          ))}
-        </div>
-        <p className="sv-meta" style={{ fontWeight: 400, padding: "4px 0 14px" }}>
-          {a
-            ? `Conferido com o texto oficial por agentes de IA em ${fmtDate(a.reviewedAt)}. Dizemos o que o texto faz, nunca se é bom ou ruim.`
-            : ex
-              ? "Nesta demonstração as respostas são um exemplo de redação. No site real, cada uma só aparece depois de conferida com o texto oficial por agentes de IA."
-              : "Cada resposta só aparece depois de conferida com o texto oficial por agentes de IA. Dizemos o que o texto faz, nunca se é bom ou ruim."}
+      <Quadro
+        id="sv-d1"
+        variante="fio"
+        numero={1}
+        pergunta="O que é isso?"
+        className="sv-ga"
+        prova={
+          <>
+            {id} · {p.readAt ? `lida em ${fmtDateTime(p.readAt)}` : "pauta ainda não lida"}. <ExemploIlustrativo />
+          </>
+        }
+      >
+        <Afirmacao claim={campos?.o_que_propoe ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="m" />
+        <p className="sv-t">
+          <b>Onde se decide?</b> Federal · {BODY_NAME[e.body]} · {onde}. Reunião {reuniao}.
         </p>
-        <details style={{ paddingBottom: 14 }}>
-          <summary>Como esta página é conferida</summary>
-          <ol className="sv-checks">
-            {CHECKS.map((c) => (
-              <li key={c.name}>
-                <b>{c.name}.</b> {c.what}
-              </li>
-            ))}
-          </ol>
-          <p className="sv-meta" style={{ fontWeight: 400 }}>
-            Um agente escreve e outros, independentes, conferem. Se uma conferência falha, a resposta não é publicada e aparece como “ainda não conseguimos conferir”. Nenhuma pessoa lê esta explicação antes de publicarmos: se você vir um erro, <Link href="/v2/como-funciona#correcoes">aponte</Link>, e corrigimos com data e motivo.
-          </p>
-        </details>
-      </section>
+      </Quadro>
 
-      <div className="sv-grid is-7-5 sv-mt-5">
-        <div>
-          <Label>Palavras que aparecem aqui</Label>
-          <dl className="sv-gloss">
-            {GLOSSARIO.map((g) => (
-              <div key={g.termo}>
-                <dt>{g.termo}</dt>
-                <dd>{g.def}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div>
-          <Label>Por que esta proposta está aqui</Label>
-          <p className="sv-mt-1" style={{ fontSize: 15.5, lineHeight: 1.4 }}>
-            {e.reason.theme ? `A Casa a classificou em “${e.reason.theme}” e ` : ""}o resumo oficial cita “{e.reason.term}”. <Link href="/v2/como-funciona#regras">Ver a regra</Link>
-          </p>
-          {p.votes.length > 0 && (
-            <div className="sv-mt-4">
-              <Label>Votações desta proposta</Label>
-              <List>
-                {p.votes.map((v) => (
-                  <Item key={v.id} href={`/v2/votacao/${v.id}`} title={clip(v.description, 150)} note={v.yes !== null && v.no !== null ? `${v.yes} sim, ${v.no} não` : "Placar não publicado"} value={fmtDate(v.occurredAt)} />
-                ))}
-              </List>
+      <Quadro id="sv-d2" numero={2} pergunta="Já vale?" className="sv-gb" prova={`Fonte: ${fontePauta}.`}>
+        <Resposta tamanho="xl">
+          <JaVale estado="ainda" />
+        </Resposta>
+        <p className="sv-t">É uma proposta. Ainda não é lei.</p>
+        {status && <p className="sv-t">{status}</p>}
+        <JaValeLegenda />
+      </Quadro>
+
+      <Quadro id="sv-d3" variante="dom" numero={3} vida pergunta="O que muda para mim?" className="sv-gc" prova={a ? `Texto oficial, ${BODY_NAME[e.body]}. Conferido por agentes de IA em ${fmtDate(a.reviewedAt)}.` : `Texto oficial, ${BODY_NAME[e.body]}. Ainda sem resposta conferida.`}>
+        <div className="sv-hs">
+          <div className="sv-hs__m sv-hs__m--hoje">
+            <h3 className="sv-hs__t">Hoje</h3>
+            <Lacuna motivo="Falta uma resposta conferida para este ponto.">Ainda não conseguimos conferir como é hoje.</Lacuna>
+          </div>
+          <div className="sv-hs__m sv-hs__m--se">
+            <div className="sv-hs__liso">
+              <h3 className="sv-hs__t">Se aprovado</h3>
+              <p className="sv-tipo">Do texto oficial</p>
+              <Afirmacao claim={campos?.o_que_muda ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="fala" />
             </div>
-          )}
+          </div>
         </div>
-      </div>
+        <Nota>Cada resposta tem um de três estados: conferida, ainda não conferida ou “o texto oficial não trata disso”.</Nota>
+        {a?.correction && (
+          <Nota>
+            Corrigido em {fmtDate(a.correction.correctedAt)}: {a.correction.note} <Link href="/v2/como-funciona#correcoes">Ver todas as correções</Link>
+          </Nota>
+        )}
+      </Quadro>
 
-      {a?.correction && (
-        <p className="sv-meta sv-mt-4">
-          Corrigido em {fmtDate(a.correction.correctedAt)}: {a.correction.note} <Link href="/v2/como-funciona#correcoes">Ver todas as correções</Link>
+      <Quadro id="sv-d4" variante="fio" numero={4} pergunta="Quem decide agora?" className="sv-gd" prova={`Fonte: ${fontePauta}.`}>
+        <Resposta>{quem.who}</Resposta>
+        <p className="sv-t">{quem.needs}</p>
+        <p className="sv-t">A reunião é {reuniao}.</p>
+        {e.rapporteur && <p className="sv-t">Relator, que sugere a versão final: {e.rapporteur}.</p>}
+        <p className="sv-t">Leis estaduais e municipais sobre o mesmo assunto são outras decisões. Esta é só a federal.</p>
+      </Quadro>
+
+      <Quadro id="sv-d5" variante="fio" numero={5} pergunta="Quem é afetado?" className="sv-ge" prova={a ? `Texto oficial, ${BODY_NAME[e.body]}. Conferido por agentes de IA em ${fmtDate(a.reviewedAt)}.` : `Texto oficial, ${BODY_NAME[e.body]}.`}>
+        <Afirmacao claim={campos?.quem_recebe ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="m" />
+      </Quadro>
+
+      <Quadro id="sv-d6" variante={semConta ? "lacuna" : "padrao"} rotulo="Dinheiro, quem paga e autoria" className="sv-gf" prova={p.readAt ? `Leitura das fontes: ${fmtDateTime(p.readAt)}.` : "Fontes ainda não lidas."}>
+        <div className="sv-nc__l">
+          <Pergunta id="sv-d6a">Quanto muda na conta?</Pergunta>
+          <div className="sv-nc__r">
+            <p className="sv-tipo">Dinheiro envolvido</p>
+            <Afirmacao claim={campos?.dinheiro ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="r" />
+            {dir && DIRECAO[dir] && <p className="sv-t">Direção do dinheiro: {DIRECAO[dir]}</p>}
+            <p className="sv-tipo sv-nc__s">Estimativa de impacto</p>
+            <Afirmacao claim={campos?.estimativa_impacto ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="r" />
+          </div>
+          <Fonte>Fonte: texto oficial, {BODY_NAME[e.body]}.</Fonte>
+        </div>
+        <div className="sv-nc__l">
+          <Pergunta id="sv-d6b">Quem paga?</Pergunta>
+          <div className="sv-nc__r">
+            <Afirmacao claim={campos?.quem_paga ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="r" />
+          </div>
+          <Fonte>Fonte: texto oficial, {BODY_NAME[e.body]}.</Fonte>
+        </div>
+        <div className="sv-nc__l">
+          <Pergunta id="sv-d6c">Quem propôs?</Pergunta>
+          <div className="sv-nc__r">
+            {p.authors.length === 0 ? (
+              <Lacuna>{SEM_DADO}</Lacuna>
+            ) : (
+              <ul className="sv-aut">
+                {p.authors.map((au) => (
+                  <li key={au.slug}>
+                    <Link href={`/v2/pessoa/${au.slug}`}>{au.name}</Link> <span className="sv-esf">{au.role === "principal" ? "autoria principal" : "coautoria"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <Fonte>Fonte: {BODY_NAME[e.body]}, ficha da proposta.</Fonte>
+        </div>
+      </Quadro>
+
+      <Quadro id="sv-d7" variante="fio" numero={6} pergunta="Onde está?" className="sv-gj" prova={`Fonte: ${fontePauta}.`}>
+        <Resposta>{e.stage === "plenario" ? "No plenário." : "Na comissão."}</Resposta>
+        <ol className="sv-etapas">
+          <li>
+            <b>Feito:</b> a proposta foi apresentada{p.presentedOn ? ` em ${fmtDate(p.presentedOn)}` : ""}.
+          </li>
+          <li className="sv-aqui">
+            <b>Está aqui:</b> {onde}, na {BODY_NAME[e.body]}. Reunião {reuniao}.
+          </li>
+          <li>
+            <b>Falta:</b> {e.stage === "comissao" ? "votação no plenário, depois " : ""}a outra Casa do Congresso, depois a assinatura do presidente (sanção). Só então vale.
+          </li>
+        </ol>
+        <p className="sv-volta">
+          <svg viewBox="0 0 44 28" aria-hidden="true">
+            <path d="M40 24C40 4 9 4 9 15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeDasharray="5 4" />
+            <polygon points="9,26 3,15 15,15" fill="currentColor" />
+          </svg>
+          Uma proposta pode voltar etapas.
         </p>
-      )}
+      </Quadro>
 
-      <Src>
-        Fonte: {BODY_NAME[e.body]}, pauta{p.readAt ? ` lida em ${fmtDateTime(p.readAt)}` : " ainda não lida"}.{a ? ` Explicação conferida com o texto oficial por agentes de IA em ${fmtDate(a.reviewedAt)}.` : " Explicação aguardando conferência."}
-      </Src>
-    </>
+      <Quadro
+        id="sv-d8"
+        variante="fio"
+        numero={7}
+        pergunta="Como votou quem eu elegi?"
+        className="sv-gk"
+        prova={p.votes.length > 0 ? `Fonte: ${casasVotos.map((c) => BODY_NAME[c]).join(" e ")}, votação nominal, ${lida}.` : `Fonte: ${fontePauta}.`}
+      >
+        <Resposta>{p.votes.length === 0 ? "Ainda não houve votação." : p.votes.length === 1 ? "Houve 1 votação desta proposta." : `Houve ${p.votes.length} votações desta proposta.`}</Resposta>
+
+        {escolhidos.length === 0 ? (
+          <>
+            <p className="sv-t">{escolhidosTodos.length > 0 ? "As pessoas que você escolheu estão em esferas desligadas nos Ajustes." : "Você ainda não escolheu ninguém."}</p>
+            <p className="sv-t">
+              <Link className="sv-lk" href={escolhidosTodos.length > 0 ? "/v2/ajustes" : "/v2/pessoas"}>
+                {escolhidosTodos.length > 0 ? "Ligar as esferas nos Ajustes" : "Escolher em quem eu votei"} <span aria-hidden="true">→</span>
+              </Link>
+            </p>
+          </>
+        ) : (
+          <>
+            <ul className="sv-pes">
+              {escolhidos.map((x) => {
+                const dela = x.esfera.casa ? eventos.filter(({ ev }) => ev?.body === x.esfera.casa) : [];
+                return (
+                  <li key={x.slug}>
+                    <b>
+                      <Link href={`/v2/pessoa/${x.slug}`}>{x.nome}</Link>, {x.cargo}
+                    </b>
+                    <span className="sv-esf">{x.esfera.texto}</span>
+                    {x.esfera.naoVota ? (
+                      <span className="sv-pes__v">{x.esfera.naoVota}</span>
+                    ) : dela.length === 0 ? (
+                      <span className="sv-pes__v">Ainda não houve votação.</span>
+                    ) : (
+                      dela.map(({ v, ev }) => (
+                        <span className="sv-pes__v" key={v.id}>
+                          {ev ? votoNaVotacao(ev, x.slug) : <>Não consta o voto desta pessoa nesta votação.</>} · votação de {fmtDate(v.occurredAt)}
+                        </span>
+                      ))
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <Nota>Pessoas em ordem alfabética. Aparece mais texto em quem tem dado publicado. {COOKIE_TEXTO}</Nota>
+            {ocultos > 0 && <Nota>{ocultos === 1 ? "1 pessoa que você escolheu não aparece" : `${ocultos} pessoas que você escolheu não aparecem`}: a esfera dela está desligada nos Ajustes.</Nota>}
+          </>
+        )}
+
+        {eventos.map(({ v, ev }) => {
+          const titulo = `${billLabel(e)}, votação de ${fmtDate(v.occurredAt)}`;
+          const c = ev?.counts;
+          return (
+            <div className="sv-vt" key={v.id}>
+              <h3 className="sv-sub">
+                <Link href={`/v2/votacao/${v.id}`}>{clip(v.description, 150)}</Link>
+              </h3>
+              <p className="sv-t">
+                Votação de {fmtDate(v.occurredAt)}
+                {v.result ? `. Resultado: ${v.result}` : ""}.
+              </p>
+              {c ? (
+                <>
+                  <Placar titulo={titulo} sim={c.sim} nao={c.nao} abs={c.abstencao} sem={semVoto(c)} total={Object.values(c).reduce((s, n) => s + n, 0)} />
+                  {c.obstrucao > 0 && <p className="sv-nota">Obstrução: {c.obstrucao}. É um registro próprio da Casa e não entra nas quatro linhas acima.</p>}
+                </>
+              ) : (
+                <Placar titulo={titulo} sim={v.yes} nao={v.no} abs={null} sem={null} />
+              )}
+            </div>
+          );
+        })}
+        {eventos.length > 0 && <Nota>Sem voto soma quem não registrou voto e quem presidia a sessão. Não é voto contra. A ordem é fixa: Sim, Não, Abstenção, Sem voto.</Nota>}
+      </Quadro>
+
+      <Quadro
+        id="sv-d9"
+        variante="fio"
+        numero={8}
+        pergunta="Onde eu confiro?"
+        className="sv-gl"
+        prova={
+          <>
+            {id}. Fonte: texto oficial, {fontePauta}.
+          </>
+        }
+      >
+        {a?.sourceUrl || p.fichaUrl ? (
+          <Resposta>
+            {a?.sourceUrl && (
+              <a href={a.sourceUrl} rel="noopener noreferrer">
+                Texto oficial na {BODY_NAME[e.body]} <span aria-hidden="true">→</span>
+              </a>
+            )}
+            {p.fichaUrl && (
+              <a href={p.fichaUrl} rel="noopener noreferrer">
+                {a?.sourceUrl ? "Ficha e tramitação" : `Texto oficial e tramitação na ${BODY_NAME[e.body]}`} <span aria-hidden="true">→</span>
+              </a>
+            )}
+          </Resposta>
+        ) : (
+          <>
+            <Lacuna>O endereço do texto oficial ainda não foi carregado.</Lacuna>
+            <Fonte>Fonte: {BODY_NAME[e.body]}.</Fonte>
+          </>
+        )}
+        {e.summary && (
+          <details>
+            <summary>Ler o resumo oficial (ementa), na linguagem da lei</summary>
+            <p className="sv-t">{e.summary}</p>
+          </details>
+        )}
+        <Nota>
+          Por que esta proposta está aqui: {e.reason.theme ? `a Casa a classificou em “${e.reason.theme}” e ` : ""}o resumo oficial cita “{e.reason.term}”. <Link href="/v2/como-funciona#regras">Ver a regra</Link>
+        </Nota>
+        {aguardando && (
+          <Nota>
+            <Etiqueta>Aguardando conferência</Etiqueta> As respostas desta página só aparecem depois de conferidas com o texto oficial.
+          </Nota>
+        )}
+      </Quadro>
+
+      <Selo id="sv-d10" numero={9} lidoEm={p.readAt} className="sv-gs" />
+
+      <Proxima href="/v2/temas" pergunta="O que está em jogo no Congresso?" className="sv-gn" />
+    </div>
   );
 }

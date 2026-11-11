@@ -1,3 +1,47 @@
 /* Segue o Voto, D2 · tela Temas (/v2/temas).
    Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
-   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px. */
+   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px.
+   Esta tela não usa --agora nem --vida. */
+
+/* grupo de quadros que empilha (um por tema oficial + "sem tema oficial") */
+.sv .sv-tm-sec{display:flex;flex-direction:column;gap:8px;min-width:0}
+
+/* item de pauta dentro de um quadro de tema */
+.sv .sv-tm-item{display:flex;flex-direction:column;gap:6px;min-width:0}
+.sv .sv-tm-item+.sv-tm-item{border-top:1.5px solid var(--tinta);padding-top:8px;margin-top:4px}
+.sv .sv-tm-meio{display:flex;flex-direction:column;gap:6px;min-width:0}
+
+/* esfera: palavra, sem estilo próprio por esfera */
+
+/* assuntos do produto: lista numerada em ordem alfabética */
+.sv .sv-14{list-style:none;margin:0;padding:0}
+.sv .sv-14 li{font-size:16px;line-height:1.5;padding:0}
+.sv .sv-14 a{display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;min-height:44px;padding:2px 0}
+.sv .sv-14 small{font-size:13px;line-height:1.3;color:var(--tinta2)}
+
+/* pessoas escolhidas: mesma estrutura para todas */
+
+@media (min-width:900px){
+  .sv .sv-tm-sec{gap:14px}
+  .sv .sv-pg--temas{grid-template-areas:
+    "h h h h h h h h h h h h"
+    "a a a a a a a a a a a a"
+    "c c c c c c c c c c c c"
+    "e e e e e e e e e e e e"
+    "f f f f f f f s s s s s"
+    "n n n n n n n n n n n n"}
+  /* sem pauta com itens: não há área "c" */
+  .sv .sv-pg--temas.sv-pg--sem-itens{grid-template-areas:
+    "h h h h h h h h h h h h"
+    "a a a a a a a a a a a a"
+    "e e e e e e e e e e e e"
+    "f f f f f f f s s s s s"
+    "n n n n n n n n n n n n"}
+
+  /* tira: pergunta | conteúdo | prova, em três colunas */
+  .sv .sv-tira>.sv-quadro__in{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,6fr) minmax(0,3fr);column-gap:28px;align-items:start}
+  .sv .sv-tira .sv-prova{margin-top:0;padding:0 0 0 16px;border-top:0;border-left:1.5px solid var(--tinta)}
+
+  .sv .sv-14{columns:3;column-gap:24px}
+  .sv .sv-14 li{break-inside:avoid}
+}

@@ -1,3 +1,71 @@
 /* Segue o Voto, D2 · tela Pessoa (/v2/pessoa/[slug]).
    Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
-   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px. */
+   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px.
+   Cor: nenhuma regra deste arquivo usa --agora ou --vida. O único uso é a classe global .sv-agora (sv.css) em "mês N de M". */
+
+/* cabeçalho */
+.sv .sv-cab{display:flex;flex-direction:column;gap:3px;padding:2px 4px 4px;min-width:0}
+.sv .sv-cab h1{font-size:26px;line-height:1.05;font-weight:800;letter-spacing:-.025em;font-variation-settings:"opsz" 72;overflow-wrap:anywhere}
+.sv .sv-cab__k{font-size:15px;line-height:1.3;font-weight:600;font-stretch:84%;color:var(--tinta2)}
+.sv .sv-cab__c{font-size:16px;line-height:1.4;font-weight:600}
+.sv .sv-cab__x{font-size:16px;line-height:1.45;max-width:62ch}
+.sv .sv-cab__f{margin-top:4px}
+.sv .sv-vt a{display:inline-flex;align-items:center;min-height:44px;font-weight:700;font-size:15px}
+.sv .sv-ir{display:flex;flex-wrap:wrap;align-items:center;column-gap:16px;font-size:15px;line-height:1.2}
+.sv .sv-ir a{display:inline-flex;align-items:center;min-height:44px;font-weight:700}
+
+/* "Foi trabalhar?": uma marca por sessão, agrupada por mês. Presente = traço cheio; justificada = traço tracejado;
+   ausente = ponto na base; fora do exercício = traço vazado e curto (sem marca de falta). Forma, nunca cor. */
+.sv .sv-pr{display:flex;flex-wrap:wrap;gap:10px 14px}
+.sv .sv-pr__m{display:flex;flex-direction:column;gap:4px}
+.sv .sv-pr__ms{display:flex;align-items:flex-end;gap:4px;height:24px}
+.sv .sv-pr__ms i,.sv .sv-pk{display:inline-block;flex:none;width:4px;height:24px;background-color:var(--tinta)}
+.sv .sv-pr__ms .sv-j,.sv .sv-pk--j{width:0;background-color:transparent;border-left:4px dashed var(--tinta)}
+.sv .sv-pr__ms .sv-au,.sv .sv-pk--au{height:4px;border-radius:50%}
+.sv .sv-pr__ms .sv-fx,.sv .sv-pk--fx{height:10px;background-color:transparent;border:1.5px solid var(--tinta)}
+.sv .sv-pr__l{font-size:13px;line-height:1;font-stretch:84%;color:var(--tinta2);white-space:nowrap}
+.sv .sv-leg .sv-pk{height:20px}
+.sv .sv-leg .sv-pk--au{height:4px;align-self:flex-end;margin-bottom:3px}
+.sv .sv-leg .sv-pk--fx{height:10px}
+
+/* gastos: tabela por categoria (ordem alfabética), barra decorativa proporcional ao maior valor */
+.sv .sv-g{border-collapse:collapse;width:100%;font-size:16px;line-height:1.3}
+.sv .sv-g th,.sv .sv-g td{padding:4px 0;text-align:left;vertical-align:middle;border-top:1.5px solid var(--tinta)}
+.sv .sv-g tbody tr:first-child th,.sv .sv-g tbody tr:first-child td{border-top:0}
+.sv .sv-g th{font-weight:500;padding-right:10px;overflow-wrap:anywhere}
+.sv .sv-g td{font-weight:700;white-space:nowrap;padding-right:10px;text-align:right}
+.sv .sv-g .sv-g__b{width:32%;padding-right:0}
+.sv .sv-g__b i{display:block;height:4px;min-width:2px;background-color:var(--tinta)}
+.sv .sv-g tfoot th,.sv .sv-g tfoot td{border-top:3px solid var(--tinta);font-weight:800}
+.sv .sv-g--s td{padding-right:0}
+
+/* patrimônio: declarações em ordem cronológica, com a diferença entre elas */
+.sv .sv-decl{display:grid;grid-template-columns:minmax(0,1fr);border-top:3px solid var(--tinta);border-bottom:3px solid var(--tinta)}
+.sv .sv-decl__c{padding:6px 0;display:flex;flex-direction:column;gap:2px}
+.sv .sv-decl__a{font-size:14px;line-height:1.3;font-weight:600;font-stretch:84%;color:var(--tinta2)}
+.sv .sv-decl__v{font-size:22px;line-height:1.15;font-weight:800;letter-spacing:-.015em;white-space:nowrap}
+.sv .sv-decl__d{padding:4px 0 4px 16px;border-top:1.5px dashed var(--tinta);border-bottom:1.5px dashed var(--tinta);font-size:15px;line-height:1.3;font-weight:700;font-stretch:88%}
+
+/* votos: três linhas iguais, forma + palavra */
+.sv .sv-votos li{display:grid;grid-template-columns:118px minmax(0,1fr);column-gap:10px;padding:7px 0;border-top:1.5px solid var(--tinta)}
+.sv .sv-votos__v{grid-row:1 / span 2;display:flex;align-items:center;align-self:start;gap:8px;font-size:21px;line-height:24px;font-weight:800;letter-spacing:-.01em}
+.sv .sv-votos__q{font-size:13px;line-height:1.45;font-stretch:88%;color:var(--tinta2)}
+.sv .sv-votos .sv-t a{display:inline;min-height:0;font-weight:600}
+.sv .sv-voltas li{padding:6px 0;border-top:1.5px solid var(--tinta);font-size:16px;line-height:1.45}
+
+@media (min-width:900px){
+  .sv .sv-pg--pessoa{grid-template-columns:minmax(0,1fr);gap:0}
+  .sv .sv-cab{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:16px;border-top:3px solid var(--tinta);padding:10px 0 12px}
+  .sv .sv-cab h1{font-size:36px}
+  .sv .sv-cab>.sv-vt,.sv .sv-cab__x,.sv .sv-cab__f{flex:0 0 100%}
+  .sv .sv-ir{display:none}
+  .sv .sv-votos li{grid-template-columns:140px minmax(0,1fr);padding:9px 0}
+  .sv .sv-votos__v{font-size:24px;line-height:26px}
+  .sv .sv-g td{padding-right:14px}
+}
+
+/* 1100px: o efeito final da maquete mantém as declarações em coluna única, então não há regra extra de .sv-decl.
+   A tabela de gastos ganha respiro na coluna de resposta larga. */
+@media (min-width:1100px){
+  .sv .sv-g{font-size:17px}
+}

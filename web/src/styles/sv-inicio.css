@@ -1,3 +1,148 @@
 /* Segue o Voto, D2 · tela Início (/v2): "O que está rolando?".
    Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
-   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px. */
+   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px.
+   Cor nesta tela (§4, d2.css v7): --agora na data do fólio, no fio de 4px do bloco "Esta semana", e na coluna "Hoje" (fio de 4px,
+   fundo --agora-luz no cabeçalho, rótulo "Hoje"); --vida só no rótulo "O que muda:" (até 3 por tela, ver semana.tsx). */
+
+/* ---------- grade: a tela declara as próprias áreas (sv.css só traz as classes sv-g*) ---------- */
+/* celular: uma coluna, na ordem do DOM. Sem isto, grid-area com nome sem template jogaria os itens para a mesma linha implícita. */
+.sv .sv-pg--rola>*{grid-area:auto}
+@media (min-width:900px){
+  .sv .sv-pg--rola{
+    grid-template-columns:repeat(12,minmax(0,1fr));
+    grid-template-areas:
+      "h h h h h h h h h h h h"
+      "l l l l l l l l l l l l"
+      "q q q q q q q q q q q q"
+      "e e e e e e e e e e e e"
+      "j j j j j j v v v v v v"
+      "t t t t t t t t t t t t"
+      "p p p p p p s s s s s s"
+      "n n n n n n n n n n n n";
+  }
+  .sv .sv-pg--rola>.sv-gh{grid-area:h}.sv .sv-pg--rola>.sv-gl{grid-area:l}.sv .sv-pg--rola>.sv-gq{grid-area:q}
+  .sv .sv-pg--rola>.sv-ge{grid-area:e}.sv .sv-pg--rola>.sv-gj{grid-area:j}.sv .sv-pg--rola>.sv-gv{grid-area:v}
+  .sv .sv-pg--rola>.sv-gt{grid-area:t}.sv .sv-pg--rola>.sv-gp{grid-area:p}.sv .sv-pg--rola>.sv-gs{grid-area:s}.sv .sv-pg--rola>.sv-gn{grid-area:n}
+}
+@media (min-width:1100px){
+  .sv .sv-pg--rola{
+    grid-template-columns:minmax(0,1fr) 290px 190px;
+    grid-template-areas:
+      "h h h"
+      "l l l"
+      "q q q"
+      "e j v"
+      "t t t"
+      "p s n";
+    gap:8px 14px;
+    margin-top:2px;
+  }
+}
+.sv-pg--rola .sv-folio{border-top:0}
+@media (min-width:900px){.sv-pg--rola .sv-folio{padding:4px 0 0}}
+@media (min-width:1100px){.sv-pg--rola .sv-folio{padding:0}}
+
+/* ---------- "O que lemos" ---------- */
+.sv-lemos{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:16px;padding:2px 4px 0;border-top:1.5px solid var(--tinta);border-bottom:1.5px solid var(--tinta);font-size:13px;line-height:1.45;font-stretch:86%;color:var(--tinta2)}
+.sv-lemos__t{flex:0 0 100%;color:var(--tinta)}
+.sv-lemos__l{flex:1 1 280px;min-width:0;display:grid;grid-template-columns:minmax(0,1fr)}
+.sv-lemos__l li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;column-gap:12px;min-width:0}
+.sv-lemos__l li>span{min-width:0}
+.sv .sv-lemos a{display:inline-flex;align-items:center;min-height:44px;font-size:14px;font-weight:700;color:var(--tinta);flex:0 0 auto}
+@media (min-width:900px){
+  .sv-lemos__t{flex:0 0 auto}
+  .sv-lemos__l{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px}
+}
+
+/* ---------- "Em quem eu votei" ---------- */
+.sv-vazio{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.sv-esc{display:block}
+.sv-esc>li{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;border-top:1.5px solid var(--tinta);padding:6px 0 2px}
+.sv-esc__id{display:flex;flex-direction:column}
+.sv-esc__n{font-size:19px;line-height:23px;font-weight:800;font-stretch:90%;letter-spacing:-.01em}
+.sv-esc__c{font-size:14px;line-height:19px;font-stretch:84%;color:var(--tinta2)}
+.sv-esc__u{font-size:15px;line-height:1.35;min-width:0}
+.sv-esc__u .sv-lac__liso{padding:3px 8px;border-width:1.5px}
+.sv .sv-esc>li>a{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:700;justify-self:start;white-space:normal}
+.sv-vl{display:flex;flex-direction:column;gap:3px}
+.sv-vl li{display:flex;flex-direction:row;align-items:flex-start;gap:7px;font-size:14px;line-height:1.45;min-width:0;overflow-wrap:anywhere}
+.sv-vl li .sv-voto{flex:none}
+@media (min-width:900px){
+  .sv-esc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sv-esc>li{display:flex;flex-direction:column;align-items:flex-start;gap:3px;border-left:1.5px solid var(--tinta);padding:8px 16px 4px}
+  .sv-esc__n{font-size:24px;line-height:28px}
+  .sv-esc__c{font-size:15px}
+  .sv-esc__u{flex:1 1 auto;font-size:16px;width:100%}
+  .sv-esc>li>a{margin-top:auto}
+}
+
+/* ---------- linha do tempo: "Esta semana", "Já rolou", "Vai rolar" ---------- */
+.sv-tl{min-width:0;display:flex;flex-direction:column;gap:6px;padding:8px 4px 10px;border-top:4px solid var(--tinta)}
+.sv-tl--e{border:3px solid var(--tinta);border-top:4px solid var(--agora);padding:8px var(--pad) 10px} /* COR: fio de 4px --agora no topo de "Esta semana" */
+.sv-th{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;font-size:22px;line-height:1.1;font-weight:800;letter-spacing:-.02em;font-variation-settings:"opsz" 72}
+.sv-th span:not(.sv-etq){font-size:14px;font-weight:600;font-stretch:84%;color:var(--tinta2);letter-spacing:0}
+.sv-thr{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:16px;row-gap:2px}
+.sv-s7{display:grid;grid-template-columns:minmax(0,1fr)}
+.sv-d{min-width:0;display:flex;flex-direction:column;gap:3px;padding:6px 0 8px;border-top:1.5px solid var(--tinta)}
+.sv-d__c{display:flex;align-items:baseline;gap:8px;font-size:15px;line-height:1.1;font-weight:600;font-stretch:86%;overflow-wrap:anywhere}
+.sv-d__n{font-size:28px;line-height:1;font-weight:800;letter-spacing:-.03em;font-stretch:100%}
+.sv-d__q{margin-left:auto;font-size:17px;font-weight:800;font-stretch:96%}
+.sv-d__nada{font-size:13px;line-height:1.35;font-stretch:84%;color:var(--tinta2);overflow-wrap:anywhere}
+/* COR: coluna "Hoje" = fio de 4px, cabeçalho com fundo --agora-luz, rótulo em --agora (d2.css v7, linhas 688–690) */
+.sv-d--hoje{border-top:4px solid var(--agora)}
+.sv-d--hoje .sv-d__c{background-color:var(--agora-luz);color:var(--tinta);padding:2px 6px}
+.sv-d--hoje .sv-d__q{color:var(--agora)}
+.sv-dec{display:flex;flex-direction:column;gap:3px;border-top:1.5px solid var(--tinta);padding:5px 0 4px}
+.sv-dec__t{font-size:17px;line-height:1.18;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+.sv-dec--1 .sv-dec__t{font-size:21px;line-height:1.1;letter-spacing:-.02em}
+.sv .sv-dec__t a{display:block;min-height:44px;padding:2px 0}
+.sv-pg--rola .sv-tl .sv-esf{margin-top:-2px}
+.sv-resto{padding:6px 0 0;border-top:1.5px solid var(--tinta);font-size:15px;line-height:1.45;font-stretch:90%;color:var(--tinta2)}
+.sv-ev{display:flex;flex-direction:column;gap:4px;border-top:1.5px solid var(--tinta);padding:6px 0 8px;min-width:0}
+.sv-ev__d{font-size:14px;line-height:1.3;font-weight:700;font-stretch:84%;color:var(--tinta2)}
+.sv-ev__t{font-size:17px;line-height:1.25;font-weight:800;letter-spacing:-.01em;overflow-wrap:anywhere}
+.sv .sv-ev__t a{display:block;min-height:44px;padding:2px 0}
+.sv-ev .sv-cont{font-size:15px}
+.sv-ev .sv-cont th{padding-right:10px}
+.sv-ev .sv-lac{margin:0}
+.sv-ir2 .sv-lk{white-space:normal}
+.sv-tl>.sv-lk{align-self:flex-start}
+@media (min-width:900px){
+  .sv-th{font-size:24px}
+  .sv-tl{padding:10px 0 12px}
+  .sv-tl--e{padding:10px 0 0}
+  .sv-tl--e>:where(.sv-thr,.sv-lac,.sv-resto,.sv-prova){margin-inline:var(--pad)}
+  .sv-tl--e>.sv-prova{margin-bottom:8px}
+  .sv-tl--e>.sv-resto{padding-inline:0}
+  /* "Hoje" e "Amanhã" lado a lado; outros dias com item ocupam a linha toda */
+  .sv-s7{grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:4px}
+  .sv-s7.is-hoje-vazio{grid-template-columns:minmax(120px,1fr) minmax(0,3fr)}
+  .sv-d{grid-column:1 / -1;padding:8px 14px 10px;gap:5px}
+  .sv-d--hoje,.sv-d--amanha{grid-column:auto}
+  .sv-d--hoje+.sv-d--amanha{border-left:1.5px solid var(--tinta)}
+  .sv-d__n{font-size:40px}
+  .sv-d__q{font-size:20px}
+  .sv-d--hoje .sv-d__c,.sv-d--amanha .sv-d__c{flex-wrap:wrap}
+  .sv-dec--1 .sv-dec__t{font-size:25px;line-height:1.06}
+}
+@media (min-width:1100px){
+  .sv-tl{padding:8px 0 8px;gap:4px}
+  .sv-tl--e{padding:8px 0 0}
+  .sv-d{padding:8px 12px 10px}
+  .sv-ev .sv-cont{font-size:14px}
+  .sv-ev .sv-cont th,.sv-ev .sv-cont td{padding-top:3px;padding-bottom:3px}
+  .sv-ev{gap:3px;padding:5px 0 6px}
+  .sv-ev__t{font-size:16px;line-height:1.2}
+  .sv-ev .sv-t{font-size:14px;line-height:1.4}
+  .sv-dec{padding:4px 0 3px;gap:2px}
+  .sv-dec .sv-t{font-size:15px}
+  .sv-dec--1 .sv-dec__t{font-size:23px}
+}
+
+/* ---------- "Quem mais me representa?", "E no Congresso?", próxima pergunta ---------- */
+.sv-peq{font-size:15px;line-height:1.45;max-width:70ch}
+.sv-pg--rola .sv-gn .sv-a{overflow-wrap:anywhere}
+@media (min-width:1100px){
+  .sv-pg--rola .sv-gn .sv-quadro__in{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:0}
+  .sv-pg--rola .sv-gn .sv-seta{align-self:flex-end;font-size:44px}
+}

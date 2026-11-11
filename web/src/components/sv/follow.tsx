@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { COOKIE_TEXTO } from "./prefs-shared";
 import { FOLLOW_COOKIE, FOLLOW_MAX, parseFollows, serializeFollows } from "./follow-shared";
 
 function read(): string[] {
@@ -14,7 +15,7 @@ function write(slugs: string[]) {
   document.cookie = v ? `${FOLLOW_COOKIE}=${v}; path=/; max-age=31536000; samesite=lax` : `${FOLLOW_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
 
-/** Marca ou desmarca uma pessoa como "em quem eu votei". A lista fica só neste navegador. */
+/** Marca ou desmarca uma pessoa como "em quem eu votei". A lista fica guardada num cookie neste navegador, e o servidor lê esse cookie. */
 export function FollowButton({ slug, name }: { slug: string; name: string }) {
   const router = useRouter();
   const [on, setOn] = useState(false);
@@ -41,7 +42,7 @@ export function FollowButton({ slug, name }: { slug: string; name: string }) {
         {on ? "Você acompanha" : "Votei nesta pessoa: acompanhar"}
       </button>
       <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }} role="status">
-        {on ? `${name} aparece em destaque na sua página inicial.` : full ? `Você já acompanha ${FOLLOW_MAX} pessoas, o limite. Tire alguém para incluir.` : "A lista fica guardada só neste navegador. Não criamos conta."}
+        {on ? `${name} aparece em destaque na sua página inicial.` : full ? `Você já acompanha ${FOLLOW_MAX} pessoas, o limite. Tire alguém para incluir.` : COOKIE_TEXTO}
       </p>
     </>
   );
