@@ -685,7 +685,7 @@ test.describe("conteúdo", () => {
           if (re.test(html.replace(/<script[\s\S]*?<\/script>/g, ""))) falhas.push(`HTML contém ${nome}`);
         }
         // o rodapé vale em toda página: diz a regra, nunca afirma quem conferiu ESTA página
-        await expect(page.locator("footer.sv-rod")).toContainText("Cada resposta diz quem conferiu e quando. Votos, presença e gastos vêm da fonte oficial, com data.");
+        await expect(page.locator("footer.sv-rod")).toContainText("Cada resposta diz quem conferiu e quando. Votos, presença e gastos vêm da fonte oficial, com a data da leitura quando a fonte a registra.");
         await expect(page.locator("footer.sv-rod")).not.toContainText(/agentes de IA|por pessoa|não uma pessoa/i);
         const desc = await page.locator('meta[name="description"]').getAttribute("content");
         expect(desc ?? "", "description").not.toMatch(/Conferido por agentes|agentes de IA/i);

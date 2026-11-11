@@ -58,7 +58,7 @@ export function fraseCobertura(status: CoverageStatus | null | undefined): strin
 export const SELO = {
   pergunta: "Quem conferiu isso?",
   /** regra que vale em qualquer página (rodapé, description e selo de página sem uma resposta própria): não afirma quem conferiu */
-  regra: "Cada resposta diz quem conferiu e quando. Votos, presença e gastos vêm da fonte oficial, com data.",
+  regra: "Cada resposta diz quem conferiu e quando. Votos, presença e gastos vêm da fonte oficial, com a data da leitura quando a fonte a registra.",
   /** Decisão de proposta ainda sem resposta publicada */
   semResposta: "Esta proposta ainda não tem resposta publicada.",
   verConferido: "Ver o que foi conferido",

@@ -18,7 +18,7 @@ import { data } from "@/lib/data";
 // O topo mostra a UF do cookie sv_uf. Ler cookie tornaria a página dinâmica; o layout raiz já é force-dynamic, então nada muda.
 export const metadata: Metadata = {
   title: { default: "Segue o Voto", template: "%s · Segue o Voto" },
-  description: "O que está rolando, o que seus escolhidos estão fazendo e o que mexe com você. Cada resposta diz quem conferiu e quando; votos, presença e gastos vêm da fonte oficial, com data.",
+  description: "O que está rolando, o que seus escolhidos estão fazendo e o que mexe com você. Cada resposta diz quem conferiu e quando; votos, presença e gastos vêm da fonte oficial, com a data da leitura quando a fonte a registra.",
   robots: { index: false, follow: false },
 };
 
