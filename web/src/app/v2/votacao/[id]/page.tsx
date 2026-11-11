@@ -48,6 +48,27 @@ function Names({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
   );
 }
 
+/** Placar da UF: contagem por voto, como a fonte publicou, ao lado das cadeiras da UF fixadas em lei. Nunca "ausentes". */
+function PlacarDaUf({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
+  const p = ev.porUf;
+  if (p.kind !== "placar") return null;
+  const row = p.ufs.find((x) => x.uf === uf);
+  if (!row) return null;
+  const partes = ORDER.filter((v) => row.contagem[v] > 0).map((v) => `${HEAD[v]}: ${row.contagem[v]}`);
+  return (
+    <div className="sv-mt-3" data-placar-uf={uf}>
+      <p className="sv-meta">
+        {uf}: {row.registros} {row.registros === 1 ? "registro" : "registros"} nesta votação, de {row.cadeiras} cadeiras de {uf} {ev.body === "camara" ? "na Câmara" : "no Senado"}.
+        {partes.length > 0 ? ` ${partes.join(". ")}.` : ""}
+      </p>
+      <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
+        Cadeiras: {p.fonteCadeiras}. Menos registros que cadeiras não quer dizer ausência: a fonte publica só quem teve registro.
+        {p.semUf > 0 ? ` ${p.semUf} ${p.semUf === 1 ? "registro sem estado identificado" : "registros sem estado identificado"} (sem mandato desta casa carregado na data).` : ""}
+      </p>
+    </div>
+  );
+}
+
 export default async function Votacao({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ uf?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const ev = await load(id);
@@ -91,7 +112,9 @@ export default async function Votacao({ params, searchParams }: { params: Promis
 
         <div>
           <Label>{uf ? `Parlamentares de ${uf}` : "Ver por estado"}</Label>
-          {ufs.length === 0 ? (
+          {ev.porUf.kind === "lacuna" ? (
+            <Gap>{ev.porUf.motivo}</Gap>
+          ) : ufs.length === 0 ? (
             <Gap>A fonte não publicou o voto de cada pessoa nesta votação.</Gap>
           ) : (
             <p style={{ display: "flex", flexWrap: "wrap", gap: "2px 4px", marginTop: 6 }}>
@@ -102,6 +125,7 @@ export default async function Votacao({ params, searchParams }: { params: Promis
               ))}
             </p>
           )}
+          {uf && <PlacarDaUf ev={ev} uf={uf} />}
           {uf && <Names ev={ev} uf={uf} />}
         </div>
       </div>

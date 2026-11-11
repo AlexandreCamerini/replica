@@ -20,6 +20,7 @@ import {
   ListaVotos,
   RespostaEmendas,
   Sem,
+  SemCobertura,
   TabelaGastos,
   comissoesAtuais,
   fraseMudou,
@@ -30,7 +31,7 @@ import {
   vmGastos,
   vmPatrimonio,
 } from "@/components/sv/pessoa/secoes";
-import { data, type AttendanceGrid, type OfficeSlug, type Stamp } from "@/lib/data";
+import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 
 const SLUG = /^[a-z0-9-]{1,120}$/;
 // cache(): generateMetadata e a página leem a mesma pessoa numa só ida ao banco por requisição
@@ -118,7 +119,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
     return { ano: e2.byCategory.length > 0 ? hoje.ano - 1 : hoje.ano, byCategory: e2.byCategory.length > 0 ? e2.byCategory : e.byCategory };
   };
 
-  const [stats, gradeR, gastosR, cands, votes, laws, staff, campanha, emendas, comissoes, place, salarioFontes, refresh, sPres, sGastos, sVotos, sProp, sEquipe, sExtras, sBens, sContas, sEmendas, outros] = await Promise.all([
+  const [stats, gradeR, gastosR, cands, votes, laws, staff, campanha, emendas, comissoes, place, salarioFontes, refresh, sPres, sGastos, sVotos, sProp, sEquipe, sExtras, sBens, sContas, sEmendas, outros, coberturaR] = await Promise.all([
     ler(data.getStats(id, "career")),
     legis ? ler(grade()) : null,
     legis ? ler(gastos()) : null,
@@ -142,7 +143,10 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
     stampDe("tse.contas"),
     stampDe("transparencia.emendas"),
     Promise.all(follows.filter((s) => s !== slug).map((s) => ler(data.getPerson(s)))),
+    ler(data.getPeopleCoverage([id])),
   ]);
+  // estado de cada conjunto (lido, não carregado, a fonte não publica…); null = a leitura da cobertura falhou: nada se afirma
+  const cob = (c: ConjuntoPessoa): CoberturaConjunto | null => (coberturaR.ok ? (coberturaR.v[0]?.conjuntos.find((x) => x.conjunto === c) ?? null) : null);
 
   const missing = stats.ok ? stats.v.missing : [];
   const lugar = place && place.ok ? place.v : null;
@@ -157,6 +161,15 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
   // casa do mandato, citada como fonte quando o dado apareceu sem carimbo de leitura (fora da esfera federal)
   const casa = main ? casaDoMandato(main.office, ufSigla, main.placeLabel) : null;
   const F = (rotulo: string, s: Stamp | null, temDado = false) => `Fonte: ${fonteTexto(rotulo, usa(s), temDado ? casa : null)}.`;
+  // Fonte de um conjunto com cobertura: lido = a fonte e a data da carga da família certa (não o carimbo mais novo da fonte
+  // inteira); lacuna = a fonte que sustenta o motivo, sem data. Sem cobertura lida: o carimbo antigo (getStamp).
+  const Fc = (c: ConjuntoPessoa, rotulo: string, s: Stamp | null, temDado = false) => {
+    const k = cob(c);
+    if (!k) return F(rotulo, s, temDado);
+    if (k.estado === "lido" && k.lidoEm) return F(rotulo, { dataset: c, source: k.fonte?.nome ?? s?.source ?? "Fonte oficial", sourceUrl: k.fonte?.url ?? "", refreshedAt: k.lidoEm }, temDado);
+    if (k.fonte && !temDado) return `Fonte: ${k.fonte.nome}, ${rotulo}.`;
+    return F(rotulo, null, temDado);
+  };
   const consta: string[] = [];
   const naoConsta: string[] = [];
   const naoLido: string[] = []; // leitura que falhou: não entra em "Não consta"
@@ -187,7 +200,8 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
   const salario = stats.ok ? stats.v.salaryMonthlyCents : null;
   marca(salario !== null, "salário", !stats.ok);
   const fontesSal = salarioFontes && salarioFontes.ok ? salarioFontes.v : [];
-  const dataSal = fontesSal.map((s) => s.updatedAt).sort().at(-1) ?? null;
+  // data da CARGA da norma (carimbo de dataset_stamps), não "quando o valor mudou" (updated_at); sem carimbo, a data some
+  const cargaSal = fontesSal.flatMap((s) => (s.loadedAt ? [s.loadedAt] : [])).sort().at(-1) ?? null;
   // ---------- 6. equipe ----------
   const nEquipe = staff.ok ? staff.v.length : 0;
   marca(nEquipe > 0, "equipe", !staff.ok);
@@ -197,7 +211,8 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
   marca(principal !== null, "propostas", !stats.ok);
   const stProp = statusLacuna(missing, "propostas");
   // só lemos leis sancionadas de deputado federal e senador: fora disso (ou se a leitura falhou) não há frase sobre leis
-  const nLeis = laws.ok && cobreLeis(office) ? laws.v.length : null;
+  // e só com a leitura de leis feita para o cargo (cobertura `lido`): sem isso, nada se diz sobre leis
+  const nLeis = laws.ok && cobreLeis(office) && cob("leis")?.estado === "lido" ? laws.v.length : null;
   // ---------- 8. emendas ----------
   const vmE = emendas.ok ? vmEmendas(emendas.v, ufSigla, ufNome) : null;
   marca(!!vmE, "emendas", !emendas.ok);
@@ -252,7 +267,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
       </div>
 
       {/* 1 */}
-      <Linha id="p1" numero={1} dom ancora="trabalho" pergunta="Foi trabalhar?" fonte={F(body === "senado" ? "votações nominais" : "presença em sessões de votação", sPres, !!g)}>
+      <Linha id="p1" numero={1} dom ancora="trabalho" pergunta="Foi trabalhar?" fonte={Fc("presenca", body === "senado" ? "votações nominais" : "presença em sessões de votação", sPres, !!g)}>
         {g ? (
           <>
             <div className="sv-bloco">
@@ -272,12 +287,12 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : gradeR && !gradeR.ok ? (
           <Falha />
         ) : (
-          <Sem status={stPres.status} motivo={!legis ? MOTIVO_PLENARIO : stPres.motivo} />
+          <SemCobertura cob={cob("presenca")} oQue="presença em sessão de votação" status={stPres.status} motivo={!legis ? MOTIVO_PLENARIO : stPres.motivo} />
         )}
       </Linha>
 
       {/* 2 */}
-      <Linha id="p2" numero={2} dom ancora="gastos" pergunta="Quanto gastou o gabinete?" fonte={F(rotGastos, sGastos, !!vmG)}>
+      <Linha id="p2" numero={2} dom ancora="gastos" pergunta="Quanto gastou o gabinete?" fonte={Fc("gastos", rotGastos, sGastos, !!vmG)}>
         {vmG ? (
           <>
             <div className="sv-bloco">
@@ -301,7 +316,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : gastosR && !gastosR.ok ? (
           <Falha />
         ) : (
-          <Sem status={stGastos.status} motivo={!legis ? MOTIVO_COTA : (stGastos.motivo ?? (body === "senado" ? "O Senado tem verba própria, com outra fonte." : null))} />
+          <SemCobertura cob={cob("gastos")} oQue="gasto do gabinete" status={stGastos.status} motivo={!legis ? MOTIVO_COTA : (stGastos.motivo ?? (body === "senado" ? "O Senado tem verba própria, com outra fonte." : null))} />
         )}
       </Linha>
 
@@ -312,7 +327,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         dom
         ancora="patrimonio"
         pergunta="O patrimônio declarado mudou?"
-        fonte={F(vmP ? `bens declarados nas candidaturas de ${anosP}` : "bens declarados nas candidaturas", sBens)}
+        fonte={Fc("patrimonio", vmP ? `bens declarados nas candidaturas de ${anosP}` : "bens declarados nas candidaturas", sBens)}
       >
         {vmP ? (
           <>
@@ -331,12 +346,12 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : !cands.ok ? (
           <Falha />
         ) : (
-          <Sem status={statusLacuna(missing, "patrimonio").status} motivo={statusLacuna(missing, "patrimonio").motivo} />
+          <SemCobertura cob={cob("patrimonio")} oQue="bens declarados nas candidaturas" status={statusLacuna(missing, "patrimonio").status} motivo={statusLacuna(missing, "patrimonio").motivo} />
         )}
       </Linha>
 
       {/* 4 */}
-      <Linha id="p4" numero={4} pergunta="Como votou?" fonte={F("votações nominais", sVotos, temVotos)}>
+      <Linha id="p4" numero={4} pergunta="Como votou?" fonte={Fc("votos", "votações nominais", sVotos, temVotos)}>
         {temVotos && votes && votes.ok ? (
           <div className="sv-bloco">
             <ListaVotos itens={votes.v.items} />
@@ -352,7 +367,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : votes && !votes.ok ? (
           <Falha />
         ) : (
-          <Sem status={stVotos.status} motivo={!legis ? MOTIVO_PLENARIO : stVotos.motivo} />
+          <SemCobertura cob={cob("votos")} oQue="voto nominal em lei" status={stVotos.status} motivo={!legis ? MOTIVO_PLENARIO : stVotos.motivo} />
         )}
       </Linha>
 
@@ -373,7 +388,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
                   </a>
                 </span>
               ))}
-              , lida em {fmtDate(dataSal)}.
+              {cargaSal ? `, carga registrada em ${fmtDate(cargaSal)}.` : ". Data da carga não registrada."}
             </>
           ) : (
             "Fonte: norma do subsídio do cargo, ainda não carregada."
@@ -396,7 +411,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
       </Linha>
 
       {/* 6 */}
-      <Linha id="p6" numero={6} pergunta="Quem trabalha no gabinete?" fonte={F("pessoal do gabinete", sEquipe, nEquipe > 0)}>
+      <Linha id="p6" numero={6} pergunta="Quem trabalha no gabinete?" fonte={Fc("equipe", "pessoal do gabinete", sEquipe, nEquipe > 0)}>
         {nEquipe > 0 ? (
           <div className="sv-bloco">
             <Resposta tamanho="m">
@@ -409,12 +424,12 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : !staff.ok ? (
           <Falha />
         ) : (
-          <Sem />
+          <SemCobertura cob={cob("equipe")} oQue="pessoa na equipe do gabinete" />
         )}
       </Linha>
 
       {/* 7 */}
-      <Linha id="p7" numero={7} pergunta="O que propôs?" fonte={F("propostas apresentadas", sProp, principal !== null)}>
+      <Linha id="p7" numero={7} pergunta="O que propôs?" fonte={Fc("propostas", "propostas apresentadas", sProp, principal !== null)}>
         {principal !== null ? (
           <div className="sv-bloco">
             <Resposta tamanho="m">
@@ -426,7 +441,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : !stats.ok ? (
           <Falha />
         ) : (
-          <Sem status={stProp.status} motivo={stProp.motivo} />
+          <SemCobertura cob={cob("propostas")} oQue="proposta apresentada" status={stProp.status} motivo={stProp.motivo} />
         )}
       </Linha>
 
@@ -435,9 +450,9 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         id="p8"
         numero={8}
         pergunta={ufNome ? `Mandou dinheiro para ${ufNome}?` : "Mandou dinheiro por emendas?"}
-        fonte={F(vmE ? `emendas parlamentares de ${vmE.ano}` : "emendas parlamentares", sEmendas)}
+        fonte={Fc("emendas", vmE ? `emendas parlamentares de ${vmE.ano}` : "emendas parlamentares", sEmendas)}
       >
-        {vmE ? <RespostaEmendas vm={vmE} /> : !emendas.ok ? <Falha /> : <Sem />}
+        {vmE ? <RespostaEmendas vm={vmE} /> : !emendas.ok ? <Falha /> : <SemCobertura cob={cob("emendas")} oQue="emenda parlamentar" />}
       </Linha>
 
       {/* 9 */}
@@ -484,7 +499,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
       </Linha>
 
       {/* 10 */}
-      <Linha id="p10" numero={10} pergunta="Em que comissões está?" fonte={F("comissões", sExtras, temComissoes)}>
+      <Linha id="p10" numero={10} pergunta="Em que comissões está?" fonte={Fc("comissoes", "comissões", sExtras, temComissoes)}>
         {atuais.length > 0 ? (
           <div className="sv-bloco">
             <Resposta tamanho="m">{atuais.length === 1 ? "Uma comissão." : `${fmtInt(atuais.length)} comissões.`}</Resposta>
@@ -503,7 +518,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         ) : !comissoes.ok ? (
           <Falha />
         ) : (
-          <Sem />
+          <SemCobertura cob={cob("comissoes")} oQue="comissão" />
         )}
       </Linha>
 

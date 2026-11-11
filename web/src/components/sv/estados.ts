@@ -1,6 +1,6 @@
 // Linguagem de estados da D2 (HANDOFF-DIRECAO-2.md §6): a única fonte destas frases. Nenhuma tela escreve outra versão.
 // Sem JSX e sem dado: pode ser importado por server e client component.
-import type { AnswerState, CoverageStatus, VerifiedBy } from "@/lib/data";
+import type { AnswerState, CoverageStatus, EstadoCobertura, VerifiedBy } from "@/lib/data";
 import { fmtDate, fmtDayMonthAno } from "./fmt";
 
 /** Afirmação (resposta de uma proposta), três estados do contrato + proposta ainda sem respostas publicadas. */
@@ -38,6 +38,22 @@ export const COBERTURA: Record<Exclude<CoverageStatus, "no_site">, string> = {
   nao_publica: "A fonte não publica.",
   desconhecido: "Ainda não temos esse dado.",
 };
+
+/**
+ * Estado de cobertura por pessoa (`CoberturaConjunto.estado`, lib/data/cobertura.ts). `lido` não tem frase de lacuna: a tela
+ * mostra o dado ou, sem registro, `naoHaNaLeitura`. Cada frase diz o que o banco sabe, nada além.
+ */
+export const ESTADO_COBERTURA: Record<Exclude<EstadoCobertura, "lido">, string> = {
+  sem_fonte: "A fonte não publica.",
+  fonte_sem_adaptador: "Está só no portal oficial. Ainda não lemos.",
+  nao_carregado: "Ainda não carregamos esse dado.",
+  nao_conferido: "Ainda não conferimos se a fonte publica.",
+  nao_se_aplica: "Este cargo não tem esse dado.",
+  fora_do_mandato: "Ainda não tomou posse.",
+};
+/** Conjunto lido e sem registro: "não há" com a data da leitura (sem data: diz que não está registrada). */
+export const naoHaNaLeitura = (oQue: string, lidoEm: string | null) =>
+  `Nenhum registro de ${oQue} ${lidoEm ? `na leitura de ${fmtDate(lidoEm)}` : "na fonte lida (data da leitura não registrada)"}.`;
 
 /** Leitura que falhou (exceção da fonte): lacuna nomeada, distinta de "não há" e de "ainda não temos esse dado". */
 export const FALHOU_LEITURA = "Não conseguimos ler esta fonte agora.";

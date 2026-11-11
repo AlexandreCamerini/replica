@@ -3,9 +3,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { clip, fmtDate, fmtInt } from "@/components/sv/fmt";
-import { fraseCobertura, SEM_DADO } from "@/components/sv/estados";
+import { ESTADO_COBERTURA, fraseCobertura, naoHaNaLeitura, SEM_DADO } from "@/components/sv/estados";
 import { Fonte, Lacuna, Pergunta, Resposta, VotoMarca } from "@/components/sv/ui";
-import { CAMPAIGN_ORIGINS, type Amendment, type CampaignFinance, type Candidacy, type CommitteeItem, type CoverageStatus, type PersonVote } from "@/lib/data";
+import { CAMPAIGN_ORIGINS, type Amendment, type CampaignFinance, type Candidacy, type CoberturaConjunto, type CommitteeItem, type CoverageStatus, type PersonVote } from "@/lib/data";
 import { brl, brlCurto, listaE, MESES } from "./format";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
@@ -30,6 +30,28 @@ export function Sem({ status, motivo }: { status?: CoverageStatus | null; motivo
   return (
     <div className="sv-bloco">
       <Lacuna motivo={motivo}>{(status && fraseCobertura(status)) || SEM_DADO}</Lacuna>
+    </div>
+  );
+}
+
+/**
+ * Lacuna pelo estado de cobertura da pessoa (getPeopleCoverage). `lido`: o conjunto foi lido e não há registro ("não há",
+ * com a data da leitura). Outro estado: a frase do estado e o motivo. Sem cobertura (a leitura dela falhou): cai em `Sem`
+ * com o status antigo, sem afirmar estado.
+ */
+export function SemCobertura({ cob, oQue, status, motivo }: { cob: CoberturaConjunto | null | undefined; oQue: string; status?: CoverageStatus | null; motivo?: ReactNode }) {
+  if (!cob) return <Sem status={status} motivo={motivo} />;
+  if (cob.estado === "lido")
+    return (
+      <div className="sv-bloco">
+        <Lacuna estado="lido">{naoHaNaLeitura(oQue, cob.lidoEm)}</Lacuna>
+      </div>
+    );
+  return (
+    <div className="sv-bloco">
+      <Lacuna estado={cob.estado} motivo={cob.motivo}>
+        {ESTADO_COBERTURA[cob.estado]}
+      </Lacuna>
     </div>
   );
 }
