@@ -4,10 +4,13 @@ import Link from "next/link";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtInt, fmtWeekday } from "@/components/sv/fmt";
+import { NotaRegra } from "@/components/sv/inicio/semana";
+import { aguardaPosse, casaDoMandato, fraseDesde, mandatoPrincipal, motivoPosse } from "@/components/sv/mandato";
 import { readPrefs } from "@/components/sv/prefs";
+import { vigenciaDe } from "@/components/sv/vigencia";
 import { loadThemes } from "@/components/sv/temas";
 import { Cobertura, JaVale, JaValeLegenda, Lacuna, Nota, Proxima, Quadro, Resposta, Selo, VotoMarca } from "@/components/sv/ui";
-import { data, type PautaEntry, type PautaOverview } from "@/lib/data";
+import { data, type OfficeSlug, type PautaEntry, type PautaOverview } from "@/lib/data";
 import { deciders, isUrgent, ofBody, reasonText, typeName, uniqueByKey } from "@/lib/pauta";
 
 export const metadata: Metadata = { title: "O que está em jogo no Congresso?" };
@@ -45,8 +48,21 @@ function esferaDe(m: { office: string; placeLabel: string } | null): string {
   }
 }
 
+const EXECUTIVO = new Set<OfficeSlug>(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
+
 type Escolhida =
-  | { ok: true; slug: string; name: string; cargo: string; esfera: string; voto: Awaited<ReturnType<typeof data.listVotes>>["items"][number] | null }
+  | {
+      ok: true;
+      slug: string;
+      name: string;
+      cargo: string;
+      esfera: string;
+      /** casa do mandato, citada como fonte do voto (Câmara Municipal para vereador, nunca Câmara/Senado) */
+      fonte: string;
+      /** motivo de não haver voto: ainda não tomou posse, ou cargo que não vota em plenário */
+      semVotoPorque: string | null;
+      voto: Awaited<ReturnType<typeof data.listVotes>>["items"][number] | null;
+    }
   | { ok: false; slug: string; name: string };
 
 async function carregarEscolhidos(slugs: string[]): Promise<Escolhida[]> {
@@ -56,8 +72,18 @@ async function carregarEscolhidos(slugs: string[]): Promise<Escolhida[]> {
         const r = await data.getPerson(slug);
         if (!r) return null;
         const [mandates, votes] = await Promise.all([data.getMandates(r.person.id), data.listVotes(r.person.id, { scope: "lei", limit: 1 })]);
-        const m = mandates.find((x) => x.status === "em_exercicio") ?? mandates[0] ?? null;
-        return { ok: true, slug: r.person.slug, name: r.person.displayName, cargo: m?.officeName ?? "Sem mandato carregado", esfera: esferaDe(m), voto: votes.items[0] ?? null };
+        const m = mandatoPrincipal(mandates);
+        const posse = m && aguardaPosse(m) ? fraseDesde(m, r.person.gender === "f" ? true : r.person.gender === "m" ? false : null) : null;
+        return {
+          ok: true,
+          slug: r.person.slug,
+          name: r.person.displayName,
+          cargo: m ? `${m.officeName}${posse ? ` · ${posse}` : ""}` : "Sem mandato carregado",
+          esfera: esferaDe(m),
+          fonte: m ? casaDoMandato(m.office, null, m.placeLabel) : "fonte do mandato",
+          semVotoPorque: m && aguardaPosse(m) ? motivoPosse(m) : m && EXECUTIVO.has(m.office) ? "Este cargo não vota em sessões de plenário." : null,
+          voto: m && aguardaPosse(m) ? null : (votes.items[0] ?? null),
+        };
       } catch {
         return { ok: false, slug, name: slug };
       }
@@ -81,7 +107,9 @@ export default async function Temas() {
   const escolhidos = await carregarEscolhidos(follows);
 
   // Pauta desta semana: plenário e comissões, uma vez por proposta. O tema é o OFICIAL da Câmara (null no Senado e em parte da Câmara).
-  const itens = overview ? uniqueByKey([...overview.plenary, ...overview.committees]) : [];
+  // `committees` não vem filtrado pela semana (pg.ts): o corte é aqui, antes de chamar de "desta semana".
+  const naSemana = (e: PautaEntry) => !!overview && e.scheduledFor >= overview.week.weekStarts && e.scheduledFor < overview.week.weekEnds;
+  const itens = overview ? uniqueByKey([...overview.plenary, ...overview.committees.filter(naSemana)]) : [];
   const porTema = new Map<string, PautaEntry[]>();
   const semTema: PautaEntry[] = [];
   for (const e of itens) {
@@ -118,7 +146,7 @@ export default async function Temas() {
           {quando(e)} Quem decide: {low(d.who)} {d.needs}
         </p>
         <p className="sv-vale-l">
-          Já vale? <JaVale estado="ainda" />
+          Já vale? <JaVale estado={vigenciaDe(e.type).estado} frase={vigenciaDe(e.type).frase} />
         </p>
         {mostrarLegenda && <JaValeLegenda />}
         <Nota>
@@ -133,7 +161,7 @@ export default async function Temas() {
   let resposta: string;
   if (!overview) resposta = "Não conseguimos ler a pauta agora.";
   else if (!temItens && !readAt) resposta = "A pauta desta semana ainda não foi lida.";
-  else if (!temItens) resposta = "A pauta lida não tem itens para esta semana.";
+  else if (!temItens) resposta = "Nenhum item que acompanhamos na pauta lida desta semana.";
   else resposta = `Na pauta desta semana há ${plural(itens.length, "item", "itens")}.`;
 
   const ufNome = prefs.uf?.sigla === "DF" ? "Câmara Legislativa do DF" : prefs.uf ? `Assembleia de ${prefs.uf.sigla}` : null;
@@ -161,6 +189,9 @@ export default async function Temas() {
         </p>
       )}
       {(!overview || !temItens) && <p className="sv-t">Isso não quer dizer que nada vai acontecer. Só lemos o que a Câmara e o Senado publicaram.</p>}
+      {overview && overview.reads.camara.readAt && !overview.reads.senado.readAt && <p className="sv-t">A pauta do Senado Federal ainda não foi lida.</p>}
+      {overview && !overview.reads.camara.readAt && overview.reads.senado.readAt && <p className="sv-t">A pauta da Câmara dos Deputados ainda não foi lida.</p>}
+      {overview && <NotaRegra />}
       {falhas > 0 && (
         <p className="sv-t">
           Leitura incompleta: {fmtInt(falhas)} de {fmtInt(reunioes)} reuniões não carregaram. Pode haver mais itens.
@@ -268,7 +299,7 @@ export default async function Temas() {
         className="sv-gf"
         prova={
           <>
-            <ExemploIlustrativo>Exemplo ilustrativo: pessoas e votos inventados para a demonstração</ExemploIlustrativo> Pessoas em ordem alfabética. Sem voto não é voto contra. Fonte: {FONTE_PAUTA}, votações nominais; a data de cada voto está na linha.
+            <ExemploIlustrativo>Exemplo ilustrativo: pessoas e votos inventados para a demonstração</ExemploIlustrativo> Pessoas em ordem alfabética. Sem voto não é voto contra. Fonte: votações nominais da casa de cada pessoa; a casa e a data de cada voto estão na linha.
           </>
         }
       >
@@ -283,10 +314,12 @@ export default async function Temas() {
                 <span className="sv-esf">Esfera: {e.esfera}</span>
                 {e.voto ? (
                   <>
-                    Último voto em lei: <VotoMarca voto={e.voto.value} /> em “{clip(e.voto.event.description, 110)}”, {fmtDate(e.voto.event.occurredAt)}.
+                    Último voto em lei: <VotoMarca voto={e.voto.value} /> em “{clip(e.voto.event.description, 110)}”, {fmtDate(e.voto.event.occurredAt)}. Fonte: {e.fonte}, votações nominais.
                   </>
+                ) : e.semVotoPorque ? (
+                  <Lacuna>{e.semVotoPorque}</Lacuna>
                 ) : (
-                  <Cobertura fonte={`${FONTE_PAUTA}, votações nominais`} />
+                  <Cobertura fonte={`${e.fonte}, votações nominais`} />
                 )}
               </li>
             ) : (

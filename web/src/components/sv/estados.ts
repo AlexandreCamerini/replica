@@ -1,20 +1,29 @@
 // Linguagem de estados da D2 (HANDOFF-DIRECAO-2.md §6): a única fonte destas frases. Nenhuma tela escreve outra versão.
 // Sem JSX e sem dado: pode ser importado por server e client component.
-import type { AnswerState, CoverageStatus } from "@/lib/data";
+import type { AnswerState, CoverageStatus, VerifiedBy } from "@/lib/data";
 import { fmtDayMonth } from "./fmt";
 
 /** Afirmação (resposta de uma proposta), três estados do contrato + proposta ainda sem respostas publicadas. */
 export const AFIRMACAO = {
   /** `nao_conferido`: padrão; nunca afirma nada sobre a lei. */
   naoConferido: "Ainda não conseguimos conferir esta resposta.",
-  /** `nao_diz`: só quando o contraditor confirmou (ou o revisor marcou, em linha antiga). */
+  /** `nao_diz`: só com `estado` gravado e o contraditor confirmando. `diz:false` de linha antiga é `nao_conferido`. */
   naoDiz: "O texto oficial não trata disso.",
   /** proposta sem `answers` publicadas. */
   aguardando: "Aguardando conferência",
 } as const;
 
-/** "Conferido com o texto oficial por agentes de IA em dd/mm" (estado `diz`). */
-export const conferidoEm = (iso: string | null | undefined) => `Conferido com o texto oficial por agentes de IA em ${fmtDayMonth(iso)}`;
+/**
+ * Quem conferiu uma resposta publicada, pela coluna `verified_by` (v1 e v2 usam esta frase; nenhuma tela escreve outra).
+ * agentes: "Conferido com o texto oficial por agentes de IA em dd/mm"; pessoa: "Revisado por pessoa em dd/mm";
+ * não registrado: "Conferido com o texto oficial em dd/mm", sem dizer por quem.
+ */
+export const conferidoEm = (iso: string | null | undefined, por: VerifiedBy | undefined = null) =>
+  por === "agentes"
+    ? `Conferido com o texto oficial por agentes de IA em ${fmtDayMonth(iso)}`
+    : por === "pessoa"
+      ? `Revisado por pessoa em ${fmtDayMonth(iso)}`
+      : `Conferido com o texto oficial em ${fmtDayMonth(iso)}`;
 
 /** Frase de um campo sem afirmação. Falha fechada: só `nao_diz` diz que o texto não trata; o resto é "não conferido". */
 export const fraseSemAfirmacao = (state: AnswerState) => (state === "nao_diz" ? AFIRMACAO.naoDiz : AFIRMACAO.naoConferido);

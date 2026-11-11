@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
-import { SEM_DADO } from "@/components/sv/estados";
+import { SEM_DADO, conferidoEm } from "@/components/sv/estados";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtWeekday } from "@/components/sv/fmt";
+import { aguardaPosse, fraseDesde, mandatoPrincipal } from "@/components/sv/mandato";
+import { placarDe } from "@/components/sv/placar";
 import { COOKIE_TEXTO } from "@/components/sv/prefs";
+import { reuniaoTexto, vigenciaDe } from "@/components/sv/vigencia";
 import {
   Afirmacao,
   Etiqueta,
@@ -23,11 +27,12 @@ import {
   Selo,
   VotoMarca,
 } from "@/components/sv/ui";
-import { data, type AnswerClaim, type Body, type PautaStatus, type VoteValue, type VotingEventDetail } from "@/lib/data";
+import { data, type AnswerClaim, type Body, type PautaStatus, type VotingEventDetail } from "@/lib/data";
 import { deciders } from "@/lib/pauta";
 
 const KEY = /^[a-z0-9-]{3,80}$/;
-const load = (key: string) => (KEY.test(key) ? data.getPautaProposal(key) : Promise.resolve(null));
+// cache(): generateMetadata e a página leem a mesma proposta numa só ida ao banco por requisição
+const load = cache((key: string) => (KEY.test(key) ? data.getPautaProposal(key) : Promise.resolve(null)));
 
 export async function generateMetadata({ params }: { params: Promise<{ key: string }> }): Promise<Metadata> {
   const p = await load((await params).key);
@@ -94,26 +99,36 @@ function esferaDe(office: string): Esfera {
   }
 }
 
-type Escolhido = { slug: string; nome: string; cargo: string; esfera: Esfera };
+/** `falha`: a leitura desta pessoa (ou do mandato dela) falhou; vira lacuna só deste item. `posse`: eleito que ainda não tomou posse. */
+type Escolhido = { slug: string; nome: string | null; cargo: string | null; esfera: Esfera | null; posse: string | null; falha: boolean };
 
-/** Pessoas do cookie sv_sigo, em ordem alfabética. Slug que não existe mais é ignorado. */
+/** Pessoas do cookie sv_sigo, em ordem alfabética (falhas de leitura no fim). Slug que não existe mais é ignorado. */
 async function carregarEscolhidos(slugs: string[]): Promise<Escolhido[]> {
   const rows = await Promise.all(
-    slugs.map(async (slug) => {
-      const r = await data.getPerson(slug);
+    slugs.map(async (slug): Promise<Escolhido | null> => {
+      let r: Awaited<ReturnType<typeof data.getPerson>>;
+      try {
+        r = await data.getPerson(slug);
+      } catch {
+        return { slug, nome: null, cargo: null, esfera: null, posse: null, falha: true };
+      }
       if (!r) return null;
-      const ms = await data.getMandates(r.person.id);
-      const m = ms.find((x) => x.status === "em_exercicio") ?? ms[0] ?? null;
+      let ms: Awaited<ReturnType<typeof data.getMandates>>;
+      try {
+        ms = await data.getMandates(r.person.id);
+      } catch {
+        return { slug: r.person.slug, nome: r.person.displayName, cargo: null, esfera: null, posse: null, falha: true };
+      }
+      const m = mandatoPrincipal(ms);
       if (!m) return null;
-      return { slug: r.person.slug, nome: r.person.displayName, cargo: m.officeName, esfera: esferaDe(m.office) } satisfies Escolhido;
+      const posse = aguardaPosse(m) ? fraseDesde(m, r.person.gender === "f" ? true : r.person.gender === "m" ? false : null) : null;
+      return { slug: r.person.slug, nome: r.person.displayName, cargo: m.officeName, esfera: esferaDe(m.office), posse, falha: false };
     }),
   );
-  return rows.filter((r): r is Escolhido => r !== null).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return rows
+    .filter((r): r is Escolhido => r !== null)
+    .sort((a, b) => (a.nome === null ? 1 : 0) - (b.nome === null ? 1 : 0) || (a.nome ?? a.slug).localeCompare(b.nome ?? b.slug, "pt-BR"));
 }
-
-// Obstrução é ato deliberado: não entra em "Sem voto"; sai numa nota própria, como no Início.
-const SEM_VOTO_DE: VoteValue[] = ["nao_votou", "art17"];
-const semVoto = (c: Record<VoteValue, number>) => SEM_VOTO_DE.reduce((s, v) => s + (c[v] ?? 0), 0);
 
 /** O que a fonte diz do voto de uma pessoa numa votação. */
 function votoNaVotacao(ev: VotingEventDetail, slug: string) {
@@ -132,7 +147,11 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
   const campos = a?.fields ?? null;
   const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
 
-  const [escolhidosTodos, eventosRaw] = await Promise.all([carregarEscolhidos(follows), Promise.all(p.votes.map((v) => data.getVotingEvent(v.id)))]);
+  // cada leitura que falha vira lacuna do próprio item, nunca erro da página
+  const [escolhidosTodos, eventosRaw] = await Promise.all([
+    carregarEscolhidos(follows).catch(() => [] as Escolhido[]),
+    Promise.all(p.votes.map((v) => data.getVotingEvent(v.id).catch(() => null))),
+  ]);
   const eventos = p.votes.map((v, i) => ({ v, ev: eventosRaw[i] }));
   // Esferas ligadas nos Ajustes: federal sempre; estadual e municipal só se ligadas. As desligadas ficam de fora, com aviso.
   // Quem o leitor marcou nunca some: a escolha explícita vale mais que o interruptor de esfera (igual ao Início e a Escolhidos).
@@ -147,10 +166,26 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
   const quem = deciders(e);
   const status = statusLinha(p.status);
   const aguardando = !a;
+  const vig = vigenciaDe(e.type);
+  const momento = reuniaoTexto(p.status, reuniao);
+  // prova do quadro: só diz "conferido" quando o campo do quadro está em `diz`; o selo é da resposta publicada, não do campo
+  const provaTexto = (c: AnswerClaim | undefined) =>
+    !a ? `Texto oficial, ${BODY_NAME[e.body]}. Ainda sem resposta conferida.` : c?.state === "diz" ? `Texto oficial, ${BODY_NAME[e.body]}. ${conferidoEm(a.reviewedAt, a.verifiedBy)}.` : `Texto oficial, ${BODY_NAME[e.body]}.`;
+  const casaDoEvento = (v: { id: string }, ev: VotingEventDetail | null) => ev?.body ?? (v.id.startsWith("senado") ? "senado" : "camara");
+  const MAX_VOTACOES = 5; // pg.ts lê no máximo 5 votações por proposta
+  const MAX_AUTORES = 20; // e no máximo 20 autores
 
   const semConta = !temResposta(campos?.quem_paga) && !temResposta(campos?.dinheiro) && !temResposta(campos?.estimativa_impacto) && p.authors.length === 0;
   const dir = campos?.dinheiro.state === "diz" ? campos.dinheiro.direction : undefined;
-  const casasVotos = [...new Set(eventos.map(({ v, ev }) => ev?.body ?? (v.id.startsWith("senado") ? "senado" : "camara")))] as Body[];
+  const casasVotos = [...new Set(eventos.map(({ v, ev }) => casaDoEvento(v, ev)))] as Body[];
+  const totalVotacoes =
+    p.votes.length === 0
+      ? `Não lemos nenhuma votação desta proposta na ${BODY_NAME[e.body]}.`
+      : p.votes.length >= MAX_VOTACOES
+        ? `As ${p.votes.length} votações mais recentes que lemos desta proposta.`
+        : p.votes.length === 1
+          ? "Lemos 1 votação desta proposta."
+          : `Lemos ${p.votes.length} votações desta proposta.`;
 
   return (
     <div className="sv-pg sv-pg--decisao">
@@ -174,22 +209,22 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
           </>
         }
       >
-        <Afirmacao claim={campos?.o_que_propoe ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="m" />
+        <Afirmacao claim={campos?.o_que_propoe ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="m" />
         <p className="sv-t">
-          <b>Onde se decide?</b> Federal · {BODY_NAME[e.body]} · {onde}. Reunião {reuniao}.
+          <b>Onde se decide?</b> Federal · {BODY_NAME[e.body]} · {onde}. {momento.frase}
         </p>
       </Quadro>
 
       <Quadro id="sv-d2" numero={2} pergunta="Já vale?" className="sv-gb" prova={`Fonte: ${fontePauta}.`}>
         <Resposta tamanho="xl">
-          <JaVale estado="ainda" />
+          <JaVale estado={vig.estado} frase={vig.frase} />
         </Resposta>
-        <p className="sv-t">É uma proposta. Ainda não é lei.</p>
+        <p className="sv-t">{vig.explicacao}</p>
         {status && <p className="sv-t">{status}</p>}
         <JaValeLegenda />
       </Quadro>
 
-      <Quadro id="sv-d3" variante="dom" numero={3} vida pergunta="O que muda para mim?" className="sv-gc" prova={a ? `Texto oficial, ${BODY_NAME[e.body]}. Conferido por agentes de IA em ${fmtDate(a.reviewedAt)}.` : `Texto oficial, ${BODY_NAME[e.body]}. Ainda sem resposta conferida.`}>
+      <Quadro id="sv-d3" variante="dom" numero={3} vida pergunta="O que muda para mim?" className="sv-gc" prova={provaTexto(campos?.o_que_muda)}>
         <div className="sv-hs">
           <div className="sv-hs__m sv-hs__m--hoje">
             <h3 className="sv-hs__t">Hoje</h3>
@@ -199,7 +234,7 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
             <div className="sv-hs__liso">
               <h3 className="sv-hs__t">Se aprovado</h3>
               <p className="sv-tipo">Do texto oficial</p>
-              <Afirmacao claim={campos?.o_que_muda ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="fala" />
+              <Afirmacao claim={campos?.o_que_muda ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="fala" />
             </div>
           </div>
         </div>
@@ -214,13 +249,13 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
       <Quadro id="sv-d4" variante="fio" numero={4} pergunta="Quem decide agora?" className="sv-gd" prova={`Fonte: ${fontePauta}.`}>
         <Resposta>{quem.who}</Resposta>
         <p className="sv-t">{quem.needs}</p>
-        <p className="sv-t">A reunião é {reuniao}.</p>
+        <p className="sv-t">{momento.frase}</p>
         {e.rapporteur && <p className="sv-t">Relator, que sugere a versão final: {e.rapporteur}.</p>}
         <p className="sv-t">Leis estaduais e municipais sobre o mesmo assunto são outras decisões. Esta é só a federal.</p>
       </Quadro>
 
-      <Quadro id="sv-d5" variante="fio" numero={5} pergunta="Quem é afetado?" className="sv-ge" prova={a ? `Texto oficial, ${BODY_NAME[e.body]}. Conferido por agentes de IA em ${fmtDate(a.reviewedAt)}.` : `Texto oficial, ${BODY_NAME[e.body]}.`}>
-        <Afirmacao claim={campos?.quem_recebe ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="m" />
+      <Quadro id="sv-d5" variante="fio" numero={5} pergunta="Quem é afetado?" className="sv-ge" prova={provaTexto(campos?.quem_recebe)}>
+        <Afirmacao claim={campos?.quem_recebe ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="m" />
       </Quadro>
 
       <Quadro id="sv-d6" variante={semConta ? "lacuna" : "padrao"} rotulo="Dinheiro, quem paga e autoria" className="sv-gf" prova={p.readAt ? `Leitura das fontes: ${fmtDateTime(p.readAt)}.` : "Fontes ainda não lidas."}>
@@ -228,17 +263,17 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
           <Pergunta id="sv-d6a">Quanto muda na conta?</Pergunta>
           <div className="sv-nc__r">
             <p className="sv-tipo">Dinheiro envolvido</p>
-            <Afirmacao claim={campos?.dinheiro ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="r" />
+            <Afirmacao claim={campos?.dinheiro ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
             {dir && DIRECAO[dir] && <p className="sv-t">Direção do dinheiro: {DIRECAO[dir]}</p>}
             <p className="sv-tipo sv-nc__s">Estimativa de impacto</p>
-            <Afirmacao claim={campos?.estimativa_impacto ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="r" />
+            <Afirmacao claim={campos?.estimativa_impacto ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
           </div>
           <Fonte>Fonte: texto oficial, {BODY_NAME[e.body]}.</Fonte>
         </div>
         <div className="sv-nc__l">
           <Pergunta id="sv-d6b">Quem paga?</Pergunta>
           <div className="sv-nc__r">
-            <Afirmacao claim={campos?.quem_paga ?? null} conferidaEm={a?.reviewedAt ?? null} tamanho="r" />
+            <Afirmacao claim={campos?.quem_paga ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
           </div>
           <Fonte>Fonte: texto oficial, {BODY_NAME[e.body]}.</Fonte>
         </div>
@@ -256,22 +291,23 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
                 ))}
               </ul>
             )}
+            {p.authors.length >= MAX_AUTORES && <Nota>Os {p.authors.length} primeiros autores que lemos.</Nota>}
           </div>
           <Fonte>Fonte: {BODY_NAME[e.body]}, ficha da proposta.</Fonte>
         </div>
       </Quadro>
 
       <Quadro id="sv-d7" variante="fio" numero={6} pergunta="Onde está?" className="sv-gj" prova={`Fonte: ${fontePauta}.`}>
-        <Resposta>{e.stage === "plenario" ? "No plenário." : "Na comissão."}</Resposta>
+        <Resposta>{momento.presente ? (e.stage === "plenario" ? "No plenário." : "Na comissão.") : `Última pauta em que apareceu: ${e.stage === "plenario" ? "plenário" : "comissão"}.`}</Resposta>
         <ol className="sv-etapas">
           <li>
             <b>Feito:</b> a proposta foi apresentada{p.presentedOn ? ` em ${fmtDate(p.presentedOn)}` : ""}.
           </li>
           <li className="sv-aqui">
-            <b>Está aqui:</b> {onde}, na {BODY_NAME[e.body]}. Reunião {reuniao}.
+            <b>{momento.presente ? "Está aqui:" : "Esteve aqui:"}</b> {onde}, na {BODY_NAME[e.body]}. {momento.frase}
           </li>
           <li>
-            <b>Falta:</b> {e.stage === "comissao" ? "votação no plenário, depois " : ""}a outra Casa do Congresso, depois a assinatura do presidente (sanção). Só então vale.
+            <b>Falta:</b> {vig.falta}
           </li>
         </ol>
         <p className="sv-volta">
@@ -291,7 +327,7 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
         className="sv-gk"
         prova={p.votes.length > 0 ? `Fonte: ${casasVotos.map((c) => BODY_NAME[c]).join(" e ")}, votação nominal, ${lida}.` : `Fonte: ${fontePauta}.`}
       >
-        <Resposta>{p.votes.length === 0 ? "Ainda não houve votação." : p.votes.length === 1 ? "Houve 1 votação desta proposta." : `Houve ${p.votes.length} votações desta proposta.`}</Resposta>
+        <Resposta>{totalVotacoes}</Resposta>
 
         {escolhidos.length === 0 ? (
           <>
@@ -306,7 +342,18 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
           <>
             <ul className="sv-pes">
               {escolhidos.map((x) => {
-                const dela = x.esfera.casa ? eventos.filter(({ ev }) => ev?.body === x.esfera.casa) : [];
+                if (x.falha || !x.esfera)
+                  return (
+                    <li key={x.slug}>
+                      <b>
+                        <Link href={`/v2/pessoa/${x.slug}`}>{x.nome ?? "Pessoa que você escolheu"}</Link>
+                      </b>
+                      <span className="sv-pes__v">Não conseguimos ler os dados desta pessoa agora.</span>
+                    </li>
+                  );
+                const casa = x.esfera.casa;
+                // só votações cujo detalhe foi lido, na Casa da pessoa; detalhe que falhou não vira "não consta o voto"
+                const dela = casa ? eventos.filter(({ v, ev }) => ev && casaDoEvento(v, ev) === casa) : [];
                 return (
                   <li key={x.slug}>
                     <b>
@@ -315,12 +362,14 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
                     <span className="sv-esf">{x.esfera.texto}</span>
                     {x.esfera.naoVota ? (
                       <span className="sv-pes__v">{x.esfera.naoVota}</span>
-                    ) : dela.length === 0 ? (
-                      <span className="sv-pes__v">Ainda não houve votação.</span>
+                    ) : x.posse ? (
+                      <span className="sv-pes__v">{`${x.posse.charAt(0).toUpperCase()}${x.posse.slice(1)}: ainda não votou no cargo.`}</span>
+                    ) : dela.length === 0 || !casa ? (
+                      <span className="sv-pes__v">Não lemos votação desta proposta na {BODY_NAME[casa ?? e.body]}.</span>
                     ) : (
                       dela.map(({ v, ev }) => (
                         <span className="sv-pes__v" key={v.id}>
-                          {ev ? votoNaVotacao(ev, x.slug) : <>Não consta o voto desta pessoa nesta votação.</>} · votação de {fmtDate(v.occurredAt)}
+                          {ev && votoNaVotacao(ev, x.slug)} · votação de {fmtDate(v.occurredAt)}
                         </span>
                       ))
                     )}
@@ -335,7 +384,9 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
 
         {eventos.map(({ v, ev }) => {
           const titulo = `${billLabel(e)}, votação de ${fmtDate(v.occurredAt)}`;
-          const c = ev?.counts;
+          const pl = ev ? placarDe(ev) : null;
+          const fonteVt = `${BODY_NAME[casaDoEvento(v, ev)]}, votação nominal`;
+          const resumoVazio = v.yes === null && v.no === null ? true : (v.yes ?? 0) + (v.no ?? 0) === 0;
           return (
             <div className="sv-vt" key={v.id}>
               <h3 className="sv-sub">
@@ -345,10 +396,24 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
                 Votação de {fmtDate(v.occurredAt)}
                 {v.result ? `. Resultado: ${v.result}` : ""}.
               </p>
-              {c ? (
+              {pl?.kind === "placar" ? (
                 <>
-                  <Placar titulo={titulo} sim={c.sim} nao={c.nao} abs={c.abstencao} sem={semVoto(c)} total={Object.values(c).reduce((s, n) => s + n, 0)} />
-                  {c.obstrucao > 0 && <p className="sv-nota">Obstrução: {c.obstrucao}. É um registro próprio da Casa e não entra nas quatro linhas acima.</p>}
+                  <Placar titulo={titulo} sim={pl.sim} nao={pl.nao} abs={pl.abs} sem={pl.sem} total={pl.total} />
+                  {pl.obstrucao > 0 && <p className="sv-nota">Obstrução: {pl.obstrucao}. É um registro próprio da Casa e não entra nas quatro linhas acima.</p>}
+                </>
+              ) : pl?.kind === "lacuna" ? (
+                pl.motivo ? (
+                  <Lacuna>{pl.motivo}</Lacuna>
+                ) : (
+                  <>
+                    <Lacuna>{SEM_DADO}</Lacuna>
+                    <Fonte>Fonte: {fonteVt}.</Fonte>
+                  </>
+                )
+              ) : resumoVazio ? (
+                <>
+                  <Lacuna motivo="Não conseguimos ler o detalhe desta votação agora.">{SEM_DADO}</Lacuna>
+                  <Fonte>Fonte: {fonteVt}.</Fonte>
                 </>
               ) : (
                 <Placar titulo={titulo} sim={v.yes} nao={v.no} abs={null} sem={null} />

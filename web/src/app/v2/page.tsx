@@ -10,7 +10,7 @@ import { Lemos } from "@/components/sv/inicio/lemos";
 import { Representa } from "@/components/sv/inicio/representa";
 import { Semana, faixaDaSemana } from "@/components/sv/inicio/semana";
 import { VaiRolar } from "@/components/sv/inicio/vai-rolar";
-import { parseUf, readPrefs, ufOptions } from "@/components/sv/prefs";
+import { readPrefs } from "@/components/sv/prefs";
 import { Lacuna, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type PautaOverview, type RepresentativeGroup } from "@/lib/data";
 
@@ -58,23 +58,17 @@ function ECongresso({ overview, hoje }: { overview: PautaOverview | null; hoje: 
   );
 }
 
-export default async function Inicio({ searchParams }: { searchParams: Promise<{ uf?: string }> }) {
-  const sp = await searchParams;
+export default async function Inicio() {
   const [prefs, jar] = await Promise.all([readPrefs(), cookies()]);
   const follows = lerFollows(jar.get(FOLLOW_COOKIE)?.value);
   const { esferas } = prefs;
 
-  // `?uf=XX` continua valendo como atalho de leitura (sobre o cookie). `?cidade=` não é mais entrada.
-  let uf = prefs.uf;
-  if (sp.uf) {
-    const opts = await ufOptions().catch(() => []);
-    const sigla = parseUf(sp.uf, opts.map((o) => o.sigla));
-    uf = (sigla && opts.find((o) => o.sigla === sigla)) || uf;
-  }
+  // A UF vem só do cookie (a mesma que o topo mostra). Sem atalho `?uf=` nem `?cidade=`: uma UF por página.
+  const uf = prefs.uf;
 
   const hoje = hojeKey();
   const ufPlace = uf ? await data.getPlaceByUf(uf.sigla).catch(() => null) : null;
-  // A cidade (Ajustes) só vale quando é da mesma UF que está sendo lida; `?uf=` de outro estado ignora a cidade do cookie.
+  // A cidade (Ajustes) só vale quando é da mesma UF do cookie.
   const cidade = esferas.municipal && esferas.cidade ? await data.getPlace(esferas.cidade).catch(() => null) : null;
   const place = cidade && uf && cidade.uf === uf.sigla ? cidade : ufPlace;
   const [overview, groups, tse] = await Promise.all([

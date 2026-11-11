@@ -1,6 +1,7 @@
 // Contrato dos três estados de uma afirmação (diz | nao_diz | nao_conferido). Puro: sem banco, sem Next.
 // O ETL grava por campo `estado` (etl/civico_etl/verification.py, `_blank` e `decide`). Linhas antigas, da revisão
-// humana (etl/civico_etl/jobs/revisar.py), não têm `estado`: lá `diz:false` é o revisor marcando "não diz".
+// humana (etl/civico_etl/jobs/revisar.py), não têm `estado`: lá `diz:false` mistura "não diz" com "frase derrubada",
+// então vira `nao_conferido`.
 // Falha fechada: na dúvida, `nao_conferido`, que não afirma nada sobre a lei.
 import type { AnswerClaim, AnswerField, AnswerState } from "./data/types.ts";
 
@@ -24,9 +25,9 @@ export function claimState(raw: unknown): AnswerState {
     if (a.estado === "diz") return backed ? "diz" : "nao_conferido";
     return a.estado as AnswerState;
   }
-  // linha antiga, sem `estado`
+  // linha antiga, sem `estado`. `diz:false` ali também servia para derrubar frase que não se sustentava, e nenhum
+  // contraditor confirmou "não trata": falha fechada, `nao_conferido`.
   if (a.diz === true) return backed ? "diz" : "nao_conferido";
-  if (a.diz === false) return "nao_diz";
   return "nao_conferido";
 }
 
@@ -48,4 +49,11 @@ export function toClaim(field: AnswerField, raw: unknown): AnswerClaim {
 export function claimsFrom(raw: unknown): Record<AnswerField, AnswerClaim> {
   const src = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   return Object.fromEntries(FIELDS.map((f) => [f, toClaim(f, src[f])])) as Record<AnswerField, AnswerClaim>;
+}
+
+/** Frase curta de "o que propõe" para títulos: só quando o campo está em `diz`. Qualquer outro estado: null. */
+export function plainOf(rawAnswers: unknown): string | null {
+  const src = (rawAnswers && typeof rawAnswers === "object" ? rawAnswers : {}) as Record<string, unknown>;
+  const c = toClaim("o_que_propoe", src.o_que_propoe);
+  return c.state === "diz" && c.text ? c.text : null;
 }

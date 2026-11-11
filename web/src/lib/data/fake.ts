@@ -1037,7 +1037,11 @@ export const fakeSource: DataSource = {
     const { starts, ends, readAt } = demoWeek();
     // simulate "erro": a leitura da Câmara falhou em 2 das 9 reuniões (events_failed > 0)
     const camaraFailed = opts?.simulate === "erro" ? 2 : 0;
-    const all = demoPauta();
+    // como no pg.ts (`withReview`): item com respostas publicadas leva `reviewedAt`, `verifiedBy` e o título simples só em `diz`
+    const a = demoAnswers();
+    const all = demoPauta().map((e) =>
+      e.key === DEMO_ANSWERED_KEY ? { ...e, reviewedAt: a.reviewedAt, verifiedBy: a.verifiedBy, plain: a.fields.o_que_propoe.says ? a.fields.o_que_propoe.text : null } : e,
+    );
     return {
       week: { total: all.filter((e) => e.stage === "plenario").length, atLeast: false, readAt, weekStarts: starts, weekEnds: ends },
       plenary: uniqueByKey(all.filter((e) => e.stage === "plenario")),
@@ -1054,7 +1058,9 @@ export const fakeSource: DataSource = {
     const answers = entry.key === DEMO_ANSWERED_KEY ? demoAnswers() : null;
     return {
       // como no pg.ts: com "o que propõe" conferido, a frase vira o título simples
-      entry: answers?.fields.o_que_propoe.says ? { ...entry, reviewedAt: answers.reviewedAt, plain: answers.fields.o_que_propoe.text } : entry,
+      entry: answers?.fields.o_que_propoe.says
+        ? { ...entry, reviewedAt: answers.reviewedAt, plain: answers.fields.o_que_propoe.text, verifiedBy: answers.verifiedBy }
+        : entry,
       status: { kind: "na_pauta" },
       schedule: [entry],
       readAt: demoWeek().readAt,
@@ -1106,6 +1112,7 @@ function demoAnswers(): PublishedAnswers {
   const vazio = (state: "nao_diz" | "nao_conferido"): AnswerClaim => ({ state, says: false, text: "", quote: "", page: 0 });
   return {
     reviewedAt: demoWeek().readAt,
+    verifiedBy: "agentes",
     sourceUrl: "https://www.camara.leg.br/",
     fields: {
       o_que_propoe: diz("Obriga a conta de luz a mostrar, em linha própria, quanto do valor é imposto.", "a fatura discriminará, em campo próprio, o valor dos tributos incidentes", 1),

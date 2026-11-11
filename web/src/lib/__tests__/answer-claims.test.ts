@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { claimState, claimsFrom, toClaim } from "../answer-claims.ts";
+import { claimState, claimsFrom, plainOf, toClaim } from "../answer-claims.ts";
 
 // Formas exatas que o ETL grava: verification.py `_blank` e `decide`, revisar.py (linhas antigas sem `estado`).
 const blank = (estado: string) => ({ diz: false, frase: "", trecho: "", pagina: 0, estado });
@@ -21,8 +21,9 @@ test("diz:true sem frase ou sem trecho vira nao_conferido, nunca nao_diz", () =>
   assert.equal(claimState({ ...ok, trecho: undefined, estado: "diz" }), "nao_conferido");
 });
 
-test("sem `estado`: diz:false é o revisor marcando 'não diz'; diz:true com frase e trecho é 'diz'", () => {
-  assert.equal(claimState({ diz: false, frase: "", trecho: "", pagina: 0 }), "nao_diz");
+test("sem `estado`: diz:false vira nao_conferido (revisor também derrubava frase assim); diz:true com frase e trecho é 'diz'", () => {
+  assert.equal(claimState({ diz: false, frase: "", trecho: "", pagina: 0 }), "nao_conferido");
+  assert.equal(claimState({ diz: false, frase: "O texto não trata.", trecho: "", pagina: 0 }), "nao_conferido");
   assert.equal(claimState(ok), "diz");
 });
 
@@ -57,4 +58,14 @@ test("claimsFrom cobre os seis campos; JSON nulo vira seis nao_conferido", () =>
   assert.equal(mixed.o_que_propoe.state, "diz");
   assert.equal(mixed.quem_paga.state, "nao_diz");
   assert.equal(mixed.quem_recebe.state, "nao_conferido");
+});
+
+test("plainOf: título só com o_que_propoe em 'diz'; diz:true não conferido não vaza", () => {
+  assert.equal(plainOf({ o_que_propoe: { diz: true, frase: "Frase solta.", trecho: "", estado: "nao_conferido" } }), null);
+  assert.equal(plainOf({ o_que_propoe: { diz: true, frase: "Frase solta.", trecho: "" } }), null);
+  assert.equal(plainOf({ o_que_propoe: { ...ok, estado: "nao_diz" } }), null);
+  assert.equal(plainOf({ o_que_propoe: { ...ok, estado: "diz" } }), ok.frase);
+  assert.equal(plainOf({ o_que_propoe: ok }), ok.frase);
+  assert.equal(plainOf(null), null);
+  assert.equal(plainOf({}), null);
 });

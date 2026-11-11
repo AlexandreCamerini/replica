@@ -61,11 +61,11 @@ async function Pauta() {
       <div className="sv-cols is-2">
         <div>
           <Label>No plenário, até {fmtDate(o.week.weekEnds)}</Label>
-          {o.plenary.length === 0 ? <Gap>Nenhuma decisão marcada no plenário nesta semana.</Gap> : <Entries items={o.plenary} />}
+          {o.plenary.length === 0 ? <Gap>Nada do que acompanhamos está marcado no plenário nesta semana.</Gap> : <Entries items={o.plenary} />}
         </div>
         <div>
           <Label>Em comissão</Label>
-          {o.committees.length === 0 ? <Gap>Nenhuma proposta marcada em comissão.</Gap> : <Entries items={o.committees} />}
+          {o.committees.length === 0 ? <Gap>Nada do que acompanhamos está marcado em comissão.</Gap> : <Entries items={o.committees} />}
           <p className="sv-meta sv-mt-2" style={{ fontWeight: 400 }}>
             Comissão é uma etapa. A decisão final costuma vir depois, no plenário.
           </p>

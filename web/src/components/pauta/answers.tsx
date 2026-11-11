@@ -1,9 +1,9 @@
-import type { AnswerClaim } from "@/lib/data";
-import { date } from "@/lib/format";
+import { conferidoEm } from "@/components/sv/estados";
+import type { AnswerClaim, VerifiedBy } from "@/lib/data";
 
-/** Selo neutro da Regra 3: diz que uma pessoa conferiu, não que a proposta é boa. */
-export function ReviewedBadge({ at }: { at: string }) {
-  return <span className="stamp">Revisado por pessoa {date(at)}</span>;
+/** Selo neutro da Regra 3: diz quem conferiu a resposta publicada (`verifiedBy`), não que a proposta é boa. Frase única em sv/estados. */
+export function ReviewedBadge({ at, by }: { at: string; by?: VerifiedBy }) {
+  return <span className="stamp">{conferidoEm(at, by ?? null)}</span>;
 }
 
 const DIRECTION: Record<NonNullable<AnswerClaim["direction"]>, string> = {

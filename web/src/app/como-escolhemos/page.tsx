@@ -20,7 +20,9 @@ const FORBIDDEN = ["defendeu", "condenou", "traiu", "cumpriu", "pior", "benefici
 
 const STAMPS: [string, string][] = [
   ["Aguardando revisão", "A IA leu o texto; nenhuma pessoa conferiu ainda. A página mostra só o resumo e o texto oficial."],
-  ["Revisado por pessoa dd/mm", "Uma pessoa conferiu frase por frase, com o trecho do texto oficial ao lado."],
+  ["Revisado por pessoa em dd/mm", "Uma pessoa conferiu frase por frase, com o trecho do texto oficial ao lado."],
+  ["Conferido com o texto oficial por agentes de IA em dd/mm", "Agentes de IA conferiram frase por frase contra o trecho do texto oficial. Nenhuma pessoa revisou."],
+  ["Conferido com o texto oficial em dd/mm", "A frase foi conferida contra o trecho do texto oficial. O registro não diz se por pessoa ou por agentes de IA."],
   ["Aprovada na Câmara", "A Câmara votou e aprovou. Ainda pode mudar no Senado."],
   ["Saiu da pauta", "Estava marcada e saiu. A fonte não informa o motivo."],
   ["Pauta desatualizada", "A última leitura da pauta tem mais de 24 horas."],
@@ -83,10 +85,10 @@ export default async function ComoEscolhemos() {
           <ol className="list-decimal pl-5">
             <li>Uma IA lê o texto oficial e escreve um rascunho.</li>
             <li>Cada frase leva o trecho do texto que a sustenta.</li>
-            <li>Uma pessoa confere frase por frase antes de publicar.</li>
+            <li>Antes de publicar, cada frase é conferida contra o trecho: por pessoa ou por agentes de IA. Cada resposta diz qual.</li>
             <li>Sem trecho que sustente, escrevemos &quot;Ainda não conseguimos conferir esta resposta&quot;. &quot;O texto não diz&quot; só aparece quando o texto não trata do ponto.</li>
           </ol>
-          <p>Enquanto ninguém revisou, a página mostra só o resumo oficial e o texto oficial. Frases curtas, de até 15 palavras.</p>
+          <p>Enquanto nada foi conferido, a página mostra só o resumo oficial e o texto oficial. Frases curtas, de até 15 palavras.</p>
         </Section>
 
         <Section id="voto" title="4. Como mostramos o voto">

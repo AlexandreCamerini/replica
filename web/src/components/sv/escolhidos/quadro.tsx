@@ -23,13 +23,40 @@ function Linha({ id, pergunta, fonte, children }: { id: string; pergunta: string
   );
 }
 
-/** Linha tripla sem dado: status do contrato (só da Assembleia) ou "Ainda não temos esse dado." + fonte nomeada. */
-function LinhaLacuna({ pergunta, fonte, cob }: { pergunta: string; fonte: string; cob?: { status: Parameters<typeof fraseCobertura>[0]; motivo: string } | null }) {
+/**
+ * Linha tripla sem dado: status do contrato (só da Assembleia) ou "Ainda não temos esse dado." + fonte nomeada.
+ * `motivo` (ex.: ainda não tomou posse) e `falhou` (leitura que falhou) têm precedência e nunca viram "nenhum".
+ */
+function LinhaLacuna({
+  pergunta,
+  fonte,
+  cob,
+  motivo,
+  falhou,
+}: {
+  pergunta: string;
+  fonte: string;
+  cob?: { status: Parameters<typeof fraseCobertura>[0]; motivo: string } | null;
+  motivo?: string | null;
+  falhou?: boolean;
+}) {
   const status = cob && fraseCobertura(cob.status) !== null ? cob.status : undefined;
   return (
     <div className="sv-r3l">
       <h3 className="sv-r3l__q">{pergunta}</h3>
-      <Cobertura status={status} motivo={status ? cob?.motivo || undefined : undefined} fonte={fonte} />
+      {motivo ? (
+        <>
+          <Lacuna>{motivo}</Lacuna>
+          <Fonte>Fonte: {fonte}.</Fonte>
+        </>
+      ) : falhou ? (
+        <>
+          <Lacuna>Não conseguimos ler esta fonte agora.</Lacuna>
+          <Fonte>Fonte: {fonte}.</Fonte>
+        </>
+      ) : (
+        <Cobertura status={status} motivo={status ? cob?.motivo || undefined : undefined} fonte={fonte} />
+      )}
     </div>
   );
 }
@@ -40,7 +67,7 @@ function Presenca({ p }: { p: Escolhido }) {
   const g = p.presenca;
   const q = "Foi trabalhar?";
   const fonte = fonteDe(p.casa, "presença");
-  if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.presenca} />;
+  if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.presenca} motivo={p.posse} />;
   const faltas = g.absent + g.justified;
   return (
     <Linha id={`${p.slug}-q1`} pergunta={q} fonte={fonte}>
@@ -53,7 +80,7 @@ function Presenca({ p }: { p: Escolhido }) {
 function Votos({ p }: { p: Escolhido }) {
   const q = "Como votou?";
   const fonte = fonteDe(p.casa, "votações nominais");
-  if (p.votos.total <= 0 || p.votos.items.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.votos} />;
+  if (p.votos.total <= 0 || p.votos.items.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.votos} motivo={p.posse} falhou={p.falhou.votos} />;
   return (
     <Linha id={`${p.slug}-q2`} pergunta={q} fonte={fonte}>
       <ul className="sv-esc__vv">
@@ -76,7 +103,7 @@ function Votos({ p }: { p: Escolhido }) {
 function Gastos({ p }: { p: Escolhido }) {
   const q = "Quanto gastou o gabinete?";
   const fonte = fonteDe(p.casa, "cota para o exercício do mandato");
-  if (p.gastoCents === null) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.gastos_gabinete} />;
+  if (p.gastoCents === null) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.gastos_gabinete} motivo={p.posse} />;
   return (
     <Linha id={`${p.slug}-q3`} pergunta={q} fonte={fonte}>
       {brl(p.gastoCents)} em {p.ano}, até a última leitura.
@@ -108,7 +135,11 @@ function Propostas({ p }: { p: Escolhido }) {
   return (
     <Linha id={`${p.slug}-q5`} pergunta={q} fonte={fonte}>
       {partes}, no período carregado.
-      <Ap>{pr.leis > 0 ? `${pr.leis} ${pr.leis === 1 ? "virou lei" : "viraram lei"}.` : "Nenhuma lei sancionada consta na fonte lida."}</Ap>
+      {pr.leis !== null ? (
+        <Ap>{pr.leis > 0 ? `${pr.leis} ${pr.leis === 1 ? "virou lei" : "viraram lei"}.` : "Nenhuma virou lei entre as que lemos."}</Ap>
+      ) : (
+        <Ap>{p.falhou.leis ? "Leis sancionadas: não conseguimos ler esta fonte agora." : "Leis sancionadas: ainda não temos esse dado para este cargo."}</Ap>
+      )}
     </Linha>
   );
 }
@@ -117,7 +148,7 @@ const temLacuna = (p: Escolhido) => p.presenca.total <= 0 || p.votos.total <= 0 
 
 /** Um quadro por pessoa. Todas levam a mesma estrutura de cinco perguntas, na mesma ordem, com a mesma moldura. */
 export function QuadroEscolhido({ p }: { p: Escolhido }) {
-  const sub = [p.cargo ?? "Cargo não carregado", p.uf, p.partido].filter(Boolean).join(" · ") + (p.desde ? ` · no cargo desde ${p.desde}` : "");
+  const sub = [p.cargo ?? (p.cargoFalhou ? "Não conseguimos ler o mandato agora" : "Cargo não carregado"), p.uf, p.partido, p.desde].filter(Boolean).join(" · ");
   return (
     <Quadro id={`esc-${p.slug}`} rotulo={p.nome}>
       <div className="sv-esc__h">

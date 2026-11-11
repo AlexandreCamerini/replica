@@ -23,8 +23,9 @@ const SIGLA = /^[A-Z]{2}$/;
 const CIDADE = /^\d{7}$/;
 
 /** Sigla do cookie, validada contra a lista de UFs do contrato (`data.listUfs()`). Inválida ou ausente: null. */
-export function parseUf(raw: string | null | undefined, validas: readonly string[]): string | null {
-  const s = (raw ?? "").trim().toUpperCase();
+export function parseUf(raw: string | string[] | null | undefined, validas: readonly string[]): string | null {
+  // só string: `?uf=SP&uf=RJ` chega como array e é ignorado (nunca lança)
+  const s = typeof raw === "string" ? raw.trim().toUpperCase() : "";
   return SIGLA.test(s) && validas.includes(s) ? s : null;
 }
 

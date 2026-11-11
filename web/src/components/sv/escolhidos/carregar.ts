@@ -2,6 +2,7 @@ import "server-only";
 import type { ActivityItem, AssemblyDataset, AssemblyInfo, AttendanceGrid, CoverageStatus, OfficeSlug, VoteValue } from "@/lib/data";
 import { data } from "@/lib/data";
 import { fmtDate } from "../fmt";
+import { aguardaPosse, cobreLeis, fraseDesde, mandatoPrincipal, motivoPosse } from "../mandato";
 
 // Carrega, por pessoa do cookie sv_sigo, tudo o que o quadro "O que meus escolhidos estão fazendo?" mostra.
 // Só dado do contrato (DataSource): nada é calculado fora do que a fonte entregou. Lacuna fica null, nunca vira zero.
@@ -14,10 +15,16 @@ export type Escolhido = {
   slug: string;
   nome: string;
   cargo: string | null;
+  /** a leitura dos mandatos falhou: o cargo é lacuna "Não conseguimos ler…", não "sem mandato" */
+  cargoFalhou: boolean;
   uf: string | null;
   partido: string | null;
-  /** mm/aaaa */
+  /** "no cargo desde mm/aaaa" | "eleito(a), toma posse em mm/aaaa" | "mandato desde mm/aaaa" (sv/mandato) */
   desde: string | null;
+  /** ainda não tomou posse: motivo da lacuna de presença, gastos e votos */
+  posse: string | null;
+  /** conjuntos cuja leitura falhou: lacuna "Não conseguimos ler esta fonte agora.", nunca "nenhum" */
+  falhou: { votos: boolean; leis: boolean };
   esfera: string | null;
   casa: Casa;
   tse: Casa;
@@ -26,7 +33,8 @@ export type Escolhido = {
   votos: { items: { id: string; em: string; texto: string; valor: VoteValue }[]; total: number };
   gastoCents: number | null;
   patrimonio: { ano: number; cents: number }[];
-  propostas: { principal: number | null; coautor: number | null; leis: number } | null;
+  /** `leis` null: sem leitura de leis (falhou, ou cargo fora de deputado federal e senador, que é onde lemos leis) */
+  propostas: { principal: number | null; coautor: number | null; leis: number | null } | null;
   /** status de cobertura por conjunto, só quando o contrato o entrega por pessoa (Assembleia) */
   cob: Partial<Record<AssemblyDataset, Cobertura>>;
 };
@@ -94,16 +102,16 @@ export async function carregarEscolhidos(slugs: string[]): Promise<Carga> {
   const pessoas = await Promise.all(
     pessoasBase.map(async (p): Promise<Escolhido> => {
       const [mandates, cands, laws, careerStats, yearStats, grid, votes, exp] = await Promise.all([
-        data.getMandates(p.id),
+        data.getMandates(p.id).catch(() => null), // null = leitura falhou: lacuna só desta pessoa
         data.getCandidacies(p.id).catch(() => []),
-        data.getLaws(p.id).catch(() => []),
+        data.getLaws(p.id).catch(() => null),
         data.getStats(p.id, "career").catch(() => null),
         data.getStats(p.id, String(ano) as `${number}`).catch(() => null),
         data.getAttendanceGrid(p.id, ano).catch(() => null),
         data.listVotes(p.id, { scope: "lei", limit: 3 }).catch(() => null),
         data.listExpenses(p.id, { year: ano, limit: 1 }).catch(() => null),
       ]);
-      const main = mandates.find((m) => m.status === "em_exercicio") ?? mandates[0] ?? null;
+      const main = mandatoPrincipal(mandates);
       const place = main ? await data.getPlace(main.placeIbge).catch(() => null) : null;
       const uf = place?.uf ?? null;
       const office = main?.office ?? null;
@@ -132,27 +140,35 @@ export async function carregarEscolhidos(slugs: string[]): Promise<Carga> {
       const patrimonio = [...porAno].sort((a, b) => a[0] - b[0]).map(([a, cents]) => ({ ano: a, cents }));
 
       const pr = careerStats ? { principal: careerStats.proposalsPrincipal, coautor: careerStats.proposalsCosigned } : null;
+      const posse = main && aguardaPosse(main) ? motivoPosse(main) : null;
+      const vazia: AttendanceGrid = { year: ano, sessions: [], present: 0, absent: 0, justified: 0, outside: 0, total: 0 };
 
       return {
         id: p.id,
         slug: p.slug,
         nome: p.displayName,
         cargo: main?.officeName ?? null,
+        cargoFalhou: mandates === null,
         uf,
         partido: main?.party.acronym ?? null,
-        desde: main?.startedOn && /^\d{4}-\d{2}/.test(main.startedOn) ? `${main.startedOn.slice(5, 7)}/${main.startedOn.slice(0, 4)}` : null,
+        desde: fraseDesde(main, p.gender === "f" ? true : p.gender === "m" ? false : null),
+        posse,
+        falhou: { votos: votes === null, leis: laws === null },
         esfera: office ? (ESFERA[office] ?? null) : null,
         casa,
         tse: stTse,
         ano,
-        presenca: grid ?? { year: ano, sessions: [], present: 0, absent: 0, justified: 0, outside: 0, total: 0 },
-        votos: {
-          total: votes?.total ?? 0,
-          items: (votes?.items ?? []).map((v) => ({ id: v.event.id, em: v.event.occurredAt, texto: v.event.description, valor: v.value })),
-        },
-        gastoCents,
+        // quem ainda não tomou posse não tem presença, votos nem gastos no cargo: lacuna com o motivo `posse`
+        presenca: posse ? vazia : (grid ?? vazia),
+        votos: posse
+          ? { total: 0, items: [] }
+          : {
+              total: votes?.total ?? 0,
+              items: (votes?.items ?? []).map((v) => ({ id: v.event.id, em: v.event.occurredAt, texto: v.event.description, valor: v.value })),
+            },
+        gastoCents: posse ? null : gastoCents,
         patrimonio,
-        propostas: pr && (pr.principal !== null || pr.coautor !== null) ? { ...pr, leis: laws.length } : null,
+        propostas: pr && (pr.principal !== null || pr.coautor !== null) ? { ...pr, leis: laws && cobreLeis(office) ? laws.length : null } : null,
         cob,
       };
     }),

@@ -4,7 +4,7 @@ import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { Lacuna, Prova } from "@/components/sv/ui";
 import { data, type Body, type ChamberTransition, type PautaOverview } from "@/lib/data";
 import { dayKey, fmtDiaMes } from "./datas";
-import { byDate, esferaDe, tituloDe } from "./semana";
+import { NotaRegra, byDate, casasSemLeitura, esferaDe, tituloDe } from "./semana";
 
 const MAX_ITENS = 6;
 
@@ -36,6 +36,7 @@ export async function VaiRolar({ overview, fimDaSemana }: { overview: PautaOverv
   const mostrados = later.slice(0, MAX_ITENS);
   const falhou = overview ? overview.reads.camara.failed + overview.reads.senado.failed > 0 : false;
   const lido = overview?.week.readAt ?? null;
+  const naoLidas = overview ? casasSemLeitura(overview) : [];
 
   return (
     <section className="sv-tl sv-gv" aria-labelledby="inicio-vai">
@@ -44,12 +45,14 @@ export async function VaiRolar({ overview, fimDaSemana }: { overview: PautaOverv
       </h2>
       {!overview ? (
         <Lacuna>Não conseguimos ler a pauta agora. Tente de novo em alguns minutos.</Lacuna>
+      ) : naoLidas.length === 2 ? (
+        <Lacuna>A pauta da Câmara dos Deputados e do Senado Federal ainda não foi lida.</Lacuna>
       ) : later.length === 0 ? (
         <div className="sv-ev">
           <p className="sv-ev__d">{fimDaSemana ? `Depois de ${fmtDiaMes(fimDaSemana)}, até 14 dias` : "Nos próximos 14 dias"}</p>
           <p className="sv-esf">Federal · Câmara e Senado · plenário</p>
           <Lacuna>
-            <b>Nada marcado</b> {lido ? `na leitura de ${fmtDate(lido)}` : "na leitura disponível"}. A pauta pode mudar.{falhou ? " A leitura foi incompleta." : ""}
+            <b>Nenhum item que acompanhamos</b> está marcado {lido ? `na leitura de ${fmtDate(lido)}` : "na leitura disponível"}. A pauta pode mudar.{falhou ? " A leitura foi incompleta." : ""}
           </Lacuna>
         </div>
       ) : (
@@ -69,6 +72,8 @@ export async function VaiRolar({ overview, fimDaSemana }: { overview: PautaOverv
           {later.length > mostrados.length && <p className="sv-resto">E mais {later.length - mostrados.length} no plenário, até 14 dias. Veja todas em Decisões.</p>}
         </>
       )}
+      {naoLidas.length === 1 && <p className="sv-resto">A pauta {naoLidas[0]} ainda não foi lida: a lista acima não inclui essa Casa.</p>}
+      {overview && naoLidas.length < 2 && <NotaRegra />}
       <div className="sv-ev">
         <p className="sv-ev__d">1º de fevereiro de 2027</p>
         <p className="sv-esf">Federal · Câmara e Senado</p>

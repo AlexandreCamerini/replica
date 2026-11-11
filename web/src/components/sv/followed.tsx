@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { clip, fmtDate } from "@/components/sv/fmt";
+import { mandatoPrincipal } from "@/components/sv/mandato";
 import { Gap, Label, List, VoteMark } from "@/components/sv/ui";
 import { data, type PersonVote } from "@/lib/data";
 
@@ -12,7 +13,7 @@ export async function loadFollowed(slugs: string[], perPerson: number): Promise<
       const r = await data.getPerson(slug);
       if (!r) return null;
       const [mandates, votes] = await Promise.all([data.getMandates(r.person.id), data.listVotes(r.person.id, { scope: "lei", limit: perPerson })]);
-      const main = mandates.find((m) => m.status === "em_exercicio") ?? mandates[0] ?? null;
+      const main = mandatoPrincipal(mandates);
       return { slug: r.person.slug, name: r.person.displayName, office: main ? `${main.officeName}, ${main.placeLabel}. ${main.party.acronym}` : "Sem mandato carregado", votes: votes.items, total: votes.total } satisfies Followed;
     }),
   );

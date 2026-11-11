@@ -2,6 +2,7 @@ import Link from "next/link";
 import { clip } from "@/components/sv/fmt";
 import { COOKIE_TEXTO } from "@/components/sv/prefs-shared";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
+import { aguardaPosse, fraseDesde, mandatoPrincipal, motivoPosse } from "@/components/sv/mandato";
 import { Cobertura, Lacuna, Nota, Quadro, VotoMarca } from "@/components/sv/ui";
 import { data, type AssemblyInfo, type MandateStatus, type OfficeSlug, type PersonVote } from "@/lib/data";
 import { dayKey, fmtLong } from "./datas";
@@ -28,7 +29,6 @@ const FONTE_VOTOS: Partial<Record<OfficeSlug, string>> = {
 // Cargos do Executivo não votam em plenário: não há voto nominal a mostrar, e isso não é lacuna de dado.
 const EXECUTIVO: ReadonlySet<OfficeSlug> = new Set(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
 const STATUS: Partial<Record<MandateStatus, string>> = {
-  eleito_aguardando_posse: "eleito, aguarda posse",
   licenciado: "licenciado",
   afastado: "afastado",
   encerrado: "mandato encerrado",
@@ -43,8 +43,13 @@ type Escolhido = {
   cargo: string;
   office: OfficeSlug | null;
   uf: string | null;
+  /** null: a leitura dos votos falhou (lacuna "Não conseguimos ler esta fonte agora."), nunca "nenhum voto" */
   votos: PersonVote[] | null;
+  /** motivo de não haver votos: ainda não tomou posse */
+  posse: string | null;
 };
+
+const FALHOU = "Não conseguimos ler esta fonte agora.";
 
 async function carregar(slugs: string[]): Promise<Escolhido[]> {
   const rows = await Promise.all(
@@ -52,15 +57,21 @@ async function carregar(slugs: string[]): Promise<Escolhido[]> {
       const r = await data.getPerson(slug).catch(() => null);
       if (!r) return null;
       const [mandates, votes] = await Promise.all([
-        data.getMandates(r.person.id).catch(() => []),
+        data.getMandates(r.person.id).catch(() => null), // null = leitura falhou, diferente de "sem mandato"
         data.listVotes(r.person.id, { scope: "lei", limit: 3 }).catch(() => null),
       ]);
-      const m = mandates.find((x) => x.status === "em_exercicio") ?? mandates[0] ?? null;
+      const m = mandatoPrincipal(mandates);
       const place = m ? await data.getPlace(m.placeIbge).catch(() => null) : null;
       const uf = place?.uf ?? null;
-      const status = m ? STATUS[m.status] : undefined;
-      const cargo = m ? [m.officeName, uf ?? m.placeLabel, `${m.party.acronym} (${m.party.name})`, status].filter(Boolean).join(" · ") : "Sem mandato carregado";
-      return { slug: r.person.slug, nome: r.person.displayName, esfera: m ? ESFERA[m.office] : null, cargo, office: m?.office ?? null, uf, votos: votes ? votes.items : null };
+      const fem = r.person.gender === "f" ? true : r.person.gender === "m" ? false : null;
+      const status = m ? (aguardaPosse(m) ? fraseDesde(m, fem) : STATUS[m.status]) : undefined;
+      const cargo = m
+        ? [m.officeName, uf ?? m.placeLabel, `${m.party.acronym} (${m.party.name})`, status].filter(Boolean).join(" · ")
+        : mandates === null
+          ? "Não conseguimos ler o mandato agora."
+          : "Sem mandato carregado";
+      const posse = m && aguardaPosse(m) ? motivoPosse(m) : null;
+      return { slug: r.person.slug, nome: r.person.displayName, esfera: m ? ESFERA[m.office] : null, cargo, office: m?.office ?? null, uf, votos: votes ? votes.items : null, posse };
     }),
   );
   return rows.filter((x): x is Escolhido => x !== null).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
@@ -69,12 +80,18 @@ async function carregar(slugs: string[]): Promise<Escolhido[]> {
 function SemVotos({ e, assembly }: { e: Escolhido; assembly: AssemblyInfo | null }) {
   // Estadual: a cobertura de votos da Assembleia vem do contrato. Federal: sem status, "Ainda não temos esse dado." + fonte.
   if (e.office && EXECUTIVO.has(e.office)) return <Lacuna>Este cargo não vota em plenário. Não há voto nominal para mostrar.</Lacuna>;
+  if (e.posse) return <Lacuna>{e.posse}</Lacuna>;
+  const fonte = (e.office && FONTE_VOTOS[e.office]) ?? "casa legislativa do cargo";
+  if (e.votos === null)
+    return (
+      <Lacuna motivo={`Fonte: ${fonte}.`}>{FALHOU}</Lacuna>
+    );
   const item = assembly?.items.find((i) => i.dataset === "votos");
   if (item) {
     if (item.status === "no_site") return <Lacuna>Nenhum voto nominal de lei na leitura da {assembly?.houseName}.</Lacuna>;
     return <Cobertura status={item.status} motivo={item.reason} fonte={assembly?.source?.name ?? assembly?.houseName ?? "casa legislativa"} />;
   }
-  return <Cobertura fonte={(e.office && FONTE_VOTOS[e.office]) ?? "casa legislativa do cargo"} />;
+  return <Cobertura fonte={fonte} />;
 }
 
 /** "Em quem eu votei": as pessoas do cookie sv_sigo, em ordem alfabética, todas com a mesma estrutura. */
@@ -115,7 +132,7 @@ export async function Escolhidos({ slugs, ufSigla }: { slugs: string[]; ufSigla:
                   <span className="sv-esc__c">{e.cargo}</span>
                 </span>
                 <div className="sv-esc__u">
-                  {e.votos && e.votos.length > 0 ? (
+                  {!e.posse && e.votos && e.votos.length > 0 ? (
                     <ul className="sv-vl">
                       {e.votos.map((v) => {
                         const dia = dayKey(v.event.occurredAt);

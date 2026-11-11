@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { BODY_NAME, billLabel, clip, fmtDateTime } from "@/components/sv/fmt";
-import { AFIRMACAO, conferidoEm } from "@/components/sv/estados";
+import { AFIRMACAO, conferidoEm, fraseSemAfirmacao } from "@/components/sv/estados";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
-import { JaVale, JaValeLegenda, Lacuna, Prova } from "@/components/sv/ui";
-import { data, type AnswerClaim, type PautaEntry, type PautaOverview } from "@/lib/data";
+import { JaVale, JaValeLegenda, Lacuna, Nota, Prova } from "@/components/sv/ui";
+import { vigenciaDe } from "@/components/sv/vigencia";
+import { data, type AnswerClaim, type PautaEntry, type PautaOverview, type VerifiedBy } from "@/lib/data";
 import { casaEstadual } from "./lemos";
 import { addDays, dayKey, dayNum, fmtRange, mondayOf, weekday } from "./datas";
 
-const MAX_RESPOSTAS = 24; // limite de leituras de respostas (uma por item exibido com resposta publicada)
+const MAX_RESPOSTAS = 6; // no máximo 6 leituras de respostas: só os primeiros itens exibidos que têm resposta publicada
 const MAX_VIDA = 3; // --vida: no máximo 3 rótulos coloridos na tela
 
 export const esferaDe = (e: PautaEntry) => `Federal · ${BODY_NAME[e.body]} · ${e.stage === "plenario" ? "plenário" : e.committee ? `comissão ${e.committee}` : "comissão"}`;
@@ -27,19 +28,39 @@ export function faixaDaSemana(overview: PautaOverview, hoje: string): { dias: st
   return { dias, entries };
 }
 
-type Muda = { claim: AnswerClaim; reviewedAt: string };
+type Muda = { claim: AnswerClaim; reviewedAt: string; verifiedBy: VerifiedBy };
 
-/** "o que muda" só dos itens exibidos que têm respostas revisadas e publicadas (`reviewedAt`): nada de N+1 sobre a pauta inteira. */
-// Na demonstração a pauta não marca `reviewedAt`, então lá todo item exibido é consultado.
+/**
+ * "o que muda" só dos itens exibidos que têm respostas publicadas (`reviewedAt`), e só dos primeiros MAX_RESPOSTAS: cada
+ * `getPautaProposal` custa várias consultas. Os demais mostram "Aguardando conferência." sem consulta.
+ */
 async function respostas(entries: PautaEntry[]): Promise<Map<string, Muda>> {
-  const keys = [...new Set(entries.filter((e) => e.reviewedAt || data.isDemo).map((e) => e.key))].slice(0, MAX_RESPOSTAS);
+  const keys = [...new Set(entries.filter((e) => e.reviewedAt).map((e) => e.key))].slice(0, MAX_RESPOSTAS);
   const rows = await Promise.all(keys.map(async (k) => [k, await data.getPautaProposal(k).catch(() => null)] as const));
   const out = new Map<string, Muda>();
   for (const [k, p] of rows) {
     const claim = p?.answers?.fields.o_que_muda;
-    if (p?.answers && claim && claim.state === "diz" && claim.says) out.set(k, { claim, reviewedAt: p.answers.reviewedAt });
+    // resposta publicada com "o que muda" fora de `diz` também entra: a tela diz que o campo não foi conferido
+    if (p?.answers && claim) out.set(k, { claim, reviewedAt: p.answers.reviewedAt, verifiedBy: p.answers.verifiedBy });
   }
   return out;
+}
+
+/** Casas cuja pauta ainda não foi lida (`readAt` null), já com a preposição: "da Câmara dos Deputados". Delas não se diz "nada marcado". */
+export function casasSemLeitura(o: PautaOverview): string[] {
+  return [!o.reads.camara.readAt && `da ${BODY_NAME.camara}`, !o.reads.senado.readAt && `do ${BODY_NAME.senado}`].filter((x): x is string => !!x);
+}
+
+/** Nota única por bloco: a pauta mostrada é a filtrada pela regra, não a inteira. */
+export function NotaRegra() {
+  return (
+    <Nota>
+      Acompanhamos só as propostas que entram na nossa regra de seleção, não a pauta inteira.{" "}
+      <Link className="sv-lk" href="/v2/como-funciona">
+        Ver a regra
+      </Link>
+    </Nota>
+  );
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -94,6 +115,9 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
   const muda = await respostas(entries);
   const falhou = overview.reads.camara.failed + overview.reads.senado.failed > 0;
   const lido = overview.week.readAt;
+  const naoLidas = casasSemLeitura(overview);
+  // com uma Casa sem leitura, "nada marcado" só pode falar da Casa lida
+  const ondeLido = naoLidas.length === 1 ? (overview.reads.camara.readAt ? `na ${BODY_NAME.camara}` : `no ${BODY_NAME.senado}`) : "no Congresso";
   let vida = 0;
   let primeiro = true;
 
@@ -113,11 +137,13 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
               </h3>
               {itens.length === 0 && (
                 <p className="sv-d__nada">
-                  Nada marcado no Congresso{eHoje ? " para hoje" : eAmanha ? " para amanhã" : ""}.{falhou ? " A leitura foi incompleta." : ""}
+                  Nada do que acompanhamos está marcado {ondeLido}{eHoje ? " para hoje" : eAmanha ? " para amanhã" : ""}.{falhou ? " A leitura foi incompleta." : ""}
                 </p>
               )}
               {itens.map((e) => {
-                const m = muda.get(e.key);
+                const lida = muda.get(e.key);
+                const m = lida && lida.claim.state === "diz" && lida.claim.says ? lida : null;
+                const vig = vigenciaDe(e.type);
                 const colorir = !!m && vida < MAX_VIDA;
                 if (m && colorir) vida += 1;
                 const eh1 = primeiro;
@@ -131,7 +157,7 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
                       </Link>
                     </p>
                     <p className="sv-vale-l">
-                      Já vale? <JaVale estado="ainda" />
+                      Já vale? <JaVale estado={vig.estado} frase={vig.frase} />
                     </p>
                     {m ? (
                       <p className="sv-t">
@@ -139,7 +165,7 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
                       </p>
                     ) : (
                       <p className="sv-t">
-                        <span className="sv-conf">{AFIRMACAO.aguardando}.</span>
+                        <span className="sv-conf">{lida ? fraseSemAfirmacao(lida.claim.state) : `${AFIRMACAO.aguardando}.`}</span>
                       </p>
                     )}
                     {m && (
@@ -147,7 +173,7 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
                         <p className="sv-t">
                           “{m.claim.quote}”{m.claim.page > 0 ? ` (p. ${m.claim.page})` : ""}
                         </p>
-                        <p className="sv-conf">{conferidoEm(m.reviewedAt)}.</p>
+                        <p className="sv-conf">{conferidoEm(m.reviewedAt, m.verifiedBy)}.</p>
                       </>
                     )}
                   </div>
@@ -157,10 +183,11 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
           );
         })}
       </ol>
+      {naoLidas.length === 1 && <p className="sv-resto">A pauta {naoLidas[0]} ainda não foi lida: os dias acima não incluem essa Casa.</p>}
       {!hojeNaFaixa && <p className="sv-resto">A última leitura da pauta é de uma semana que já passou. Os dias abaixo são os dessa leitura.</p>}
       {vazios.length > 0 && (
         <p className="sv-resto">
-          {descreverDias(vazios, dias)}: nada marcado no Congresso.{falhou ? " A leitura foi incompleta: pode haver itens que não lemos." : ""}
+          {descreverDias(vazios, dias)}: nada do que acompanhamos está marcado {ondeLido}.{falhou ? " A leitura foi incompleta: pode haver itens que não lemos." : ""}
         </p>
       )}
       {ufSigla && estadualLigado && (
@@ -168,6 +195,7 @@ export async function Semana({ overview, ufSigla, estadualLigado, hoje }: { over
           <b>{casaEstadual(ufSigla)}:</b> a pauta da {casaEstadual(ufSigla)} não faz parte do que lemos hoje.
         </Lacuna>
       )}
+      <NotaRegra />
       <Prova>Fonte: Câmara dos Deputados e Senado Federal (pauta), {lido ? `lida em ${fmtDateTime(lido)}` : "sem data de leitura registrada"}.</Prova>
     </section>
   );

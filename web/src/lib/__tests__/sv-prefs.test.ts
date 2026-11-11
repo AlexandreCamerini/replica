@@ -10,6 +10,7 @@ test("UF: só sigla da lista do contrato; sem cookie não há UF padrão", () =>
   assert.equal(parseUf("ZZ", UFS), null);
   assert.equal(parseUf("SPX", UFS), null);
   assert.equal(parseUf(undefined, UFS), null);
+  assert.equal(parseUf(["SP", "RJ"], UFS), null);
   assert.equal(parseUf("", UFS), null);
 });
 

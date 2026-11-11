@@ -58,9 +58,13 @@ export async function ler<T>(p: Promise<T>): Promise<Leitura<T>> {
 /** Carimbo sem data real (a camada de dados devolve a época zero quando não há carimbo). */
 const semData = (s: Stamp) => new Date(s.refreshedAt).getFullYear() < 2000;
 
-/** "Câmara dos Deputados, cota parlamentar, lida em 09/11/2026". Sem carimbo: diz que a data não está registrada. */
-export function fonteTexto(rotulo: string, s: Stamp | null): string {
-  if (!s) return `ainda não lemos nenhuma fonte de ${rotulo} para este cargo`;
+/**
+ * "Câmara dos Deputados, cota parlamentar, lida em 09/11/2026". Carimbo sem data: diz que a data não está registrada.
+ * Sem carimbo: se o dado apareceu (`casaComDado`, o nome da casa do mandato), cita essa casa com "data da leitura não
+ * registrada"; "ainda não lemos nenhuma fonte…" só quando não há dado.
+ */
+export function fonteTexto(rotulo: string, s: Stamp | null, casaComDado?: string | null): string {
+  if (!s) return casaComDado ? `${casaComDado}, ${rotulo}, data da leitura não registrada` : `ainda não lemos nenhuma fonte de ${rotulo} para este cargo`;
   return semData(s) ? `${s.source}, ${rotulo}, data da leitura não registrada` : `${s.source}, ${rotulo}, lida em ${fmtDate(s.refreshedAt)}`;
 }
 

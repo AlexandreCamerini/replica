@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { AnswerClaim, CoverageStatus, VoteValue } from "@/lib/data";
+import type { AnswerClaim, CoverageStatus, VerifiedBy, VoteValue } from "@/lib/data";
 import { AFIRMACAO, JA_VALE, SELO, SELO_HREF, conferidoEm, fraseCobertura, fraseSemAfirmacao, type JaValeEstado } from "./estados";
 import { fmtDateTime } from "./fmt";
 
@@ -112,14 +112,15 @@ export function Steps({ now }: { now: number }) {
   );
 }
 
-// Voto é forma mais palavra, nunca cor. Obstrução e "presidia" são registros próprios da Casa: levam a forma vazia e a palavra exata.
-const VOTE: Record<VoteValue, { word: string; mark: string; weight: string }> = {
-  sim: { word: "Sim", mark: "is-sim", weight: "is-sim" },
-  nao: { word: "Não", mark: "is-nao", weight: "is-nao" },
-  abstencao: { word: "Abstenção", mark: "is-abs", weight: "is-nao" },
-  obstrucao: { word: "Obstrução", mark: "", weight: "is-nao" },
-  art17: { word: "Presidia", mark: "", weight: "is-sem" },
-  nao_votou: { word: "Sem voto", mark: "", weight: "is-sem" },
+// Voto é forma mais palavra, nunca cor nem peso: todas as palavras no mesmo peso (neutralidade).
+// Obstrução e "presidia" são registros próprios da Casa: levam a forma vazia e a palavra exata.
+const VOTE: Record<VoteValue, { word: string; mark: string }> = {
+  sim: { word: "Sim", mark: "is-sim" },
+  nao: { word: "Não", mark: "is-nao" },
+  abstencao: { word: "Abstenção", mark: "is-abs" },
+  obstrucao: { word: "Obstrução", mark: "" },
+  art17: { word: "Presidia", mark: "" },
+  nao_votou: { word: "Sem voto", mark: "" },
 };
 
 export const voteWord = (v: VoteValue) => VOTE[v].word;
@@ -127,7 +128,7 @@ export const voteWord = (v: VoteValue) => VOTE[v].word;
 export function VoteMark({ value }: { value: VoteValue }) {
   const v = VOTE[value];
   return (
-    <span className={`sv-vote ${v.weight}`}>
+    <span className="sv-vote">
       <i className={`sv-mark ${v.mark}`} aria-hidden="true" />
       {v.word}
     </span>
@@ -273,9 +274,21 @@ export function Cobertura({ status, motivo, fonte }: { status?: CoverageStatus |
 
 /**
  * Uma afirmação sobre a proposta, nos três estados do contrato (§6). `claim` null = proposta sem respostas publicadas:
- * "Aguardando conferência". `diz`: frase + trecho + "Conferido com o texto oficial por agentes de IA em dd/mm".
+ * "Aguardando conferência". `diz`: frase + trecho + quem conferiu (`conferidoEm`, por `verifiedBy`).
  */
-export function Afirmacao({ claim, conferidaEm, tamanho = "m" }: { claim: AnswerClaim | null; /** `PublishedAnswers.reviewedAt` */ conferidaEm: string | null; tamanho?: RespostaTamanho }) {
+export function Afirmacao({
+  claim,
+  conferidaEm,
+  conferidaPor = null,
+  tamanho = "m",
+}: {
+  claim: AnswerClaim | null;
+  /** `PublishedAnswers.reviewedAt` */
+  conferidaEm: string | null;
+  /** `PublishedAnswers.verifiedBy` */
+  conferidaPor?: VerifiedBy;
+  tamanho?: RespostaTamanho;
+}) {
   if (!claim) return <Lacuna>{AFIRMACAO.aguardando}</Lacuna>;
   if (claim.state === "diz" && claim.says)
     return (
@@ -284,7 +297,7 @@ export function Afirmacao({ claim, conferidaEm, tamanho = "m" }: { claim: Answer
         <p className="sv-t">
           “{claim.quote}”{claim.page > 0 ? ` (p. ${claim.page})` : ""}
         </p>
-        {conferidaEm && <p className="sv-conf">{conferidoEm(conferidaEm)}.</p>}
+        {conferidaEm && <p className="sv-conf">{conferidoEm(conferidaEm, conferidaPor)}.</p>}
       </>
     );
   if (claim.state === "nao_diz") return <Resposta tamanho={tamanho}>{fraseSemAfirmacao("nao_diz")}</Resposta>;
@@ -317,11 +330,11 @@ export function VotoMarca(p: { voto: VoteValue } | { forma: VotoForma }) {
 }
 
 /** "Já vale?": círculo (cheio / tracejado / cortado) + frase. Em quadro "Já vale?", use dentro de <Resposta tamanho="xl">. */
-export function JaVale({ estado }: { estado: JaValeEstado }) {
+export function JaVale({ estado, frase }: { estado: JaValeEstado; /** frase própria do tipo (ex.: "Já vale, por enquanto."), de sv/vigencia */ frase?: string }) {
   return (
     <span className="sv-vale">
       <i className={`sv-vf sv-vf--${estado}`} aria-hidden="true" />
-      {JA_VALE[estado].frase}
+      {frase ?? JA_VALE[estado].frase}
     </span>
   );
 }
@@ -352,7 +365,7 @@ export function Placar({ titulo, sim, nao, abs, sem, total }: { titulo: string; 
       <thead className="sv-vh">
         <tr>
           <th scope="col">Voto</th>
-          <th scope="col">{total ? "Cadeiras" : "Votos"}</th>
+          <th scope="col">Votos registrados</th>
         </tr>
       </thead>
       <tbody>

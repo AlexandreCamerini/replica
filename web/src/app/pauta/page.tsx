@@ -25,7 +25,9 @@ function byDay(rows: PautaEntry[]) {
 
 const STAMPS: [string, string][] = [
   ["Aguardando revisão", "a IA leu o texto; nenhuma pessoa conferiu ainda. A página mostra só o resumo e o texto oficial."],
-  ["Revisado por pessoa dd/mm", "uma pessoa conferiu frase por frase, com o trecho do texto oficial ao lado."],
+  ["Revisado por pessoa em dd/mm", "uma pessoa conferiu frase por frase, com o trecho do texto oficial ao lado."],
+  ["Conferido com o texto oficial por agentes de IA em dd/mm", "agentes de IA conferiram frase por frase contra o trecho do texto oficial; nenhuma pessoa revisou."],
+  ["Conferido com o texto oficial em dd/mm", "a frase foi conferida contra o trecho do texto oficial; o registro não diz se por pessoa ou por agentes de IA."],
   ["Pauta desatualizada", "a última leitura da pauta tem mais de 24 horas."],
   ["Leitura incompleta", "parte da pauta não carregou; o número aparece como \"pelo menos\"."],
 ];

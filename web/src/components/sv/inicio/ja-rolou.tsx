@@ -3,6 +3,7 @@ import { BODY_NAME, clip, fmtDate } from "@/components/sv/fmt";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { Cobertura, Lacuna, Nota, Placar, Prova } from "@/components/sv/ui";
 import { data, type Body, type Stamp, type VotingEventDetail } from "@/lib/data";
+import { placarDe } from "../placar";
 import { dayKey, fmtLong } from "./datas";
 
 const POR_CASA = 3;
@@ -16,15 +17,12 @@ const lida = (s: Stamp | null) => {
 
 function Contagem({ ev }: { ev: VotingEventDetail }) {
   const fonte = `${BODY_NAME[ev.body]}, votação nominal`;
-  if (ev.isSecret) return <Lacuna>Votação secreta: a fonte não publica o voto de cada pessoa.</Lacuna>;
-  if (ev.openNoVotes) return <Lacuna>A fonte diz que a votação foi aberta, mas não publicou o voto de cada pessoa.</Lacuna>;
-  const c = ev.counts;
-  const soma = Object.values(c).reduce((s, n) => s + n, 0);
-  if (!ev.isNominal || soma === 0) return <Cobertura fonte={fonte} />;
+  const p = placarDe(ev);
+  if (p.kind === "lacuna") return p.motivo ? <Lacuna>{p.motivo}</Lacuna> : <Cobertura fonte={fonte} />;
   return (
     <>
-      <Placar titulo={`Votação de ${fmtDate(ev.occurredAt)}: ${BODY_NAME[ev.body]}`} sim={c.sim} nao={c.nao} abs={c.abstencao} sem={c.nao_votou + c.art17} />
-      {c.obstrucao > 0 && <Nota>Obstrução: {c.obstrucao}. É um registro próprio da Casa e não entra nas quatro linhas acima.</Nota>}
+      <Placar titulo={`Votação de ${fmtDate(ev.occurredAt)}: ${BODY_NAME[ev.body]}`} sim={p.sim} nao={p.nao} abs={p.abs} sem={p.sem} />
+      {p.obstrucao > 0 && <Nota>Obstrução: {p.obstrucao}. É um registro próprio da Casa e não entra nas quatro linhas acima.</Nota>}
     </>
   );
 }

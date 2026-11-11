@@ -2,6 +2,7 @@
 // Ler cookie torna a página dinâmica (o layout raiz já é force-dynamic): é o preço de montar a página com a UF sem JavaScript.
 import "server-only";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { data } from "@/lib/data";
 import { ESFERAS_COOKIE, ESFERAS_PADRAO, UF_COOKIE, parseCidade, parseEsferas, parseUf, type Prefs } from "./prefs-shared";
 
@@ -13,8 +14,11 @@ export async function ufOptions(): Promise<{ sigla: string; nome: string; ibge: 
   return ufs.filter((p) => p.uf).map((p) => ({ sigla: p.uf as string, nome: p.name, ibge: p.ibge }));
 }
 
-/** Preferências do leitor. Cookie é dado do usuário: tudo é validado na leitura. Sem cookie de UF, `uf` é null. */
-export async function readPrefs(): Promise<Prefs> {
+/**
+ * Preferências do leitor. Cookie é dado do usuário: tudo é validado na leitura. Sem cookie de UF, `uf` é null.
+ * cache(): layout e página chamam na mesma requisição; `listUfs` roda uma vez só.
+ */
+export const readPrefs = cache(async function readPrefs(): Promise<Prefs> {
   const jar = await cookies();
   const opts = await ufOptions().catch(() => []);
   const sigla = parseUf(jar.get(UF_COOKIE)?.value, opts.map((o) => o.sigla));
@@ -22,4 +26,4 @@ export async function readPrefs(): Promise<Prefs> {
   const parsed = parseEsferas(jar.get(ESFERAS_COOKIE)?.value);
   const esferas = parsed ? { ...parsed, cidade: parseCidade(parsed.cidade, uf?.ibge) } : { ...ESFERAS_PADRAO };
   return { uf, esferas, esferasPadrao: !parsed };
-}
+});
