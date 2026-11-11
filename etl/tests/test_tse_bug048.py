@@ -179,14 +179,7 @@ def _run_finance_compat(conn, year: int, z) -> None:
     tv._origin_entries(conn, year, fa, r)
 
 
-def test_load_votes_do_loader_em_2012_por_ue(conn, tmp_path, monkeypatch):
-    """tse_candidatos._load_votes (--with-votes): mesma regra por (UE, SQ) em 2012."""
-    from civico_etl.jobs import tse_candidatos as tc
-
-    _need(conn)
-    p = tmp_path / "votacao_candidato_munzona_2012_AC.utf8.csv"
-    p.write_text("\n".join(['"SQ_CANDIDATO";"NR_TURNO";"QT_VOTOS_NOMINAIS";"SG_UE"', f'"{SQ}";"1";"100";"99481"', f'"{SQ}";"1";"7";"99482"']) + "\n",
-                 encoding="utf-8")
+def _patch_loader(monkeypatch, tc, p):
     monkeypatch.setattr(tc, "fetch", lambda url: types.SimpleNamespace(path=p, checksum="x"))
     monkeypatch.setattr(tc, "_extract", lambda *a, **k: [p])
 
@@ -198,8 +191,38 @@ def test_load_votes_do_loader_em_2012_por_ue(conn, tmp_path, monkeypatch):
             return False
 
     monkeypatch.setattr(tc, "run", lambda *a, **k: _Run())
+
+
+def _votacao_csv(tmp_path, year: int, linhas: list[tuple[str, str, str]]):
+    p = tmp_path / f"votacao_candidato_munzona_{year}_AC.utf8.csv"
+    p.write_text("\n".join(['"SQ_CANDIDATO";"NR_TURNO";"QT_VOTOS_NOMINAIS";"SG_UE"'] + [f'"{sq}";"1";"{v}";"{ue}"' for sq, v, ue in linhas]) + "\n",
+                 encoding="utf-8")
+    return p
+
+
+def test_load_votes_do_loader_em_2012_por_ue(conn, tmp_path, monkeypatch):
+    """tse_candidatos._load_votes (--with-votes): mesma regra por (UE, SQ) em 2012."""
+    from civico_etl.jobs import tse_candidatos as tc
+
+    _need(conn)
+    _patch_loader(monkeypatch, tc, _votacao_csv(tmp_path, 2012, [(SQ, "100", "99481"), (SQ, "7", "99482")]))
     with conn.transaction(force_rollback=True):
         cids = _setup(conn, 2012, [("99481", "municipal", "1"), ("99482", "suplementar", "2")], {"99481": SQ, "99482": SQ})
         tc._load_votes(conn, 2012, None, True)
         s = _state(conn, cids)
         assert (s["99481"][0], s["99482"][0]) == (100, 7)  # antes: 107 nas duas
+
+
+@pytest.mark.parametrize("year", [2022, 2024])
+def test_load_votes_do_loader_fora_de_sq_com_ue_nada_muda(conn, tmp_path, monkeypatch, year):
+    """Caracterização do loader: fora de SQ_COM_UE soma por SQ e ignora o SG_UE. Passa igual no main e neste branch."""
+    from civico_etl.jobs import tse_candidatos as tc
+
+    _need(conn)
+    sq2 = "99000480002"
+    _patch_loader(monkeypatch, tc, _votacao_csv(tmp_path, year, [(SQ, "100", "99483"), (SQ, "10", "OUTRA"), (sq2, "5", "99484")]))
+    with conn.transaction(force_rollback=True):
+        cids = _setup(conn, year, [("99483", "municipal", "3"), ("99484", "municipal", "4")], {"99483": SQ, "99484": sq2})
+        tc._load_votes(conn, year, None, True)
+        s = _state(conn, cids)
+        assert (s["99483"][0], s["99484"][0]) == (110, 5)

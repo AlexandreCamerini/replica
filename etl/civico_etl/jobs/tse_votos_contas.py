@@ -84,6 +84,9 @@ def _note_sem_ue(r, year: int, keys: set, what: str) -> None:
 def _apply_ue(conn: psycopg.Connection, year: int, col: str, values: dict, by_round: bool) -> int:
     """_apply nos anos de SQ_COM_UE: casa (UE, SQ) pela chave da pessoa. Linha sem SG_UE na fonte não grava nada."""
     cand = _cand_by_ue(conn, year)
+    by_key: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for (k, _), cid in cand.items():
+        by_key[k].append(cid)
     upd: list[tuple[str, int]] = []
     for key, v in values.items():
         k, turno = key if by_round else (key, 0)
@@ -92,7 +95,7 @@ def _apply_ue(conn: psycopg.Connection, year: int, col: str, values: dict, by_ro
             if cid:
                 upd.append((cid, v))
         else:  # receita/despesa: toda candidatura (1º e 2º turno) da UE e SQ, como o SQL dos outros anos
-            upd.extend((cid, v) for (kk, _), cid in cand.items() if kk == k)
+            upd.extend((cid, v) for cid in by_key.get(k, ()))
     if not upd:
         return 0
     cur = conn.cursor()

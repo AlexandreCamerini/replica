@@ -78,7 +78,7 @@ def first_name_match(civil_name: str | None, person_civil: str | None, person_di
     """O primeiro nome da linha bate com o da pessoa (BUG-044):
     - igual ao primeiro nome civil ou ao de exibição;
     - ou a 1 ou 2 edições do primeiro nome CIVIL, com o resto do nome quase igual (Jaccard >= 0,5 dos outros tokens):
-      Teresinha x Terezinha Moreira, Hidelmar x Hildemar Viana da Silva, Luis x Luiz Carlos Carneiro Frota. Sem o resto,
+      Teresinha x Terezinha, Luis x Luiz, Edmar x Edemar, letras trocadas a 2 edições (sobrenomes iguais). Sem o resto,
       José x João Santos "da Silva" (2 edições) casariam. A troca a/o no fim (Paulo x Paula) nunca é grafia. O nome de
       exibição só vale igual: "Dr Auri", "Zé", "Di" são curtos demais para distância de edição.
     Limite: irmãos com o mesmo sobrenome inteiro e primeiros nomes a até 2 edições (José x João Pereira da Silva) ainda
@@ -112,8 +112,8 @@ def title_row_foreign(civil_name: str | None, birth_date: date | None, person_ci
 
 def names_differ(a: str | None, b: str | None) -> bool:
     """Dois nomes civis da fonte com o mesmo título na mesma eleição são de pessoas diferentes: primeiros nomes a mais de 2
-    edições (BUG-044). Registro substituído da mesma pessoa com grafia variante não conta (Luiz Marcelo Cameron x Luis
-    Marcelo Comeron, 2012, mesmo nascimento): aqui o critério é mais frouxo que o de `first_name_match` de propósito, porque
+    edições (BUG-044). Registro substituído da mesma pessoa com grafia variante não conta (Luiz x Luis e um sobrenome
+    com uma letra trocada, mesmo nascimento, 2012): aqui o critério é mais frouxo que o de `first_name_match` de propósito, porque
     cada linha ainda passa por `title_row_foreign` contra a pessoa."""
     fa, fb = first_name(a), first_name(b)
     return bool(fa and fb) and edit_distance(fa, fb) > 2
