@@ -113,6 +113,17 @@ def test_suplente_listado_fora_do_exercicio_e_encerrado_na_data_da_camara(h):
     assert [(m["status"], m["ends_on"]) for m in h.mandatos(pid)] == [("encerrado", SAIU)]
 
 
+@pytest.mark.parametrize("situacao, status", [("Fim de Mandato", "encerrado"), ("Renúncia", "renunciou"), ("Cassado", "cassado")])
+def test_status_de_saida_segue_o_mapa_da_camara(h, situacao, status):
+    """O encerramento usa o STATUS do módulo (mesmo mapa do titular): renúncia e cassação não viram "encerrado" genérico."""
+    pid = h.pessoa(990000506, f"mapa-{status}")
+    h.api.status(990000506, situacao="Exercício", condicao="Suplente", data=ENTROU)
+    h.rodar()
+    h.api.status(990000506, situacao=situacao, condicao="Suplente", data=SAIU)
+    h.rodar()
+    assert [(m["status"], m["ends_on"]) for m in h.mandatos(pid)] == [(status, SAIU)]
+
+
 def test_suplente_sem_data_na_fonte_encerra_hoje_e_anota(h):
     pid = h.pessoa(990000502, "sem-data")
     h.api.status(990000502, situacao="Exercício", condicao="Suplente", data=ENTROU)

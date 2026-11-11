@@ -319,34 +319,37 @@ def close_suplentes(conn: psycopg.Connection, ctx: _Ctx, r: Run, gone: dict[str,
              and m.started_on >= %s and m.started_on < %s""",
         (ctx.office, list(OPEN), start, end),
     ).fetchall()
-    closed: list[str] = []
-    for row in rows:
+    # uma nota por motivo (MAX_NOTES): nome do motivo -> slugs
+    why: dict[str, list[str]] = defaultdict(list)
+    closed = 0
+    for row in sorted(rows, key=lambda x: x["slug"]):
         pid = str(row["person_id"])
         if pid in gone:
             data, status = gone[pid]
             if data is None:
-                r.note(f"{row['slug']}: suplente fora do exercício sem data na Câmara; encerrado com a data de hoje")
+                why["suplente fora do exercício sem data na Câmara, encerrado com a data de hoje"].append(row["slug"])
         elif row["camara_ids"] and not set(row["camara_ids"]) & listed:
             if not complete:
                 continue
             data, status = None, "encerrado"
-            r.note(f"{row['slug']}: suplente em exercício ausente da listagem da legislatura; encerrado com a data de hoje")
+            why["suplente em exercício ausente da listagem da legislatura, encerrado com a data de hoje"].append(row["slug"])
         else:
             continue
         fim = max(min(data or today, today, row["ends_on"]), row["started_on"] + timedelta(days=1))
         if fim > today:
-            r.note(f"{row['slug']}: suplente fora do exercício com mandato iniciado em {row['started_on']}; fim sem data válida, não encerrado")
+            why["suplente fora do exercício com mandato iniciado hoje ou depois, não encerrado"].append(row["slug"])
             continue
         conn.execute(
             "update mandates set status = %s, ends_on = %s, status_source = 'camara', updated_at = now() where id = %s",
             (status, fim, row["id"]),
         )
-        closed.append(f"{row['slug']} ({fim})")
+        why["suplente(s) fora do exercício encerrado(s)"].append(f"{row['slug']} ({status}, {fim})")
+        closed += 1
     if not complete:
         r.note(f"listagem incompleta ({len(listed)} id(s), mínimo {MIN_LISTING}, ou carga com limit): suplente ausente da listagem não é encerrado")
-    if closed:
-        r.note(f"{len(closed)} suplente(s) fora do exercício encerrado(s): {', '.join(closed)}")
-    return len(closed)
+    for k, v in why.items():
+        r.note(f"{len(v)} {k}: {', '.join(v)}")
+    return closed
 
 
 def run_camara_noturna(conn: psycopg.Connection, *, days: int = 3, force: bool = False) -> None:
