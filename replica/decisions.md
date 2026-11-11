@@ -565,3 +565,19 @@ Origem: `replica/catalogo-2026-11-08.md`. O dono escolheu os pacotes A (ganhos r
 - **Revisão independente da implementação.** Primeira passada: 1 crítico (texto invisível do PDF chegava aos agentes e podia ser o próprio trecho citado), 7 altos (item repetido valia o último; achado ausente liberava o campo; erro 4xx barrava a fila inteira para sempre; PDF forjava marcadores do prompt; avisos do portão vinham do banco sem refazer; `revisar` não gravava quem conferiu; classificador de Justificação fácil de enganar) e 10 médios. Críticos e altos corrigidos com teste. Segunda passada, sobre as correções: interrompida pelo limite de uso; pendente.
 - **Merge local (10/11/2026).** `claude/etl-revalidate`, `claude/epic-kowalevski-b579af` e `claude/replica-current-architecture-6e591c` entraram em `claude/quem-representa-redesign-e001f1`. Conflito único em `web/src/app/page.tsx`, resolvido a favor da home atual (a branch só acrescentava `revalidate = 600`, que já existia).
 - 2026-11-10: segunda revisão independente da verificação agêntica; achados corrigidos e testados (93 testes), pendências declaradas em `replica/verificacao-agentica.md` seção 17. Publicação por agentes segue desligada.
+
+## D294 em diante · execução de novembro com o dono ausente (orquestrador, 2026-11-11)
+
+Decisões tomadas sem o dono, sob a autorização prévia da execução. Andamento em `replica/backlog-execucao-2026-11.md`.
+
+- **D294 · A agenda do ETL fica ligada, mesmo com o `etl.yml` vermelho (operação, 11/11/2026 01:40 BRT).**
+  - **Contexto.** A tarefa supunha migrações pendentes e agenda desligada. Em leitura: produção já está na `0141` (aplicadas em 11/11 00:27–00:28 UTC), os carimbos `pauta.%` existem, `ETL_ALERT_WEBHOOK` existe e `ETL_SCHEDULE_ENABLED=true` desde 09/11. Os 6 últimos runs do `etl.yml` saem com exit 2 (alerta), sempre pelas mesmas duas invariantes: "câmara: exatamente 513" e "assembleia: cadeiras da CF art. 27". As tarefas em si rodam (0 falhas no último run). Causa única: 514 deputados em exercício, porque `leonardo-gadelha` (PB, suplente em exercício desde 09/07/2026) não foi encerrado; a API da Câmara lista 12 na PB, sem ele (BUG-050).
+  - **Opções.** (a) Desligar a agenda até corrigir, como manda o bloco ETL em caso de falha de passo. (b) Manter ligada e corrigir a causa. (c) Afrouxar o check.
+  - **Escolha.** (b). Nenhuma migração nem job falhou; o vermelho é o alerta fazendo o que deve. Desligar deixaria Câmara, Senado e pauta vencerem e derrubaria o vigia, hoje `ok:true`. (c) está fora: não se enfraquece invariante para passar.
+  - **Comandos e resultado.** Só leitura: `gh variable list`, `gh secret list` (nomes), `gh run view <id> --log`, `select` em `schema_migrations`, `dataset_stamps`, `mandates`, e `GET /api/health/fontes` (200, `ok:true`). Nada escrito em produção.
+  - **Como reverter.** `gh variable set ETL_SCHEDULE_ENABLED --body false`.
+  - **PR.** Registro (este arquivo); a correção é a P02.
+- **D295 · Migração nova fica fora desta execução; numeração a partir de 0150.**
+  - **Contexto.** `etl/deploy/prod-migrate.sh` pede a URI de escrita digitada, e a autorização proíbe ler ou manusear o segredo. Escrever pelo MCP do Supabase fugiria de `schema_migrations` e da regra "só os scripts de etl/deploy".
+  - **Escolha.** As PRs foram fatiadas sem migração. A que precisar de uma fica isolada e marcada "bloqueado, depende do dono", com o passo: `bash etl/deploy/prod-migrate.sh`, na janela seg–sex 23h–08h BRT. As duas `0131_*` convivem (a chave do `migrate.sh` é o nome do arquivo); a próxima usa `0150`.
+  - **Como reverter.** Não se aplica.
