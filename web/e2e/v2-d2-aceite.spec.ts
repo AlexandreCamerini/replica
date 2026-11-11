@@ -1,8 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import fs from "node:fs";
-import path from "node:path";
 
 // Bateria de aceite da Direção 2 (HANDOFF-DIRECAO-2.md §4, §6, §9) sobre TODAS as rotas do /v2.
 // Fonte de dados: demo/fake (DATA_SOURCE=demo). Nenhum teste intercepta o servidor; o que muda é só o DOM, no navegador.
@@ -276,15 +274,32 @@ test.describe("sem JavaScript", () => {
     await context.close();
   });
 
-  test("Ajustes rejeita sigla inválida e redirecionamento aberto", async ({ browser }, info) => {
-    const context = await semJs(browser, info, "anon");
-    const page = await context.newPage();
-    const res = await page.request.post("/v2/ajustes", { form: { uf: "ZZ", voltar: "//evil.example" }, maxRedirects: 0 }).catch(() => null);
-    // server action exige o cabeçalho próprio do Next; o que importa: nada de cookie com sigla inválida
-    expect(res === null || res.status() < 500).toBe(true);
-    expect((await context.cookies()).find((c) => c.name === "sv_uf")).toBeUndefined();
-    await context.close();
-  });
+  // A action roda de verdade: o formulário é enviado (POST nativo, sem JavaScript) com os campos adulterados no DOM.
+  for (const caso of [
+    { nome: "sigla inválida e destino //evil.example", uf: "ZZ", voltar: "//evil.example", cookie: undefined },
+    { nome: "sigla válida e destino https://evil.example", uf: "MG", voltar: "https://evil.example/v2", cookie: "MG" },
+    { nome: "sigla válida e destino /v2//evil.example", uf: "RJ", voltar: "/v2//evil.example", cookie: "RJ" },
+  ])
+    test(`Ajustes rejeita redirecionamento aberto: ${caso.nome}`, async ({ browser }, info) => {
+      const context = await semJs(browser, info, "anon");
+      const page = await context.newPage();
+      await page.goto("/v2/ajustes");
+      const form = page.locator("form#trocar-estado");
+      await form.evaluate((f, c) => {
+        const sel = f.querySelector<HTMLSelectElement>("select[name=uf]")!;
+        if (![...sel.options].some((o) => o.value === c.uf)) sel.add(new Option(c.uf, c.uf));
+        sel.value = c.uf;
+        f.querySelector<HTMLInputElement>("input[name=voltar]")!.value = c.voltar;
+      }, caso);
+      await Promise.all([page.waitForLoadState("load"), form.getByRole("button", { name: "Guardar estado" }).click()]);
+      const final = new URL(page.url());
+      expect(final.host, "o destino final fica no próprio site").toBe(new URL(info.project.use.baseURL as string).host);
+      expect(final.pathname, "o destino final fica no /v2").toMatch(/^\/v2(\/|$)/);
+      expect(final.pathname).toBe("/v2/ajustes"); // destino adulterado cai no padrão
+      // a action rodou: a sigla válida foi gravada; a inválida não
+      expect((await context.cookies()).find((c) => c.name === "sv_uf")?.value).toBe(caso.cookie);
+      await context.close();
+    });
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -815,16 +830,36 @@ test.describe("conteúdo", () => {
     expect(falhas).toEqual([]);
   });
 
-  test("esferas desligadas valem igual no Início, em Escolhidos e na Decisão (municipal desligado por padrão)", async ({ page, context }) => {
-    await cookiesDoLeitor(context, "leitor"); // sem cookie sv_esferas: padrão = estadual ligado, municipal desligado
-    const nome = "Bruno Sampaio"; // vereador (Esfera: Municipal)
-    const onde: Record<string, boolean> = {};
-    for (const [rotulo, url] of [["Início", "/v2"], ["Escolhidos", "/v2/acompanhando"], ["Decisão", `/v2/decisao/${KEY_RESPONDIDA}`]] as const) {
-      await abrir(page, url);
-      onde[rotulo] = (await page.locator(".sv-main").innerText()).includes(nome);
-    }
-    expect(new Set(Object.values(onde)).size, `a esfera municipal está desligada: ${JSON.stringify(onde)} (as três telas têm de tratar igual)`).toBe(1);
-  });
+  // Decisão declarada na PR: quem o leitor marcou continua aparecendo mesmo de esfera desligada. O que o municipal
+  // desligado tira da tela é a esfera em si: prefeito e vereadores em "Quem mais me representa?" e o "O que lemos".
+  for (const caso of [
+    { nome: "municipal desligado (padrão)", esferas: null, municipal: false },
+    { nome: "municipal ligado, com cidade", esferas: "e1.m1.c3550308", municipal: true },
+  ])
+    test(`esferas: ${caso.nome}; escolhidos de esfera desligada continuam no Início, em Escolhidos e na Decisão`, async ({ page, context }) => {
+      await cookiesDoLeitor(context, "leitor");
+      if (caso.esferas) await context.addCookies([{ name: "sv_esferas", value: caso.esferas, domain: "localhost", path: "/" }]);
+      const nome = "Bruno Sampaio"; // vereador (Esfera: Municipal)
+      for (const url of ["/v2", "/v2/acompanhando", `/v2/decisao/${KEY_RESPONDIDA}`]) {
+        await abrir(page, url);
+        await expect(page.locator(".sv-main"), `${url}: a pessoa marcada aparece com qualquer esfera`).toContainText(nome);
+      }
+      await abrir(page, "/v2");
+      const representa = page.locator('[aria-labelledby="inicio-representa"]');
+      const lemos = page.locator(".sv-lemos");
+      if (caso.municipal) {
+        await expect(representa).toContainText(/\d+ vereador(es)?\b/);
+        await expect(representa).not.toContainText("Prefeito e vereadores: desligado.");
+        await expect(lemos).toContainText("Municipal: ligado.");
+      } else {
+        await expect(representa).toContainText("Prefeito e vereadores: desligado.");
+        await expect(representa).not.toContainText(/\b(vereador(es)?|prefeitos?)\b[^:]/);
+        await expect(lemos).toContainText("Municipal: desligado.");
+      }
+      // a Decisão não esconde ninguém nem fala de "esferas desligadas"
+      await abrir(page, `/v2/decisao/${KEY_RESPONDIDA}`);
+      await expect(page.locator('[aria-labelledby="sv-d8"]')).not.toContainText(/esferas? desligadas?|não aparecem?/i);
+    });
 
   test("a fonte citada numa lacuna é a da esfera da pessoa (nada de Assembleia para vereador, nem Câmara Municipal para deputado)", async ({ page, context }) => {
     await cookiesDoLeitor(context, "leitor");
@@ -864,6 +899,109 @@ test.describe("conteúdo", () => {
     );
     expect(fontes, "afirmações com fonte sem data").toEqual([]);
   });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Leitura que falhou vira lacuna nomeada, nunca fato ("ninguém", "nenhum", "aguardando"). `?simular=` só vale na demo.
+// ---------------------------------------------------------------------------------------------------------------------
+const FALHOU = "Não conseguimos ler esta fonte agora.";
+
+test.describe("leitura que falhou", () => {
+  test("Escolhidos: a leitura das pessoas falha -> lacuna nomeada, nunca 'você ainda não marcou ninguém'", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    await abrir(page, "/v2/acompanhando?simular=erro");
+    const main = page.locator(".sv-main");
+    await expect(main).toContainText(FALHOU);
+    await expect(main).toContainText(`${SIGO.length} pessoas que você marcou não puderam ser lidas.`);
+    await expect(main).not.toContainText("Você ainda não marcou ninguém.");
+  });
+
+  test("Escolhidos: cada conjunto e a atividade falham -> 'não conseguimos ler', nunca 'ainda não temos' nem 'sem registro'", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    await abrir(page, "/v2/acompanhando?simular=erro_dados");
+    const blocos = page.locator(".sv-esc__pessoas > section");
+    await expect(blocos).toHaveCount(SIGO.length);
+    for (const b of await blocos.all()) {
+      const nome = (await b.locator(".sv-esc__n").innerText()).trim();
+      for (const q of ["Foi trabalhar?", "Como votou?", "Quanto gastou o gabinete?", "O patrimônio declarado mudou?", "O que propôs?"]) {
+        const linha = b.locator(".sv-r3l", { has: page.getByRole("heading", { name: q, exact: true }) });
+        await expect(linha, `${nome}: ${q}`).toContainText(FALHOU);
+        await expect(linha, `${nome}: ${q}`).not.toContainText("Ainda não temos esse dado.");
+      }
+    }
+    const recentes = page.locator('[aria-labelledby="esc-recentes"]');
+    await expect(recentes).toContainText(FALHOU);
+    await expect(recentes).not.toContainText("Ainda não temos registro recente");
+  });
+
+  test("Decisão: a leitura dos escolhidos falha -> lacuna por pessoa, nunca 'você ainda não escolheu ninguém'", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    await abrir(page, `/v2/decisao/${KEY_RESPONDIDA}?simular=erro`);
+    const q = page.locator('[aria-labelledby="sv-d8"]');
+    await expect(q.locator(".sv-pes > li")).toHaveCount(SIGO.length);
+    for (const li of await q.locator(".sv-pes > li").all()) await expect(li).toContainText("Não conseguimos ler os dados desta pessoa agora.");
+    await expect(q).not.toContainText("Você ainda não escolheu ninguém.");
+  });
+
+  test("Decisão: sem cookie, e só sem cookie, 'você ainda não escolheu ninguém'", async ({ page }) => {
+    await abrir(page, `/v2/decisao/${KEY_RESPONDIDA}`);
+    await expect(page.locator('[aria-labelledby="sv-d8"]')).toContainText("Você ainda não escolheu ninguém.");
+  });
+
+  test("Início: pauta da Câmara não lida -> lacuna, nunca 'nenhuma proposta traz tema oficial'", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    await abrir(page, "/v2?simular=camara_nao_lida");
+    const q = page.locator('[aria-labelledby="inicio-congresso"]');
+    await expect(q).toContainText("A pauta da Câmara desta semana ainda não foi lida.");
+    await expect(q).not.toContainText(/Nenhuma proposta/);
+    // sem a simulação, a mesma tela tem o tema oficial da pauta lida
+    await abrir(page, "/v2");
+    await expect(page.locator('[aria-labelledby="inicio-congresso"]')).toContainText("Na pauta do Congresso desta semana:");
+  });
+
+  test("Início: leituras falham -> escolhidos, resposta da semana e representantes viram lacuna nomeada", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    await abrir(page, "/v2?simular=erro");
+    const esc = page.locator('[aria-labelledby="inicio-escolhidos"]');
+    await expect(esc).toContainText(FALHOU);
+    await expect(esc).not.toContainText("Marque as pessoas em quem você votou.");
+    // o item com resposta publicada cuja leitura falhou não vira "Aguardando conferência"
+    const item = page.locator(".sv-dec", { has: page.locator(`a[href="/v2/decisao/${KEY_RESPONDIDA}"]`) });
+    await expect(item).toContainText("Não conseguimos ler esta resposta agora.");
+    await expect(item).not.toContainText("Aguardando conferência");
+    // e quem não tem resposta publicada continua "Aguardando conferência"
+    await expect(page.locator(".sv-dec", { has: page.locator(`a[href="/v2/decisao/${KEY_SEM_RESPOSTA}"]`) })).toContainText("Aguardando conferência.");
+    const rep = page.locator('[aria-labelledby="inicio-representa"]');
+    await expect(rep).toContainText(FALHOU);
+    await expect(rep).not.toContainText("Ainda não temos esse dado");
+  });
+
+  test("Início: sem simulação, o item respondido mostra a resposta lida", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    await abrir(page, "/v2");
+    const item = page.locator(".sv-dec", { has: page.locator(`a[href="/v2/decisao/${KEY_RESPONDIDA}"]`) });
+    await expect(item).toContainText("A mudança é na forma de mostrar a conta");
+    await expect(item).not.toContainText(/Aguardando conferência|Não conseguimos ler/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Cookie sv_sigo: path=/v2 (dado sensível), sem duplicar com a versão antiga em path=/
+// ---------------------------------------------------------------------------------------------------------------------
+test("sv_sigo: gravado só em /v2 e a versão antiga em path=/ é absorvida e apagada", async ({ page, context }) => {
+  await context.addCookies([{ name: "sv_sigo", value: "bruno-sampaio", domain: "localhost", path: "/" }]);
+  await abrir(page, "/v2/pessoa/helena-siqueira");
+  await page.getByRole("button", { name: /Votei nesta pessoa/ }).click();
+  await expect(page.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
+  const sigo = (await context.cookies()).filter((c) => c.name === "sv_sigo");
+  expect(sigo, "um só cookie sv_sigo").toHaveLength(1);
+  expect(sigo[0].path).toBe("/v2");
+  expect(sigo[0].value.split(".").sort()).toEqual(["bruno-sampaio", "helena-siqueira"]);
+  // fora do /v2 o navegador não manda o cookie
+  expect((await context.cookies("http://localhost/")).filter((c) => c.name === "sv_sigo")).toHaveLength(0);
+  // e o /v2 continua lendo a escolha
+  await abrir(page, "/v2/acompanhando");
+  await expect(page.locator(".sv-esc__pessoas .sv-esc__n")).toHaveText(["Bruno Sampaio", "Helena Siqueira"]);
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -914,7 +1052,6 @@ test.describe("movimento", () => {
 // ---------------------------------------------------------------------------------------------------------------------
 // Capturas de página inteira para inspeção visual (390 e 1280, com os cookies de leitor)
 // ---------------------------------------------------------------------------------------------------------------------
-const SHOTS = "/private/tmp/claude-501/-Users-acamerini-replica--claude-worktrees-mensagem-sessao-7d8244/a23003cb-e68c-4b39-aed8-ac11d5616cc3/scratchpad/shots";
 test.describe("capturas", () => {
   const alvos: [string, string][] = [
     ["inicio", "/v2"],
@@ -926,12 +1063,12 @@ test.describe("capturas", () => {
   ];
   for (const [nome, url] of alvos)
     for (const width of [390, 1280]) {
-      test(`captura ${nome} ${width}`, async ({ page, context }) => {
+      test(`captura ${nome} ${width}`, async ({ page, context }, info) => {
         await cookiesDoLeitor(context, "leitor");
         await page.setViewportSize({ width, height: 900 });
         await abrir(page, url);
-        fs.mkdirSync(SHOTS, { recursive: true });
-        await page.screenshot({ path: path.join(SHOTS, `${nome}-${width}.png`), fullPage: true });
+        // pasta de saída do próprio teste (test-results/…): vale em qualquer máquina, inclusive no CI em Linux
+        await page.screenshot({ path: info.outputPath(`${nome}-${width}.png`), fullPage: true });
       });
     }
 });
