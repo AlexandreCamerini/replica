@@ -146,6 +146,9 @@ def run_seed(conn: psycopg.Connection) -> None:
         ["office_id", "place_id", "valid_from", "amount_cents", "is_ceiling", "source_id"],
         [(offices[o], None, d, c, False, src[n]) for o, d, c, n in SALARIES],
         ["office_id", "place_id", "valid_from", "is_ceiling"],
+        # O site mostra "atualizado em" = max(salaries.updated_at). Sem este where o upsert só tocaria a linha que mudou e a data
+        # envelheceria sem carga nova; os tetos de vereador (CEILINGS_SQL) já são tocados a cada seed. São poucas linhas: reescrever é barato.
+        where="true",
     )
     _drop_stale_federal(conn, offices)
     cf = conn.execute("select id from sources where slug = 'constituicao'").fetchone()["id"]

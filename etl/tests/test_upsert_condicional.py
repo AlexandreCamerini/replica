@@ -104,3 +104,11 @@ def test_sync_party_memberships_so_mexe_no_que_difere(conn):
                               union all (select * from tmp_pm except select person_id, party_id, from_on, to_on from party_memberships)) x""").fetchone()["n"]
         assert dif == 0
         assert sync_party_memberships(cur) == (n + 1, 0, 0)  # idempotente
+
+
+def test_where_true_do_chamador_reescreve_sempre(tu):
+    """seed.py usa where="true" em salaries para o carimbo "atualizado em" do perfil refletir a última carga."""
+    upsert(tu, "tu", COLS, [(1, "x", 1)], ["k"])
+    antes = _ctids(tu)
+    upsert(tu, "tu", COLS, [(1, "x", 1)], ["k"], where="true")
+    assert _ctids(tu) != antes
