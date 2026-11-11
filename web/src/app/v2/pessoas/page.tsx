@@ -22,7 +22,10 @@ function People({ items }: { items: Officeholder[] }) {
 }
 
 export default async function Pessoas({ searchParams }: { searchParams: Promise<{ nome?: string; cargo?: string; uf?: string; cidade?: string; grupo?: string; pagina?: string }> }) {
-  const sp = await searchParams;
+  const raw = await searchParams;
+  // parâmetro repetido chega como array: só string vale, o resto é ignorado (nunca erro 500)
+  const so = (v: unknown) => (typeof v === "string" ? v : undefined);
+  const sp = { nome: so(raw.nome), cargo: so(raw.cargo), uf: so(raw.uf), cidade: so(raw.cidade), grupo: so(raw.grupo), pagina: so(raw.pagina) };
   const q = (sp.nome ?? "").trim().slice(0, 80);
   const office = isOffice(sp.cargo) ? sp.cargo : undefined;
   const uf = sp.uf && /^[A-Za-z]{2}$/.test(sp.uf) ? sp.uf.toUpperCase() : undefined;

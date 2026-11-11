@@ -1,40 +1,53 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import Link from "next/link";
+import { EscolhidosNaoLidos, QuadroEscolhido, Recentes, SemEscolhidos } from "@/components/sv/escolhidos/quadro";
+import { carregarEscolhidos } from "@/components/sv/escolhidos/carregar";
+import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FOLLOW_COOKIE, FOLLOW_MAX, parseFollows } from "@/components/sv/follow-shared";
-import { FollowedCard, loadFollowed } from "@/components/sv/followed";
-import { Src } from "@/components/sv/ui";
+import { COOKIE_TEXTO } from "@/components/sv/prefs-shared";
+import { simulacao } from "@/components/sv/simular";
+import { Nota, Proxima, Selo } from "@/components/sv/ui";
 
-export const metadata: Metadata = { title: "Quem você votou" };
+export const metadata: Metadata = { title: "O que meus escolhidos estão fazendo?" };
 
-export default async function Acompanhando() {
-  const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
-  const followed = await loadFollowed(follows, 6);
+export default async function Acompanhando({ searchParams }: { searchParams: Promise<{ simular?: string | string[] }> }) {
+  const slugs = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
+  // `?simular=erro|erro_dados` só vale na demonstração (simular.ts)
+  const sim = simulacao((await searchParams).simular);
+  const { pessoas, recentes, recentesFalhou, falhas, naoEncontradas, lidoEm } = await carregarEscolhidos(slugs, { pessoa: sim === "erro", dados: sim === "erro_dados" });
+  // "Você ainda não marcou ninguém." só com o cookie vazio; quem marcou e não foi lido vira lacuna nomeada
+  const semCookie = slugs.length === 0;
+  const vazio = pessoas.length === 0;
 
   return (
-    <>
-      <h1 className="sv-title">O que fez quem você votou</h1>
-      <p className="sv-lead sv-mt-2">Os votos mais recentes de cada pessoa que você marcou. Em ordem alfabética, sem nota e sem comparação.</p>
+    <div className="sv-pg sv-pg--esc">
+      <div className="sv-topq sv-gu">
+        <h1>O que meus escolhidos estão fazendo?</h1>
+        <p className="sv-t">As pessoas em quem você votou, de A a Z.</p>
+        <p className="sv-t">
+          {COOKIE_TEXTO} Cabem até {FOLLOW_MAX} pessoas.
+        </p>
+        <Nota>
+          <ExemploIlustrativo>Exemplo ilustrativo: pessoas, valores e status inventados para a demonstração.</ExemploIlustrativo> Não há nota nem ranking.
+        </Nota>
+      </div>
 
-      {followed.length === 0 ? (
-        <div className="sv-mt-5">
-          <p className="sv-lead">Você ainda não marcou ninguém. Abra a página de uma pessoa e toque em “Votei nesta pessoa: acompanhar”.</p>
-          <Link className="sv-btn sv-mt-3" href="/v2/pessoas">
-            Escolher em quem votei
-          </Link>
-        </div>
+      {semCookie ? (
+        <SemEscolhidos className="sv-gt" />
+      ) : vazio ? (
+        <EscolhidosNaoLidos className="sv-gt" falhas={falhas} naoEncontradas={naoEncontradas} />
       ) : (
-        <div className="sv-cols is-2 sv-mt-5" style={{ gap: "40px 56px" }}>
-          {followed.map((f) => (
-            <FollowedCard key={f.slug} f={f} />
+        <div className="sv-esc__pessoas sv-gt">
+          {pessoas.map((p) => (
+            <QuadroEscolhido key={p.slug} p={p} />
           ))}
+          {(falhas > 0 || naoEncontradas > 0) && <EscolhidosNaoLidos falhas={falhas} naoEncontradas={naoEncontradas} />}
         </div>
       )}
 
-      <p className="sv-meta sv-mt-5" style={{ fontWeight: 400 }}>
-        Você pode acompanhar até {FOLLOW_MAX} pessoas. A lista fica guardada só neste navegador: não criamos conta e não gravamos em quem você votou. Para tirar alguém, abra a página da pessoa.
-      </p>
-      <Src>Fonte: Câmara dos Deputados e Senado Federal, votações nominais. Sem voto registrado não é voto contra.</Src>
-    </>
+      {!vazio && <Recentes itens={recentes} falhou={recentesFalhou} lidoEm={lidoEm} className="sv-gf" />}
+      <Selo className="sv-gs" lidoEm={lidoEm} />
+      <Proxima className="sv-gn" href="/v2/decisoes" pergunta="O que mexe comigo?" />
+    </div>
   );
 }

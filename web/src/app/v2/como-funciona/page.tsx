@@ -41,7 +41,7 @@ export default async function ComoFunciona() {
           <div className="sv-mt-5" id="verificacao">
             <Label>Como conferimos o que escrevemos</Label>
             <p className="sv-mt-1" style={{ fontSize: 15.5, lineHeight: 1.45 }}>
-              As explicações em linguagem simples são escritas e conferidas com o texto oficial por agentes de inteligência artificial. Um agente escreve. Outros, independentes, conferem.
+              As explicações em linguagem simples são rascunhadas por inteligência artificial (IA) a partir do texto oficial. Antes de publicar, cada frase é conferida contra o trecho citado: por uma pessoa ou por agentes de IA independentes de quem escreveu. Cada resposta diz quem conferiu e quando.
             </p>
             <List>
               {VERIFY.map((t) => (
@@ -51,7 +51,7 @@ export default async function ComoFunciona() {
               ))}
             </List>
             <p className="sv-mt-2" style={{ fontSize: 15.5, lineHeight: 1.45 }}>
-              Se uma conferência falha, a resposta não é publicada e aparece como “ainda não conseguimos conferir”. Nenhuma pessoa lê a explicação antes de publicarmos. Agentes também erram: por isso todo erro apontado é conferido e corrigido aqui, com data e motivo.
+              Se uma conferência falha, a resposta não é publicada e aparece como “ainda não conseguimos conferir”. Quando a conferência foi feita por agentes, nenhuma pessoa leu a explicação antes de publicarmos. Votos, presença e gastos não passam por essa conferência: vêm da fonte oficial, com a data da leitura. Pessoas e agentes erram: por isso todo erro apontado é conferido e corrigido aqui, com data e motivo.
             </p>
           </div>
 

@@ -40,3 +40,31 @@ export const clip = (s: string, max: number) => (s.length <= max ? s : `${s.slic
 export const billLabel = (e: { type: string; number: number; year: number }) => `${e.type} ${e.number}/${e.year}`;
 
 export const BODY_NAME = { camara: "Câmara dos Deputados", senado: "Senado Federal" } as const;
+
+/** Ano de uma data no fuso de Brasília (data sem hora: o próprio ano). null se inválida. */
+export function anoDe(iso: string | Date | null | undefined): number | null {
+  if (!iso) return null;
+  if (typeof iso === "string") {
+    const m = DAY_ONLY.exec(iso);
+    if (m) return Number(m[1]);
+  }
+  const d = typeof iso === "string" ? new Date(iso) : iso;
+  if (Number.isNaN(d.getTime())) return null;
+  return Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric" }).format(d));
+}
+
+/** dd/mm quando a data é do ano de referência (padrão: o ano corrente em Brasília); dd/mm/aaaa quando é de outro ano. */
+export function fmtDayMonthAno(iso: string | null | undefined, anoRef: number | null = anoDe(new Date())): string {
+  const ano = anoDe(iso);
+  return ano !== null && ano === anoRef ? fmtDayMonth(iso) : fmtDate(iso);
+}
+
+/** dd/mm, no fuso de Brasília. Para dizer quando algo foi conferido, use `fmtDayMonthAno` (mostra o ano se for outro). */
+export function fmtDayMonth(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const m = DAY_ONLY.exec(iso);
+  if (m) return `${m[3]}/${m[2]}`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit" }).format(d);
+}

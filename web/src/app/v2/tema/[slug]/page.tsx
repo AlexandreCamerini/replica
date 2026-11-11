@@ -38,8 +38,8 @@ export default async function Tema({ params }: { params: Promise<{ slug: string 
 
           <div className="sv-mt-4" role="img" aria-label={`${t.approved} aprovadas, ${t.rejected} rejeitadas, ${open} sem resultado publicado`}>
             <Label>Como terminaram</Label>
-            <Bar label="Aprovadas" kind="is-sim" weight={800} n={t.approved} total={t.events.length} />
-            <Bar label="Rejeitadas" kind="is-nao" weight={500} n={t.rejected} total={t.events.length} />
+            <Bar label="Aprovadas" kind="is-sim" weight={600} n={t.approved} total={t.events.length} />
+            <Bar label="Rejeitadas" kind="is-nao" weight={600} n={t.rejected} total={t.events.length} />
             <Bar label="Sem resultado" weight={200} n={open} total={t.events.length} />
           </div>
           <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>

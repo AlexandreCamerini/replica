@@ -15,6 +15,8 @@ import {
   topicName,
 } from "./reference";
 import type {
+  AnswerClaim,
+  PublishedAnswers,
   Agreement,
   Candidacy,
   DataSource,
@@ -43,6 +45,7 @@ import type {
   VotingEventSummary,
   ActivityItem,
   PautaEntry,
+  VerifiedBy,
 } from "./types";
 import { parseProposalKey, uniqueByKey } from "../pauta";
 
@@ -1035,22 +1038,32 @@ export const fakeSource: DataSource = {
     const { starts, ends, readAt } = demoWeek();
     // simulate "erro": a leitura da Câmara falhou em 2 das 9 reuniões (events_failed > 0)
     const camaraFailed = opts?.simulate === "erro" ? 2 : 0;
-    const all = demoPauta();
+    // como no pg.ts (`withReview`): item com respostas publicadas leva `reviewedAt`, `verifiedBy` e o título simples só em `diz`
+    const a = demoAnswers();
+    // simulate "camara_nao_lida": a pauta da Câmara não foi lida (sem leitura e sem itens da Câmara)
+    const semCamara = opts?.simulate === "camara_nao_lida";
+    const all = demoPauta().filter((e) => !semCamara || e.body !== "camara").map((e) =>
+      e.key === DEMO_ANSWERED_KEY ? { ...e, reviewedAt: a.reviewedAt, verifiedBy: a.verifiedBy, plain: a.fields.o_que_propoe.says ? a.fields.o_que_propoe.text : null } : e,
+    );
     return {
       week: { total: all.filter((e) => e.stage === "plenario").length, atLeast: false, readAt, weekStarts: starts, weekEnds: ends },
       plenary: uniqueByKey(all.filter((e) => e.stage === "plenario")),
       later: [],
       committees: uniqueByKey(all.filter((e) => e.stage === "comissao")),
       exits: [],
-      reads: { camara: { readAt, failed: camaraFailed, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
+      reads: { camara: semCamara ? { readAt: null, failed: 0, total: 0 } : { readAt, failed: camaraFailed, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
     };
   },
   async getPautaProposal(key) {
     if (!parseProposalKey(key)) return null;
-    const entry = demoPauta().find((e) => e.key === key);
+    const entry = [...demoPauta(), ...demoForaDaSemana()].find((e) => e.key === key);
     if (!entry) return null;
+    const answers = entry.key === DEMO_ANSWERED_KEY ? demoAnswers() : entry.key in DEMO_QUEM_CONFERIU ? demoAnswers(DEMO_QUEM_CONFERIU[entry.key]) : null;
     return {
-      entry,
+      // como no pg.ts: com "o que propõe" conferido, a frase vira o título simples
+      entry: answers?.fields.o_que_propoe.says
+        ? { ...entry, reviewedAt: answers.reviewedAt, plain: answers.fields.o_que_propoe.text, verifiedBy: answers.verifiedBy }
+        : entry,
       status: { kind: "na_pauta" },
       schedule: [entry],
       readAt: demoWeek().readAt,
@@ -1058,7 +1071,7 @@ export const fakeSource: DataSource = {
       presentedOn: null,
       authors: [],
       votes: [],
-      answers: null,
+      answers,
     };
   },
   async listCorrections() {
@@ -1090,6 +1103,53 @@ function demoWeek() {
     ends: new Date(start.getTime() + 7 * 86400e3).toISOString(),
     readAt: new Date(now.getTime() - 40 * 60e3).toISOString(),
     at: (day: number, hour: number) => new Date(start.getTime() + day * 86400e3 + hour * 3600e3).toISOString(),
+  };
+}
+
+/** Proposta sintética (número fora do usado pela Câmara) com respostas publicadas nos três estados. As outras duas seguem sem respostas. */
+export const DEMO_ANSWERED_KEY = "camara-pl-9999-2026";
+
+/**
+ * Propostas sintéticas fora da pauta da semana (só `getPautaProposal` as acha), para testar quem conferiu: uma revisada
+ * por pessoa (como o que a migração 0130 marcou) e outra publicada sem registro de quem conferiu (`verified_by` null).
+ */
+export const DEMO_QUEM_CONFERIU: Record<string, VerifiedBy> = { "camara-pl-9998-2026": "pessoa", "camara-pl-9997-2026": null };
+
+function demoForaDaSemana(): PautaEntry[] {
+  const { at } = demoWeek();
+  return [9998, 9997].map((number) => ({
+    key: `camara-pl-${number}-2026`,
+    body: "camara",
+    type: "PL",
+    number,
+    year: 2026,
+    summary: "Exemplo ilustrativo da demonstração: dispõe sobre a discriminação dos tributos na fatura de energia elétrica residencial.",
+    stage: "comissao",
+    committee: "CDC",
+    scheduledFor: at(-7, 14),
+    regime: "Ordinário (Art. 151, III, RICD)",
+    rapporteur: null,
+    reason: { theme: "Direito e Defesa do Consumidor", term: "tributo" },
+  }));
+}
+
+// Exemplo ilustrativo: frases e trechos inventados para a demonstração, não são de nenhum texto oficial.
+function demoAnswers(verifiedBy: VerifiedBy = "agentes"): PublishedAnswers {
+  const diz = (text: string, quote: string, page: number): AnswerClaim => ({ state: "diz", says: true, text, quote, page });
+  const vazio = (state: "nao_diz" | "nao_conferido"): AnswerClaim => ({ state, says: false, text: "", quote: "", page: 0 });
+  return {
+    reviewedAt: demoWeek().readAt,
+    verifiedBy,
+    sourceUrl: "https://www.camara.leg.br/",
+    fields: {
+      o_que_propoe: diz("Obriga a conta de luz a mostrar, em linha própria, quanto do valor é imposto.", "a fatura discriminará, em campo próprio, o valor dos tributos incidentes", 1),
+      quem_recebe: diz("Quem paga conta de luz em casa passa a ver o imposto separado do consumo.", "aplica-se às unidades consumidoras residenciais", 1),
+      quem_paga: vazio("nao_conferido"),
+      o_que_muda: diz("A mudança é na forma de mostrar a conta, não no valor cobrado.", "sem alteração das tarifas homologadas", 2),
+      dinheiro: { ...vazio("nao_diz"), direction: "nao_diz" },
+      estimativa_impacto: vazio("nao_conferido"),
+    },
+    correction: null,
   };
 }
 
@@ -1125,6 +1185,20 @@ function demoPauta(): PautaEntry[] {
       regime: "Ordinário (Art. 151, III, RICD)",
       rapporteur: "Nely Aquino",
       reason: { theme: "Indústria, Comércio e Serviços", term: "benefício" },
+    },
+    {
+      key: DEMO_ANSWERED_KEY,
+      body: "camara",
+      type: "PL",
+      number: 9999,
+      year: 2026,
+      summary: "Exemplo ilustrativo da demonstração: dispõe sobre a discriminação dos tributos na fatura de energia elétrica residencial.",
+      stage: "comissao",
+      committee: "CDC",
+      scheduledFor: at(3, 14),
+      regime: "Ordinário (Art. 151, III, RICD)",
+      rapporteur: null,
+      reason: { theme: "Direito e Defesa do Consumidor", term: "tributo" },
     },
   ];
 }

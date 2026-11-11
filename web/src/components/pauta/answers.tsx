@@ -1,9 +1,9 @@
-import type { AnswerClaim } from "@/lib/data";
-import { date } from "@/lib/format";
+import { conferidoEm } from "@/components/sv/estados";
+import type { AnswerClaim, VerifiedBy } from "@/lib/data";
 
-/** Selo neutro da Regra 3: diz que uma pessoa conferiu, não que a proposta é boa. */
-export function ReviewedBadge({ at }: { at: string }) {
-  return <span className="stamp">Revisado por pessoa {date(at)}</span>;
+/** Selo neutro da Regra 3: diz quem conferiu a resposta publicada (`verifiedBy`), não que a proposta é boa. Frase única em sv/estados. */
+export function ReviewedBadge({ at, by }: { at: string; by?: VerifiedBy }) {
+  return <span className="stamp">{conferidoEm(at, by ?? null, "v1")}</span>;
 }
 
 const DIRECTION: Record<NonNullable<AnswerClaim["direction"]>, string> = {
@@ -13,7 +13,7 @@ const DIRECTION: Record<NonNullable<AnswerClaim["direction"]>, string> = {
   nao_diz: "",
 };
 
-/** Uma afirmação com o trecho do texto oficial ao lado (expansível). Sem trecho: "O texto não diz". */
+/** Uma afirmação com o trecho do texto oficial ao lado (expansível). "O texto não diz" só no estado `nao_diz`; `nao_conferido` não afirma nada. */
 export function Claim({ claim, sourceUrl, title }: { claim: AnswerClaim; sourceUrl: string; title?: string }) {
   return (
     <div className="flex flex-col gap-1">
@@ -38,11 +38,14 @@ export function Claim({ claim, sourceUrl, title }: { claim: AnswerClaim; sourceU
             </figure>
           </details>
         </>
-      ) : (
+      ) : claim.state === "nao_diz" ? (
         <>
           <p className="font-serif text-[19px] leading-snug text-fg">O texto não diz.</p>
           <p className="text-sm text-muted">Nenhum trecho do texto oficial responde isso.</p>
         </>
+      ) : (
+        // nao_conferido: não afirma nada sobre a lei
+        <p className="font-serif text-[19px] leading-snug text-fg">Ainda não conseguimos conferir esta resposta.</p>
       )}
     </div>
   );

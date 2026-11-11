@@ -13,7 +13,7 @@ const FIELD: Record<AnswerField, string> = {
   dinheiro: "O dinheiro entra, sai ou é dividido",
   estimativa_impacto: "Estimativa de impacto oficial",
 };
-const said = (c: AnswerClaim) => (c.says ? c.text : "O texto não diz.");
+const said = (c: AnswerClaim) => (c.says ? c.text : c.state === "nao_diz" ? "O texto não diz." : "Ainda não conseguimos conferir esta resposta.");
 
 // Nada é apagado sem rastro: cada correção mostra o que dizia antes, o que diz agora e o motivo.
 export default async function Correcoes() {

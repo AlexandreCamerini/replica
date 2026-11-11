@@ -50,7 +50,7 @@ export function PautaCard({ e, note, showDay = true }: { e: PautaEntry; note?: s
           {e.reason.theme && <ThemeTag>{e.reason.theme}</ThemeTag>}
         </span>
         {note && <span className="text-sm text-fg">{note}</span>}
-        {!note && <span className="mt-1">{e.reviewedAt ? <ReviewedBadge at={e.reviewedAt} /> : <ReviewBadge />}</span>}
+        {!note && <span className="mt-1">{e.reviewedAt ? <ReviewedBadge at={e.reviewedAt} by={e.verifiedBy} /> : <ReviewBadge />}</span>}
       </Link>
     </li>
   );

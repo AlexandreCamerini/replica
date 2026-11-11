@@ -57,7 +57,8 @@ export default async function Votacao({ params, searchParams }: { params: Promis
   const total = ORDER.reduce((s, k) => s + (c[k] ?? 0), 0);
   const others = (c.obstrucao ?? 0) + (c.art17 ?? 0) + (c.nao_votou ?? 0);
   const ufs = [...new Set(ev.votes.map((v) => v.uf).filter((u): u is string => !!u))].sort();
-  const uf = sp.uf && ufs.includes(sp.uf.toUpperCase()) ? sp.uf.toUpperCase() : null;
+  const ufRaw = typeof sp.uf === "string" ? sp.uf.toUpperCase() : null; // `?uf=SP&uf=RJ` chega como array: ignorado
+  const uf = ufRaw && ufs.includes(ufRaw) ? ufRaw : null;
   const title = ev.proposal?.summary ?? ev.description;
 
   return (
@@ -78,9 +79,9 @@ export default async function Votacao({ params, searchParams }: { params: Promis
           {ev.proposal?.summary && ev.description !== ev.proposal.summary && <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>O que foi votado: {clip(ev.description, 260)}</p>}
 
           <div className="sv-mt-3" role="img" aria-label={`Sim ${c.sim ?? 0}, Não ${c.nao ?? 0}, Abstenção ${c.abstencao ?? 0}, outros registros ${others}`}>
-            <Bar label="Sim" kind="is-sim" weight={800} n={c.sim ?? 0} total={total} />
-            <Bar label="Não" kind="is-nao" weight={500} n={c.nao ?? 0} total={total} />
-            <Bar label="Abstenção" kind="is-abs" weight={500} n={c.abstencao ?? 0} total={total} />
+            <Bar label="Sim" kind="is-sim" weight={600} n={c.sim ?? 0} total={total} />
+            <Bar label="Não" kind="is-nao" weight={600} n={c.nao ?? 0} total={total} />
+            <Bar label="Abstenção" kind="is-abs" weight={600} n={c.abstencao ?? 0} total={total} />
             <Bar label="Outros" weight={200} n={others} total={total} />
           </div>
           <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>

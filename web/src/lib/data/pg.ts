@@ -63,10 +63,12 @@ import type {
   AnswerField,
   Correction,
   PublishedAnswers,
+  VerifiedBy,
 } from "./types";
 import { ANSWER_FIELDS, CAMPAIGN_ORIGINS } from "./types";
 import { label, parseProposalKey, proposalKey, termLabel, uniqueByKey } from "../pauta";
 import { pgW4 } from "./pg-w4";
+import { claimsFrom, plainOf } from "../answer-claims";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
 // Nenhuma query fora daqui. Listas públicas ordenam por nome (collation pt_br), nunca por métrica: regra de neutralidade.
@@ -1376,14 +1378,14 @@ export const pgSource: DataSource = {
       weekEnds: isoTs(wk?.week_ends),
     };
     const published = await sql`
-      select b.kind, a.prop_type, a.prop_number, a.prop_year, a.reviewed_at, a.answers
+      select a.id, b.kind, a.prop_type, a.prop_number, a.prop_year, a.reviewed_at, a.answers
       from answer_drafts a join legislative_bodies b on b.id = a.body_id where a.status = 'publicado'`;
     const pub = new Map(published.map((p) => [proposalKey(p.kind === "senado" ? "senado" : "camara", String(p.prop_type), Number(p.prop_number), Number(p.prop_year)), p]));
+    const quem = await verifiedByOf(published.map((p) => String(p.id)));
     const withReview = <T extends PautaEntry>(e: T): T => {
       const p = pub.get(e.key);
       if (!p) return e;
-      const o = (p.answers as Record<string, { diz: boolean; frase: string }>).o_que_propoe;
-      return { ...e, reviewedAt: isoTs(p.reviewed_at), plain: o?.diz ? o.frase : null };
+      return { ...e, reviewedAt: isoTs(p.reviewed_at), plain: plainOf(p.answers), verifiedBy: quem.get(String(p.id)) ?? null };
     };
     const all = rows.map((r) => withReview(pautaEntry(r, terms)));
     const inWeek = (e: PautaEntry) => e.scheduledFor >= week.weekStarts && e.scheduledFor < week.weekEnds;
@@ -1461,9 +1463,11 @@ export const pgSource: DataSource = {
       from answer_drafts a join legislative_bodies b on b.id = a.body_id
       left join answer_drafts prev on prev.id = a.replaces_id
       where b.kind = ${kind} and a.prop_type = ${k.type} and a.prop_number = ${k.number} and a.prop_year = ${k.year} and a.status = 'publicado'`;
+    const quemConferiu = pubRow ? ((await verifiedByOf([String(pubRow.id)])).get(String(pubRow.id)) ?? null) : null;
     const answers: PublishedAnswers | null = pubRow
       ? {
           reviewedAt: isoTs(pubRow.reviewed_at),
+          verifiedBy: quemConferiu,
           sourceUrl: String(pubRow.source_url),
           fields: claims(pubRow.answers),
           correction: pubRow.prev_answers
@@ -1472,7 +1476,9 @@ export const pgSource: DataSource = {
         }
       : null;
     return {
-      entry: answers?.fields.o_que_propoe.says ? { ...entry, reviewedAt: answers.reviewedAt, plain: answers.fields.o_que_propoe.text } : entry,
+      entry: answers?.fields.o_que_propoe.says
+        ? { ...entry, reviewedAt: answers.reviewedAt, plain: answers.fields.o_que_propoe.text, verifiedBy: answers.verifiedBy }
+        : entry,
       answers,
       status,
       schedule: current.map((r) => pautaEntry(r, terms)),
@@ -1547,17 +1553,27 @@ function pautaEntry(r: Record<string, unknown>, terms: string[]): PautaEntry {
   };
 }
 
-/** JSON do rascunho (campos em português, como o ETL grava) para o tipo da tela. Campo ausente = "O texto não diz". */
-function claims(raw: unknown): Record<AnswerField, AnswerClaim> {
-  const src = (raw ?? {}) as Record<string, { diz?: boolean; frase?: string; trecho?: string; pagina?: number; direcao?: string }>;
-  return Object.fromEntries(
-    ANSWER_FIELDS.map((f) => {
-      const a = src[f] ?? {};
-      // sem frase ou sem trecho, a tela nunca mostra afirmação: vira "O texto não diz"
-      const says = Boolean(a.diz) && Boolean(a.frase?.trim()) && Boolean(a.trecho?.trim());
-      const c: AnswerClaim = { says, text: a.frase ?? "", quote: a.trecho ?? "", page: Number(a.pagina ?? 0) };
-      if (f === "dinheiro") c.direction = (a.direcao as AnswerClaim["direction"]) ?? "nao_diz";
-      return [f, c];
-    }),
-  ) as Record<AnswerField, AnswerClaim>;
+/** JSON do rascunho (campos em português, como o ETL grava) para o tipo da tela. Regras dos três estados: lib/answer-claims.ts. */
+const claims = (raw: unknown): Record<AnswerField, AnswerClaim> => claimsFrom(raw);
+/** Valor de `answer_drafts.verified_by` fora do domínio: null (não registrado). */
+const verifiedBy = (v: unknown): VerifiedBy => (v === "agentes" || v === "pessoa" ? v : null);
+
+/**
+ * Quem conferiu cada resposta (`answer_drafts.verified_by`, migração 0130), numa consulta à parte e tolerante:
+ * sem a 0130 a coluna não existe (42703) e a consulta falha; aí todos ficam null ("Conferido com o texto oficial", sem
+ * dizer por quem) e a página segue. Não usa `to_jsonb(a)`: com a 0131 o web_reader só lê colunas listadas, e a linha
+ * inteira daria "permission denied" e derrubaria a pauta.
+ */
+async function verifiedByOf(ids: string[]): Promise<Map<string, VerifiedBy>> {
+  if (ids.length === 0) return new Map();
+  try {
+    const rows = await sql`select id, verified_by from answer_drafts where id = any (${ids}::uuid[])`;
+    return new Map(rows.map((r) => [String(r.id), verifiedBy(r.verified_by)]));
+  } catch (e) {
+    // esperado: coluna inexistente (sem a 0130, 42703) ou sem grant na coluna (42501). Qualquer outro erro é registrado.
+    // Nos dois casos a página degrada igual: sem dizer quem conferiu (null), nunca afirmando por quem.
+    const code = (e as { code?: unknown } | null)?.code;
+    if (code !== "42703" && code !== "42501") console.error("verifiedByOf: leitura de answer_drafts.verified_by falhou", e);
+    return new Map();
+  }
 }

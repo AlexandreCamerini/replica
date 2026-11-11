@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/page/page-header";
 import { ShareButton, WhatsAppLink } from "@/components/people/share";
 import { Claim, ReviewedBadge } from "@/components/pauta/answers";
+import { conferidoEm } from "@/components/sv/estados";
 import { AboutData, ReviewBadge, where } from "@/components/pauta/ui";
 import { FreshnessLine } from "@/components/ui/freshness";
 import { GlossaryFor } from "@/components/ui/glossary";
@@ -75,7 +76,7 @@ export default async function Proposta({ params }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           {p.answers ? (
             <>
-              <ReviewedBadge at={p.answers.reviewedAt} />
+              <ReviewedBadge at={p.answers.reviewedAt} by={p.answers.verifiedBy} />
               {p.answers.correction && <span className="text-sm text-muted">Corrigida em {date(p.answers.correction.correctedAt)}.</span>}
             </>
           ) : (
@@ -253,7 +254,7 @@ export default async function Proposta({ params }: Props) {
         extra={
           p.answers && (
             <p className="mt-2 max-w-[65ch] text-sm text-muted">
-              Respostas rascunhadas por IA a partir do texto oficial e revisadas por pessoa em {date(p.answers.reviewedAt)}.
+              Respostas rascunhadas por IA a partir do texto oficial. {conferidoEm(p.answers.reviewedAt, p.answers.verifiedBy, "v1")}.
               {p.answers.correction && <> Corrigidas em {date(p.answers.correction.correctedAt)}: {p.answers.correction.note}</>}
             </p>
           )

@@ -2,13 +2,21 @@
 // O servidor lê o cookie só para montar a página; a escolha não é registrada.
 export const FOLLOW_COOKIE = "sv_sigo";
 export const FOLLOW_MAX = 12;
+/** Caminho do cookie: só o /v2 o lê (pessoas em quem o leitor diz ter votado são dado sensível). */
+export const FOLLOW_PATH = "/v2";
 
 const SLUG = /^[a-z0-9-]{1,120}$/;
 
 export function parseFollows(raw: string | undefined | null): string[] {
-  if (!raw) return [];
+  if (!raw || typeof raw !== "string") return [];
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    return []; // cookie malformado (ex.: "%E0"): lista vazia, nunca erro 500
+  }
   const seen = new Set<string>();
-  for (const s of decodeURIComponent(raw).split(".")) if (SLUG.test(s)) seen.add(s);
+  for (const s of decoded.split(".")) if (SLUG.test(s)) seen.add(s);
   return [...seen].slice(0, FOLLOW_MAX);
 }
 

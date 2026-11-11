@@ -70,7 +70,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           ))}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28, fontSize: 20, color: OG.textMuted }}>
-          <span style={{ color: OG.accent, fontWeight: 700 }}>quem · representa</span>
+          <span style={{ color: OG.accent, fontWeight: 700 }}>Segue o Voto</span>
           <span>{asOf} · Sem nota, sem ranking.</span>
         </div>
       </div>
@@ -83,7 +83,7 @@ function fallback() {
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: OG.bg, fontSize: 56, color: OG.text }}>
-        quem · representa
+        Segue o Voto
       </div>
     ),
     size,

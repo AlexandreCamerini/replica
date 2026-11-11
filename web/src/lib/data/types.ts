@@ -406,8 +406,9 @@ export type PautaEntry = {
   regime: string | null;
   rapporteur: string | null;
   reason: PautaReason;
-  reviewedAt?: string | null; // respostas revisadas por pessoa e publicadas
-  plain?: string | null; // "o que propõe", revisado; no lugar da ementa nos cartões
+  reviewedAt?: string | null; // respostas conferidas e publicadas (quem conferiu: `verifiedBy`)
+  plain?: string | null; // "o que propõe", só no estado `diz`; no lugar da ementa nos cartões
+  verifiedBy?: VerifiedBy; // quem conferiu as respostas publicadas; ausente/null = não registrado
 };
 /** U08: estado de uma sessão deliberativa para a pessoa. `fora_do_exercicio` não é falta e não entra no denominador. */
 export type AttendanceState = "presente" | "ausente" | "ausencia_justificada" | "fora_do_exercicio";
@@ -462,12 +463,20 @@ export type PautaProposal = {
   votes: PautaVote[];
   answers: PublishedAnswers | null;
 };
-// Regra 3: respostas rascunhadas por IA, publicadas só depois de revisão humana (db/migrations/0009).
+// Regra 3: respostas rascunhadas por IA, publicadas só depois de conferidas (por pessoa ou por agentes: `verifiedBy`).
 export const ANSWER_FIELDS = ["o_que_propoe", "quem_recebe", "quem_paga", "o_que_muda", "dinheiro", "estimativa_impacto"] as const;
 export type AnswerField = (typeof ANSWER_FIELDS)[number];
-export type AnswerClaim = { says: boolean; text: string; quote: string; page: number; direction?: "entra" | "sai" | "dividido" | "nao_diz" };
+/** Três estados por campo (etl/civico_etl/verification.py): `diz` = frase conferida contra o trecho; `nao_diz` = o texto
+ *  não trata do ponto (só com `estado` gravado; `diz:false` de linha antiga vira `nao_conferido`, lib/answer-claims.ts);
+ *  `nao_conferido` = não afirma nada sobre a lei. */
+export type AnswerState = "diz" | "nao_diz" | "nao_conferido";
+/** `says` é mantido por compatibilidade e vale sempre `state === "diz"`. Fora de `diz`, `text` e `quote` vêm vazios. */
+export type AnswerClaim = { state: AnswerState; says: boolean; text: string; quote: string; page: number; direction?: "entra" | "sai" | "dividido" | "nao_diz" };
+/** Quem conferiu uma resposta publicada (answer_drafts.verified_by, migração 0130). null = coluna ausente ou vazia. */
+export type VerifiedBy = "agentes" | "pessoa" | null;
 export type PublishedAnswers = {
   reviewedAt: string;
+  verifiedBy: VerifiedBy;
   sourceUrl: string;
   fields: Record<AnswerField, AnswerClaim>;
   correction: { correctedAt: string; note: string; previous: Record<AnswerField, AnswerClaim> } | null;
@@ -558,8 +567,11 @@ export interface DataSource extends DataSourceW4 {
   /** U12: degraus do subsídio do cargo (no lugar, ou nacional), do mais antigo ao mais novo; inclui o teto constitucional marcado em `isCeiling`. */
   getSalarySchedule(office: OfficeSlug, placeIbge: string): Promise<SalaryStep[]>;
   // R3 · pauta
-  /** `simulate: "erro"` só é lido pela fonte de demonstração (falha de leitura para testar o estado de erro). */
-  getPautaOverview(opts?: { simulate?: "erro" }): Promise<PautaOverview>;
+  /**
+   * `simulate` só é lido pela fonte de demonstração: "erro" = a leitura da Câmara falhou em parte das reuniões;
+   * "camara_nao_lida" = a pauta da Câmara ainda não foi lida (`readAt` null, sem itens da Câmara).
+   */
+  getPautaOverview(opts?: { simulate?: "erro" | "camara_nao_lida" }): Promise<PautaOverview>;
   getPautaProposal(key: string): Promise<PautaProposal | null>;
   listPocketRules(): Promise<PocketRule[]>;
   listCorrections(): Promise<Correction[]>;

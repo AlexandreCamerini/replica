@@ -1,0 +1,66 @@
+/* Segue o Voto, D2 · tela Decisão (/v2/decisao/[key]).
+   Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
+   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px.
+   Cor: --vida só no número do quadro 3 (sv.css) e no rótulo "Se aprovado". Nada mais é colorido. */
+
+.sv .sv-pg--decisao{gap:5px}
+.sv .sv-pg--decisao .sv-a--xl{font-size:32px}
+
+/* Hoje | Se aprovado */
+.sv-hs{display:grid;grid-template-columns:minmax(0,1fr);margin:0 calc(var(--pad) * -1);border-top:3px solid var(--tinta);border-bottom:3px solid var(--tinta)}
+.sv-hs__m{display:flex;flex-direction:column;gap:2px;padding:6px var(--pad) 9px}
+.sv-hs__m--se{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6'%3E%3Crect width='6' height='1.4' fill='%23141414'/%3E%3C/svg%3E");border-top:3px solid var(--tinta);padding:6px 6px 6px 18px}
+.sv-hs__liso{flex:1 1 auto;background-color:var(--papel);border:2px solid var(--tinta);padding:5px 10px 9px;display:flex;flex-direction:column;gap:2px}
+.sv-hs__t{font-size:14px;line-height:1.3;font-weight:800;font-stretch:84%}
+.sv-hs__m--se .sv-hs__t{color:var(--vida)}
+.sv-hs__m--hoje .sv-lac__liso{padding:10px 12px;font-weight:800;font-size:19px;line-height:1.25}
+
+/* Quem propôs */
+.sv-aut li{padding:4px 0;font-size:16px;line-height:1.45}
+.sv .sv-aut a{display:inline-flex;align-items:center;min-height:44px;font-weight:700}
+
+/* Lacunas e respostas (quadro 6): pergunta | resposta | fonte */
+.sv-nc__r{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sv-nc__r .sv-a{font-size:20px;line-height:1.15;letter-spacing:-.01em}
+.sv-nc__s{margin-top:6px}
+
+/* Onde está? */
+.sv-etapas li{padding:8px 0;border-top:1.5px solid var(--tinta);font-size:17px;line-height:1.45}
+.sv-etapas b{font-weight:800}
+.sv-etapas .sv-aqui{border-top-width:3px;border-bottom:3px solid var(--tinta)}
+.sv-etapas .sv-aqui+li{border-top:0}
+.sv-volta{display:flex;align-items:center;gap:10px;font-size:17px;line-height:1.45;font-weight:700}
+.sv-volta svg{flex:none;width:44px;height:28px}
+
+/* Como votou quem eu elegi? */
+.sv .sv-pes a{display:inline-flex;align-items:center;min-height:44px}
+.sv-aut .sv-esf{display:inline}
+.sv-pes__v{display:block;padding:1px 0}
+.sv-vt{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1.5px solid var(--tinta)}
+.sv .sv-vt a{display:inline-flex;align-items:center;min-height:44px}
+.sv-vt .sv-cont{align-self:flex-start}
+
+/* Onde eu confiro?: mais de um link, um abaixo do outro */
+.sv-quadro .sv-a a+a{margin-top:2px}
+
+@media (min-width:900px){
+  .sv .sv-pg--decisao{gap:14px;grid-template-areas:
+    "h h h h h h h h h h h h"
+    "a a a a a a a b b b b b"
+    "c c c c c c c c c c c c"
+    "d d d d e e e e e e e e"
+    "f f f f f f f f f f f f"
+    "j j j j j j j k k k k k"
+    "l l l l l s s s n n n n"}
+  .sv-hs{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .sv-quadro--dom .sv-hs{margin:0 -24px}
+  .sv-hs__m{padding:14px 24px 22px;gap:8px}
+  .sv-hs__m--se{border-top:0;border-left:3px solid var(--tinta);padding:10px 10px 10px 30px}
+  .sv-hs__liso{padding:10px 20px 18px;gap:8px}
+  .sv-hs__t{font-size:17px}
+  .sv-nc__l{grid-template-columns:minmax(0,4fr) minmax(0,5fr) minmax(0,3fr)}
+  .sv-etapas li,.sv-volta{font-size:19px}
+}
+@media (min-width:1100px){
+  .sv-nc__l{grid-template-columns:minmax(0,4fr) minmax(0,5fr) minmax(0,3fr);column-gap:32px}
+}

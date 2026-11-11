@@ -1,0 +1,36 @@
+/* Segue o Voto, D2 · tela Escolhidos (/v2/acompanhando).
+   Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
+   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px. */
+
+/* Escolhidos: lista de quadros, cabeçalho da pessoa, votos, feed. Sem cor própria: tudo em tinta (§4). */
+.sv .sv-esc__pessoas{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sv .sv-esc__h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:14px}
+.sv .sv-esc__hn{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sv .sv-esc__n{font-size:24px;line-height:1.1;font-weight:800;letter-spacing:-.02em;font-variation-settings:"opsz" 72;overflow-wrap:anywhere}
+.sv .sv-esc__c{font-size:15px;line-height:1.3;font-weight:400;font-stretch:84%;color:var(--tinta2)}
+.sv .sv-esc__e{font-size:14px;line-height:1.3;font-weight:600;font-stretch:84%;color:var(--tinta2)}
+.sv .sv-esc__lk{display:inline-flex;align-items:center;min-height:44px;font-weight:700}
+.sv .sv-esc__ap{display:block;margin-top:2px}
+.sv .sv-esc__vv{display:flex;flex-direction:column}
+.sv .sv-esc__vv li{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;padding:4px 0}
+.sv .sv-esc__vv-v{font-size:17px;line-height:22px;font-weight:800}
+.sv .sv-esc__vv-t{font-size:14px;line-height:1.4;font-weight:400;font-stretch:88%}
+.sv .sv-esc__vv-t a{display:inline-flex;align-items:center;min-height:24px}
+.sv .sv-esc__fd li{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;border-top:1.5px solid var(--tinta);padding:6px 0 7px}
+.sv .sv-esc__fd-d{font-size:14px;line-height:1.3;font-weight:700;font-stretch:84%;color:var(--tinta2)}
+.sv .sv-esc__fd-t{font-size:16px;line-height:1.4}
+.sv .sv-esc__fd-t b{font-weight:700}
+.sv .sv-esc__fd-k{font-size:13px;line-height:1.3;font-stretch:84%;color:var(--tinta2)}
+@media (min-width:900px){
+  .sv .sv-pg--esc{grid-template-areas:
+    "u u u u u u u u u u u u"
+    "t t t t t t t t t t t t"
+    "f f f f f f f f f f f f"
+    "s s s s s s s n n n n n"}
+  .sv .sv-esc__pessoas{gap:14px}
+  .sv .sv-esc__n{font-size:34px;line-height:1.05}
+  .sv .sv-esc__c{font-size:15px}
+  .sv .sv-esc__vv li{grid-template-columns:140px minmax(0,1fr);column-gap:10px}
+  .sv .sv-esc__fd li{grid-template-columns:minmax(0,3fr) minmax(0,7fr) minmax(0,2fr);column-gap:28px;padding:8px 0}
+  .sv .sv-esc__fd-t{font-size:18px}
+}
