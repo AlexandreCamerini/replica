@@ -1098,3 +1098,113 @@ test.describe("celular @mobile", () => {
     });
   }
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Contrato de cobertura, cadeiras por UF e listas sem truncar (fonte demo: casos fixos de fake.ts)
+// ---------------------------------------------------------------------------------------------------------------------
+test.describe("cobertura por pessoa", () => {
+  // um caso da demonstração por estado de lacuna; `lido` aparece como fonte com a data da carga
+  const CASOS: { slug: string; quem: string; estados: string[] }[] = [
+    { slug: "alvaro-teixeira-sp", quem: "deputado estadual (Assembleia não simulada)", estados: ["nao_conferido", "nao_carregado"] },
+    { slug: "carlos-machado-sp", quem: "governador (Executivo)", estados: ["nao_se_aplica"] },
+    { slug: "alvaro-cardoso-rj", quem: "eleito aguardando posse", estados: ["fora_do_mandato"] },
+    { slug: "alvaro-coutinho-sp", quem: "vereador", estados: ["sem_fonte", "fonte_sem_adaptador"] },
+  ];
+  for (const c of CASOS)
+    test(`Pessoa: ${c.quem} mostra ${c.estados.join(", ")} com frase e motivo, nunca zero`, async ({ page }) => {
+      await abrir(page, `/v2/pessoa/${c.slug}`);
+      for (const e of c.estados) {
+        const lac = page.locator(`.sv-lac[data-cobertura="${e}"]`);
+        await expect(lac.first(), e).toBeVisible();
+        // toda lacuna de cobertura traz um motivo legível
+        for (const l of await lac.all()) await expect(l.locator(".sv-sm"), e).not.toBeEmpty();
+      }
+      const lacunas = await page.locator(".sv-lac[data-cobertura]").allInnerTexts();
+      for (const t of lacunas) expect(t, "lacuna não vira número").not.toMatch(/^\s*0\b/);
+    });
+
+  test("Pessoa: os estados de cobertura têm frases distintas (não carregamos x a fonte não publica x não se aplica…)", async ({ page }) => {
+    const frases = new Map<string, string>();
+    for (const c of CASOS) {
+      await abrir(page, `/v2/pessoa/${c.slug}`);
+      for (const l of await page.locator(".sv-lac[data-cobertura]").all()) {
+        const e = (await l.getAttribute("data-cobertura"))!;
+        const t = (await l.locator(".sv-lac__liso").evaluate((n) => n.firstChild?.textContent ?? "")).trim();
+        if (!frases.has(e)) frases.set(e, t);
+        else expect(t, e).toBe(frases.get(e));
+      }
+    }
+    expect([...frases.keys()].sort()).toEqual(["fonte_sem_adaptador", "fora_do_mandato", "nao_carregado", "nao_conferido", "nao_se_aplica", "sem_fonte"]);
+    expect(new Set(frases.values()).size, "uma frase por estado").toBe(frases.size);
+  });
+
+  test("Pessoa: conjunto lido cita a fonte com a data da carga; conjunto não carregado não ganha data", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/alvaro-aguiar-sp"); // deputado federal
+    const sec = page.locator("section", { has: page.getByRole("heading", { name: "Foi trabalhar?" }) });
+    await expect(sec.locator(".sv-fonte")).toContainText(/Câmara dos Deputados.*lida em \d{2}\/\d{2}\/\d{4}/);
+    // equipe e comissões não são simuladas: "não carregamos", e a fonte não ganha data
+    for (const q of ["Quem trabalha no gabinete?", "Em que comissões está?"]) {
+      const s = page.locator("section", { has: page.getByRole("heading", { name: q }) });
+      await expect(s.locator('.sv-lac[data-cobertura="nao_carregado"]'), q).toBeVisible();
+      await expect(s.locator(".sv-fonte"), q).not.toContainText(/lida em/);
+    }
+  });
+
+  test("Escolhidos: o estado de cada conjunto vem do contrato; leitura que falha não afirma estado", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    await abrir(page, "/v2/acompanhando");
+    const est = page.locator(".sv-esc__pessoas > section", { hasText: "Esfera: Estadual" });
+    await expect(est.locator('.sv-lac[data-cobertura="nao_conferido"]').first()).toBeVisible();
+    await abrir(page, "/v2/acompanhando?simular=erro_dados");
+    await expect(page.locator(".sv-lac[data-cobertura]")).toHaveCount(0);
+  });
+
+  test("Pessoa: salário sem carimbo de carga diz que a data não está registrada (não inventa 'lida em')", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/alvaro-aguiar-sp");
+    const sec = page.locator("section", { has: page.getByRole("heading", { name: "Quanto recebe?" }) });
+    await expect(sec.locator(".sv-fonte")).toContainText("Data da carga não registrada.");
+    await expect(sec.locator(".sv-fonte")).not.toContainText(/lida em/);
+  });
+});
+
+test.describe("placar por UF na votação", () => {
+  test("UF escolhida: contagem por voto ao lado das cadeiras legais da UF (SP = 70)", async ({ page }) => {
+    await abrir(page, "/v2/votacao/camara-v2026-15?uf=SP");
+    const p = page.locator('[data-placar-uf="SP"]');
+    await expect(p).toContainText(/SP: \d+ registros? nesta votação, de 70 cadeiras de SP na Câmara\./);
+    await expect(p).toContainText("Lei Complementar 78/1993");
+    await expect(p).toContainText("não quer dizer ausência");
+    // a soma das contagens mostradas fecha com os registros da UF
+    const t = (await p.locator("p").first().innerText()).replace(/\s+/g, " ");
+    const reg = Number(/SP: (\d+) registro/.exec(t)![1]);
+    const soma = [...t.matchAll(/[a-zãíç ]: (\d+)\./gi)].map((m) => Number(m[1])).reduce((s, n) => s + n, 0);
+    expect(soma).toBe(reg);
+  });
+
+  test("votação sem voto individual: placar por UF é lacuna com motivo, nunca tabela de zeros", async ({ page }) => {
+    await abrir(page, "/v2/votacao/camara-demo-sem-votos?uf=SP");
+    await expect(page.locator("body")).toContainText("não há placar por estado");
+    await expect(page.locator("[data-placar-uf]")).toHaveCount(0);
+  });
+});
+
+test.describe("listas sem truncar em silêncio", () => {
+  test("Decisão: '5 de 7' votações e '20 de 23' autores", async ({ page }) => {
+    await abrir(page, "/v2/decisao/camara-pl-9996-2026");
+    const q = page.locator('[aria-labelledby="sv-d8"]');
+    await expect(q).toContainText("Mostrando as 5 mais recentes de 7 votações que lemos desta proposta.");
+    await expect(q.locator(".sv-vt")).toHaveCount(5);
+    const aut = page.locator(".sv-aut > li");
+    await expect(aut).toHaveCount(20);
+    await expect(page.locator("body")).toContainText("Mostrando 20 de 23 autores que lemos");
+    // autoria principal primeiro, depois ordem alfabética
+    await expect(aut.first()).toContainText("autoria principal");
+    const resto = (await aut.allInnerTexts()).slice(1).map((t) => t.replace(/\s*coautoria\s*$/, "").trim());
+    expect(resto).toEqual([...resto].sort((a, b) => a.localeCompare(b, "pt-BR")));
+  });
+
+  test("Decisão: lista que cabe inteira não diz 'mostrando'", async ({ page }) => {
+    await abrir(page, `/v2/decisao/${KEY_RESPONDIDA}`);
+    await expect(page.locator("body")).not.toContainText(/Mostrando \d+ (de|as)/);
+  });
+});
