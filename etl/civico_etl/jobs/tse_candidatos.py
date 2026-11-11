@@ -537,6 +537,35 @@ def _drop_superseded(conn: psycopg.Connection, r: Run, olds: list[dict[str, Any]
         log.info("tse %d: registro substituído %s (%s) saiu para o deferido/eleito da mesma disputa", year, c["tse_sequencial"], c["result"])
 
 
+def _load_votes_ue(conn: psycopg.Connection, con, paths: list[Path], year: int) -> int:
+    """Votos por (SG_UE, SQ, turno) nos anos de SQ_COM_UE (BUG-048). A candidatura é a da chave tse ANO:UE:SQ da própria
+    pessoa (D224), como em tse_votos_contas._apply_ue; linha sem SG_UE não grava."""
+    agg: dict[tuple[str, str, int], int] = defaultdict(int)
+    for p in paths:
+        rel = con.read_csv(str(p), delimiter=";", header=True, quotechar='"', all_varchar=True)
+        con.register("t", rel)
+        ue = "SG_UE" if "SG_UE" in rel.columns else "NULL"
+        for u, sq, turno, qt in con.execute(
+                f"select {ue}, SQ_CANDIDATO, NR_TURNO, sum(try_cast(QT_VOTOS_NOMINAIS as bigint)) from t group by 1, 2, 3").fetchall():
+            if (u or "").strip():
+                agg[(u.strip(), sq, int(turno))] += int(qt or 0)
+        con.unregister("t")
+    cur = conn.cursor()
+    cur.execute("create temp table tmp_votes_ue (ue text, sq text, turno int, votes bigint) on commit drop")
+    with cur.copy("copy tmp_votes_ue (ue, sq, turno, votes) from stdin") as cp:
+        for (u, sq, turno), v in agg.items():
+            cp.write_row((u, sq, turno, v))
+    cur.execute(
+        """update candidacies c set votes = t.votes, updated_at = now()
+           from tmp_votes_ue t, elections e, person_external_ids x, sources s
+           where c.tse_sequencial = t.sq and c.election_id = e.id and e.year = %s and e.round = t.turno
+             and x.person_id = c.person_id and x.source_id = s.id and s.slug = 'tse' and x.external_id = e.year || ':' || t.ue || ':' || t.sq
+             and c.votes is distinct from t.votes""",
+        (year,),
+    )
+    return cur.rowcount
+
+
 def _load_votes(conn: psycopg.Connection, year: int, ufs: list[str] | None, force: bool) -> None:
     try:
         f = fetch(f"{BASE}/votacao_candidato_munzona/votacao_candidato_munzona_{year}.zip")
@@ -548,6 +577,10 @@ def _load_votes(conn: psycopg.Connection, year: int, ufs: list[str] | None, forc
         with run(conn, f"tse.votos.{year}", "tse", input_checksum=f"{f.checksum}:{scope}", force=force) as r:
             paths = _extract(f.path, year, ufs, "votacao_candidato_munzona")
             con = duckdb.connect()
+            if int(year) in SQ_COM_UE:
+                # BUG-048: o SQ se repete entre UEs (BUG-035); soma por (UE, SQ) e casa pela chave ANO:UE:SQ da pessoa
+                r.add(_load_votes_ue(conn, con, paths, year))
+                return
             agg: dict[tuple[str, int], int] = defaultdict(int)
             for p in paths:
                 rel = con.read_csv(str(p), delimiter=";", header=True, quotechar='"', all_varchar=True)
