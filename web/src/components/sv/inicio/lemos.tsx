@@ -14,7 +14,7 @@ function leitura(nome: string, r: PautaRead): string {
 }
 
 /** "O que lemos": o que entra na tela, por esfera. Leitura que falhou é dita; estadual e municipal dependem das Ajustes. */
-export function Lemos({ overview, ufSigla, esferas }: { overview: PautaOverview | null; ufSigla: string | null; esferas: Esferas }) {
+export function Lemos({ overview, ufSigla, ufFalhou = false, esferas }: { overview: PautaOverview | null; ufSigla: string | null; /** cookie de UF que não pôde ser lido */ ufFalhou?: boolean; esferas: Esferas }) {
   return (
     <div className="sv-lemos sv-gl">
       <p className="sv-lemos__t">
@@ -29,7 +29,12 @@ export function Lemos({ overview, ufSigla, esferas }: { overview: PautaOverview 
         ) : (
           <li>Federal: a leitura da pauta da Câmara dos Deputados e do Senado Federal falhou agora. Tente de novo em alguns minutos.</li>
         )}
-        {!ufSigla ? (
+        {!ufSigla && ufFalhou ? (
+          <li>
+            <span>Estadual: não conseguimos ler o estado guardado agora.</span>
+            <Link href="/v2/ajustes">Ver em Ajustes</Link>
+          </li>
+        ) : !ufSigla ? (
           <li>
             <span>Estadual: escolha seu estado para ver.</span>
             <Link href="/v2/ajustes">Escolher estado em Ajustes</Link>

@@ -4,7 +4,8 @@ import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
-import { SEM_DADO, conferidoEm } from "@/components/sv/estados";
+import { FALHOU_LEITURA, SEM_DADO, conferidoEm } from "@/components/sv/estados";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtWeekday } from "@/components/sv/fmt";
 import { aguardaPosse, fraseDesde, mandatoPrincipal } from "@/components/sv/mandato";
@@ -99,16 +100,19 @@ function esferaDe(office: string): Esfera {
   }
 }
 
-/** `falha`: a leitura desta pessoa (ou do mandato dela) falhou; vira lacuna só deste item. `posse`: eleito que ainda não tomou posse. */
-type Escolhido = { slug: string; nome: string | null; cargo: string | null; esfera: Esfera | null; posse: string | null; falha: boolean };
+/**
+ * `falha`: a leitura desta pessoa (ou do mandato dela) falhou; vira lacuna só deste item. `posse`: eleito que ainda não
+ * tomou posse. `semMandato`: lida, mas sem mandato carregado (não é falha: é lacuna do dado).
+ */
+type Escolhido = { slug: string; nome: string | null; cargo: string | null; esfera: Esfera | null; posse: string | null; falha: boolean; semMandato?: boolean };
 
 /** Pessoas do cookie sv_sigo, em ordem alfabética (falhas de leitura no fim). Slug que não existe mais é ignorado. */
-async function carregarEscolhidos(slugs: string[]): Promise<Escolhido[]> {
+async function carregarEscolhidos(slugs: string[], falhar: boolean): Promise<Escolhido[]> {
   const rows = await Promise.all(
     slugs.map(async (slug): Promise<Escolhido | null> => {
       let r: Awaited<ReturnType<typeof data.getPerson>>;
       try {
-        r = await data.getPerson(slug);
+        r = await lerOuFalhar(falhar, () => data.getPerson(slug));
       } catch {
         return { slug, nome: null, cargo: null, esfera: null, posse: null, falha: true };
       }
@@ -120,7 +124,7 @@ async function carregarEscolhidos(slugs: string[]): Promise<Escolhido[]> {
         return { slug: r.person.slug, nome: r.person.displayName, cargo: null, esfera: null, posse: null, falha: true };
       }
       const m = mandatoPrincipal(ms);
-      if (!m) return null;
+      if (!m) return { slug: r.person.slug, nome: r.person.displayName, cargo: null, esfera: null, posse: null, falha: false, semMandato: true };
       const posse = aguardaPosse(m) ? fraseDesde(m, r.person.gender === "f" ? true : r.person.gender === "m" ? false : null) : null;
       return { slug: r.person.slug, nome: r.person.displayName, cargo: m.officeName, esfera: esferaDe(m.office), posse, falha: false };
     }),
@@ -139,24 +143,24 @@ function votoNaVotacao(ev: VotingEventDetail, slug: string) {
   return <>Não consta o voto desta pessoa nesta votação.</>;
 }
 
-export default async function Decisao({ params }: { params: Promise<{ key: string }> }) {
+export default async function Decisao({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ simular?: string | string[] }> }) {
   const p = await load((await params).key);
+  // `?simular=erro` só vale na demonstração (simular.ts): a leitura dos escolhidos falha
+  const falhar = simulacao((await searchParams).simular) === "erro";
   if (!p) notFound();
   const e = p.entry;
   const a = p.answers;
   const campos = a?.fields ?? null;
   const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
 
-  // cada leitura que falha vira lacuna do próprio item, nunca erro da página
-  const [escolhidosTodos, eventosRaw] = await Promise.all([
-    carregarEscolhidos(follows).catch(() => [] as Escolhido[]),
+  // cada leitura que falha vira lacuna do próprio item, nunca erro da página; null = a leitura do conjunto falhou
+  const [escolhidos, eventosRaw] = await Promise.all([
+    carregarEscolhidos(follows, falhar).catch(() => null),
     Promise.all(p.votes.map((v) => data.getVotingEvent(v.id).catch(() => null))),
   ]);
   const eventos = p.votes.map((v, i) => ({ v, ev: eventosRaw[i] }));
-  // Esferas ligadas nos Ajustes: federal sempre; estadual e municipal só se ligadas. As desligadas ficam de fora, com aviso.
-  // Quem o leitor marcou nunca some: a escolha explícita vale mais que o interruptor de esfera (igual ao Início e a Escolhidos).
-  const escolhidos = escolhidosTodos;
-  const ocultos = escolhidosTodos.length - escolhidos.length;
+  // Quem o leitor marcou nunca some, mesmo de esfera desligada nos Ajustes: a escolha explícita vale mais que o
+  // interruptor de esfera (igual ao Início e a Escolhidos). Decisão declarada na PR #22.
 
   const id = identificacao(e);
   const onde = e.stage === "plenario" ? "plenário" : e.committee ? (/^comiss/i.test(e.committee) ? e.committee : `comissão ${e.committee}`) : "comissão";
@@ -329,12 +333,16 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
       >
         <Resposta>{totalVotacoes}</Resposta>
 
-        {escolhidos.length === 0 ? (
+        {escolhidos === null ? (
+          <Lacuna motivo="A leitura das pessoas que você marcou falhou.">{FALHOU_LEITURA}</Lacuna>
+        ) : escolhidos.length === 0 && follows.length > 0 ? (
+          <Lacuna>Não encontramos nos dados as pessoas que você marcou.</Lacuna>
+        ) : escolhidos.length === 0 ? (
           <>
-            <p className="sv-t">{escolhidosTodos.length > 0 ? "As pessoas que você escolheu estão em esferas desligadas nos Ajustes." : "Você ainda não escolheu ninguém."}</p>
+            <p className="sv-t">Você ainda não escolheu ninguém.</p>
             <p className="sv-t">
-              <Link className="sv-lk" href={escolhidosTodos.length > 0 ? "/v2/ajustes" : "/v2/pessoas"}>
-                {escolhidosTodos.length > 0 ? "Ligar as esferas nos Ajustes" : "Escolher em quem eu votei"} <span aria-hidden="true">→</span>
+              <Link className="sv-lk" href="/v2/pessoas">
+                Escolher em quem eu votei <span aria-hidden="true">→</span>
               </Link>
             </p>
           </>
@@ -342,6 +350,15 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
           <>
             <ul className="sv-pes">
               {escolhidos.map((x) => {
+                if (x.semMandato)
+                  return (
+                    <li key={x.slug}>
+                      <b>
+                        <Link href={`/v2/pessoa/${x.slug}`}>{x.nome}</Link>
+                      </b>
+                      <span className="sv-pes__v">Não temos o mandato desta pessoa carregado: não dá para dizer se ela vota esta proposta.</span>
+                    </li>
+                  );
                 if (x.falha || !x.esfera)
                   return (
                     <li key={x.slug}>
@@ -378,7 +395,6 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
               })}
             </ul>
             <Nota>Pessoas em ordem alfabética. Aparece mais texto em quem tem dado publicado. {COOKIE_TEXTO}</Nota>
-            {ocultos > 0 && <Nota>{ocultos === 1 ? "1 pessoa que você escolheu não aparece" : `${ocultos} pessoas que você escolheu não aparecem`}: a esfera dela está desligada nos Ajustes.</Nota>}
           </>
         )}
 

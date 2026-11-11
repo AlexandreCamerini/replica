@@ -2,6 +2,7 @@ import "server-only";
 import type { ActivityItem, AssemblyDataset, AssemblyInfo, AttendanceGrid, CoverageStatus, OfficeSlug, VoteValue } from "@/lib/data";
 import { data } from "@/lib/data";
 import { fmtDate } from "../fmt";
+import { lerOuFalhar } from "../simular";
 import { aguardaPosse, cobreLeis, fraseDesde, mandatoPrincipal, motivoPosse } from "../mandato";
 
 // Carrega, por pessoa do cookie sv_sigo, tudo o que o quadro "O que meus escolhidos estão fazendo?" mostra.
@@ -23,8 +24,8 @@ export type Escolhido = {
   desde: string | null;
   /** ainda não tomou posse: motivo da lacuna de presença, gastos e votos */
   posse: string | null;
-  /** conjuntos cuja leitura falhou: lacuna "Não conseguimos ler esta fonte agora.", nunca "nenhum" */
-  falhou: { votos: boolean; leis: boolean };
+  /** conjuntos cuja leitura falhou: lacuna "Não conseguimos ler esta fonte agora.", nunca "nenhum" nem "ainda não temos" */
+  falhou: { presenca: boolean; votos: boolean; gastos: boolean; patrimonio: boolean; propostas: boolean; leis: boolean };
   esfera: string | null;
   casa: Casa;
   tse: Casa;
@@ -41,7 +42,14 @@ export type Escolhido = {
 
 export type Recente = { item: ActivityItem; esfera: string | null };
 
-export type Carga = { pessoas: Escolhido[]; recentes: Recente[]; lidoEm: string | null };
+/**
+ * `falhas`: pessoas do cookie cuja leitura falhou (não entram em `pessoas`); `naoEncontradas`: slugs que a fonte não
+ * conhece mais; `recentesFalhou`: a leitura da atividade falhou (lacuna, não "sem registro").
+ */
+export type Carga = { pessoas: Escolhido[]; recentes: Recente[]; recentesFalhou: boolean; falhas: number; naoEncontradas: number; lidoEm: string | null };
+
+/** Simulação (só na demonstração): `pessoa` = a leitura de cada pessoa falha; `dados` = cada conjunto e a atividade falham. */
+export type FalhaSimulada = { pessoa?: boolean; dados?: boolean };
 
 const ESFERA: Partial<Record<OfficeSlug, string>> = {
   deputado_federal: "Federal · Câmara dos Deputados",
@@ -75,8 +83,9 @@ const stampDe = async (dataset: string, nome: string): Promise<Casa> => {
   }
 };
 
-export async function carregarEscolhidos(slugs: string[]): Promise<Carga> {
+export async function carregarEscolhidos(slugs: string[], sim: FalhaSimulada = {}): Promise<Carga> {
   const ano = anoAtual();
+  const ler = <T>(f: () => Promise<T>) => lerOuFalhar(!!sim.dados, f);
   const asmCache = new Map<string, Promise<AssemblyInfo | null>>();
   const assembly = (uf: string) => {
     let p = asmCache.get(uf);
@@ -89,27 +98,35 @@ export async function carregarEscolhidos(slugs: string[]): Promise<Carga> {
     stampDe("tse.candidatos", "Justiça Eleitoral (TSE)"),
   ]);
 
+  // "falhou" (exceção) é diferente de "não existe mais" (null): só o segundo some sem aviso
   const resolvidos = await Promise.all(
     slugs.map(async (slug) => {
-      let r = await data.getPerson(slug).catch(() => null);
-      if (r?.redirectTo) r = await data.getPerson(r.redirectTo).catch(() => null);
-      return r?.person ?? null;
+      try {
+        let r = await lerOuFalhar(!!sim.pessoa, () => data.getPerson(slug));
+        if (r?.redirectTo) r = await data.getPerson(r.redirectTo);
+        return r?.person ?? null;
+      } catch {
+        return "falhou" as const;
+      }
     }),
   );
+  const falhas = resolvidos.filter((r) => r === "falhou").length;
+  const naoEncontradas = resolvidos.filter((r) => r === null).length;
   const vistos = new Set<string>();
-  const pessoasBase = resolvidos.filter((p): p is NonNullable<typeof p> => !!p && !vistos.has(p.id) && !!vistos.add(p.id));
+  const pessoasBase = resolvidos.filter((p): p is Exclude<typeof p, null | "falhou"> => !!p && p !== "falhou" && !vistos.has(p.id) && !!vistos.add(p.id));
 
   const pessoas = await Promise.all(
     pessoasBase.map(async (p): Promise<Escolhido> => {
+      // null = leitura falhou: lacuna "Não conseguimos ler…" só desta pessoa e deste conjunto
       const [mandates, cands, laws, careerStats, yearStats, grid, votes, exp] = await Promise.all([
-        data.getMandates(p.id).catch(() => null), // null = leitura falhou: lacuna só desta pessoa
-        data.getCandidacies(p.id).catch(() => []),
-        data.getLaws(p.id).catch(() => null),
-        data.getStats(p.id, "career").catch(() => null),
-        data.getStats(p.id, String(ano) as `${number}`).catch(() => null),
-        data.getAttendanceGrid(p.id, ano).catch(() => null),
-        data.listVotes(p.id, { scope: "lei", limit: 3 }).catch(() => null),
-        data.listExpenses(p.id, { year: ano, limit: 1 }).catch(() => null),
+        ler(() => data.getMandates(p.id)).catch(() => null),
+        ler(() => data.getCandidacies(p.id)).catch(() => null),
+        ler(() => data.getLaws(p.id)).catch(() => null),
+        ler(() => data.getStats(p.id, "career")).catch(() => null),
+        ler(() => data.getStats(p.id, String(ano) as `${number}`)).catch(() => null),
+        ler(() => data.getAttendanceGrid(p.id, ano)).catch(() => null),
+        ler(() => data.listVotes(p.id, { scope: "lei", limit: 3 })).catch(() => null),
+        ler(() => data.listExpenses(p.id, { year: ano, limit: 1 })).catch(() => null),
       ]);
       const main = mandatoPrincipal(mandates);
       const place = main ? await data.getPlace(main.placeIbge).catch(() => null) : null;
@@ -136,7 +153,7 @@ export async function carregarEscolhidos(slugs: string[]): Promise<Carga> {
 
       // patrimônio: um valor por eleição, em ordem cronológica (nunca por valor); 2º turno não repete o ano
       const porAno = new Map<number, number>();
-      for (const c of cands) if (c.assetsCents !== null && !porAno.has(c.year)) porAno.set(c.year, c.assetsCents);
+      for (const c of cands ?? []) if (c.assetsCents !== null && !porAno.has(c.year)) porAno.set(c.year, c.assetsCents);
       const patrimonio = [...porAno].sort((a, b) => a[0] - b[0]).map(([a, cents]) => ({ ano: a, cents }));
 
       const pr = careerStats ? { principal: careerStats.proposalsPrincipal, coautor: careerStats.proposalsCosigned } : null;
@@ -153,7 +170,8 @@ export async function carregarEscolhidos(slugs: string[]): Promise<Carga> {
         partido: main?.party.acronym ?? null,
         desde: fraseDesde(main, p.gender === "f" ? true : p.gender === "m" ? false : null),
         posse,
-        falhou: { votos: votes === null, leis: laws === null },
+        // gastos: falhou só quando nenhuma das duas leituras que dão o valor veio
+        falhou: { presenca: grid === null, votos: votes === null, gastos: gastoCents === null && (exp === null || yearStats === null), patrimonio: cands === null, propostas: careerStats === null, leis: laws === null },
         esfera: office ? (ESFERA[office] ?? null) : null,
         casa,
         tse: stTse,
@@ -176,8 +194,8 @@ export async function carregarEscolhidos(slugs: string[]): Promise<Carga> {
   pessoas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
   const esferaDe = new Map(pessoas.map((p) => [p.slug, p.esfera]));
-  const atividade = pessoas.length ? await data.getActivity(pessoas.map((p) => p.id), 8).catch(() => []) : [];
-  const recentes = [...atividade].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).map((item) => ({ item, esfera: esferaDe.get(item.personSlug) ?? null }));
+  const atividade = pessoas.length ? await ler(() => data.getActivity(pessoas.map((p) => p.id), 8)).catch(() => null) : [];
+  const recentes = [...(atividade ?? [])].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).map((item) => ({ item, esfera: esferaDe.get(item.personSlug) ?? null }));
   const lidoEm = await data.latestRefresh().catch(() => null);
-  return { pessoas, recentes, lidoEm };
+  return { pessoas, recentes, recentesFalhou: atividade === null, falhas, naoEncontradas, lidoEm };
 }

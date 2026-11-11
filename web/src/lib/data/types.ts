@@ -567,8 +567,11 @@ export interface DataSource extends DataSourceW4 {
   /** U12: degraus do subsídio do cargo (no lugar, ou nacional), do mais antigo ao mais novo; inclui o teto constitucional marcado em `isCeiling`. */
   getSalarySchedule(office: OfficeSlug, placeIbge: string): Promise<SalaryStep[]>;
   // R3 · pauta
-  /** `simulate: "erro"` só é lido pela fonte de demonstração (falha de leitura para testar o estado de erro). */
-  getPautaOverview(opts?: { simulate?: "erro" }): Promise<PautaOverview>;
+  /**
+   * `simulate` só é lido pela fonte de demonstração: "erro" = a leitura da Câmara falhou em parte das reuniões;
+   * "camara_nao_lida" = a pauta da Câmara ainda não foi lida (`readAt` null, sem itens da Câmara).
+   */
+  getPautaOverview(opts?: { simulate?: "erro" | "camara_nao_lida" }): Promise<PautaOverview>;
   getPautaProposal(key: string): Promise<PautaProposal | null>;
   listPocketRules(): Promise<PocketRule[]>;
   listCorrections(): Promise<Correction[]>;

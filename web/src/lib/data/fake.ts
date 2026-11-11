@@ -1040,7 +1040,9 @@ export const fakeSource: DataSource = {
     const camaraFailed = opts?.simulate === "erro" ? 2 : 0;
     // como no pg.ts (`withReview`): item com respostas publicadas leva `reviewedAt`, `verifiedBy` e o título simples só em `diz`
     const a = demoAnswers();
-    const all = demoPauta().map((e) =>
+    // simulate "camara_nao_lida": a pauta da Câmara não foi lida (sem leitura e sem itens da Câmara)
+    const semCamara = opts?.simulate === "camara_nao_lida";
+    const all = demoPauta().filter((e) => !semCamara || e.body !== "camara").map((e) =>
       e.key === DEMO_ANSWERED_KEY ? { ...e, reviewedAt: a.reviewedAt, verifiedBy: a.verifiedBy, plain: a.fields.o_que_propoe.says ? a.fields.o_que_propoe.text : null } : e,
     );
     return {
@@ -1049,7 +1051,7 @@ export const fakeSource: DataSource = {
       later: [],
       committees: uniqueByKey(all.filter((e) => e.stage === "comissao")),
       exits: [],
-      reads: { camara: { readAt, failed: camaraFailed, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
+      reads: { camara: semCamara ? { readAt: null, failed: 0, total: 0 } : { readAt, failed: camaraFailed, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
     };
   },
   async getPautaProposal(key) {

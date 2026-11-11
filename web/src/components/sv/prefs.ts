@@ -20,10 +20,11 @@ export async function ufOptions(): Promise<{ sigla: string; nome: string; ibge: 
  */
 export const readPrefs = cache(async function readPrefs(): Promise<Prefs> {
   const jar = await cookies();
-  const opts = await ufOptions().catch(() => []);
-  const sigla = parseUf(jar.get(UF_COOKIE)?.value, opts.map((o) => o.sigla));
-  const uf = sigla ? (opts.find((o) => o.sigla === sigla) ?? null) : null;
+  const bruto = jar.get(UF_COOKIE)?.value;
+  const opts = await ufOptions().catch(() => null); // null = a lista de UFs não pôde ser lida
+  const sigla = parseUf(bruto, (opts ?? []).map((o) => o.sigla));
+  const uf = sigla ? ((opts ?? []).find((o) => o.sigla === sigla) ?? null) : null;
   const parsed = parseEsferas(jar.get(ESFERAS_COOKIE)?.value);
   const esferas = parsed ? { ...parsed, cidade: parseCidade(parsed.cidade, uf?.ibge) } : { ...ESFERAS_PADRAO };
-  return { uf, esferas, esferasPadrao: !parsed };
+  return { uf, esferas, esferasPadrao: !parsed, ufFalhou: opts === null && !!bruto };
 });

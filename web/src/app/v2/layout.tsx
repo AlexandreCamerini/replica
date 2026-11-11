@@ -26,7 +26,7 @@ export default async function V2Layout({ children }: { children: React.ReactNode
   const prefs = await readPrefs();
   return (
     <div className="sv">
-      <Topo uf={prefs.uf} />
+      <Topo uf={prefs.uf} ufFalhou={prefs.ufFalhou} />
       {data.isDemo && (
         <div className="sv-demo">
           <div className="sv-wrap">Versão de demonstração. Exemplo ilustrativo: pessoas, partidos e números são fictícios.</div>

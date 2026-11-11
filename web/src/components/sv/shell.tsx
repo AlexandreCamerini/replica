@@ -1,11 +1,10 @@
 import Link from "next/link";
 import type { Prefs } from "./prefs-shared";
-import { SELO } from "./estados";
+import { FALHOU_LEITURA, SELO } from "./estados";
 import { NavLink } from "./shell-client";
 
 // Casco da D2: link "pular", topo (marca + UF + "trocar estado"), navegação em duas camadas, rodapé. Server component, sem JS
 // essencial: a navegação fica sempre visível (sem menu hambúrguer). O layout lê o cookie e passa a UF por prop.
-export { LastPlace, RememberPlace } from "./shell-client";
 
 /** As duas perguntas principais. */
 const PRINCIPAIS = [
@@ -30,7 +29,7 @@ const ROTAS = [
 export const CONTEUDO_ID = "sv-conteudo";
 
 /** Topo: "pular", marca, UF escolhida (ou "Escolha seu estado") e as duas camadas de navegação. Ordem do DOM = ordem visual. */
-export function Topo({ uf }: { uf: Prefs["uf"] }) {
+export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boolean }) {
   return (
     <>
       <a className="sv-skip" href={`#${CONTEUDO_ID}`}>
@@ -45,6 +44,11 @@ export function Topo({ uf }: { uf: Prefs["uf"] }) {
             {uf ? (
               <>
                 {uf.nome} ({uf.sigla}) · <Link href="/v2/ajustes">trocar estado</Link>
+              </>
+            ) : ufFalhou ? (
+              <>
+                Seu estado: {FALHOU_LEITURA.charAt(0).toLowerCase()}
+                {FALHOU_LEITURA.slice(1)} · <Link href="/v2/ajustes">Ajustes</Link>
               </>
             ) : (
               <Link href="/v2/ajustes">Escolha seu estado</Link>

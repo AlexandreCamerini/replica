@@ -3,6 +3,8 @@ import { clip } from "@/components/sv/fmt";
 import { COOKIE_TEXTO } from "@/components/sv/prefs-shared";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { aguardaPosse, fraseDesde, mandatoPrincipal, motivoPosse } from "@/components/sv/mandato";
+import { FALHOU_LEITURA } from "@/components/sv/estados";
+import { lerOuFalhar } from "@/components/sv/simular";
 import { Cobertura, Lacuna, Nota, Quadro, VotoMarca } from "@/components/sv/ui";
 import { data, type AssemblyInfo, type MandateStatus, type OfficeSlug, type PersonVote } from "@/lib/data";
 import { dayKey, fmtLong } from "./datas";
@@ -49,12 +51,20 @@ type Escolhido = {
   posse: string | null;
 };
 
-const FALHOU = "Não conseguimos ler esta fonte agora.";
+const FALHOU = FALHOU_LEITURA;
 
-async function carregar(slugs: string[]): Promise<Escolhido[]> {
+/** `falhas`: quantas pessoas do cookie não puderam ser lidas (a leitura falhou). Slug que não existe mais é ignorado. */
+async function carregar(slugs: string[], falhar: boolean): Promise<{ lista: Escolhido[]; falhas: number }> {
+  let falhas = 0;
   const rows = await Promise.all(
     slugs.map(async (slug): Promise<Escolhido | null> => {
-      const r = await data.getPerson(slug).catch(() => null);
+      let r: Awaited<ReturnType<typeof data.getPerson>>;
+      try {
+        r = await lerOuFalhar(falhar, () => data.getPerson(slug));
+      } catch {
+        falhas += 1;
+        return null;
+      }
       if (!r) return null;
       const [mandates, votes] = await Promise.all([
         data.getMandates(r.person.id).catch(() => null), // null = leitura falhou, diferente de "sem mandato"
@@ -74,7 +84,7 @@ async function carregar(slugs: string[]): Promise<Escolhido[]> {
       return { slug: r.person.slug, nome: r.person.displayName, esfera: m ? ESFERA[m.office] : null, cargo, office: m?.office ?? null, uf, votos: votes ? votes.items : null, posse };
     }),
   );
-  return rows.filter((x): x is Escolhido => x !== null).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return { lista: rows.filter((x): x is Escolhido => x !== null).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), falhas };
 }
 
 function SemVotos({ e, assembly }: { e: Escolhido; assembly: AssemblyInfo | null }) {
@@ -95,8 +105,8 @@ function SemVotos({ e, assembly }: { e: Escolhido; assembly: AssemblyInfo | null
 }
 
 /** "Em quem eu votei": as pessoas do cookie sv_sigo, em ordem alfabética, todas com a mesma estrutura. */
-export async function Escolhidos({ slugs, ufSigla }: { slugs: string[]; ufSigla: string | null }) {
-  const lista = slugs.length ? await carregar(slugs) : [];
+export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slugs: string[]; ufSigla: string | null; /** só na demonstração */ simularFalha?: boolean }) {
+  const { lista, falhas } = slugs.length ? await carregar(slugs, simularFalha) : { lista: [], falhas: 0 };
   const ufs = [...new Set(lista.filter((e) => e.office === "deputado_estadual" || e.office === "deputado_distrital").map((e) => e.uf).filter((u): u is string => !!u))];
   const assemblies = new Map(await Promise.all(ufs.map(async (u) => [u, await data.getAssembly(u).catch(() => null)] as const)));
 
@@ -110,7 +120,12 @@ export async function Escolhidos({ slugs, ufSigla }: { slugs: string[]; ufSigla:
         </>
       }
     >
-      {lista.length === 0 ? (
+      {falhas > 0 && (
+        <Lacuna motivo={falhas === 1 ? "1 pessoa que você marcou não pôde ser lida." : `${falhas} pessoas que você marcou não puderam ser lidas.`}>{FALHOU}</Lacuna>
+      )}
+      {lista.length === 0 && slugs.length > 0 ? (
+        falhas > 0 ? null : <Lacuna>Não encontramos nos dados as pessoas que você marcou.</Lacuna>
+      ) : lista.length === 0 ? (
         <div className="sv-vazio">
           <p className="sv-t">Marque as pessoas em quem você votou. Aqui você vê o que elas votaram em plenário, em ordem alfabética.</p>
           <p className="sv-t">

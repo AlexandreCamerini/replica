@@ -11,6 +11,8 @@ import { Representa } from "@/components/sv/inicio/representa";
 import { Semana, faixaDaSemana } from "@/components/sv/inicio/semana";
 import { VaiRolar } from "@/components/sv/inicio/vai-rolar";
 import { readPrefs } from "@/components/sv/prefs";
+import { FALHOU_LEITURA } from "@/components/sv/estados";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type PautaOverview, type RepresentativeGroup } from "@/lib/data";
 
@@ -30,6 +32,7 @@ function ECongresso({ overview, hoje }: { overview: PautaOverview | null; hoje: 
     ? [...new Set(faixaDaSemana(overview, hoje).entries.filter((e) => e.body === "camara" && e.reason.theme).map((e) => e.reason.theme as string))].sort((a, b) => a.localeCompare(b, "pt-BR"))
     : [];
   const lida = overview?.reads.camara.readAt;
+  const incompleta = !!overview && overview.reads.camara.failed > 0;
   return (
     <Quadro
       id="inicio-congresso"
@@ -40,6 +43,11 @@ function ECongresso({ overview, hoje }: { overview: PautaOverview | null; hoje: 
     >
       {!overview ? (
         <Lacuna>Não conseguimos ler a pauta agora. Tente de novo em alguns minutos.</Lacuna>
+      ) : !lida ? (
+        // pauta da Câmara sem leitura: não dá para dizer que nenhuma proposta traz tema
+        <Lacuna>A pauta da Câmara desta semana ainda não foi lida.</Lacuna>
+      ) : temas.length === 0 && incompleta ? (
+        <Lacuna motivo="A leitura da pauta da Câmara foi incompleta: não dá para dizer que nenhuma proposta traz tema oficial.">{FALHOU_LEITURA}</Lacuna>
       ) : temas.length === 0 ? (
         <>
           <Lacuna>Nenhuma proposta da pauta da Câmara desta semana traz tema oficial.</Lacuna>
@@ -58,8 +66,11 @@ function ECongresso({ overview, hoje }: { overview: PautaOverview | null; hoje: 
   );
 }
 
-export default async function Inicio() {
-  const [prefs, jar] = await Promise.all([readPrefs(), cookies()]);
+export default async function Inicio({ searchParams }: { searchParams: Promise<{ simular?: string | string[] }> }) {
+  const [prefs, jar, sp] = await Promise.all([readPrefs(), cookies(), searchParams]);
+  // `?simular=…` só vale na demonstração (simular.ts): é como os estados de leitura que falhou são testados
+  const sim = simulacao(sp.simular);
+  const falhar = sim === "erro";
   const follows = lerFollows(jar.get(FOLLOW_COOKIE)?.value);
   const { esferas } = prefs;
 
@@ -67,15 +78,18 @@ export default async function Inicio() {
   const uf = prefs.uf;
 
   const hoje = hojeKey();
-  const ufPlace = uf ? await data.getPlaceByUf(uf.sigla).catch(() => null) : null;
+  // null = leitura falhou (lacuna "Não conseguimos ler…"), distinto de "não há"
+  const ufPlace = uf ? await lerOuFalhar(falhar, () => data.getPlaceByUf(uf.sigla)).catch(() => undefined) : null;
   // A cidade (Ajustes) só vale quando é da mesma UF do cookie.
   const cidade = esferas.municipal && esferas.cidade ? await data.getPlace(esferas.cidade).catch(() => null) : null;
-  const place = cidade && uf && cidade.uf === uf.sigla ? cidade : ufPlace;
+  const place = cidade && uf && cidade.uf === uf.sigla ? cidade : (ufPlace ?? null);
   const [overview, groups, tse] = await Promise.all([
-    data.getPautaOverview().catch(() => null),
-    place ? data.getRepresentatives(place).catch(() => [] as RepresentativeGroup[]) : Promise.resolve([] as RepresentativeGroup[]),
+    // a opção só existe na demonstração; sem simulação, a chamada é a de sempre (sem argumento)
+    (sim === "camara_nao_lida" ? data.getPautaOverview({ simulate: "camara_nao_lida" }) : data.getPautaOverview()).catch(() => null),
+    place ? lerOuFalhar(falhar, () => data.getRepresentatives(place)).catch(() => null) : Promise.resolve([] as RepresentativeGroup[]),
     data.getStamp("tse.candidatos").catch(() => null),
   ]);
+  const representantesFalhou = ufPlace === undefined || groups === null || !!prefs.ufFalhou;
   const fimDaSemana = overview ? (faixaDaSemana(overview, hoje).dias[6] ?? null) : null;
 
   return (
@@ -86,12 +100,12 @@ export default async function Inicio() {
         <p className="sv-so-larga sv-agora">{fmtFolio(dayKey(new Date()) ?? hoje)}</p>
       </div>
 
-      <Lemos overview={overview} ufSigla={uf?.sigla ?? null} esferas={esferas} />
-      <Escolhidos slugs={follows} ufSigla={uf?.sigla ?? null} />
-      <Semana overview={overview} ufSigla={uf?.sigla ?? null} estadualLigado={esferas.estadual} hoje={hoje} />
+      <Lemos overview={overview} ufSigla={uf?.sigla ?? null} ufFalhou={!!prefs.ufFalhou} esferas={esferas} />
+      <Escolhidos slugs={follows} ufSigla={uf?.sigla ?? null} simularFalha={falhar} />
+      <Semana overview={overview} ufSigla={uf?.sigla ?? null} estadualLigado={esferas.estadual} hoje={hoje} simularFalha={falhar} />
       <JaRolou />
       <VaiRolar overview={overview} fimDaSemana={fimDaSemana} />
-      <Representa uf={uf} groups={groups} esferas={esferas} tse={tse} />
+      <Representa uf={uf} groups={groups ?? []} falhou={representantesFalhou} esferas={esferas} tse={tse} />
       <ECongresso overview={overview} hoje={hoje} />
       <Selo className="sv-gs" lidoEm={overview?.week.readAt ?? null} />
       <Proxima className="sv-gn" href="/v2/acompanhando" pergunta="O que meus escolhidos estão fazendo?" />

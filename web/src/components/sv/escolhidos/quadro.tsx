@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { fraseCobertura } from "../estados";
+import { FALHOU_LEITURA, fraseCobertura } from "../estados";
 import { clip, fmtDate } from "../fmt";
 import { Cobertura, Fonte, Lacuna, Nota, Quadro, Resposta, VotoMarca, VotoQuadrado, type VotoForma } from "../ui";
 import type { Casa, Escolhido, Recente } from "./carregar";
@@ -51,7 +51,7 @@ function LinhaLacuna({
         </>
       ) : falhou ? (
         <>
-          <Lacuna>Não conseguimos ler esta fonte agora.</Lacuna>
+          <Lacuna>{FALHOU_LEITURA}</Lacuna>
           <Fonte>Fonte: {fonte}.</Fonte>
         </>
       ) : (
@@ -67,7 +67,7 @@ function Presenca({ p }: { p: Escolhido }) {
   const g = p.presenca;
   const q = "Foi trabalhar?";
   const fonte = fonteDe(p.casa, "presença");
-  if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.presenca} motivo={p.posse} />;
+  if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.presenca} motivo={p.posse} falhou={p.falhou.presenca} />;
   const faltas = g.absent + g.justified;
   return (
     <Linha id={`${p.slug}-q1`} pergunta={q} fonte={fonte}>
@@ -103,7 +103,7 @@ function Votos({ p }: { p: Escolhido }) {
 function Gastos({ p }: { p: Escolhido }) {
   const q = "Quanto gastou o gabinete?";
   const fonte = fonteDe(p.casa, "cota para o exercício do mandato");
-  if (p.gastoCents === null) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.gastos_gabinete} motivo={p.posse} />;
+  if (p.gastoCents === null) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.gastos_gabinete} motivo={p.posse} falhou={p.falhou.gastos} />;
   return (
     <Linha id={`${p.slug}-q3`} pergunta={q} fonte={fonte}>
       {brl(p.gastoCents)} em {p.ano}, até a última leitura.
@@ -116,7 +116,7 @@ function Patrimonio({ p }: { p: Escolhido }) {
   const q = "O patrimônio declarado mudou?";
   const fonte = fonteDe(p.tse, "bens declarados nas candidaturas");
   const v = p.patrimonio;
-  if (v.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} />;
+  if (v.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} falhou={p.falhou.patrimonio} />;
   const lista = v.map((x) => `${brl(x.cents)} em ${x.ano}`).join(", ");
   const abertura = v.length === 1 ? "Só um valor declarado: não dá para dizer se mudou." : v.every((x) => x.cents === v[0].cents) ? "Não mudou entre as declarações." : "Mudou.";
   return (
@@ -130,7 +130,7 @@ function Propostas({ p }: { p: Escolhido }) {
   const q = "O que propôs?";
   const fonte = fonteDe(p.casa, "propostas");
   const pr = p.propostas;
-  if (!pr) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.propostas} />;
+  if (!pr) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.propostas} falhou={p.falhou.propostas} />;
   const partes = [pr.principal !== null && `${pr.principal} como autoria principal`, pr.coautor !== null && `${pr.coautor} em coautoria`].filter(Boolean).join(" e ");
   return (
     <Linha id={`${p.slug}-q5`} pergunta={q} fonte={fonte}>
@@ -212,10 +212,12 @@ function Texto({ r }: { r: Recente }) {
 }
 
 /** "O que fizeram por último?": mais recente primeiro. Sem registro de "última visita" no produto, não há "desde". */
-export function Recentes({ itens, lidoEm, className }: { itens: Recente[]; lidoEm: string | null; className?: string }) {
+export function Recentes({ itens, falhou = false, lidoEm, className }: { itens: Recente[]; /** a leitura da atividade falhou */ falhou?: boolean; lidoEm: string | null; className?: string }) {
   return (
     <Quadro id="esc-recentes" variante="fio" pergunta="O que fizeram por último?" className={className} prova={`Mais recente primeiro. Fonte: registros oficiais de votos, propostas e gastos de cada pessoa${lidoEm ? `, lidos em ${fmtDate(lidoEm)}` : ""}.`}>
-      {itens.length === 0 ? (
+      {falhou ? (
+        <Lacuna>{FALHOU_LEITURA}</Lacuna>
+      ) : itens.length === 0 ? (
         <Lacuna>Ainda não temos registro recente destas pessoas.</Lacuna>
       ) : (
         <ol className="sv-esc__fd">
@@ -229,6 +231,20 @@ export function Recentes({ itens, lidoEm, className }: { itens: Recente[]; lidoE
             </li>
           ))}
         </ol>
+      )}
+    </Quadro>
+  );
+}
+
+/** Pessoas marcadas que não puderam ser lidas (falha) ou que a fonte não conhece mais: lacuna nomeada, nunca "ninguém marcado". */
+export function EscolhidosNaoLidos({ falhas, naoEncontradas, className }: { falhas: number; naoEncontradas: number; className?: string }) {
+  return (
+    <Quadro id="esc-nao-lidos" variante="lacuna" rotulo="Pessoas que você marcou e que não aparecem" className={className}>
+      {falhas > 0 && (
+        <Lacuna motivo={falhas === 1 ? "1 pessoa que você marcou não pôde ser lida." : `${falhas} pessoas que você marcou não puderam ser lidas.`}>{FALHOU_LEITURA}</Lacuna>
+      )}
+      {naoEncontradas > 0 && (
+        <Lacuna>{naoEncontradas === 1 ? "1 pessoa que você marcou não foi encontrada nos dados carregados." : `${naoEncontradas} pessoas que você marcou não foram encontradas nos dados carregados.`}</Lacuna>
       )}
     </Quadro>
   );

@@ -17,6 +17,11 @@ export type Prefs = {
   esferas: Esferas;
   /** true quando não há cookie de esferas e valem os padrões */
   esferasPadrao: boolean;
+  /**
+   * true quando há cookie de UF, mas a lista de UFs não pôde ser lida: `uf` fica null e a tela diz que não conseguiu
+   * ler, em vez de convidar a "Escolha seu estado" quem já escolheu.
+   */
+  ufFalhou?: boolean;
 };
 
 const SIGLA = /^[A-Z]{2}$/;

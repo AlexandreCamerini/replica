@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FALHOU_LEITURA } from "@/components/sv/estados";
 import { fmtDate } from "@/components/sv/fmt";
 import type { Esferas } from "@/components/sv/prefs-shared";
 import { Lacuna, Nota, Quadro } from "@/components/sv/ui";
@@ -24,8 +25,32 @@ function juntar(partes: string[]): string {
 }
 
 /** "Quem mais me representa?": quantas pessoas em cada cargo para a UF do leitor. Sem UF: convite. Estadual e municipal só se ligados. */
-export function Representa({ uf, groups, esferas, tse }: { uf: { sigla: string; nome: string } | null; groups: RepresentativeGroup[]; esferas: Esferas; tse: Stamp | null }) {
+export function Representa({
+  uf,
+  groups,
+  falhou = false,
+  esferas,
+  tse,
+}: {
+  uf: { sigla: string; nome: string } | null;
+  groups: RepresentativeGroup[];
+  /** a leitura dos representantes (ou do lugar) falhou: lacuna "Não conseguimos ler…", nunca "ainda não temos" */
+  falhou?: boolean;
+  esferas: Esferas;
+  tse: Stamp | null;
+}) {
   const lida = tse && new Date(tse.refreshedAt).getTime() > 0 ? `lida em ${fmtDate(tse.refreshedAt)}` : "data da leitura não registrada";
+
+  if (!uf && falhou) {
+    return (
+      <Quadro id="inicio-representa" variante="fio" className="sv-gt" pergunta="Quem mais me representa?">
+        <Lacuna motivo="A lista de estados não pôde ser lida, e o estado guardado depende dela.">{FALHOU_LEITURA}</Lacuna>
+        <Link className="sv-btn" href="/v2/ajustes">
+          Ver em Ajustes
+        </Link>
+      </Quadro>
+    );
+  }
 
   if (!uf) {
     return (
@@ -60,7 +85,9 @@ export function Representa({ uf, groups, esferas, tse }: { uf: { sigla: string; 
       pergunta="Quem mais me representa?"
       prova={`Fonte: TSE, cargos e cadeiras, ${lida}. Pessoas em ordem alfabética.`}
     >
-      {partes.length === 0 ? (
+      {falhou ? (
+        <Lacuna motivo="Fonte: TSE, cargos e cadeiras.">{FALHOU_LEITURA}</Lacuna>
+      ) : partes.length === 0 ? (
         <Lacuna motivo="Fonte: TSE, cargos e cadeiras.">Ainda não temos esse dado para {uf.nome}.</Lacuna>
       ) : (
         <p className="sv-peq">

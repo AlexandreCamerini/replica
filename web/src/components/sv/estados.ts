@@ -39,6 +39,9 @@ export const COBERTURA: Record<Exclude<CoverageStatus, "no_site">, string> = {
   desconhecido: "Ainda não temos esse dado.",
 };
 
+/** Leitura que falhou (exceção da fonte): lacuna nomeada, distinta de "não há" e de "ainda não temos esse dado". */
+export const FALHOU_LEITURA = "Não conseguimos ler esta fonte agora.";
+
 /** Sem status vindo do contrato: esta frase, sempre com a fonte nomeada ao lado. Nunca "0". */
 export const SEM_DADO = "Ainda não temos esse dado.";
 
