@@ -17,6 +17,9 @@ Ordem (architecture.md › Identidade):
   Título repetido pelo TSE (BUG-041, D240): o TSE às vezes põe na linha de uma pessoa o título de outra (Virginia Pereira de
   Oliveira 2012 com o título de Willya José da Silva). Título igual com nascimento diferente E nome civil sem nenhum token em
   comum com a pessoa não casa: a linha segue sem título pelos outros ramos (pessoa nova ou fora do diretório, D34).
+  BUG-044: um token em comum não basta (Silva, Maria, sobrenome de família ou de etnia). Com nascimento diferente, o primeiro
+  nome tem de bater (igual, ou grafia a até 2 edições com o resto do nome igual; `first_name_match`). E o título que aparece
+  em 2 SQ da mesma eleição com primeiros nomes diferentes não prova nenhuma linha daquele ano (`shared_title`).
   Título reemitido (BUG-042, D241): título desconhecido, MESMO município (a pessoa tem mandato ou candidatura nele), MESMO
   nascimento e nome civil a no máximo 2 edições, com as diferenças só de grafia (s/z, m/n final, y/i, letra dobrada, h mudo):
   casa, e o log diz por quê. Mais fraco que isso (outra grafia que não é só fonética, só a mesma UF, nascimento diferente no
@@ -56,6 +59,69 @@ def names_compatible(civil_name: str | None, person_civil: str | None, person_di
     """Nome civil da linha compatível com a pessoa: algum token significativo em comum (BUG-041). Grafia, nome social e
     casamento quase sempre mantêm um token; Virginia Pereira de Oliveira x Willya José da Silva não tem nenhum."""
     return bool(name_tokens(civil_name) & (name_tokens(person_civil) | name_tokens(person_display)))
+
+
+def first_name(name: str | None) -> str | None:
+    """Primeiro nome, sem acento e em minúsculas. Hífen, ponto e espaço separam (BUG-044): "AURI-WULANGE RIBEIRO" -> "auri",
+    para bater com "Auri Wulange Ribeiro" da mesma pessoa."""
+    return next((t for t in re.split(r"[^a-z0-9]+", fold(name)) if t), None)
+
+
+def _rest_jaccard(a: str | None, b: str | None) -> float:
+    """Jaccard dos tokens significativos do nome sem o primeiro nome."""
+    fa, fb = first_name(a), first_name(b)
+    ta, tb = name_tokens(a) - {fa}, name_tokens(b) - {fb}
+    return len(ta & tb) / len(ta | tb) if ta | tb else 0.0
+
+
+def first_name_match(civil_name: str | None, person_civil: str | None, person_display: str | None) -> bool:
+    """O primeiro nome da linha bate com o da pessoa (BUG-044):
+    - igual ao primeiro nome civil ou ao de exibição;
+    - ou a 1 ou 2 edições do primeiro nome CIVIL, com o resto do nome quase igual (Jaccard >= 0,5 dos outros tokens):
+      Teresinha x Terezinha Moreira, Hidelmar x Hildemar Viana da Silva, Luis x Luiz Carlos Carneiro Frota. Sem o resto,
+      José x João Santos "da Silva" (2 edições) casariam. A troca a/o no fim (Paulo x Paula) nunca é grafia. O nome de
+      exibição só vale igual: "Dr Auri", "Zé", "Di" são curtos demais para distância de edição.
+    Limite: irmãos com o mesmo sobrenome inteiro e primeiros nomes a até 2 edições (José x João Pereira da Silva) ainda
+    casam se o TSE repetir o título de um na linha do outro; a regra não tem como separá-los de uma grafia.
+    Não pega outra pessoa com o mesmo sobrenome: Genilde x Renata Silva, Djalmiro x Sarah Urbieta, Daora x Kotsario
+    Kanamari, Maria Isabel x Silvana Maria."""
+    f = first_name(civil_name)
+    if not f:
+        return False
+    fc, fd = first_name(person_civil), first_name(person_display)
+    if f in (fc, fd):
+        return True
+    return bool(fc) and edit_distance(f, fc) <= 2 and not _gender_flip(f, fc) and _rest_jaccard(civil_name, person_civil) >= 0.5
+
+
+def _gender_flip(a: str, b: str) -> bool:
+    """Paulo x Paula, Maria x Mário, Antônio x Antônia: 1 edição, mas é o nome do irmão ou da irmã, não grafia (BUG-044)."""
+    return len(a) == len(b) and a[:-1] == b[:-1] and {a[-1], b[-1]} == {"a", "o"}
+
+
+def title_row_foreign(civil_name: str | None, birth_date: date | None, person_civil: str | None, person_display: str | None,
+                      person_birth: date | None) -> bool:
+    """A linha com o título da pessoa é de outra pessoa (BUG-041, D240; BUG-044). Só com nascimento diferente (os dois
+    publicados): é outra pessoa se o nome civil não tem nenhum token em comum com a pessoa (D240) OU se o primeiro nome não
+    bate a até 2 edições (BUG-044: um "Silva", "Maria" ou sobrenome de família em comum não prova nada). A regra nova contém
+    a do D240: nunca casa o que o D240 recusava. Nascimento igual não é decidido aqui (ver PersonResolver.shared_title)."""
+    if not (birth_date and person_birth and civil_name) or birth_date == person_birth:
+        return False
+    return not names_compatible(civil_name, person_civil, person_display) or not first_name_match(civil_name, person_civil, person_display)
+
+
+def names_differ(a: str | None, b: str | None) -> bool:
+    """Dois nomes civis da fonte com o mesmo título na mesma eleição são de pessoas diferentes: primeiros nomes a mais de 2
+    edições (BUG-044). Registro substituído da mesma pessoa com grafia variante não conta (Luiz Marcelo Cameron x Luis
+    Marcelo Comeron, 2012, mesmo nascimento): aqui o critério é mais frouxo que o de `first_name_match` de propósito, porque
+    cada linha ainda passa por `title_row_foreign` contra a pessoa."""
+    fa, fb = first_name(a), first_name(b)
+    return bool(fa and fb) and edit_distance(fa, fb) > 2
+
+
+def election_key(kind: str | None, ue: str | None) -> tuple[str, str]:
+    """"Mesma eleição" dentro do ano de um título: a ordinária é uma só; cada suplementar é a da sua UE."""
+    return (kind or "", "" if kind == "ordinaria" else (ue or "").strip())
 
 
 def edit_distance(a: str, b: str, limit: int = 2) -> int:
@@ -140,9 +206,13 @@ class PersonResolver:
         # eleição são duas pessoas, nunca reemissão
         self.title_years: dict[str, set[int]] = defaultdict(set)
         tit_owner = {t: p for p, ts in self.titles.items() for t in ts}
-        for r in conn.execute("select titulo, year from tse_titulo_candidatura where kind = 'ordinaria'"):
-            if r["titulo"] in tit_owner:
+        # (título, ano) -> eleição -> SQ -> nome civil da linha: o mesmo título em 2 SQ da mesma eleição com nomes diferentes
+        # é título repetido pelo TSE, e nenhuma linha desse título nesse ano casa pelo título (BUG-044)
+        self.title_rows: dict[tuple[str, int], dict[tuple[str, str], dict[str, str | None]]] = defaultdict(lambda: defaultdict(dict))
+        for r in conn.execute("select titulo, year, ue, tse_sequencial, kind, civil_name from tse_titulo_candidatura"):
+            if r["kind"] == "ordinaria" and r["titulo"] in tit_owner:
                 self.title_years[tit_owner[r["titulo"]]].add(r["year"])
+            self.title_rows[(r["titulo"], r["year"])][election_key(r["kind"], r["ue"])][r["tse_sequencial"]] = r["civil_name"]
         self.info: dict[str, tuple[str | None, str | None, date | None]] = {}  # pessoa -> (nome civil, nome de exibição, nascimento)
         self.by_birth: dict[date, set[str]] = defaultdict(set)
         for r in conn.execute(
@@ -195,12 +265,29 @@ class PersonResolver:
         return bool({u for u in (uf, birth_uf) if u} & mine)
 
     def foreign_row(self, pid: str, civil_name: str | None, birth_date: date | None) -> bool:
-        """A linha com o título da pessoa é de outra pessoa (BUG-041): nascimento diferente E nome civil sem token em comum.
-        Um dos dois divergente é erro de digitação, nome social ou casamento (1.594 e 6 casos no banco) e casa."""
+        """A linha com o título da pessoa é de outra pessoa (BUG-041, BUG-044): nascimento diferente e o nome não prova a
+        mesma pessoa (nenhum token em comum, ou primeiro nome a mais de 2 edições). `title_row_foreign`."""
         civ, disp, birth = self.info.get(pid, (None, None, None))
-        if not (birth_date and birth and civil_name) or birth_date == birth:
+        return title_row_foreign(civil_name, birth_date, civ, disp, birth)
+
+    def note_title_rows(self, trows: list[tuple]) -> None:
+        """Linhas da carga (tuplas de tse_candidatos.title_rows) para `shared_title`: a carga pode trazer o ano antes de o
+        passo `titulos` gravar as linhas em tse_titulo_candidatura."""
+        for t in trows:
+            titulo, year, ue, sq, kind, civil = t[0], t[1], t[2], t[3], t[4], t[8]
+            self.title_rows[(titulo, year)][election_key(kind, ue)].setdefault(sq, civil)
+
+    def shared_title(self, titulo: str | None, year: int | None) -> bool:
+        """O título aparece em 2 SQ da mesma eleição do ano com nomes de pessoas diferentes (Paty do Alferes/RJ 2012: Maria
+        Isabel de Sá Mamedir, 1943, e Silvana Maria da Rocha Marques, 1970). Ninguém concorre duas vezes na mesma eleição com
+        outro nome: o título não prova nenhuma das linhas desse ano, nem a da pessoa (BUG-044)."""
+        if not (titulo and year):
             return False
-        return not names_compatible(civil_name, civ, disp)
+        for by_sq in self.title_rows.get((titulo, year), {}).values():
+            names = [n for n in by_sq.values() if n]
+            if any(names_differ(a, b) for i, a in enumerate(names) for b in names[i + 1:]):
+                return True
+        return False
 
     def reissue(self, titulo: str | None, civil_name: str | None, birth_date: date | None, place_id: str | None, year: int | None,
                 uf: str | None = None, birth_uf: str | None = None) -> tuple[set[str], set[str], dict[str, str]]:
@@ -281,11 +368,13 @@ class PersonResolver:
         titulo = titulo if titulo and re.fullmatch(r"\d{6,}", titulo.strip()) else None
         if titulo:
             pid = self.by_external("tse-titulo", titulo)
-            if pid and self.foreign_row(pid, civil_name, birth_date):
-                # BUG-041 (D240): o TSE repetiu nesta linha o título da pessoa; a linha é de outra pessoa. Segue sem o título.
+            shared = bool(pid) and self.shared_title(titulo, year)
+            if pid and (shared or self.foreign_row(pid, civil_name, birth_date)):
+                # BUG-041 (D240) e BUG-044: o TSE repetiu nesta linha o título da pessoa; a linha é de outra pessoa, ou o título
+                # está em 2 SQ da mesma eleição com nomes diferentes e não prova nenhuma. Segue sem o título pelos outros ramos.
                 c, _, b = self.info[pid]
-                log.warning("título %s repetido pelo TSE: linha '%s' (%s) x pessoa '%s' (%s); não casa pelo título (%s %s)",
-                            titulo, civil_name, birth_date, c, b, source, external_id)
+                log.warning("título %s repetido pelo TSE%s: linha '%s' (%s) x pessoa '%s' (%s); não casa pelo título (%s %s)",
+                            titulo, " em 2 SQ da mesma eleição" if shared else "", civil_name, birth_date, c, b, source, external_id)
                 foreign, titulo = True, None
             elif pid:
                 self.link(pid, source, external_id, "exact_id", 1.0)

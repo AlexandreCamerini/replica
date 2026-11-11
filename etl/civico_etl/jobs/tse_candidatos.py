@@ -229,12 +229,16 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | Non
     where = ""
     if only_elected and only is None:
         where = "where DS_SIT_TOT_TURNO in ('ELEITO','ELEITO POR QP','ELEITO POR MÉDIA') or (NR_TURNO = '1' and DS_SIT_TOT_TURNO = '2º TURNO')"
-    rows = _read(cand_paths or _extract(cand_zip, year, ufs, "consulta_cand"), COLS, where)
+    paths = cand_paths or _extract(cand_zip, year, ufs, "consulta_cand")
+    rows = _read(paths, COLS, where)
+    shared_src = title_source_rows(paths, where, rows)
     if only is not None:
         rows = [x for x in rows if ((x["SG_UE"] or "").strip(), (x["SQ_CANDIDATO"] or "").strip()) in only]
     log.info("tse %d: %d candidaturas lidas (%s)", year, len(rows), "eleitos" if only_elected and only is None else "todas" if only is None else "pedidas")
 
     people = PersonResolver(conn)
+    # BUG-044: títulos em 2 SQ da mesma eleição; a carga traz o ano antes de o passo `titulos` gravá-lo em tse_titulo_candidatura
+    people.note_title_rows(title_rows(shared_src, None))
     parties = PartyResolver(conn)
     offices = {o["slug"]: str(o["id"]) for o in conn.execute("select slug, id from offices")}
     places = {row["ibge_code"]: str(row["id"]) for row in conn.execute("select ibge_code, id from places")}
@@ -474,6 +478,15 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | Non
                 decl.append((pid, cid, year, tot, "BRL"))
         r.add(len(upsert(conn, "asset_declarations", ["person_id", "candidacy_id", "year", "total_cents", "currency"], decl, ["candidacy_id"], returning=["id"])))
     log.info("tse %d: %d pessoas no resolver, %d candidaturas, %d mandatos", year, len(people.slugs), len(cand_rows), len(mandate_rows))
+
+
+def title_source_rows(paths: list[Path], where: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Todas as linhas do arquivo com os títulos das linhas carregadas (BUG-044). O mesmo título em 2 SQ da mesma eleição com
+    nomes diferentes não prova nenhuma das linhas; a carga padrão só lê eleitos, e o 2º SQ (não eleito) ficaria invisível.
+    Sem filtro (`--all` ou reparo), as linhas carregadas já são todas."""
+    if not where:
+        return rows
+    return _read(paths, COLS, f"where NR_TITULO_ELEITORAL_CANDIDATO in (select NR_TITULO_ELEITORAL_CANDIDATO from t {where})")
 
 
 def title_rows(rows: list[dict[str, Any]], known: set[str] | None) -> list[tuple]:

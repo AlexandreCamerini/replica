@@ -1,5 +1,5 @@
-"""Invariantes de identidade (BUG-032, D212; BUG-033 e BUG-035, D223 e D225; BUG-038 e BUG-039, D237 e D238; BUG-041 e BUG-043, D240 e D242). Separado de checks.py para não disputar o arquivo; checks.run_checks chama
-run_identity_checks e soma as falhas.
+"""Invariantes de identidade (BUG-032, D212; BUG-033 e BUG-035, D223 e D225; BUG-038 e BUG-039, D237 e D238; BUG-041 e BUG-043, D240 e D242; BUG-044). Separado de checks.py para não disputar o arquivo; checks.run_checks chama
+run_identity_checks e soma as falhas. IDENTITY_CHECKS são SQL; IDENTITY_PY_CHECKS precisam da regra de nome do resolve (BUG-044).
 
 O SQ_CANDIDATO do TSE só é único dentro da eleição, e o TSE reaproveita os números entre anos. A chave da pessoa no TSE é
 (ano, SQ), e em 2012, (ano, UE, SQ): o arquivo de 2012 repete o SQ entre a eleição ordinária e as suplementares (BUG-035). Duas candidaturas de anos diferentes só são da mesma pessoa com prova da fonte (título de eleitor ou nome civil +
@@ -9,6 +9,7 @@ nascimento), registrada em identity_repair_log por civico-etl tse.fix032.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import psycopg
 
@@ -117,10 +118,62 @@ IDENTITY_CHECKS: list[tuple[str, str]] = [
 ]
 
 
+# BUG-044: candidaturas cuja linha da fonte (pelo título da pessoa, ano e SQ) pode ser de outra pessoa: nascimento diferente,
+# ou o título em 2+ SQ da mesma eleição (a ordinária do ano, ou a suplementar da mesma UE). A decisão final é em Python
+# (`bug044_offenders`), com a mesma regra do resolve: o SQL não tem distância de edição sem extensão nova.
+BUG044_SQL = """
+select c.id::text candidacy_id, p.slug, e.year, c.tse_sequencial, p.civil_name p_civil, p.display_name p_display, p.birth_date p_birth,
+       t.civil_name, t.birth_date,
+       array(select t2.civil_name from tse_titulo_candidatura t2
+             where t2.titulo = t.titulo and t2.year = t.year and t2.kind = t.kind and (t.kind = 'ordinaria' or t2.ue = t.ue)
+               and t2.tse_sequencial <> t.tse_sequencial and t2.civil_name is not null) others
+from candidacies c join elections e on e.id = c.election_id join people p on p.id = c.person_id
+join person_external_ids x on x.person_id = p.id join sources s on s.id = x.source_id and s.slug = 'tse-titulo'
+join tse_titulo_candidatura t on t.titulo = x.external_id and t.year = e.year and t.tse_sequencial = c.tse_sequencial
+where (t.birth_date is not null and p.birth_date is not null and t.birth_date <> p.birth_date)
+   or exists (select 1 from tse_titulo_candidatura t2
+              where t2.titulo = t.titulo and t2.year = t.year and t2.kind = t.kind and (t.kind = 'ordinaria' or t2.ue = t.ue)
+                and t2.tse_sequencial <> t.tse_sequencial)
+"""
+
+
+def bug044_offenders(conn: psycopg.Connection) -> list[dict]:
+    """Candidaturas na pessoa errada pela regra do BUG-044 (identity.title_row_foreign e shared_title), a mesma do resolve:
+    (a) nascimento diferente e nome sem token em comum (D240) ou primeiro nome a mais de 2 edições; ou (b) o título está em
+    2 SQ da mesma eleição com nomes de pessoas diferentes e o nome da linha não é o da pessoa (primeiro nome). Contém o check
+    do D240: tudo o que ele acusa, este acusa."""
+    from ..identity import first_name_match, names_differ, title_row_foreign
+
+    out = []
+    for r in conn.execute(BUG044_SQL):
+        if title_row_foreign(r["civil_name"], r["birth_date"], r["p_civil"], r["p_display"], r["p_birth"]):
+            out.append({**r, "motivo": "nascimento diferente e nome de outra pessoa"})
+        elif any(names_differ(r["civil_name"], o) for o in r["others"]) and not first_name_match(r["civil_name"], r["p_civil"], r["p_display"]):
+            out.append({**r, "motivo": "título em 2 SQ da mesma eleição, linha com o nome de outra pessoa"})
+    return out
+
+
+# checks que precisam de Python (regra de nome do resolve); cada um devolve a contagem de falhas
+IDENTITY_PY_CHECKS: list[tuple[str, Callable[[psycopg.Connection], int]]] = [
+    (
+        "identidade: candidatura cuja linha da fonte é de outra pessoa pelo título repetido (BUG-044: outro nascimento e outro "
+        "primeiro nome, ou o título em 2 SQ da mesma eleição)",
+        lambda conn: len({r["candidacy_id"] for r in bug044_offenders(conn)}),
+    ),
+]
+
+
 def run_identity_checks(conn: psycopg.Connection) -> int:
     failed = 0
     for name, q in IDENTITY_CHECKS:
         n = list(conn.execute(q).fetchone().values())[0]
+        if n:
+            failed += 1
+            log.error("FALHOU: %s (%s)", name, n)
+        else:
+            log.info("ok: %s", name)
+    for name, fn in IDENTITY_PY_CHECKS:
+        n = fn(conn)
         if n:
             failed += 1
             log.error("FALHOU: %s (%s)", name, n)
