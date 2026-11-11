@@ -893,3 +893,25 @@ Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não conve
 - Steps: o TSE republica o `consulta_cand_2024` (04/11/2026) com a retotalização de Tapauá (UE 02798). A recarga `--all` cria os mandatos dos 3 eleitos novos e grava NÃO ELEITO em epaminondas, izaque-martins e nilson-am, mas os mandatos deles seguem `em_exercicio` (o TSE só promove `eleito_aguardando_posse`). O `check` deu 40/40, porque não havia invariante de cadeiras.
 - Expected: os rebaixados saem do exercício, com motivo e sem apagar; Tapauá com 11.
 - Status: fixed (D251). Passo `mandatos_tse` do `identity.repairs` (3 → 0) e check "vereador em exercício ≤ cadeiras da CF art. 29, IV" (falhava com 1, agora passa). Tapauá 11. Testes em `test_identity_repairs.py`.
+
+## Execução de novembro (2026-11-11)
+
+### BUG-050: suplente que saiu do exercício segue em exercício; Câmara com 514
+
+- Severity: S2 (cadeira a mais na Câmara; invariantes "câmara: exatamente 513 em exercício" e "assembleia: titulares eleitos… CF art. 27" vermelhas, `etl.yml` com exit 2 em todo ciclo desde 09/11)
+- Flow / case: agenda `camara.deputados` · leonardo-gadelha (PB, id Câmara 122195)
+- Steps: o suplente assume em 2026-07-09 e o run grava `suplente_em_exercicio`/`em_exercicio` até 2027-02-01. Em 2026-11-06 o titular volta: a Câmara lista o suplente na legislatura 57 com `condicaoEleitoral` "Suplente", `situacao` "Suplência", `data` 2026-11-06. `_deputies` fazia `continue` nesse ramo e o upsert não toca `ends_on`: o mandato ficava em exercício para sempre.
+- Expected: o mandato do suplente fecha na data da fonte, sem apagar a linha; Câmara com 513.
+- Status: fixed (PR #25, D301). `close_suplentes`, em savepoint: suplente listado fora do exercício → status do mapa STATUS, `ends_on` = `ultimoStatus.data` (teto hoje); ausente da listagem, data anterior ao início e mandato de hoje só anotam; teto de 5 encerramentos por run (acima: nenhum, run parcial); falha → run parcial com o upsert preservado; encerrados em `log.warning` e no topo das notas. Testes em `test_camara_suplente_saiu.py` (21). Conferido em produção em 11/11/2026: 1 mandato encerrado (2026-07-09 → 2026-11-06), 513 em exercício, PB com 12, check sem falha.
+
+### BUG-051: suplente que entrou no 1º dia da legislatura é tratado como titular
+
+- Severity: S4 latente (achado nas revisões da PR #25; anterior a ela)
+- Onde: `camara_diario._deputies`, `titular = condicao == "Titular" or any(s == start ...)`. Quando esse suplente sai, a linha vira `titular`/`encerrado` com `ends_on` no fim da legislatura e escapa do `close_suplentes`.
+- Status: open.
+
+### BUG-052: suplente efetivado como "Titular" pode derrubar o run da Câmara
+
+- Severity: S3 latente (achado nas revisões da PR #25; anterior a ela)
+- Onde: o ramo do titular insere `(início da legislatura, fim)` por cima do mandato de suplente aberto da mesma pessoa; a exclusão `no_overlapping_mandate` (por pessoa e cargo) estoura fora do savepoint e desfaz a carga de deputados do ciclo. O mesmo vale para mandato da mesma pessoa em outra UF (`known` é por UF, a exclusão é por cargo).
+- Status: open. Em produção, 11/11/2026: nenhuma pessoa com titular do 1º dia e suplente aberto na legislatura (consulta de leitura).

@@ -134,12 +134,13 @@ Atualizado em 11/11/2026, fim da onda 0 (Fase 1) e começo da onda 1.
 | A3 Direção 2 no /v2 | #22 | feito | merge `5c2bff3`. 1ª revisão (opus): **não mergear** (selo afirmava "agentes de IA, não pessoa" sem dado). Corrigido em `a79a26b`…`7dec00c` + `6a4807d`; re-revisão: mergear com dívida. Local: tsc, eslint, 35 unitários, build, e2e 464 passaram, 0 falharam, 74 pulados. Postgres local (dados reais): 12 páginas 200. Produção após o deploy: 15 páginas 200, sem erro visível (D296) |
 | A7 alerta do SAPL (Fase 2b) | #23 | feito | merge `91f7c77`; webhook opcional (D299); re-revisão sem achado; pytest 52 passaram, 2 pulados; `health.test.ts` 7/7; carimbo `sapl.*` de produção com 16 h |
 | A8 integração do `run_verificar` | #24 | feito | merge `eb77a09`; 97 testes novos, suíte 510 passaram, 32 pulados; 6 divergências código × especificação confirmadas (D300) |
-| A5 BUG-050 | #25 | em revisão | duas revisões (opus): mergear com dívida; correções pedidas ao autor (ramo "sumiu da listagem" só anota; teto de 5; savepoint; log). Produção, leitura: 26 suplentes abertos, só `leonardo-gadelha` parado desde 06/11 |
-| A4 CI do web | P01 | em execução | |
+| A5 BUG-050 | #25 | feito | merge `ead585e`; duas revisões (opus) e re-revisão do delta; 21 testes, suíte 434 passaram; em produção encerrou exatamente 1 mandato (D301) |
+| A4 CI do web | #26 | feito | merge `b095ba9`; jobs `web-verificar` (1m16s), `web-build` (1m34s), `web-e2e` (8m03s; 464 passaram, 74 pulados por exigirem banco, 0 falhas, 0 flaky); SHAs das actions conferidos contra as tags; run da main não é mais cancelado; `forbidOnly` no CI |
 | A6 BUG-008 | P03 | em execução | o #418 também aparece em `tema-perfil.spec.ts` sob carga (D297) |
 | A9 contrato de dados | P06 | em execução | inclui o leitor em lote dos escolhidos (dívida da #22) |
 | ETL: migrações, pauta, webhook, agenda | — | feito antes desta execução | §1 |
-| ETL: run verde | #25 | pendente | 7 runs vermelhos pela mesma causa (BUG-050), o último em 11/11 06:20 UTC |
+| ETL: run verde | #25 | feito | run 43024305280 (11/11 09:53–10:00 BRT): `success`, 3 tarefas, 0 falhas, 0 invariantes quebradas; vigia 43025369561 `success`; `/api/health/fontes` `ok:true` (D301) |
+| A10 identidade BUG-044/048 | P07 | em execução | |
 
 ### Dívidas registradas nas revisões
 
