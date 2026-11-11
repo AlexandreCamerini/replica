@@ -42,8 +42,11 @@ Err = psycopg.errors
 
 def _limpa(c) -> None:
     c.rollback()
-    c.execute("delete from answer_drafts where prop_type = %s and replaces_id is not null", (TIPO,))  # FK restrict: filhas primeiro
-    c.execute("delete from answer_drafts where prop_type = %s", (TIPO,))
+    c.execute("delete from answer_drafts where prop_type = %s and prop_year = %s and replaces_id is not null", (TIPO, ANO))  # FK restrict: filhas primeiro
+    c.execute("delete from answer_drafts where prop_type = %s and prop_year = %s", (TIPO, ANO))
+    # sobra de execução morta: runs e carimbos do dataset de teste (o dataset real 'verificar' nunca é tocado)
+    c.execute("delete from dataset_stamps where dataset like 'zz.teste.%'")
+    c.execute("delete from ingest_runs where dataset like 'zz.teste.%'")
     c.commit()
 
 
@@ -104,11 +107,28 @@ def recusa(c, exc, sql: str, *args):
 
 @pytest.fixture
 def chave(rw):
-    """Controla a linha 'verificacao_agentica' de pipeline_switches: set_(None) remove, set_('on') grava. Restaura o que havia."""
+    """Controla a linha 'verificacao_agentica' de pipeline_switches: set_(None) remove, set_('on') grava (com commit: o run do laço
+    também commita, então não dá para manter o 'on' numa transação aberta). O teardown restaura a linha anterior exata.
+    Segurança em banco compartilhado:
+    - se a linha já está 'on', o teste pula sem mexer;
+    - enquanto o teste mantém 'on', uma conexão própria segura o advisory lock do dataset real 'verificar' (a mesma chave de db.run):
+      um `civico-etl verificar` real no mesmo banco aborta em "outro run" em vez de publicar com a chave que o teste ligou.
+      O run do teste usa `zz.teste.*`, outra chave, e não é afetado."""
+    from conftest import database_url
+
     rw.rollback()
     prev = rw.execute("select name, value, note, set_at from pipeline_switches where name = %s", (J.SWITCH,)).fetchone()
+    if prev and str(prev["value"]).strip().lower() == "on":
+        pytest.skip("pipeline_switches já está 'on' neste banco: não toco")
+    trava: list = []
 
     def set_(value):
+        if value == "on" and not trava:
+            c = psycopg.connect(database_url(), autocommit=True)
+            if not c.execute("select pg_try_advisory_lock(hashtext('verificar'))").fetchone()[0]:
+                c.close()
+                pytest.skip("há um run real de 'verificar' neste banco (advisory lock ocupado): não ligo a chave")
+            trava.append(c)
         rw.rollback()
         rw.execute("delete from pipeline_switches where name = %s", (J.SWITCH,))
         if value is not None:
@@ -119,10 +139,13 @@ def chave(rw):
     try:
         yield set_
     finally:
-        set_(None)
+        rw.rollback()
+        rw.execute("delete from pipeline_switches where name = %s", (J.SWITCH,))
         if prev:
             rw.execute("insert into pipeline_switches (name, value, note, set_at) values (%s, %s, %s, %s)", (prev["name"], prev["value"], prev["note"], prev["set_at"]))
-            rw.commit()
+        rw.commit()
+        for c in trava:  # a chave já voltou ao que era; só então o lock sai
+            c.close()  # fechar a sessão solta o advisory lock
 
 
 class Cliente(FakeClient):
@@ -195,6 +218,7 @@ class Amb:
 @pytest.fixture
 def amb(banco, chave, monkeypatch, tmp_path):
     monkeypatch.delenv("VERIFICACAO_AGENTICA", raising=False)
+    monkeypatch.delenv("ETL_RAW_STORE", raising=False)  # um shell com r2/supabase subiria manifesto para o bucket
     a = Amb(banco, monkeypatch, tmp_path)
     yield a
     a.limpa()
@@ -228,12 +252,18 @@ def test_reaplicar_a_0130_nao_falha_e_religa_o_set_updated_at(banco):
     class Desfaz(Exception):
         pass
 
-    with pytest.raises(Desfaz):
-        with banco.transaction():
-            banco.execute(MIGRACAO.read_text())  # idempotente, e tudo dentro de uma transação que é desfeita
-            t = banco.execute("select tgenabled from pg_trigger where tgname = 'set_updated_at' and tgrelid = 'answer_drafts'::regclass").fetchone()
-            assert t["tgenabled"] == "O"
-            raise Desfaz
+    try:
+        with pytest.raises(Desfaz):
+            with banco.transaction():
+                banco.execute("set local lock_timeout = '2s'")  # DDL em banco compartilhado: não espera lock de outra sessão
+                banco.execute("alter table answer_drafts disable trigger set_updated_at")
+                q = "select tgenabled from pg_trigger where tgname = 'set_updated_at' and tgrelid = 'answer_drafts'::regclass"
+                assert banco.execute(q).fetchone()["tgenabled"] == "D"  # precondição: desligado antes de reaplicar
+                banco.execute(MIGRACAO.read_text())  # idempotente, e tudo dentro de uma transação que é desfeita
+                assert banco.execute(q).fetchone()["tgenabled"] == "O"  # a 0130 religou
+                raise Desfaz
+    except Err.LockNotAvailable as e:
+        pytest.skip(f"answer_drafts travada por outra sessão (lock_timeout 2s): {e}")
 
 
 # --- 2. PgStore ------------------------------------------------------------------------------------------------------------
@@ -243,11 +273,15 @@ def test_ready_reflete_a_coluna_verifier_version(banco):
         pass
 
     assert PgStore(banco).ready() is True
-    with pytest.raises(Desfaz):
-        with banco.transaction():
-            banco.execute("alter table answer_drafts rename column verifier_version to vv_tmp")
-            assert PgStore(banco).ready() is False  # banco sem a 0130
-            raise Desfaz
+    try:
+        with pytest.raises(Desfaz):
+            with banco.transaction():
+                banco.execute("set local lock_timeout = '2s'")  # DDL em banco compartilhado: não espera lock de outra sessão
+                banco.execute("alter table answer_drafts rename column verifier_version to vv_tmp")
+                assert PgStore(banco).ready() is False  # banco sem a 0130
+                raise Desfaz
+    except Err.LockNotAvailable as e:
+        pytest.skip(f"answer_drafts travada por outra sessão (lock_timeout 2s): {e}")
     assert PgStore(banco).ready() is True
 
 
@@ -806,7 +840,7 @@ def test_duas_falhas_seguidas_encerram_o_run(amb, banco):
     assert [J.strikes(get(banco, i)) for i in ids] == [1, 1, 0]
     assert get(banco, ids[2])["verification"] is None
     run = amb.run()
-    assert "duas falhas seguidas da API" in run["notes"] and run["status"] == "succeeded" and run["rows_rejected"] == 2  # o run fecha succeeded; só o retorno é 1
+    assert "duas falhas seguidas da API" in run["notes"] and run["status"] == "succeeded" and run["rows_rejected"] == 2  # DOCUMENTA O COMPORTAMENTO ATUAL (divergente da §17: run abortado deveria falhar/ficar parcial); inverter quando o código for corrigido
 
 
 def test_sucesso_zera_a_sequencia_de_falhas(amb, banco):
@@ -845,7 +879,9 @@ def test_4xx_de_configuracao_para_o_run_sem_gravar_nada(amb, banco, status, cls)
         assert r["verification"] is None and r["verifier_version"] is None  # nem relatório nem marca de tentativa
     run = amb.run()
     assert "a API recusou a requisição" in run["notes"] and "Run encerrado; nada foi gravado" in run["notes"] and run["rows_upserted"] == 0
-    assert run["status"] == "succeeded"  # achado: o run fecha succeeded e carimba o dataset; só o retorno (1) sinaliza o aborto
+    # DOCUMENTA O COMPORTAMENTO ATUAL, divergente da §17 ("o run para"): o run fecha succeeded e carimba o dataset, só o retorno (1) sinaliza
+    # o aborto. Esta asserção deve inverter quando o código de produção for corrigido.
+    assert run["status"] == "succeeded"
 
 
 def test_documento_grande_demais_barra_so_aquela_proposta_e_a_fila_segue(amb, banco, chave):
