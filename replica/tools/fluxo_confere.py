@@ -82,6 +82,9 @@ def live_relations() -> dict[str, str]:
     return live
 
 
+# Caminhos que o documento cita e que só existem depois de uma execução (estão no .gitignore).
+RUNTIME_PATHS = {"etl/.cache", "etl/.state", "etl/.raw"}
+
 def section(doc: str, n: int) -> str:
     m = re.search(rf"^## {n}\.[^\n]*\n(.*?)(?=^## \d+\.|\Z)", doc, re.M | re.S)
     return m.group(1) if m else ""
@@ -102,6 +105,8 @@ def check_paths(doc: str) -> list[str]:
         seen.add(tok)
         p = ROOT / path
         if not p.exists():
+            if path in RUNTIME_PATHS:  # gerado em execução e ignorado pelo git: não existe em checkout limpo
+                continue
             errs.append(f"caminho inexistente: {tok}")
             continue
         if a and p.is_file():
