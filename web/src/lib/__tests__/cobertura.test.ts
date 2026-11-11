@@ -27,6 +27,18 @@ test("deputado federal: missing_datasets e falta de carimbo são `nao_carregado`
   assert.equal(estado(cs, "gastos"), "lido");
 });
 
+test("conjunto carregado sem ligação com a pessoa não é `lido`", () => {
+  const cs = coberturaDe({ ...base, office: "deputado_federal", status: "em_exercicio", faltaFederal: [], carimbos: todos, semVinculo: { emendas: "sem autor casado" } });
+  assert.equal(estado(cs, "emendas"), "nao_carregado");
+  assert.equal(cs.find((x) => x.conjunto === "emendas")!.motivo, "sem autor casado");
+  assert.equal(estado(cs, "votos"), "lido");
+});
+
+test("senador: comissões citam o Senado, não a fonte com que a carga foi carimbada", () => {
+  const cs = coberturaDe({ ...base, office: "senador", status: "em_exercicio", carimbos: todos });
+  assert.match(cs.find((x) => x.conjunto === "comissoes")!.fonte!.nome, /Senado/);
+});
+
 test("senador: presença é `sem_fonte`; leis e equipe não são lidas", () => {
   const cs = coberturaDe({ ...base, office: "senador", status: "em_exercicio", faltaFederal: ["presenca"], carimbos: todos });
   assert.equal(estado(cs, "presenca"), "sem_fonte");
@@ -83,8 +95,10 @@ test("Assembleia e Câmara Municipal: data_coverage vira estado; `no_site` sem c
   assert.equal(estado(ver, "presenca"), "nao_conferido");
   assert.equal(estado(ver, "votos"), "nao_carregado"); // no_site sem carimbo
   assert.equal(estado(ver, "propostas"), "nao_conferido"); // sem linha
+  // SAPL casado: o dado está nas tabelas do SAPL, fora das leituras da página; não vira "lido" (lista vazia não é "não há")
   const sapl = coberturaDe({ ...base, office: "vereador", status: "em_exercicio", sapl: k("SAPL"), coberturaLugar: [] });
-  assert.equal(estado(sapl, "propostas"), "lido");
+  assert.equal(estado(sapl, "propostas"), "nao_carregado");
+  assert.equal(sapl.find((x) => x.conjunto === "propostas")!.fonte?.nome, "SAPL");
   assert.equal(estado(sapl, "gastos"), "nao_conferido");
 });
 

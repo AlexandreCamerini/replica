@@ -24,6 +24,12 @@ const source = () => (process.env.NODE_ENV === "production" ? (g.__dataSource ??
 // O TTL é a rede de segurança: se a revalidação falhar, o dado novo aparece em no máximo uma hora.
 // Os argumentos entram na chave do unstable_cache; os retornos são JSON puro (datas como string ISO).
 export const CACHE_TTL_S = 3600;
+/**
+ * Versão da FORMA dos retornos na chave do cache. O cache de dados sobrevive a deploy: quando um retorno ganha campo
+ * obrigatório (ex.: PautaProposal.votacoes, VotingEventDetail.porUf), um valor antigo em cache quebraria a tela por até
+ * uma hora. Troque esta versão sempre que a forma de um retorno mudar.
+ */
+const CONTRATO = "c2-cobertura";
 const PERSON_ARG: ReadonlySet<keyof DataSource> = new Set([
   "getMandates",
   "getCandidacies",
@@ -70,7 +76,7 @@ export const data: DataSource = new Proxy({} as DataSource, {
     };
     if (process.env.DATA_SOURCE !== "pg") return call;
     return (...args: unknown[]) =>
-      unstable_cache(call, ["data", String(prop)], { tags: cacheTags(prop, args), revalidate: CACHE_TTL_S })(...args);
+      unstable_cache(call, ["data", CONTRATO, String(prop)], { tags: cacheTags(prop, args), revalidate: CACHE_TTL_S })(...args);
   },
 });
 

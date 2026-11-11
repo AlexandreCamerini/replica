@@ -8,6 +8,9 @@ import type { Casa, Escolhido, Recente } from "./carregar";
 
 const brl = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(cents / 100);
 const fonteDe = (c: Casa, o: string) => `${c.nome}, ${o}${c.lidaEm ? `, lida em ${c.lidaEm}` : ""}`;
+/** Fonte de uma linha com dado: com o conjunto lido, a fonte e a data da carga da família dele (não o carimbo mais novo da casa). */
+const fonteCob = (c: Casa, o: string, cob: CoberturaConjunto | null | undefined) =>
+  cob?.estado === "lido" && cob.lidoEm ? `${cob.fonte?.nome ?? c.nome}, ${o}, lida em ${fmtDate(cob.lidoEm)}` : fonteDe(c, o);
 
 /** Linha tripla com dado: pergunta | resposta | fonte. */
 function Linha({ id, pergunta, fonte, children }: { id: string; pergunta: string; fonte: string; children: ReactNode }) {
@@ -82,7 +85,7 @@ const Ap = ({ children }: { children: ReactNode }) => <span className="sv-t sv-e
 function Presenca({ p }: { p: Escolhido }) {
   const g = p.presenca;
   const q = "Foi trabalhar?";
-  const fonte = fonteDe(p.casa, "presença");
+  const fonte = fonteCob(p.casa, "presença", p.cobertura?.presenca);
   if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.presenca} oQue="presença em sessão de votação" motivo={p.posse} falhou={p.falhou.presenca} />;
   const faltas = g.absent + g.justified;
   return (
@@ -95,7 +98,7 @@ function Presenca({ p }: { p: Escolhido }) {
 
 function Votos({ p }: { p: Escolhido }) {
   const q = "Como votou?";
-  const fonte = fonteDe(p.casa, "votações nominais");
+  const fonte = fonteCob(p.casa, "votações nominais", p.cobertura?.votos);
   if (p.votos.total <= 0 || p.votos.items.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.votos} oQue="voto nominal em lei" motivo={p.posse} falhou={p.falhou.votos} />;
   return (
     <Linha id={`${p.slug}-q2`} pergunta={q} fonte={fonte}>
@@ -118,7 +121,7 @@ function Votos({ p }: { p: Escolhido }) {
 
 function Gastos({ p }: { p: Escolhido }) {
   const q = "Quanto gastou o gabinete?";
-  const fonte = fonteDe(p.casa, "cota para o exercício do mandato");
+  const fonte = fonteCob(p.casa, "cota para o exercício do mandato", p.cobertura?.gastos);
   if (p.gastoCents === null) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.gastos} oQue={`gasto de gabinete em ${p.ano}`} motivo={p.posse} falhou={p.falhou.gastos} />;
   return (
     <Linha id={`${p.slug}-q3`} pergunta={q} fonte={fonte}>
@@ -130,7 +133,7 @@ function Gastos({ p }: { p: Escolhido }) {
 
 function Patrimonio({ p }: { p: Escolhido }) {
   const q = "O patrimônio declarado mudou?";
-  const fonte = fonteDe(p.tse, "bens declarados nas candidaturas");
+  const fonte = fonteCob(p.tse, "bens declarados nas candidaturas", p.cobertura?.patrimonio);
   const v = p.patrimonio;
   if (v.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.patrimonio} oQue="bens declarados nas candidaturas" falhou={p.falhou.patrimonio} />;
   const lista = v.map((x) => `${brl(x.cents)} em ${x.ano}`).join(", ");
@@ -144,7 +147,7 @@ function Patrimonio({ p }: { p: Escolhido }) {
 
 function Propostas({ p }: { p: Escolhido }) {
   const q = "O que propôs?";
-  const fonte = fonteDe(p.casa, "propostas");
+  const fonte = fonteCob(p.casa, "propostas", p.cobertura?.propostas);
   const pr = p.propostas;
   if (!pr) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.propostas} oQue="proposta apresentada" falhou={p.falhou.propostas} />;
   const partes = [pr.principal !== null && `${pr.principal} como autoria principal`, pr.coautor !== null && `${pr.coautor} em coautoria`].filter(Boolean).join(" e ");

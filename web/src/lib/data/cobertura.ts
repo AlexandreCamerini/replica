@@ -22,6 +22,11 @@ export type EntradaCobertura = {
   sapl: CarimboFonte | null;
   /** nome da casa do mandato, citado como fonte das lacunas que vêm de data_coverage */
   casa: string | null;
+  /**
+   * Conjunto carregado, mas sem ligação com a pessoa (ex.: emendas sem autor casado): com carimbo não é "lido", porque
+   * lista vazia não quer dizer "não há". Valor = motivo. Ausente = nada a dizer.
+   */
+  semVinculo?: Partial<Record<ConjuntoPessoa, string>>;
 };
 
 /** Famílias de carimbo (dataset_stamps) de cada conjunto no Congresso. null = o ETL não lê esse conjunto para a casa. */
@@ -76,6 +81,7 @@ const MOTIVO = {
   semAssembleia: "Ainda não conferimos o que a Assembleia publica.",
   semLinha: "Ainda não conferimos se a casa publica este dado.",
   semTse: "As candidaturas do TSE ainda não foram carregadas.",
+  saplFora: "A Câmara Municipal é lida pelo SAPL, mas esse dado do SAPL ainda não entra nesta página.",
 } as const;
 
 const DE_COBERTURA: Record<Exclude<CoverageStatus, "no_site">, EstadoCobertura> = {
@@ -130,7 +136,12 @@ function umConjunto(c: ConjuntoPessoa, e: EntradaCobertura): CoberturaConjunto {
     const chave = CHAVE_COBERTURA[c];
     if (chave && e.faltaFederal?.includes(chave)) return item(c, "nao_carregado", MOTIVO.faltaFederal);
     const k = e.carimbos[familia] ?? null;
-    return k ? lido(c, k) : item(c, "nao_carregado", MOTIVO.semCarimbo);
+    if (!k) return item(c, "nao_carregado", MOTIVO.semCarimbo);
+    const sv = e.semVinculo?.[c];
+    if (sv) return item(c, "nao_carregado", sv, { nome: k.nome, url: k.url });
+    // parlamento.extras é carimbado com a fonte da Câmara, mas as comissões de senador vêm da API do Senado
+    if (casa === "senado" && familia === "parlamento.extras") return lido(c, { ...k, nome: "Senado Federal · Dados Abertos", url: "https://legis.senado.leg.br/dadosabertos" });
+    return lido(c, k);
   }
   const chave = CHAVE_COBERTURA[c];
   if (!chave) return item(c, "nao_carregado", MOTIVO.soCongresso);
@@ -142,7 +153,8 @@ function umConjunto(c: ConjuntoPessoa, e: EntradaCobertura): CoberturaConjunto {
     if (it.status === "no_site") return item(c, "nao_carregado", it.reason || MOTIVO.semCarimbo, { nome: a.houseName, url: it.evidenceUrl });
     return item(c, DE_COBERTURA[it.status], it.reason, { nome: a.houseName, url: it.evidenceUrl });
   }
-  // vereador: o SAPL casado cobre propostas, presença e votos; gastos vêm da cobertura do município
-  if (office === "vereador" && e.sapl && c !== "gastos") return lido(c, e.sapl, "Lido no SAPL da Câmara Municipal.");
+  // vereador casado no SAPL: o dado está nas tabelas do SAPL, que presença, votos e propostas desta leitura ainda não
+  // usam; dizer "lido" faria lista vazia virar "não há". Gastos vêm da cobertura do município.
+  if (office === "vereador" && e.sapl && c !== "gastos") return item(c, "nao_carregado", MOTIVO.saplFora, { nome: e.sapl.nome, url: e.sapl.url });
   return deLinha(c, e.coberturaLugar.find((x) => x.dataset === chave), null, e.casa);
 }
