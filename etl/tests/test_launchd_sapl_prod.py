@@ -91,11 +91,33 @@ HOOK_URL = "https://hooks.exemplo.test/T000/SEGREDO-DO-HOOK"
 
 
 @needs_mac
-def test_sem_webhook_nao_roda_mudo(tmp_path):
+def test_sem_webhook_avisa_no_log_e_segue_rodando(tmp_path):
+    """Compatibilidade com o launchd do dono: item do webhook ausente NÃO pode parar o SAPL (nada de exit 78)."""
     env, log, rec = _stub_env(tmp_path, {"ETL_DATABASE_URL": FAKE_URI})
     r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
-    assert r.returncode == 78
-    assert "sem ETL_ALERT_WEBHOOK" in log.read_text() and "PYTHON RODOU" not in log.read_text()
+    assert r.returncode == 0
+    text = log.read_text()
+    assert "sem ETL_ALERT_WEBHOOK no Keychain: falha deste run não será avisada; o vigia do site acusa em até 8 dias" in text
+    assert "PYTHON RODOU hook= deadline=225" in text  # o run-due rodou, sem webhook no ambiente
+    assert not rec.exists()  # sem webhook, nenhum curl
+
+
+@needs_mac
+def test_sem_webhook_precondicao_falha_sem_alerta_e_sem_rodar(tmp_path):
+    env, log, rec = _stub_env(tmp_path, {})  # sem URI e sem webhook
+    r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
+    assert r.returncode == 1
+    text = log.read_text()
+    assert "sem a URI no Keychain" in text and "PYTHON RODOU" not in text and not rec.exists()
+
+
+@needs_mac
+def test_sem_webhook_exit_do_run_due_e_propagado(tmp_path):
+    env, log, rec = _stub_env(tmp_path, {"ETL_DATABASE_URL": FAKE_URI})
+    (tmp_path / "py").write_text('#!/bin/bash\necho "erro com a URI: $ETL_DATABASE_URL"\nexit 3\n')
+    r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
+    text = log.read_text()
+    assert r.returncode == 3 and "exit 3" in text and FAKE_URI not in text and FAKE_PASS not in text and "<URI>" in text
 
 
 @needs_mac
@@ -139,7 +161,7 @@ def test_ponta_a_ponta_keychain_de_teste(tmp_path):
     add = ["security", "add-generic-password", "-U", "-s", service, "-a", "ETL_DATABASE_URL", "-w", FAKE_URI]  # URI FALSA de teste
     try:
         subprocess.run(add, check=True, capture_output=True)
-        subprocess.run(["security", "add-generic-password", "-U", "-s", service, "-a", "ETL_ALERT_WEBHOOK", "-w", "http://127.0.0.1:1/hook"], check=True, capture_output=True)  # webhook obrigatório; porta fechada: o alerta falha rápido
+        subprocess.run(["security", "add-generic-password", "-U", "-s", service, "-a", "ETL_ALERT_WEBHOOK", "-w", "http://127.0.0.1:1/hook"], check=True, capture_output=True)  # webhook presente (opcional no wrapper); porta fechada: o alerta falha rápido
         r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
         assert r.returncode == 2  # o exit do run-due é propagado pelo pipe de redação
         text = log.read_text()

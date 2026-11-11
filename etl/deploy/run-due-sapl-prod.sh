@@ -4,8 +4,10 @@
 # (o log passa por um filtro que troca a URI e a senha por marcadores caso algum erro as imprima).
 # run-due normal: sem --force, respeita carimbo (20 h), lock de sessão (próprio: etl.scheduler.sapl, não disputa o do Actions, que exclui esta tarefa;
 # o lock por dataset de cada câmara continua valendo contra run manual) e ETL_DEADLINE_MIN.
-# Alerta: ETL_ALERT_WEBHOOK (Keychain, mesmo serviço) é OBRIGATÓRIO: sem ele o script sai com 78 e mensagem no log em vez de rodar mudo, porque esta
-# tarefa não roda no Actions (D274) e nenhum outro alerta cobre a parada. Falha em pré-condição (URI, venv) também dispara o webhook, antes do Python.
+# Alerta: ETL_ALERT_WEBHOOK (Keychain, mesmo serviço) é OPCIONAL por compatibilidade: o launchd do dono roda este script do checkout dele, e exigir um item
+# que ainda não existe no Keychain faria o SAPL parar (exit 78) assim que o checkout atualizasse. Sem o item o script avisa no log e segue rodando.
+# Com o item: falha em pré-condição (URI, venv) dispara o webhook antes do Python, e o run-due recebe o webhook para os alertas dele. Esta tarefa não roda
+# no Actions (D274); sem webhook, quem acusa a parada é o vigia do site (sapl, régua de 8 dias).
 # Prazo (ETL_DEADLINE_MIN) = timeout da tarefa sapl.todas (schedule.py: 3 h = 180 min) + RESERVE_MIN (45) = 225. Conta: a tarefa pode gastar
 # --orcamento-min 150 (não começa câmara nova depois disso) + até 25 min na câmara em curso (HOUSE_MAX_MIN) = 175 min < 180 min; com prazo menor,
 # task_timeout_h corta o timeout (200 - 45 = 155 min) e a agenda mata a tarefa com exit 124 quando a fila passa de 150 min.
@@ -32,8 +34,8 @@ alert() { # $1 = mensagem sem aspas nem barra invertida (JSON montado à mão); 
 }
 die() { echo "$1" >&2; alert "$1"; exit 1; }
 if [[ -z "$HOOK" ]]; then
-  echo "sem ETL_ALERT_WEBHOOK no Keychain (serviço $SERVICE): este job roda fora do Actions e não pode rodar sem alerta. security add-generic-password -U -s $SERVICE -a ETL_ALERT_WEBHOOK -w" >&2
-  exit 78
+  # Não é erro: segue rodando como antes. O valor do webhook nunca aparece aqui (nem existe).
+  echo "AVISO: sem ETL_ALERT_WEBHOOK no Keychain: falha deste run não será avisada; o vigia do site acusa em até 8 dias. Para ativar o alerta: security add-generic-password -U -s $SERVICE -a ETL_ALERT_WEBHOOK -w" >&2
 fi
 
 URI="$(security find-generic-password -s "$SERVICE" -a ETL_DATABASE_URL -w 2>/dev/null)" || die "sem a URI no Keychain (serviço $SERVICE); rode launchd-sapl-prod.sh install"
@@ -42,7 +44,8 @@ URI="$(security find-generic-password -s "$SERVICE" -a ETL_DATABASE_URL -w 2>/de
 
 export ETL_DATABASE_URL="$URI"
 unset URI
-export ETL_ALERT_WEBHOOK="$HOOK"
+if [[ -n "$HOOK" ]]; then export ETL_ALERT_WEBHOOK="$HOOK"; fi
+unset HOOK
 export ETL_TASKS_INCLUDE=sapl.todas
 export ETL_DEADLINE_MIN="${ETL_DEADLINE_MIN:-225}"
 export ETL_STATE_DIR="${CIVICO_SAPL_STATE:-$HOME/Library/Application Support/civico-etl-sapl}"
