@@ -9,7 +9,7 @@
 # O plist (org.civico.etl.sapl-prod) só tem caminhos e horário. Diferente do launchd-install.sh (Postgres local, URL em texto claro no plist, D250),
 # este script não pode repetir isso: produção só pelo Keychain.
 # Use a conexão direta ou o pooler em modo SESSÃO do Supabase (nunca :6543, modo transação: os locks de sessão não valem). O role é o de escrita do ETL.
-# Item opcional: conta ETL_ALERT_WEBHOOK no mesmo serviço (security add-generic-password -U -s civico-etl-prod -a ETL_ALERT_WEBHOOK -w).
+# Item RECOMENDADO (sem ele o wrapper roda e só avisa no log; o vigia do site acusa em até 8 dias): conta ETL_ALERT_WEBHOOK no mesmo serviço (security add-generic-password -U -s civico-etl-prod -a ETL_ALERT_WEBHOOK -w).
 # O Mac precisa estar ligado; launchd roda o disparo perdido quando ele acorda. Instale do checkout que vai continuar existindo (o plist guarda o caminho).
 # Log: ~/Library/Logs/civico-etl-sapl.log (rotação em 5 MB, 1 arquivo anterior). Último resumo da agenda: ~/Library/Application Support/civico-etl-sapl/last-run.json
 set -euo pipefail

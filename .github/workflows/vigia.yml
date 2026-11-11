@@ -1,5 +1,5 @@
 # D14 · vigia externo de frescor. Independente do ETL: se a agenda parar, o ETL não tem como avisar; este job, que roda no
-# GitHub e não depende de nenhum secret, bate no site em produção e falha se as fontes essenciais (Câmara, Senado, pauta)
+# GitHub e não depende de nenhum secret, bate no site em produção e falha se as fontes essenciais (Câmara, Senado, pauta e SAPL das câmaras, que roda fora do Actions)
 # estiverem velhas. Job vermelho = e-mail do GitHub para quem mantém o workflow (Settings > Notifications > Actions).
 # Limites e estados: web/src/lib/data/health.ts. Sem actions de terceiros (só curl e jq da imagem), então não há SHA a fixar.
 # URL: variável de repositório VIGIA_URL (padrão abaixo). Atenção: o GitHub desliga cron de repositório sem atividade por 60 dias.
