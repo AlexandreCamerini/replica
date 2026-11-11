@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EXEMPLOS, GLOSSARIO, KIND_LABEL, type ImpactAnswer, type Kind } from "@/components/sv/exemplos";
+import { fraseSemAfirmacao } from "@/components/sv/estados";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtWeekday } from "@/components/sv/fmt";
 import { Gap, Item, Label, List, Section, Src, Steps } from "@/components/sv/ui";
 import { data, type AnswerClaim, type PautaProposal, type PublishedAnswers } from "@/lib/data";
@@ -37,7 +38,7 @@ const NEXT: Record<"comissao" | "plenario", string> = {
 
 /** Resposta revisada vira uma pergunta do cidadão: a frase, o tipo de afirmação e o trecho oficial que a sustenta. */
 function fromClaim(q: string, c: AnswerClaim): ImpactAnswer {
-  return c.says ? { q, a: c.text, kind: "texto", quote: c.quote ? `p. ${c.page}: ${c.quote}` : undefined } : { q, a: "O texto oficial não trata disso.", kind: "nao_sabemos" };
+  return c.says ? { q, a: c.text, kind: "texto", quote: c.quote ? `p. ${c.page}: ${c.quote}` : undefined } : { q, a: fraseSemAfirmacao(c.state), kind: "nao_sabemos" };
 }
 
 function reviewedAnswers(a: PublishedAnswers): ImpactAnswer[] {

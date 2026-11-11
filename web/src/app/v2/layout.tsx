@@ -1,36 +1,41 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import "@fontsource-variable/archivo/wdth.css";
+// Bricolage Grotesque variável (Fontsource): standard.css traz os eixos opsz, wdth e wght no mesmo arquivo.
+import "@fontsource-variable/bricolage-grotesque/standard.css";
 import "@/styles/sv.css";
-import { SvHeader } from "@/components/sv/shell";
+// CSS de cada tela da D2, depois da base. Cada arquivo tem um único dono (o agente daquela tela).
+import "@/styles/sv-inicio.css";
+import "@/styles/sv-escolhidos.css";
+import "@/styles/sv-pessoa.css";
+import "@/styles/sv-decisao.css";
+import "@/styles/sv-temas.css";
+import "@/styles/sv-ajustes.css";
+import { readPrefs } from "@/components/sv/prefs";
+import { CONTEUDO_ID, Rodape, Topo } from "@/components/sv/shell";
 import { data } from "@/lib/data";
 
-// Protótipo do redesign "Segue o Voto" (direção aprovada em 10/11/2026). Vive em /v2 ao lado das páginas atuais,
-// usa a mesma camada de dados e traz o próprio cabeçalho e rodapé; o shell atual se esconde aqui (components/sv/legacy-only).
+// Protótipo do redesign "Segue o Voto", Direção 2 (decisão do dono em 10/11/2026). Vive em /v2 ao lado das páginas atuais,
+// usa a mesma camada de dados e traz o próprio casco; o shell atual (e o link "pular" dele) somem aqui (components/sv/legacy-only).
+// O topo mostra a UF do cookie sv_uf. Ler cookie tornaria a página dinâmica; o layout raiz já é force-dynamic, então nada muda.
 export const metadata: Metadata = {
   title: { default: "Segue o Voto", template: "%s · Segue o Voto" },
-  description: "Entenda o que acontece. Saiba quem decide. Acompanhe quem representa você. Forme sua própria opinião.",
+  description: "O que está rolando, o que seus escolhidos estão fazendo e o que mexe com você. Conferido por agentes de IA, com fonte e data.",
   robots: { index: false, follow: false },
 };
 
-export default function V2Layout({ children }: { children: React.ReactNode }) {
+export default async function V2Layout({ children }: { children: React.ReactNode }) {
+  const prefs = await readPrefs();
   return (
     <div className="sv">
-      <SvHeader />
+      <Topo uf={prefs.uf} />
       {data.isDemo && (
         <div className="sv-demo">
           <div className="sv-wrap">Versão de demonstração. Pessoas, partidos e números são fictícios.</div>
         </div>
       )}
-      <div className="sv-wrap sv-main">{children}</div>
-      <footer className="sv-foot">
-        <div className="sv-wrap">
-          <span>Seu voto não termina na urna.</span>
-          <span>
-            <Link href="/v2/acompanhando">Quem você votou</Link> · <Link href="/v2/como-funciona">Como funciona</Link> · <Link href="/v2/como-funciona#correcoes">Apontar um erro</Link> · <Link href="/">Versão atual do site</Link>
-          </span>
-        </div>
-      </footer>
+      <div className="sv-wrap sv-main" id={CONTEUDO_ID} tabIndex={-1}>
+        {children}
+      </div>
+      <Rodape />
     </div>
   );
 }

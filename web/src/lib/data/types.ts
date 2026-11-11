@@ -465,7 +465,11 @@ export type PautaProposal = {
 // Regra 3: respostas rascunhadas por IA, publicadas só depois de revisão humana (db/migrations/0009).
 export const ANSWER_FIELDS = ["o_que_propoe", "quem_recebe", "quem_paga", "o_que_muda", "dinheiro", "estimativa_impacto"] as const;
 export type AnswerField = (typeof ANSWER_FIELDS)[number];
-export type AnswerClaim = { says: boolean; text: string; quote: string; page: number; direction?: "entra" | "sai" | "dividido" | "nao_diz" };
+/** Três estados por campo (etl/civico_etl/verification.py): `diz` = frase conferida contra o trecho; `nao_diz` = o texto
+ *  não trata do ponto (contraditor confirmou, ou revisor marcou em linha antiga); `nao_conferido` = não afirma nada sobre a lei. */
+export type AnswerState = "diz" | "nao_diz" | "nao_conferido";
+/** `says` é mantido por compatibilidade e vale sempre `state === "diz"`. Fora de `diz`, `text` e `quote` vêm vazios. */
+export type AnswerClaim = { state: AnswerState; says: boolean; text: string; quote: string; page: number; direction?: "entra" | "sai" | "dividido" | "nao_diz" };
 export type PublishedAnswers = {
   reviewedAt: string;
   sourceUrl: string;

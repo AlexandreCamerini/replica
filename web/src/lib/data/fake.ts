@@ -15,6 +15,8 @@ import {
   topicName,
 } from "./reference";
 import type {
+  AnswerClaim,
+  PublishedAnswers,
   Agreement,
   Candidacy,
   DataSource,
@@ -1049,8 +1051,10 @@ export const fakeSource: DataSource = {
     if (!parseProposalKey(key)) return null;
     const entry = demoPauta().find((e) => e.key === key);
     if (!entry) return null;
+    const answers = entry.key === DEMO_ANSWERED_KEY ? demoAnswers() : null;
     return {
-      entry,
+      // como no pg.ts: com "o que propõe" conferido, a frase vira o título simples
+      entry: answers?.fields.o_que_propoe.says ? { ...entry, reviewedAt: answers.reviewedAt, plain: answers.fields.o_que_propoe.text } : entry,
       status: { kind: "na_pauta" },
       schedule: [entry],
       readAt: demoWeek().readAt,
@@ -1058,7 +1062,7 @@ export const fakeSource: DataSource = {
       presentedOn: null,
       authors: [],
       votes: [],
-      answers: null,
+      answers,
     };
   },
   async listCorrections() {
@@ -1090,6 +1094,28 @@ function demoWeek() {
     ends: new Date(start.getTime() + 7 * 86400e3).toISOString(),
     readAt: new Date(now.getTime() - 40 * 60e3).toISOString(),
     at: (day: number, hour: number) => new Date(start.getTime() + day * 86400e3 + hour * 3600e3).toISOString(),
+  };
+}
+
+/** Proposta sintética (número fora do usado pela Câmara) com respostas publicadas nos três estados. As outras duas seguem sem respostas. */
+export const DEMO_ANSWERED_KEY = "camara-pl-9999-2026";
+
+// Exemplo ilustrativo: frases e trechos inventados para a demonstração, não são de nenhum texto oficial.
+function demoAnswers(): PublishedAnswers {
+  const diz = (text: string, quote: string, page: number): AnswerClaim => ({ state: "diz", says: true, text, quote, page });
+  const vazio = (state: "nao_diz" | "nao_conferido"): AnswerClaim => ({ state, says: false, text: "", quote: "", page: 0 });
+  return {
+    reviewedAt: demoWeek().readAt,
+    sourceUrl: "https://www.camara.leg.br/",
+    fields: {
+      o_que_propoe: diz("Obriga a conta de luz a mostrar, em linha própria, quanto do valor é imposto.", "a fatura discriminará, em campo próprio, o valor dos tributos incidentes", 1),
+      quem_recebe: diz("Quem paga conta de luz em casa passa a ver o imposto separado do consumo.", "aplica-se às unidades consumidoras residenciais", 1),
+      quem_paga: vazio("nao_conferido"),
+      o_que_muda: diz("A mudança é na forma de mostrar a conta, não no valor cobrado.", "sem alteração das tarifas homologadas", 2),
+      dinheiro: { ...vazio("nao_diz"), direction: "nao_diz" },
+      estimativa_impacto: vazio("nao_conferido"),
+    },
+    correction: null,
   };
 }
 
@@ -1125,6 +1151,20 @@ function demoPauta(): PautaEntry[] {
       regime: "Ordinário (Art. 151, III, RICD)",
       rapporteur: "Nely Aquino",
       reason: { theme: "Indústria, Comércio e Serviços", term: "benefício" },
+    },
+    {
+      key: DEMO_ANSWERED_KEY,
+      body: "camara",
+      type: "PL",
+      number: 9999,
+      year: 2026,
+      summary: "Exemplo ilustrativo da demonstração: dispõe sobre a discriminação dos tributos na fatura de energia elétrica residencial.",
+      stage: "comissao",
+      committee: "CDC",
+      scheduledFor: at(3, 14),
+      regime: "Ordinário (Art. 151, III, RICD)",
+      rapporteur: null,
+      reason: { theme: "Direito e Defesa do Consumidor", term: "tributo" },
     },
   ];
 }

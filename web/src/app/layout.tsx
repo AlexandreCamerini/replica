@@ -32,7 +32,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   // URL absoluta do og:image (WhatsApp exige). SITE_URL na publicação; sem ela, o Next usa a origem local.
   ...(process.env.SITE_URL && /^https?:\/\//.test(process.env.SITE_URL) ? { metadataBase: new URL(process.env.SITE_URL) } : {}),
-  title: { default: "O que estão decidindo em Brasília que mexe no seu bolso", template: "%s · quem·representa" },
+  title: { default: "O que estão decidindo em Brasília que mexe no seu bolso", template: "%s · Segue o Voto" },
   description: "O que estão decidindo em Brasília que mexe no seu bolso, com o texto oficial e sem opinião.",
 };
 
@@ -48,12 +48,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased">
-        <a
-          href="#conteudo"
-          className="sr-only z-50 bg-surface-inverse px-4 py-2 text-on-inverse focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
-        >
-          Pular para o conteúdo
-        </a>
+        {/* o /v2 tem o próprio "pular", que salta o casco novo (components/sv/shell) */}
+        <LegacyOnly>
+          <a
+            href="#conteudo"
+            className="sr-only z-50 bg-surface-inverse px-4 py-2 text-on-inverse focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+          >
+            Pular para o conteúdo
+          </a>
+        </LegacyOnly>
         <CompareProvider>
           <LegacyOnly>
             <DemoBanner />

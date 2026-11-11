@@ -67,6 +67,7 @@ import type {
 import { ANSWER_FIELDS, CAMPAIGN_ORIGINS } from "./types";
 import { label, parseProposalKey, proposalKey, termLabel, uniqueByKey } from "../pauta";
 import { pgW4 } from "./pg-w4";
+import { claimsFrom } from "../answer-claims";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
 // Nenhuma query fora daqui. Listas públicas ordenam por nome (collation pt_br), nunca por métrica: regra de neutralidade.
@@ -1547,17 +1548,5 @@ function pautaEntry(r: Record<string, unknown>, terms: string[]): PautaEntry {
   };
 }
 
-/** JSON do rascunho (campos em português, como o ETL grava) para o tipo da tela. Campo ausente = "O texto não diz". */
-function claims(raw: unknown): Record<AnswerField, AnswerClaim> {
-  const src = (raw ?? {}) as Record<string, { diz?: boolean; frase?: string; trecho?: string; pagina?: number; direcao?: string }>;
-  return Object.fromEntries(
-    ANSWER_FIELDS.map((f) => {
-      const a = src[f] ?? {};
-      // sem frase ou sem trecho, a tela nunca mostra afirmação: vira "O texto não diz"
-      const says = Boolean(a.diz) && Boolean(a.frase?.trim()) && Boolean(a.trecho?.trim());
-      const c: AnswerClaim = { says, text: a.frase ?? "", quote: a.trecho ?? "", page: Number(a.pagina ?? 0) };
-      if (f === "dinheiro") c.direction = (a.direcao as AnswerClaim["direction"]) ?? "nao_diz";
-      return [f, c];
-    }),
-  ) as Record<AnswerField, AnswerClaim>;
-}
+/** JSON do rascunho (campos em português, como o ETL grava) para o tipo da tela. Regras dos três estados: lib/answer-claims.ts. */
+const claims = (raw: unknown): Record<AnswerField, AnswerClaim> => claimsFrom(raw);

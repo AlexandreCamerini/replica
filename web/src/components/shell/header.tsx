@@ -16,7 +16,7 @@ export function AppHeader({ readAt }: { readAt: string | null }) {
     <header className="sticky top-0 z-40 border-b border-fg bg-surface">
       <div className="mx-auto flex h-14 max-w-[1320px] items-center gap-3 px-4 md:px-6">
         <Link href="/" className="mr-auto font-serif text-[24px] font-semibold tracking-tight text-fg outline-none focus-visible:outline-2 focus-visible:outline-focus">
-          quem·representa
+          Segue o Voto
         </Link>
         <p className="lbl hidden sm:block">
           {readAt ? (

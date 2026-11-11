@@ -1,0 +1,3 @@
+/* Segue o Voto, D2 · tela Temas (/v2/temas).
+   Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
+   rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px. */

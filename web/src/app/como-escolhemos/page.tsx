@@ -84,7 +84,7 @@ export default async function ComoEscolhemos() {
             <li>Uma IA lê o texto oficial e escreve um rascunho.</li>
             <li>Cada frase leva o trecho do texto que a sustenta.</li>
             <li>Uma pessoa confere frase por frase antes de publicar.</li>
-            <li>Sem trecho que sustente, escrevemos &quot;O texto não diz&quot;.</li>
+            <li>Sem trecho que sustente, escrevemos &quot;Ainda não conseguimos conferir esta resposta&quot;. &quot;O texto não diz&quot; só aparece quando o texto não trata do ponto.</li>
           </ol>
           <p>Enquanto ninguém revisou, a página mostra só o resumo oficial e o texto oficial. Frases curtas, de até 15 palavras.</p>
         </Section>

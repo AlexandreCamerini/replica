@@ -13,7 +13,7 @@ const DIRECTION: Record<NonNullable<AnswerClaim["direction"]>, string> = {
   nao_diz: "",
 };
 
-/** Uma afirmação com o trecho do texto oficial ao lado (expansível). Sem trecho: "O texto não diz". */
+/** Uma afirmação com o trecho do texto oficial ao lado (expansível). "O texto não diz" só no estado `nao_diz`; `nao_conferido` não afirma nada. */
 export function Claim({ claim, sourceUrl, title }: { claim: AnswerClaim; sourceUrl: string; title?: string }) {
   return (
     <div className="flex flex-col gap-1">
@@ -38,11 +38,14 @@ export function Claim({ claim, sourceUrl, title }: { claim: AnswerClaim; sourceU
             </figure>
           </details>
         </>
-      ) : (
+      ) : claim.state === "nao_diz" ? (
         <>
           <p className="font-serif text-[19px] leading-snug text-fg">O texto não diz.</p>
           <p className="text-sm text-muted">Nenhum trecho do texto oficial responde isso.</p>
         </>
+      ) : (
+        // nao_conferido: não afirma nada sobre a lei
+        <p className="font-serif text-[19px] leading-snug text-fg">Ainda não conseguimos conferir esta resposta.</p>
       )}
     </div>
   );

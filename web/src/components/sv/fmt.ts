@@ -40,3 +40,13 @@ export const clip = (s: string, max: number) => (s.length <= max ? s : `${s.slic
 export const billLabel = (e: { type: string; number: number; year: number }) => `${e.type} ${e.number}/${e.year}`;
 
 export const BODY_NAME = { camara: "Câmara dos Deputados", senado: "Senado Federal" } as const;
+
+/** dd/mm, no fuso de Brasília (selo "Conferido … em dd/mm"). */
+export function fmtDayMonth(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const m = DAY_ONLY.exec(iso);
+  if (m) return `${m[3]}/${m[2]}`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit" }).format(d);
+}

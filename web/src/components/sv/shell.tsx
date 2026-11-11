@@ -1,97 +1,102 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import type { Prefs } from "./prefs-shared";
+import { SELO } from "./estados";
+import { NavLink } from "./shell-client";
 
-const NAV = [
-  { href: "/v2", label: "Início", note: "Quem decide por você, a partir da sua cidade" },
-  { href: "/v2/temas", label: "Temas", note: "A visão de conjunto: o que o Congresso decide em cada assunto" },
-  { href: "/v2/decisoes", label: "Decisões", note: "O que está em pauta e o que ainda é proposta" },
-  { href: "/v2/votacoes", label: "Votações", note: "Como cada pessoa votou, nome por nome" },
-  { href: "/v2/pessoas", label: "Pessoas", note: "Quem ocupa cada cargo e o que fez nele" },
-  { href: "/v2/como-funciona", label: "Como funciona", note: "De onde vem cada informação, as regras e as correções" },
+// Casco da D2: link "pular", topo (marca + UF + "trocar estado"), navegação em duas camadas, rodapé. Server component, sem JS
+// essencial: a navegação fica sempre visível (sem menu hambúrguer). O layout lê o cookie e passa a UF por prop.
+export { LastPlace, RememberPlace } from "./shell-client";
+
+/** As duas perguntas principais. */
+const PRINCIPAIS = [
+  { href: "/v2", label: "O que está rolando?" },
+  { href: "/v2/acompanhando", label: "O que meus escolhidos estão fazendo?" },
 ] as const;
 
-// "Decisões" continua marcada dentro de uma decisão; o mesmo para votação e pessoa.
-const SECTION: Record<string, string> = { decisao: "/v2/decisoes", votacao: "/v2/votacoes", pessoa: "/v2/pessoas", tema: "/v2/temas", acompanhando: "/v2" };
+/** Linha "Também:". */
+const TAMBEM = [
+  { href: "/v2/decisoes", label: "O que mexe comigo?" },
+  { href: "/v2/temas", label: "O que está em jogo?" },
+  { href: "/v2/ajustes", label: "Ajustes" },
+] as const;
 
-function activeHref(path: string): string {
-  const seg = path.split("/")[2] ?? "";
-  if (!seg) return "/v2";
-  return SECTION[seg] ?? `/v2/${seg}`;
-}
+/** Rotas que a D2 não redesenhou: ficam acessíveis no rodapé. */
+const ROTAS = [
+  { href: "/v2/votacoes", label: "Votações" },
+  { href: "/v2/pessoas", label: "Pessoas" },
+  { href: "/v2/como-funciona", label: "Como funciona" },
+] as const;
 
-export function SvHeader() {
-  const path = usePathname() ?? "/v2";
-  const [open, setOpen] = useState(false);
-  const current = activeHref(path);
+export const CONTEUDO_ID = "sv-conteudo";
 
-  // trocar de página fecha o menu
-  useEffect(() => setOpen(false), [path]);
-
+/** Topo: "pular", marca, UF escolhida (ou "Escolha seu estado") e as duas camadas de navegação. Ordem do DOM = ordem visual. */
+export function Topo({ uf }: { uf: Prefs["uf"] }) {
   return (
     <>
-      <header className="sv-head">
-        <div className="sv-wrap">
-          <Link className="sv-wm" href="/v2">
-            Segue o Voto
+      <a className="sv-skip" href={`#${CONTEUDO_ID}`}>
+        Pular para o conteúdo
+      </a>
+      <header className="sv-wrap sv-topo">
+        <div className="sv-id">
+          <Link className="sv-marca" href="/v2">
+            segue o voto
           </Link>
-          <nav className="sv-nav" aria-label="Principal">
-            {NAV.map((n) => (
-              <Link key={n.href} href={n.href} aria-current={n.href === current ? "page" : undefined}>
-                {n.label}
-              </Link>
+          <p className="sv-uf">
+            {uf ? (
+              <>
+                {uf.nome} ({uf.sigla}) · <Link href="/v2/ajustes">trocar estado</Link>
+              </>
+            ) : (
+              <Link href="/v2/ajustes">Escolha seu estado</Link>
+            )}
+          </p>
+        </div>
+        <nav className="sv-perg" aria-label="Perguntas">
+          <ul className="sv-nv1">
+            {PRINCIPAIS.map((n) => (
+              <li key={n.href}>
+                <NavLink href={n.href}>{n.label}</NavLink>
+              </li>
             ))}
-          </nav>
-          <button className="sv-menubtn" type="button" aria-expanded={open} aria-controls="sv-menu" onClick={() => setOpen((o) => !o)}>
-            {open ? "Fechar" : "Menu"}
-          </button>
-        </div>
+          </ul>
+          <p className="sv-nv2">
+            <span>Também:</span>
+            {TAMBEM.map((n) => (
+              <NavLink key={n.href} href={n.href}>
+                {n.label}
+              </NavLink>
+            ))}
+          </p>
+        </nav>
       </header>
-      <nav className={open ? "sv-menu is-open" : "sv-menu"} id="sv-menu" aria-label="Menu">
-        <div className="sv-wrap">
-          {NAV.map((n, i) => (
-            <Link key={n.href} href={n.href} aria-current={n.href === current ? "page" : undefined} style={i === NAV.length - 1 ? { borderBottom: "1px solid var(--on-block)" } : undefined}>
-              {n.label}
-              <small>{n.note}</small>
-            </Link>
-          ))}
-        </div>
-      </nav>
     </>
   );
 }
 
-const KEY = "sv:cidade";
-
-/** Guarda a cidade escolhida só no aparelho. Nada vai para o servidor. */
-export function RememberPlace({ ibge }: { ibge: string }) {
-  useEffect(() => {
-    try {
-      localStorage.setItem(KEY, ibge);
-    } catch {
-      // armazenamento bloqueado: a cidade segue na URL
-    }
-  }, [ibge]);
-  return null;
-}
-
-/** Na Entrada sem cidade, oferece voltar à última escolhida neste aparelho. */
-export function LastPlace() {
-  const [ibge, setIbge] = useState<string | null>(null);
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(KEY);
-      if (v && /^\d{7}$/.test(v)) setIbge(v);
-    } catch {
-      // sem armazenamento, sem atalho
-    }
-  }, []);
-  if (!ibge) return null;
+/** Rodapé: fontes, quem conferiu, links (inclusive as rotas não redesenhadas) e a assinatura. */
+export function Rodape() {
   return (
-    <Link className="sv-more" href={`/v2?cidade=${ibge}`}>
-      Voltar à última cidade que você escolheu
-    </Link>
+    <footer className="sv-rod">
+      <div className="sv-wrap">
+        <p>Fontes: Câmara dos Deputados, Senado Federal (pauta e votos) e Justiça Eleitoral (TSE), para cargos e cadeiras. Cada página diz de onde veio cada dado e quando foi lido.</p>
+        <p>
+          <strong>{SELO.rodape}</strong>
+        </p>
+        <ul className="sv-rod__l">
+          {ROTAS.map((n) => (
+            <li key={n.href}>
+              <NavLink href={n.href}>{n.label}</NavLink>
+            </li>
+          ))}
+          <li>
+            <Link href="/v2/como-funciona#correcoes">{SELO.apontarErro}</Link>
+          </li>
+          <li>
+            <Link href="/">Versão atual do site</Link>
+          </li>
+        </ul>
+        <p className="sv-ass">Seu voto não termina na urna.</p>
+      </div>
+    </footer>
   );
 }

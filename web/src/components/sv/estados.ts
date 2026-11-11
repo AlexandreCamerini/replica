@@ -1,0 +1,57 @@
+// Linguagem de estados da D2 (HANDOFF-DIRECAO-2.md §6): a única fonte destas frases. Nenhuma tela escreve outra versão.
+// Sem JSX e sem dado: pode ser importado por server e client component.
+import type { AnswerState, CoverageStatus } from "@/lib/data";
+import { fmtDayMonth } from "./fmt";
+
+/** Afirmação (resposta de uma proposta), três estados do contrato + proposta ainda sem respostas publicadas. */
+export const AFIRMACAO = {
+  /** `nao_conferido`: padrão; nunca afirma nada sobre a lei. */
+  naoConferido: "Ainda não conseguimos conferir esta resposta.",
+  /** `nao_diz`: só quando o contraditor confirmou (ou o revisor marcou, em linha antiga). */
+  naoDiz: "O texto oficial não trata disso.",
+  /** proposta sem `answers` publicadas. */
+  aguardando: "Aguardando conferência",
+} as const;
+
+/** "Conferido com o texto oficial por agentes de IA em dd/mm" (estado `diz`). */
+export const conferidoEm = (iso: string | null | undefined) => `Conferido com o texto oficial por agentes de IA em ${fmtDayMonth(iso)}`;
+
+/** Frase de um campo sem afirmação. Falha fechada: só `nao_diz` diz que o texto não trata; o resto é "não conferido". */
+export const fraseSemAfirmacao = (state: AnswerState) => (state === "nao_diz" ? AFIRMACAO.naoDiz : AFIRMACAO.naoConferido);
+
+/** Dado que a fonte ainda não entregou, por `CoverageStatus`. `no_site` = lido: não há frase de status. */
+export const COBERTURA: Record<Exclude<CoverageStatus, "no_site">, string> = {
+  carregando: "Estamos carregando. Ainda não temos esse dado.",
+  so_portal: "Está só no portal oficial. Ainda não lemos.",
+  nao_publica: "A fonte não publica.",
+  desconhecido: "Ainda não temos esse dado.",
+};
+
+/** Sem status vindo do contrato: esta frase, sempre com a fonte nomeada ao lado. Nunca "0". */
+export const SEM_DADO = "Ainda não temos esse dado.";
+
+/** Frase de cobertura. `no_site` devolve null (o dado foi lido: mostre o dado). Sem status: `SEM_DADO`. */
+export function fraseCobertura(status: CoverageStatus | null | undefined): string | null {
+  if (status === "no_site") return null;
+  return status ? COBERTURA[status] : SEM_DADO;
+}
+
+/** Selo "Quem conferiu isso?" e rodapé. */
+export const SELO = {
+  pergunta: "Quem conferiu isso?",
+  resposta: "Agentes de inteligência artificial (IA), não uma pessoa.",
+  rodape: "Conferido por agentes de IA, não por pessoa.",
+  verConferido: "Ver o que foi conferido",
+  apontarErro: "Apontar um erro",
+} as const;
+
+/** Destinos do selo. "Apontar um erro" é o mesmo destino que o /v2 já usava no rodapé. */
+export const SELO_HREF = { verConferido: "/v2/como-funciona", apontarErro: "/v2/como-funciona#correcoes" } as const;
+
+/** "Já vale?": três estados, cada um com forma própria (círculo cheio, tracejado, cortado). */
+export type JaValeEstado = "ja" | "ainda" | "nao";
+export const JA_VALE: Record<JaValeEstado, { frase: string; legenda: string }> = {
+  ja: { frase: "Já vale.", legenda: "já vale" },
+  ainda: { frase: "Ainda não vale.", legenda: "ainda não vale" },
+  nao: { frase: "Não passou.", legenda: "não passou" },
+};
