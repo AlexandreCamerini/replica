@@ -268,8 +268,22 @@ export type VotingEventDetail = VotingEventSummary & {
   counts: Record<VoteValue, number>;
   orientations: { label: string; kind: "partido" | "bloco" | "governo" | "maioria" | "minoria" | "oposicao"; value: OrientationValue }[];
   byParty: { party: string; counts: Partial<Record<VoteValue, number>>; total: number }[];
+  /** `uf`: UF do mandato da pessoa NESTA casa na data da votação (null = sem mandato na casa carregado). */
   votes: { slug: string; name: string; party: string; uf: string | null; value: VoteValue }[];
+  /** Placar por UF com as cadeiras legais da UF; lacuna quando não há voto individual. */
+  porUf: PlacarPorUf;
 };
+/** Placar de uma UF numa votação: contagem por voto, como a fonte publicou, e as cadeiras da UF fixadas em lei (cadeiras.ts). */
+export type PlacarUf = { uf: string; cadeiras: number; contagem: Record<VoteValue, number>; registros: number };
+/**
+ * Placar por UF (cadeiras.ts `placarPorUf`). `placar`: uma linha por UF da casa, em ordem alfabética de sigla (nunca por
+ * tamanho); `semUf` = registros de quem não tem mandato na casa na data da votação (a UF não é identificada, não é inventada).
+ * `lacuna`: a votação não tem voto individual (secreta, aberta sem voto publicado ou só o placar total).
+ * Registros abaixo das cadeiras não é ausência: a fonte publica só quem teve registro.
+ */
+export type PlacarPorUf =
+  | { kind: "placar"; casa: Body; ufs: PlacarUf[]; semUf: number; fonteCadeiras: string }
+  | { kind: "lacuna"; motivo: string };
 export type ActivityItem = {
   personSlug: string;
   personName: string;
@@ -452,6 +466,9 @@ export type PautaStatus =
   | { kind: "reuniao_cancelada"; at: string }
   | { kind: "sem_leitura"; lastSeenAt: string };
 export type PautaVote = { id: string; occurredAt: string; description: string; result: string | null; yes: number | null; no: number | null };
+export type PautaAuthor = { slug: string; name: string; role: "principal" | "coautoria" };
+/** Uma página de uma lista e o total que a fonte tem. `truncado` = há mais itens do que os devolvidos (total > itens.length). */
+export type Lista<T> = { itens: T[]; total: number; truncado: boolean };
 export type PautaProposal = {
   entry: PautaEntry;
   status: PautaStatus;
@@ -459,8 +476,14 @@ export type PautaProposal = {
   readAt: string | null;
   fichaUrl: string | null;
   presentedOn: string | null;
-  authors: { slug: string; name: string; role: "principal" | "coautoria" }[];
+  /** @deprecated o v1 (/proposta) ainda lê: mesmos itens de `autores.itens`, sem o total. */
+  authors: PautaAuthor[];
+  /** @deprecated o v1 (/proposta) ainda lê: mesmos itens de `votacoes.itens`, sem o total. */
   votes: PautaVote[];
+  /** Autoria principal e coautoria: autoria principal primeiro, depois nome em ordem alfabética; até 20 e o total. */
+  autores: Lista<PautaAuthor>;
+  /** Votações da proposta, da mais recente para a mais antiga; até 5 e o total. */
+  votacoes: Lista<PautaVote>;
   answers: PublishedAnswers | null;
 };
 // Regra 3: respostas rascunhadas por IA, publicadas só depois de conferidas (por pessoa ou por agentes: `verifiedBy`).
@@ -483,6 +506,43 @@ export type PublishedAnswers = {
 };
 export type Correction = { key: string; label: string; correctedAt: string; note: string; changed: { field: AnswerField; before: AnswerClaim; after: AnswerClaim }[] };
 export type PocketRule = { version: number; themes: string[]; terms: string[]; publishedOn: string };
+
+// ---------- Cobertura por pessoa (cobertura.ts) ----------
+/** Os conjuntos que a Pessoa e os Escolhidos mostram. */
+export const CONJUNTOS_PESSOA = ["presenca", "votos", "gastos", "patrimonio", "propostas", "leis", "equipe", "comissoes", "emendas"] as const;
+export type ConjuntoPessoa = (typeof CONJUNTOS_PESSOA)[number];
+/**
+ * O que o banco sabe de um conjunto para uma pessoa. Só estados que o dado sustenta:
+ * - `lido`: há carimbo de carga da fonte da casa (dataset_stamps; SAPL: loaded_at). Lista vazia aqui é "não há", não lacuna.
+ * - `sem_fonte`: a fonte oficial não publica (data_coverage `nao_publica`; Senado não publica presença por senador).
+ * - `fonte_sem_adaptador`: está só no portal oficial, sem dado aberto que o ETL leia (data_coverage `so_portal`).
+ * - `nao_carregado`: a fonte publica ou pode publicar, mas não carregamos (data_coverage `carregando`, `no_site` sem carimbo,
+ *   `missing_datasets` do derive.stats, ou conjunto que o ETL não lê para este cargo).
+ * - `nao_conferido`: ainda não conferimos se a fonte publica (data_coverage `desconhecido` ou sem linha).
+ * - `nao_se_aplica`: o cargo não tem esse conjunto (Executivo não vota em plenário nem tem cota de gabinete).
+ * - `fora_do_mandato`: eleito que ainda não tomou posse: não há presença, votos nem gastos no cargo.
+ */
+export const ESTADOS_COBERTURA = ["lido", "sem_fonte", "fonte_sem_adaptador", "nao_carregado", "nao_conferido", "nao_se_aplica", "fora_do_mandato"] as const;
+export type EstadoCobertura = (typeof ESTADOS_COBERTURA)[number];
+export type CoberturaConjunto = {
+  conjunto: ConjuntoPessoa;
+  estado: EstadoCobertura;
+  /** frase curta, legível, do porquê do estado (vem do banco quando ele tem: data_coverage.reason) */
+  motivo: string;
+  /** de onde vem o dado (lido) ou a página que sustenta o motivo (lacuna); null = não há */
+  fonte: { nome: string; url: string | null } | null;
+  /** data da última carga (ISO), só em `lido`; null = sem carimbo */
+  lidoEm: string | null;
+};
+export type CoberturaPessoa = { personId: string; conjuntos: CoberturaConjunto[] };
+
+// ---------- Leituras em lote (Escolhidos) ----------
+/** `encontradas` na ordem dos slugs pedidos, já resolvido o redirecionamento de slug antigo; `naoEncontradas` = slugs que a fonte não conhece. */
+export type PessoasPorSlug = { encontradas: { slug: string; person: Person }[]; naoEncontradas: string[] };
+/** Votos de lei (scope "lei") mais recentes de cada pessoa e o total. */
+export type VotosRecentes = { items: PersonVote[]; total: number };
+/** Lote por id de pessoa: objeto simples (passa pelo cache como JSON). Pessoa sem linha = conjunto vazio para ela. */
+export type PorPessoa<T> = Record<string, T>;
 
 /** Contrato da camada de dados. A versão fake e a Postgres implementam isto; nenhuma tela importa a implementação. */
 export interface DataSource extends DataSourceW4 {
@@ -555,8 +615,12 @@ export interface DataSource extends DataSourceW4 {
   listSpeeches(personId: string, f: { year?: number; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
   getContacts(personId: string): Promise<ContactItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
-  /** Normas que fixam o salário do cargo (decreto legislativo ou Constituição), com a data da última carga. Vazio = sem salário carregado. */
-  getSalarySources(office: OfficeSlug): Promise<{ name: string; url: string; updatedAt: string }[]>;
+  /**
+   * Normas que fixam o salário do cargo (decreto legislativo ou Constituição). Vazio = sem salário carregado.
+   * `updatedAt` (v1): quando o valor gravado mudou pela última vez (max(salaries.updated_at)), não quando foi conferido.
+   * `loadedAt`: carimbo da carga da fonte da norma (dataset_stamps da mesma fonte); null = a carga não registra carimbo.
+   */
+  getSalarySources(office: OfficeSlug): Promise<{ name: string; url: string; updatedAt: string; loadedAt: string | null }[]>;
   /** Anos já carregados de um conjunto com carimbo por ano (ex.: "tse.contas" → [2018, 2020, …]), crescente. */
   listStampYears(prefix: string): Promise<number[]>;
   latestRefresh(): Promise<string>;
@@ -577,4 +641,21 @@ export interface DataSource extends DataSourceW4 {
   listCorrections(): Promise<Correction[]>;
   listSourceStatus(): Promise<SourceStatus[]>;
   getCoverageMatrix(): Promise<CoverageMatrix>;
+
+  // ---------- cobertura por pessoa ----------
+  /** Um leitor só, por pessoa: para cada conjunto de CONJUNTOS_PESSOA, estado, motivo, fonte e data da última carga. Ordem dos ids pedidos. */
+  getPeopleCoverage(personIds: string[]): Promise<CoberturaPessoa[]>;
+
+  // ---------- leituras em lote (número constante de consultas; cada uma lança ao falhar, o chamador decide a lacuna) ----------
+  getPeopleBySlugs(slugs: string[]): Promise<PessoasPorSlug>;
+  getMandatesForPeople(personIds: string[]): Promise<PorPessoa<Awaited<ReturnType<DataSource["getMandates"]>>>>;
+  getCandidaciesForPeople(personIds: string[]): Promise<PorPessoa<Awaited<ReturnType<DataSource["getCandidacies"]>>>>;
+  getLawsForPeople(personIds: string[]): Promise<PorPessoa<LawItem[]>>;
+  getStatsForPeople(personIds: string[], period: PeriodStats["period"]): Promise<PorPessoa<PeriodStats>>;
+  getAttendanceGridForPeople(personIds: string[], year: number): Promise<PorPessoa<AttendanceGrid>>;
+  /** Os `limit` votos mais recentes de cada pessoa no recorte "lei" (sem requerimento e urgência) e o total. */
+  getRecentLawVotesForPeople(personIds: string[], limit: number): Promise<PorPessoa<VotosRecentes>>;
+  /** Gasto do ano por categoria (mesma soma de `listExpenses(...).byCategory`). */
+  getExpensesByCategoryForPeople(personIds: string[], year: number): Promise<PorPessoa<{ label: string; cents: number }[]>>;
+  getPlaces(ibges: string[]): Promise<Place[]>;
 }

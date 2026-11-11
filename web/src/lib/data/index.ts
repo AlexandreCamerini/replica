@@ -38,11 +38,23 @@ const PERSON_ARG: ReadonlySet<keyof DataSource> = new Set([
   "getContacts",
 ] as const);
 
+/** Lotes por lista de ids de pessoa: cada id vira tag `person:<id>`, como nas leituras de uma pessoa. */
+const PEOPLE_BATCH: ReadonlySet<keyof DataSource> = new Set([
+  "getPeopleCoverage",
+  "getMandatesForPeople",
+  "getCandidaciesForPeople",
+  "getLawsForPeople",
+  "getStatsForPeople",
+  "getAttendanceGridForPeople",
+  "getRecentLawVotesForPeople",
+  "getExpensesByCategoryForPeople",
+] as const);
+
 export function cacheTags(prop: keyof DataSource, args: unknown[]): string[] {
   const tags = ["data", `ds:${String(prop)}`];
   const a0 = args[0];
   if (PERSON_ARG.has(prop) && typeof a0 === "string") tags.push(`person:${a0}`);
-  if ((prop === "getAgreement" || prop === "getActivity") && Array.isArray(a0)) for (const id of a0) if (typeof id === "string") tags.push(`person:${id}`);
+  if ((prop === "getAgreement" || prop === "getActivity" || PEOPLE_BATCH.has(prop)) && Array.isArray(a0)) for (const id of a0) if (typeof id === "string") tags.push(`person:${id}`);
   if ((prop === "getRepresentatives" || prop === "getCoverage") && a0 && typeof a0 === "object") tags.push(`place:${(a0 as Place).ibge}`);
   if (prop === "getPlace" && typeof a0 === "string") tags.push(`place:${a0}`);
   return tags.filter((t) => t.length <= 256).slice(0, 64); // limites do Next por entrada
