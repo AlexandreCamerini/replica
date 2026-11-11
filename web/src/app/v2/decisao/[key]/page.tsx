@@ -6,7 +6,7 @@ import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { SEM_DADO } from "@/components/sv/estados";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtWeekday } from "@/components/sv/fmt";
-import { COOKIE_TEXTO, readPrefs } from "@/components/sv/prefs";
+import { COOKIE_TEXTO } from "@/components/sv/prefs";
 import {
   Afirmacao,
   Etiqueta,
@@ -130,13 +130,13 @@ export default async function Decisao({ params }: { params: Promise<{ key: strin
   const e = p.entry;
   const a = p.answers;
   const campos = a?.fields ?? null;
-  const prefs = await readPrefs();
   const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
 
   const [escolhidosTodos, eventosRaw] = await Promise.all([carregarEscolhidos(follows), Promise.all(p.votes.map((v) => data.getVotingEvent(v.id)))]);
   const eventos = p.votes.map((v, i) => ({ v, ev: eventosRaw[i] }));
   // Esferas ligadas nos Ajustes: federal sempre; estadual e municipal só se ligadas. As desligadas ficam de fora, com aviso.
-  const escolhidos = escolhidosTodos.filter((x) => x.esfera.nivel === "federal" || (x.esfera.nivel === "estadual" ? prefs.esferas.estadual : prefs.esferas.municipal));
+  // Quem o leitor marcou nunca some: a escolha explícita vale mais que o interruptor de esfera (igual ao Início e a Escolhidos).
+  const escolhidos = escolhidosTodos;
   const ocultos = escolhidosTodos.length - escolhidos.length;
 
   const id = identificacao(e);

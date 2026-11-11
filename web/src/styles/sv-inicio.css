@@ -91,7 +91,7 @@
 /* COR: coluna "Hoje" = fio de 4px, cabeçalho com fundo --agora-luz, rótulo em --agora (d2.css v7, linhas 688–690) */
 .sv-d--hoje{border-top:4px solid var(--agora)}
 .sv-d--hoje .sv-d__c{background-color:var(--agora-luz);color:var(--tinta);padding:2px 6px}
-.sv-d--hoje .sv-d__q{color:var(--agora)}
+.sv-d--hoje .sv-d__q{color:var(--tinta)} /* §4 do handoff: rótulo em tinta (o texto vale sobre a maquete) */
 .sv-dec{display:flex;flex-direction:column;gap:3px;border-top:1.5px solid var(--tinta);padding:5px 0 4px}
 .sv-dec__t{font-size:17px;line-height:1.18;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
 .sv-dec--1 .sv-dec__t{font-size:21px;line-height:1.1;letter-spacing:-.02em}

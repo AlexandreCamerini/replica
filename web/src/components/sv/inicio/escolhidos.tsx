@@ -131,7 +131,7 @@ export async function Escolhidos({ slugs, ufSigla }: { slugs: string[]; ufSigla:
                       })}
                     </ul>
                   ) : (
-                    <SemVotos e={e} assembly={e.uf ? (assemblies.get(e.uf) ?? null) : null} />
+                    <SemVotos e={e} assembly={e.uf && (e.office === "deputado_estadual" || e.office === "deputado_distrital") ? (assemblies.get(e.uf) ?? null) : null} />
                   )}
                 </div>
                 <Link href={`/v2/pessoa/${e.slug}`}>

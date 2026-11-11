@@ -29,7 +29,7 @@ export default async function V2Layout({ children }: { children: React.ReactNode
       <Topo uf={prefs.uf} />
       {data.isDemo && (
         <div className="sv-demo">
-          <div className="sv-wrap">Versão de demonstração. Pessoas, partidos e números são fictícios.</div>
+          <div className="sv-wrap">Versão de demonstração. Exemplo ilustrativo: pessoas, partidos e números são fictícios.</div>
         </div>
       )}
       <div className="sv-wrap sv-main" id={CONTEUDO_ID} tabIndex={-1}>

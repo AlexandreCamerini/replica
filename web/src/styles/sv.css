@@ -93,9 +93,9 @@
 .sv-folio .sv-intro{padding:0}
 .sv-topq{display:flex;flex-direction:column;gap:6px;padding:6px 4px 8px;border-top:4px solid var(--tinta)}
 .sv-topq h1{font-size:28px;line-height:1.04;font-weight:800;letter-spacing:-.025em;font-stretch:96%;font-variation-settings:"opsz" 96;text-wrap:balance}
-.sv-ga{grid-area:a}.sv-gb{grid-area:b}.sv-gc{grid-area:c}.sv-gd{grid-area:d}.sv-ge{grid-area:e}.sv-gf{grid-area:f}
+@media (min-width:900px){.sv-ga{grid-area:a}.sv-gb{grid-area:b}.sv-gc{grid-area:c}.sv-gd{grid-area:d}.sv-ge{grid-area:e}.sv-gf{grid-area:f}
 .sv-gg{grid-area:g}.sv-gh{grid-area:h}.sv-gi{grid-area:i}.sv-gj{grid-area:j}.sv-gk{grid-area:k}.sv-gl{grid-area:l}
-.sv-gn{grid-area:n}.sv-gs{grid-area:s}.sv-gt{grid-area:t}.sv-gu{grid-area:u}.sv-gv{grid-area:v}.sv-gw{grid-area:w}
+.sv-gn{grid-area:n}.sv-gs{grid-area:s}.sv-gt{grid-area:t}.sv-gu{grid-area:u}.sv-gv{grid-area:v}.sv-gw{grid-area:w}}
 @media (min-width:900px){
   /* sem grid-template-areas aqui: cada tela declara as suas em sv-<tela>.css */
   .sv-pg{grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}
@@ -283,8 +283,8 @@
    not-found e as telas ainda em transição). Mesmas classes, agora em tinta sobre papel, sem cor de destaque, texto ≥ 13px,
    pesos ≤ 800 e largura ≤ 100% (limites dos eixos da Bricolage).
    ===================================================================================================================== */
-.sv-grid{display:grid;gap:clamp(28px,4vw,64px);align-items:start}
-.sv-cols{display:grid;gap:20px 40px}
+.sv-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(28px,4vw,64px);align-items:start}
+.sv-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:20px 40px}
 @media (min-width:900px){
   .sv-grid.is-5-7{grid-template-columns:5fr 7fr}
   .sv-grid.is-7-5{grid-template-columns:7fr 5fr}
@@ -308,7 +308,7 @@
 /* lista com régua */
 .sv-list{margin-top:6px;border-bottom:1.5px solid var(--tinta)}
 .sv .sv-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-top:1.5px solid var(--tinta);padding:10px 0;min-height:44px;font-size:17px;font-weight:700;text-decoration:none}
-.sv-row>span{font-weight:300;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sv-row>span{font-weight:300;font-variant-numeric:tabular-nums;white-space:normal;text-align:right}
 .sv-row>span.is-on{font-weight:800}
 .sv a.sv-row:hover,.sv a.sv-item:hover{background:color-mix(in srgb,var(--tinta) 6%,transparent)}
 
@@ -422,3 +422,8 @@ main:has(.sv){padding-bottom:0}
 .sv .sv-pes li>b:first-child{display:block;font-stretch:90%}
 .sv .sv-pes .sv-esf{display:block;margin:1px 0 2px}
 .sv .sv-pes .sv-lac{margin-top:4px}
+
+/* Aceite §9: alvo de 44px no link do rótulo e quebra de palavra com espaçamento de texto WCAG 1.4.12 a 320px. */
+.sv .sv-label a{display:inline-flex;align-items:center;min-height:44px}
+.sv .sv-main{overflow-wrap:break-word}
+.sv .sv-title,.sv .sv-lead{overflow-wrap:anywhere;min-width:0}
