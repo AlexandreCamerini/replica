@@ -27,13 +27,18 @@ echo "== $(date '+%Y-%m-%d %H:%M:%S') run-due sapl.todas (prod)"
 
 # O webhook vem do Keychain primeiro: as pré-condições abaixo usam-no para avisar. Nunca vai a argv nem a log (curl lê a URL por stdin).
 HOOK="$(security find-generic-password -s "$SERVICE" -a ETL_ALERT_WEBHOOK -w 2>/dev/null)" || HOOK=""
-alert() { # $1 = mensagem sem aspas nem barra invertida (JSON montado à mão); falha do alerta só vai ao log
+json_esc() { local t="${1//\\/\\\\}"; printf '%s' "${t//\"/\\\"}"; } # escapa \ e " para JSON
+alert() { # $1 = mensagem (escapada aqui); falha do alerta só vai ao log
   [[ -n "$HOOK" ]] || return 0
-  printf 'url = "%s"\n' "$HOOK" | curl -sS -m 15 -K - -H 'Content-Type: application/json' -d "{\"text\": \"sapl.todas (prod, launchd): $1\"}" >/dev/null 2>&1 \
+  printf 'url = "%s"\n' "$HOOK" | curl -sS -m 15 -K - -H 'Content-Type: application/json' -d "{\"text\": \"sapl.todas (prod, launchd): $(json_esc "$1")\"}" >/dev/null 2>&1 \
     || echo "webhook de alerta falhou ao enviar" >&2
 }
 die() { echo "$1" >&2; alert "$1"; exit 1; }
-if [[ -z "$HOOK" ]]; then
+HOOK_RE='^https://[^[:space:]"\\]+$'
+if [[ -n "$HOOK" && ! "$HOOK" =~ $HOOK_RE ]]; then
+  HOOK="" # nunca sai por isso; o valor não é impresso
+  echo "AVISO: ETL_ALERT_WEBHOOK com formato inválido; ignorado (esperado https://... sem espaço, aspas ou barra invertida). Falha deste run não será avisada; o vigia do site acusa em até 8 dias." >&2
+elif [[ -z "$HOOK" ]]; then
   # Não é erro: segue rodando como antes. O valor do webhook nunca aparece aqui (nem existe).
   echo "AVISO: sem ETL_ALERT_WEBHOOK no Keychain: falha deste run não será avisada; o vigia do site acusa em até 8 dias. Para ativar o alerta: security add-generic-password -U -s $SERVICE -a ETL_ALERT_WEBHOOK -w" >&2
 fi
@@ -44,8 +49,7 @@ URI="$(security find-generic-password -s "$SERVICE" -a ETL_DATABASE_URL -w 2>/de
 
 export ETL_DATABASE_URL="$URI"
 unset URI
-if [[ -n "$HOOK" ]]; then export ETL_ALERT_WEBHOOK="$HOOK"; fi
-unset HOOK
+if [[ -n "$HOOK" ]]; then export ETL_ALERT_WEBHOOK="$HOOK"; else unset ETL_ALERT_WEBHOOK; fi
 export ETL_TASKS_INCLUDE=sapl.todas
 export ETL_DEADLINE_MIN="${ETL_DEADLINE_MIN:-225}"
 export ETL_STATE_DIR="${CIVICO_SAPL_STATE:-$HOME/Library/Application Support/civico-etl-sapl}"
@@ -54,11 +58,14 @@ mkdir -p "$ETL_STATE_DIR"
 cd "$ROOT/etl"
 set +e
 "$PY" -m civico_etl.cli run-due 2>&1 | awk '
-  BEGIN { u = ENVIRON["ETL_DATABASE_URL"]; p = u; sub(/^[^:]*:\/\/[^:]*:/, "", p); sub(/@.*/, "", p); if (p == u) p = "" }
+  BEGIN { u = ENVIRON["ETL_DATABASE_URL"]; w = ENVIRON["ETL_ALERT_WEBHOOK"]; p = u; sub(/^[^:]*:\/\/[^:]*:/, "", p); sub(/@.*/, "", p); if (p == u) p = "" }
   { l = $0
     if (length(u)) while ((i = index(l, u)) > 0) l = substr(l, 1, i - 1) "<URI>" substr(l, i + length(u))
+    if (length(w)) while ((i = index(l, w)) > 0) l = substr(l, 1, i - 1) "<webhook>" substr(l, i + length(w))
     if (length(p) > 3) while ((i = index(l, p)) > 0) l = substr(l, 1, i - 1) "<senha>" substr(l, i + length(p))
     print l; fflush() }'
 rc=${PIPESTATUS[0]}
+if [[ "$rc" -ne 0 && "$rc" -ne 2 ]]; then alert "run-due saiu com exit $rc"; fi # exit 2: o próprio run-due já alertou
+unset HOOK
 echo "== fim (exit $rc)"
 exit "$rc"

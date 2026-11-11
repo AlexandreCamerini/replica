@@ -180,3 +180,59 @@ def test_ponta_a_ponta_keychain_de_teste(tmp_path):
     finally:
         for acct in ("ETL_DATABASE_URL", "ETL_ALERT_WEBHOOK"):
             subprocess.run(["security", "delete-generic-password", "-s", service, "-a", acct], capture_output=True)
+
+
+# --- C1/N3/N5/N6: alerta de saída anormal, validação do webhook, máscara no log e JSON escapado ----------------------------------------------
+def _run_py(tmp_path, items, script):
+    env, log, rec = _stub_env(tmp_path, items)
+    (tmp_path / "py").write_text("#!/bin/bash\n" + script)
+    r = subprocess.run(["bash", str(WRAP)], env=env, capture_output=True, text=True)
+    return r, log, rec
+
+
+@needs_mac
+@pytest.mark.parametrize("rc, alerta", [(1, True), (3, True), (2, False), (0, False)])
+def test_exit_anormal_do_run_due_alerta_exceto_2(tmp_path, rc, alerta):
+    r, log, rec = _run_py(tmp_path, {"ETL_DATABASE_URL": FAKE_URI, "ETL_ALERT_WEBHOOK": HOOK_URL}, f"exit {rc}\n")
+    assert r.returncode == rc  # o exit é sempre propagado
+    if alerta:
+        sent = rec.read_text()
+        assert sent.count("ARGV: ") == 1 and f"run-due saiu com exit {rc}" in sent and HOOK_URL in sent.split("\n", 1)[1]
+        assert HOOK_URL not in log.read_text()
+    else:
+        assert not rec.exists()
+
+
+@needs_mac
+def test_exit_anormal_sem_webhook_nao_chama_curl_e_propaga(tmp_path):
+    r, log, rec = _run_py(tmp_path, {"ETL_DATABASE_URL": FAKE_URI}, "exit 3\n")
+    assert r.returncode == 3 and not rec.exists()
+
+
+@needs_mac
+@pytest.mark.parametrize("bad", ["http://hooks.exemplo.test/SEGREDO-INVALIDO", "https://hooks.exemplo.test/a\nSEGREDO-INVALIDO", 'https://h.test/a"b', "https://h.test/a b"])
+def test_webhook_com_formato_invalido_e_ignorado_sem_sair(tmp_path, bad):
+    r, log, rec = _run_py(tmp_path, {"ETL_DATABASE_URL": FAKE_URI, "ETL_ALERT_WEBHOOK": bad}, 'echo "PYTHON RODOU hook=${ETL_ALERT_WEBHOOK:+set}"\nexit 1\n')
+    text = log.read_text()
+    assert r.returncode == 1 and "PYTHON RODOU hook=" in text and "hook=set" not in text  # run-due rodou, sem webhook no ambiente
+    assert "ETL_ALERT_WEBHOOK com formato inválido; ignorado" in text
+    assert not rec.exists()  # nenhum curl, nem na saída 1
+    assert "SEGREDO-INVALIDO" not in text and "hooks.exemplo.test" not in text and "h.test" not in text
+
+
+@needs_mac
+def test_filtro_do_log_mascara_a_url_do_webhook(tmp_path):
+    r, log, rec = _run_py(tmp_path, {"ETL_DATABASE_URL": FAKE_URI, "ETL_ALERT_WEBHOOK": HOOK_URL}, f'echo "falhou ao chamar {HOOK_URL} agora"\nexit 0\n')
+    text = log.read_text()
+    assert "<webhook>" in text and HOOK_URL not in text and "SEGREDO-DO-HOOK" not in text
+
+
+def test_json_do_alerta_escapa_aspas_e_barra():
+    import json
+
+    msg = 'sem a URI com "aspas" e \\barra'
+    src = WRAP.read_text()
+    fn = src[src.index("json_esc()"):src.index("alert()")]
+    out = subprocess.run(["bash", "-c", fn + '\njson_esc "$1"', "_", msg], capture_output=True, text=True, check=True).stdout
+    assert out == 'sem a URI com \\"aspas\\" e \\\\barra'
+    assert json.loads('{"t": "' + out + '"}')["t"] == msg
