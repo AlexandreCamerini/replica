@@ -5,6 +5,8 @@
    fundo --agora-luz no cabeçalho, rótulo "Hoje"); --vida só no rótulo "O que muda:" (até 3 por tela, ver semana.tsx). */
 
 /* ---------- grade: a tela declara as próprias áreas (sv.css só traz as classes sv-g*) ---------- */
+/* o bloco da semana não estica para acompanhar a coluna vizinha */
+.sv .sv-pg--rola>.sv-ge{align-self:start}
 /* celular: uma coluna, na ordem do DOM. Sem isto, grid-area com nome sem template jogaria os itens para a mesma linha implícita. */
 .sv .sv-pg--rola>*{grid-area:auto}
 @media (min-width:900px){

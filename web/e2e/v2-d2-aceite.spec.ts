@@ -489,7 +489,7 @@ test.describe("neutralidade", () => {
           if (location.pathname.startsWith("/v2/pessoa/")) aceitar(limpo(document.querySelector("h1")?.textContent ?? ""));
           document.querySelectorAll<HTMLElement>(".sv-voterow > div").forEach((d) => aceitar(limpo(d.firstChild?.textContent ?? "")));
           const ordenados = [...nomes].sort((a, b) => b.length - a.length);
-          let trocas = { nomes: 0, partidos: 0 };
+          const trocas = { nomes: 0, partidos: 0 };
           const walker = document.createTreeWalker(document.querySelector(".sv")!, NodeFilter.SHOW_TEXT);
           const nos: Text[] = [];
           while (walker.nextNode()) nos.push(walker.currentNode as Text);
@@ -747,7 +747,7 @@ test.describe("conteúdo", () => {
     }
   });
 
-  test("sem UF não aparece estado assumido; com UF só a escolhida", async ({ page, context }) => {
+  test("sem UF não aparece estado assumido; com UF só a escolhida", async ({ page }) => {
     const ESTADOS = ["Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal", "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso do Sul", "Mato Grosso", "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí", "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia", "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"];
     const falhas: string[] = [];
     for (const url of ["/v2", "/v2/acompanhando", "/v2/ajustes", "/v2/temas", "/v2/decisoes"]) {

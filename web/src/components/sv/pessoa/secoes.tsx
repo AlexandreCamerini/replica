@@ -265,7 +265,9 @@ export function mesDoMandato(inicio: string, fim: string, hoje: { ano: number; m
   const f = /^(\d{4})-(\d{2})/.exec(fim);
   if (!i || !f) return null;
   const n = (hoje.ano - +i[1]) * 12 + (hoje.mes - +i[2]) + 1;
-  const m = (+f[1] - +i[1]) * 12 + (+f[2] - +i[2]) + 1;
+  // fim no dia 1 (posse do sucessor em 1º de fevereiro): esse mês já não é do mandato
+  const fimNoDia1 = /^\d{4}-\d{2}-01/.test(fim);
+  const m = (+f[1] - +i[1]) * 12 + (+f[2] - +i[2]) + (fimNoDia1 ? 0 : 1);
   if (m < 1 || n < 1 || n > m) return null;
   return { n, m, nome: `${MESES[hoje.mes - 1][0].toUpperCase()}${MESES[hoje.mes - 1].slice(1)} de ${hoje.ano}` };
 }
