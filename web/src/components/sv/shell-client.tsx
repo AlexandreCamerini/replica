@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 
 /** Seção de cada rota do /v2: dentro de uma decisão, "O que mexe comigo?" continua marcado; o mesmo para tema, votação e pessoa. */
 const SECAO: Record<string, string> = {
@@ -31,39 +30,6 @@ export function NavLink({ href, children }: { href: string; children: React.Reac
   return (
     <Link href={href} aria-current={current}>
       {children}
-    </Link>
-  );
-}
-
-const KEY = "sv:cidade";
-
-/** Guarda a cidade escolhida só no aparelho. Nada vai para o servidor. */
-export function RememberPlace({ ibge }: { ibge: string }) {
-  useEffect(() => {
-    try {
-      localStorage.setItem(KEY, ibge);
-    } catch {
-      // armazenamento bloqueado: a cidade segue na URL
-    }
-  }, [ibge]);
-  return null;
-}
-
-/** Na Entrada sem cidade, oferece voltar à última escolhida neste aparelho. */
-export function LastPlace() {
-  const [ibge, setIbge] = useState<string | null>(null);
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(KEY);
-      if (v && /^\d{7}$/.test(v)) setIbge(v);
-    } catch {
-      // sem armazenamento, sem atalho
-    }
-  }, []);
-  if (!ibge) return null;
-  return (
-    <Link className="sv-more" href={`/v2?cidade=${ibge}`}>
-      Voltar à última cidade que você escolheu
     </Link>
   );
 }

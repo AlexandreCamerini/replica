@@ -1569,7 +1569,11 @@ async function verifiedByOf(ids: string[]): Promise<Map<string, VerifiedBy>> {
   try {
     const rows = await sql`select id, verified_by from answer_drafts where id = any (${ids}::uuid[])`;
     return new Map(rows.map((r) => [String(r.id), verifiedBy(r.verified_by)]));
-  } catch {
+  } catch (e) {
+    // esperado: coluna inexistente (sem a 0130, 42703) ou sem grant na coluna (42501). Qualquer outro erro é registrado.
+    // Nos dois casos a página degrada igual: sem dizer quem conferiu (null), nunca afirmando por quem.
+    const code = (e as { code?: unknown } | null)?.code;
+    if (code !== "42703" && code !== "42501") console.error("verifiedByOf: leitura de answer_drafts.verified_by falhou", e);
     return new Map();
   }
 }

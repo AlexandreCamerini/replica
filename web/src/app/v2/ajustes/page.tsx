@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { COOKIE_TEXTO, ESFERAS_COOKIE, UF_COOKIE, readPrefs, ufOptions } from "@/components/sv/prefs";
 import { LeituraAssembleia, carregarAssembleia } from "@/components/sv/ajustes/leitura-assembleia";
-import { Pergunta, Proxima, Quadro, Selo, Fonte } from "@/components/sv/ui";
+import { FALHOU_LEITURA } from "@/components/sv/estados";
+import { Lacuna, Notice, Pergunta, Proxima, Quadro, Selo, Fonte } from "@/components/sv/ui";
 import { data } from "@/lib/data";
 import type { Place } from "@/lib/data";
 import { salvarEsferas, salvarUf } from "./actions";
@@ -11,8 +12,11 @@ export const metadata: Metadata = { title: "Ajustes" };
 const VOLTAR = "/v2/ajustes";
 const FORM_ESFERAS = "aj-esferas";
 
-export default async function Ajustes() {
-  const [prefs, ufs] = await Promise.all([readPrefs(), ufOptions().catch(() => [])]);
+export default async function Ajustes({ searchParams }: { searchParams: Promise<{ erro?: string | string[] }> }) {
+  const [prefs, ufsLidas, sp] = await Promise.all([readPrefs(), ufOptions().catch(() => null), searchParams]);
+  const ufs = ufsLidas ?? [];
+  // erro devolvido pelas ações (lista fechada): o banco estava fora e nada foi gravado
+  const erroGravar = sp.erro === "leitura";
   const { uf, esferas } = prefs;
   const semUf = uf === null;
 
@@ -28,10 +32,13 @@ export default async function Ajustes() {
     <div className="sv-pg sv-pg--ajustes">
       <div className="sv-topq sv-gu">
         <h1>O que eu quero acompanhar?</h1>
+        {erroGravar && <Notice label="Nada foi guardado">Não conseguimos ler a lista de estados agora, então sua escolha não foi guardada. Tente de novo em alguns minutos.</Notice>}
         {uf ? (
           <p className="sv-t">
             Seu estado: <b>{uf.nome} ({uf.sigla})</b>.
           </p>
+        ) : prefs.ufFalhou ? (
+          <Lacuna motivo="O estado guardado neste navegador depende da lista de estados, que não pôde ser lida.">{FALHOU_LEITURA}</Lacuna>
         ) : (
           <p className="sv-t">Você ainda não escolheu um estado. Escolha o seu para ver a Assembleia e a Câmara da sua região.</p>
         )}
@@ -43,6 +50,7 @@ export default async function Ajustes() {
           <label className="sv-aj-rot" htmlFor="aj-uf-sel">
             Estado
           </label>
+          {ufsLidas === null && <Lacuna motivo="A lista de estados não pôde ser lida agora.">{FALHOU_LEITURA}</Lacuna>}
           <select id="aj-uf-sel" name="uf" className="sv-campo" defaultValue={uf?.sigla ?? ""} aria-describedby="aj-uf-d">
             <option value="">{uf ? "Nenhum estado (limpar a escolha)" : "Escolha um estado"}</option>
             {ufs.map((o) => (
@@ -82,7 +90,7 @@ export default async function Ajustes() {
         <div className="sv-bloco">
           <div className="sv-chk">
             <input type="checkbox" id="aj-est" name="estadual" form={FORM_ESFERAS} defaultChecked={esferas.estadual} aria-describedby="aj-est-d" />
-            <label htmlFor="aj-est">{esferas.estadual ? `Ligado: Assembleia${uf ? ` de ${uf.sigla}` : ""}.` : "Desligado."}</label>
+            <label htmlFor="aj-est">Acompanhar a Assembleia{uf ? ` de ${uf.sigla}` : " do meu estado"}</label>
           </div>
           <p className="sv-t">Para mudar, marque ou tire a marca da caixa e toque em “Guardar escolhas”.</p>
           {uf ? (
@@ -114,7 +122,7 @@ export default async function Ajustes() {
         <div className="sv-bloco">
           <div className="sv-chk">
             <input type="checkbox" id="aj-mun" name="municipal" form={FORM_ESFERAS} defaultChecked={!semUf && esferas.municipal} disabled={semUf} aria-describedby="aj-mun-d" />
-            <label htmlFor="aj-mun">{semUf ? "Indisponível: falta escolher o estado." : esferas.municipal ? "Ligado: Câmara Municipal." : "Desligado."}</label>
+            <label htmlFor="aj-mun">Acompanhar a Câmara Municipal{semUf ? " (escolha o estado primeiro)" : ""}</label>
           </div>
           <p className="sv-t">{semUf ? "Escolha seu estado primeiro: a lista de cidades depende dele." : "Para mudar, marque ou tire a marca da caixa e toque em “Guardar escolhas”."}</p>
           <div className="sv-cid">

@@ -162,7 +162,7 @@ export default async function Temas() {
   if (!overview) resposta = "Não conseguimos ler a pauta agora.";
   else if (!temItens && !readAt) resposta = "A pauta desta semana ainda não foi lida.";
   else if (!temItens) resposta = "Nenhum item que acompanhamos na pauta lida desta semana.";
-  else resposta = `Na pauta desta semana há ${plural(itens.length, "item", "itens")}.`;
+  else resposta = `Na pauta desta semana há ${plural(itens.length, "item", "itens")} que acompanhamos.`;
 
   const ufNome = prefs.uf?.sigla === "DF" ? "Câmara Legislativa do DF" : prefs.uf ? `Assembleia de ${prefs.uf.sigla}` : null;
 

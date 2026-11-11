@@ -6,6 +6,25 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ESFERAS_COOKIE, PREFS_MAX_AGE, UF_COOKIE, parseCidade, parseEsferas, parseUf, serializeEsferas, ufOptions, voltarSeguro } from "@/components/sv/prefs";
 
+/** Erro nomeado na volta (lista fechada; nunca ecoa entrada): `leitura` = a lista de UFs não pôde ser lida, nada foi gravado. */
+export type ErroAjustes = "leitura";
+
+/** Destino seguro + `?erro=leitura` (ou `&erro=…`), sem perder o fragmento. */
+function comErro(voltar: string, erro: ErroAjustes): string {
+  const [semHash, hash] = voltar.split("#", 2);
+  return `${semHash}${semHash.includes("?") ? "&" : "?"}erro=${erro}${hash !== undefined ? `#${hash}` : ""}`;
+}
+
+/** Lista de UFs ou null se a fonte falhou. O redirect fica FORA do try: `redirect()` lança e não pode ser engolido. */
+async function opcoesOuNull() {
+  try {
+    return await ufOptions();
+  } catch (e) {
+    console.error("ajustes: a lista de UFs não pôde ser lida", e);
+    return null;
+  }
+}
+
 const COOKIE = { path: "/", maxAge: PREFS_MAX_AGE, sameSite: "lax" as const, httpOnly: true, secure: process.env.NODE_ENV === "production" };
 
 /**
@@ -15,7 +34,9 @@ const COOKIE = { path: "/", maxAge: PREFS_MAX_AGE, sameSite: "lax" as const, htt
 export async function salvarUf(form: FormData): Promise<void> {
   const jar = await cookies();
   const raw = String(form.get("uf") ?? "").trim();
-  const opts = await ufOptions();
+  const voltar = voltarSeguro(form.get("voltar"));
+  const opts = await opcoesOuNull();
+  if (!opts) redirect(comErro(voltar, "leitura")); // banco fora: nada gravado, erro nomeado em vez de 500
   const nova = parseUf(raw, opts.map((o) => o.sigla));
   const atual = parseUf(jar.get(UF_COOKIE)?.value, opts.map((o) => o.sigla));
   if (raw === "") jar.delete(UF_COOKIE);
@@ -24,7 +45,7 @@ export async function salvarUf(form: FormData): Promise<void> {
     const esf = parseEsferas(jar.get(ESFERAS_COOKIE)?.value);
     if (esf?.cidade) jar.set(ESFERAS_COOKIE, serializeEsferas({ ...esf, cidade: null }), COOKIE);
   }
-  redirect(voltarSeguro(form.get("voltar")));
+  redirect(voltar);
 }
 
 /**
@@ -36,7 +57,8 @@ export async function salvarEsferas(form: FormData): Promise<void> {
   const voltar = voltarSeguro(form.get("voltar"));
   if (form.get("esferas") !== "1") redirect(voltar);
   const jar = await cookies();
-  const opts = await ufOptions();
+  const opts = await opcoesOuNull();
+  if (!opts) redirect(comErro(voltar, "leitura"));
   const sigla = parseUf(jar.get(UF_COOKIE)?.value, opts.map((o) => o.sigla));
   const ufIbge = opts.find((o) => o.sigla === sigla)?.ibge ?? null;
   // sem o campo `cidade` no POST, fica a cidade já guardada (se ainda for da UF); campo vazio apaga
