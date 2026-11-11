@@ -124,11 +124,32 @@ Regras de série: P06, P09, P10 e P11 não rodam juntas com outra PR que toque `
 
 ## 5. Andamento
 
+Atualizado em 11/11/2026, fim da onda 0 (Fase 1) e começo da onda 1.
+
 | Item | PR | Estado | Evidência |
 | --- | --- | --- | --- |
 | Fase 0 | R | feito | este arquivo |
-| A1 | #20 | pendente | |
-| A2 | #21 | pendente | |
-| A3 | #22 | pendente | |
+| A1 testes do upsert | #20 | feito | merge `bb50a16`; revisão independente (opus): sem bloqueio; corrige `KeyError` no log de `party_memberships` que estava na main. Dívidas: `where="true"` só no primeiro upsert de `salaries` (tetos estaduais ficam de fora) e o teste de `sync_party_memberships` pula no CI por "banco sem carga" |
+| A2 mapa do fluxo | #21 | feito | merge `6280598`; o verificador saía com 1 em checkout limpo (`etl/.cache`), corrigido em `a79fe58`; amostra da revisão: 17 corretas, 3 imprecisas, 0 falsas em 22 |
+| A3 Direção 2 no /v2 | #22 | feito | merge `5c2bff3`. 1ª revisão (opus): **não mergear** (selo afirmava "agentes de IA, não pessoa" sem dado). Corrigido em `a79a26b`…`7dec00c` + `6a4807d`; re-revisão: mergear com dívida. Local: tsc, eslint, 35 unitários, build, e2e 464 passaram, 0 falharam, 74 pulados. Postgres local (dados reais): 12 páginas 200. Produção após o deploy: 15 páginas 200, sem erro visível (D296) |
+| A7 alerta do SAPL (Fase 2b) | #23 | feito | merge `91f7c77`; webhook opcional (D299); re-revisão sem achado; pytest 52 passaram, 2 pulados; `health.test.ts` 7/7; carimbo `sapl.*` de produção com 16 h |
+| A8 integração do `run_verificar` | #24 | feito | merge `eb77a09`; 97 testes novos, suíte 510 passaram, 32 pulados; 6 divergências código × especificação confirmadas (D300) |
+| A5 BUG-050 | #25 | em revisão | duas revisões (opus): mergear com dívida; correções pedidas ao autor (ramo "sumiu da listagem" só anota; teto de 5; savepoint; log). Produção, leitura: 26 suplentes abertos, só `leonardo-gadelha` parado desde 06/11 |
+| A4 CI do web | P01 | em execução | |
+| A6 BUG-008 | P03 | em execução | o #418 também aparece em `tema-perfil.spec.ts` sob carga (D297) |
+| A9 contrato de dados | P06 | em execução | inclui o leitor em lote dos escolhidos (dívida da #22) |
 | ETL: migrações, pauta, webhook, agenda | — | feito antes desta execução | §1 |
-| ETL: run verde | P02 | pendente | 6 runs vermelhos pela mesma causa (BUG-050) |
+| ETL: run verde | #25 | pendente | 7 runs vermelhos pela mesma causa (BUG-050), o último em 11/11 06:20 UTC |
+
+### Dívidas registradas nas revisões
+
+| Origem | Dívida | Destino |
+| --- | --- | --- |
+| #22 | N+1 dos escolhidos (até ~130 consultas por request com 12 pessoas) | P06 |
+| #22 | `sv_sigo` (voto declarado) gravado por script; falta server action com `httpOnly`; quem não clicar de novo fica com o cookie antigo em `path=/` | PR própria de privacidade, depois da P11 |
+| #22 | `prefs.ufFalhou` e o erro de Ajustes com banco fora sem e2e; Temas ainda mostra "Escolha seu estado" quando a leitura das UFs falha; pessoa marcada que a fonte não encontra some sem aviso no Início | P10 |
+| #22 | rodapé do v1 diz "Temas lidos por IA, aguardando revisão por pessoa" | P14 (texto coerente com D293) |
+| #20 | `where="true"` também no upsert dos tetos estaduais; teste de `party_memberships` com fixture própria | P06 troca o rótulo por carimbo; o teste entra na próxima PR de ETL |
+| #23 | tempestade de alertas de hora em hora; ponta a ponta com Keychain real não cobre "item ausente" | adiado |
+| #24 | run de `verificar` abortado fecha como `succeeded` e carimba o dataset; `streak` só zera em sucesso; `reviewer` não identifica a execução; banco aceita `barrado` sem relatório | pré-requisito de ligar a publicação (D300) |
+| #25 | suplente que entrou no 1º dia tratado como titular; suplente efetivado "Titular" colide com a exclusão e derruba o run | BUG-051 e BUG-052, a abrir |
