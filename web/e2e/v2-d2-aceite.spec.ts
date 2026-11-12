@@ -1187,6 +1187,10 @@ test.describe("placar por UF na votação", () => {
     await abrir(page, "/v2/votacao/camara-demo-sem-votos?uf=SP");
     await expect(page.locator("body")).toContainText("não há placar por estado");
     await expect(page.locator("[data-placar-uf]")).toHaveCount(0);
+    // nem o placar geral vira barras de zeros: lacuna nomeada no lugar
+    await expect(page.locator("[data-sem-voto-individual]")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("0 registros nesta votação");
+    await expect(page.locator('[role="img"][aria-label^="Sim 0"]')).toHaveCount(0);
   });
 });
 

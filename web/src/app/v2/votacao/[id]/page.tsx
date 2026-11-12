@@ -77,6 +77,8 @@ export default async function Votacao({ params, searchParams }: { params: Promis
   const c = ev.counts;
   const total = ORDER.reduce((s, k) => s + (c[k] ?? 0), 0);
   const others = (c.obstrucao ?? 0) + (c.art17 ?? 0) + (c.nao_votou ?? 0);
+  // sem voto individual carregado (secreta, aberta sem voto publicado ou nenhum registro): o placar por UF já é lacuna
+  const semIndividual = ev.porUf.kind === "lacuna" || total === 0;
   const ufs = [...new Set(ev.votes.map((v) => v.uf).filter((u): u is string => !!u))].sort();
   const ufRaw = typeof sp.uf === "string" ? sp.uf.toUpperCase() : null; // `?uf=SP&uf=RJ` chega como array: ignorado
   const uf = ufRaw && ufs.includes(ufRaw) ? ufRaw : null;
@@ -94,20 +96,34 @@ export default async function Votacao({ params, searchParams }: { params: Promis
           </h1>
           <p className="sv-meta sv-mt-2">
             {ev.proposal?.label ? `${ev.proposal.label}. ` : ""}
-            {total} registros nesta votação.
+            {semIndividual ? "" : `${total} registros nesta votação.`}
             {ev.result ? ` Resultado: ${ev.result}.` : ""}
           </p>
           {ev.proposal?.summary && ev.description !== ev.proposal.summary && <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>O que foi votado: {clip(ev.description, 260)}</p>}
 
-          <div className="sv-mt-3" role="img" aria-label={`Sim ${c.sim ?? 0}, Não ${c.nao ?? 0}, Abstenção ${c.abstencao ?? 0}, outros registros ${others}`}>
-            <Bar label="Sim" kind="is-sim" weight={600} n={c.sim ?? 0} total={total} />
-            <Bar label="Não" kind="is-nao" weight={600} n={c.nao ?? 0} total={total} />
-            <Bar label="Abstenção" kind="is-abs" weight={600} n={c.abstencao ?? 0} total={total} />
-            <Bar label="Outros" weight={200} n={others} total={total} />
-          </div>
-          <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
-            Outros soma obstrução ({c.obstrucao ?? 0}), quem presidia ({c.art17 ?? 0}) e quem não registrou voto ({c.nao_votou ?? 0}). Não é voto contra. A fonte publica só quem teve registro: ausência não aparece.
-          </p>
+          {semIndividual ? (
+            // sem voto individual: lacuna nomeada, nunca barras de zeros; o placar total só se a fonte o publicou
+            <div className="sv-mt-3" data-sem-voto-individual>
+              <Gap>{ev.porUf.kind === "lacuna" ? ev.porUf.motivo : "A fonte não publicou o voto de cada pessoa nesta votação."}</Gap>
+              {(ev.yes ?? 0) + (ev.no ?? 0) > 0 && (
+                <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
+                  Placar total publicado pela fonte: {ev.yes} sim e {ev.no} não.
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="sv-mt-3" role="img" aria-label={`Sim ${c.sim ?? 0}, Não ${c.nao ?? 0}, Abstenção ${c.abstencao ?? 0}, outros registros ${others}`}>
+                <Bar label="Sim" kind="is-sim" weight={600} n={c.sim ?? 0} total={total} />
+                <Bar label="Não" kind="is-nao" weight={600} n={c.nao ?? 0} total={total} />
+                <Bar label="Abstenção" kind="is-abs" weight={600} n={c.abstencao ?? 0} total={total} />
+                <Bar label="Outros" weight={200} n={others} total={total} />
+              </div>
+              <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
+                Outros soma obstrução ({c.obstrucao ?? 0}), quem presidia ({c.art17 ?? 0}) e quem não registrou voto ({c.nao_votou ?? 0}). Não é voto contra. A fonte publica só quem teve registro: ausência não aparece.
+              </p>
+            </>
+          )}
         </div>
 
         <div>
