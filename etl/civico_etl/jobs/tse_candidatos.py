@@ -483,7 +483,8 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | Non
 def title_source_rows(paths: list[Path], where: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Todas as linhas do arquivo com os títulos das linhas carregadas (BUG-044). O mesmo título em 2 SQ da mesma eleição com
     nomes diferentes não prova nenhuma das linhas; a carga padrão só lê eleitos, e o 2º SQ (não eleito) ficaria invisível.
-    Sem filtro (`--all` ou reparo), as linhas carregadas já são todas."""
+    Sem filtro (`--all` ou reparo), as linhas carregadas já são todas. A busca é dentro dos arquivos da carga: numa carga
+    `--uf`, o 2º SQ de outra UF só é visto se já estiver em tse_titulo_candidatura; senão vale `title_row_foreign`."""
     if not where:
         return rows
     return _read(paths, COLS, f"where NR_TITULO_ELEITORAL_CANDIDATO in (select NR_TITULO_ELEITORAL_CANDIDATO from t {where})")
@@ -537,33 +538,23 @@ def _drop_superseded(conn: psycopg.Connection, r: Run, olds: list[dict[str, Any]
         log.info("tse %d: registro substituído %s (%s) saiu para o deferido/eleito da mesma disputa", year, c["tse_sequencial"], c["result"])
 
 
-def _load_votes_ue(conn: psycopg.Connection, con, paths: list[Path], year: int) -> int:
-    """Votos por (SG_UE, SQ, turno) nos anos de SQ_COM_UE (BUG-048). A candidatura é a da chave tse ANO:UE:SQ da própria
-    pessoa (D224), como em tse_votos_contas._apply_ue; linha sem SG_UE não grava."""
-    agg: dict[tuple[str, str, int], int] = defaultdict(int)
+def _load_votes_ue(conn: psycopg.Connection, con, paths: list[Path], year: int, r) -> int:
+    """Votos por (SG_UE, SQ, turno) nos anos de SQ_COM_UE (BUG-048), com a mesma regra de tse_votos_contas: a candidatura é a
+    da chave tse ANO:UE:SQ da própria pessoa (D224), uma por chave (`_cand_by_ue`: sem chave ou com 2 UEs fica de fora, com
+    nota). Linha sem SG_UE (ou arquivo sem a coluna) não grava, e a contagem vai para as notas do run."""
+    from .tse_votos_contas import _apply_ue, _note_sem_ue
+
+    agg: dict[tuple[tuple[str, str], int], int] = defaultdict(int)
     for p in paths:
         rel = con.read_csv(str(p), delimiter=";", header=True, quotechar='"', all_varchar=True)
         con.register("t", rel)
         ue = "SG_UE" if "SG_UE" in rel.columns else "NULL"
         for u, sq, turno, qt in con.execute(
                 f"select {ue}, SQ_CANDIDATO, NR_TURNO, sum(try_cast(QT_VOTOS_NOMINAIS as bigint)) from t group by 1, 2, 3").fetchall():
-            if (u or "").strip():
-                agg[(u.strip(), sq, int(turno))] += int(qt or 0)
+            agg[(((u or "").strip(), sq), int(turno))] += int(qt or 0)
         con.unregister("t")
-    cur = conn.cursor()
-    cur.execute("create temp table tmp_votes_ue (ue text, sq text, turno int, votes bigint) on commit drop")
-    with cur.copy("copy tmp_votes_ue (ue, sq, turno, votes) from stdin") as cp:
-        for (u, sq, turno), v in agg.items():
-            cp.write_row((u, sq, turno, v))
-    cur.execute(
-        """update candidacies c set votes = t.votes, updated_at = now()
-           from tmp_votes_ue t, elections e, person_external_ids x, sources s
-           where c.tse_sequencial = t.sq and c.election_id = e.id and e.year = %s and e.round = t.turno
-             and x.person_id = c.person_id and x.source_id = s.id and s.slug = 'tse' and x.external_id = e.year || ':' || t.ue || ':' || t.sq
-             and c.votes is distinct from t.votes""",
-        (year,),
-    )
-    return cur.rowcount
+    _note_sem_ue(r, year, {k for k, _ in agg}, "votação")
+    return _apply_ue(conn, year, "votes", {key: v for key, v in agg.items() if key[0][0]}, by_round=True, r=r)
 
 
 def _load_votes(conn: psycopg.Connection, year: int, ufs: list[str] | None, force: bool) -> None:
@@ -579,7 +570,7 @@ def _load_votes(conn: psycopg.Connection, year: int, ufs: list[str] | None, forc
             con = duckdb.connect()
             if int(year) in SQ_COM_UE:
                 # BUG-048: o SQ se repete entre UEs (BUG-035); soma por (UE, SQ) e casa pela chave ANO:UE:SQ da pessoa
-                r.add(_load_votes_ue(conn, con, paths, year))
+                r.add(_load_votes_ue(conn, con, paths, year, r))
                 return
             agg: dict[tuple[str, int], int] = defaultdict(int)
             for p in paths:

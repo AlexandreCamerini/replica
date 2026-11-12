@@ -1,7 +1,8 @@
 """BUG-048: votação e contas do TSE casavam a candidatura só pelo SQ (e turno). Em 2012 o SQ se repete entre a eleição
 ordinária de um município e a suplementar de outro (BUG-035, 91 duplas): as duas candidaturas recebiam a soma das duas.
 Correção: nos anos de SQ_COM_UE a chave é (SG_UE, SQ), e a candidatura do banco é a da chave tse ANO:UE:SQ da própria pessoa.
-Fora de SQ_COM_UE (2014+), tudo fica igual: o teste de caracterização de 2022/2024 passa no main e neste branch.
+Fora de SQ_COM_UE (2014+), nada muda: os testes de 2022/2024 são caracterização com valores fixos (votos, centavos, status
+e source_key esperados escritos à mão), que passam igual no main e neste branch. Não são prova geral de equivalência.
 
 Tudo sintético (SQ, UE, lugares e pessoas fictícios), numa transação desfeita, sem supor banco vazio. Funções novas são
 importadas dentro dos testes."""
@@ -126,8 +127,8 @@ def test_2012_linha_sem_ue_nao_grava(conn):
 
 @pytest.mark.parametrize("year", [2022, 2024])
 def test_fora_de_sq_com_ue_nada_muda(conn, year):
-    """Caracterização (equivalência): fora de SQ_COM_UE a chave é o SQ, o SG_UE é ignorado e os source_key são os de sempre.
-    Este teste passa igual no main (sem BUG-048) e neste branch."""
+    """Caracterização com valores fixos: fora de SQ_COM_UE a chave é o SQ, o SG_UE é ignorado e os source_key são os de
+    sempre. Passa igual no main (sem BUG-048) e neste branch."""
     _need(conn)
     sq2 = "99000480002"
     with conn.transaction(force_rollback=True):
@@ -180,23 +181,29 @@ def _run_finance_compat(conn, year: int, z) -> None:
 
 
 def _patch_loader(monkeypatch, tc, p):
+    """Troca download, extração e run do loader; devolve o objeto do run (as notas ficam em .notes)."""
     monkeypatch.setattr(tc, "fetch", lambda url: types.SimpleNamespace(path=p, checksum="x"))
     monkeypatch.setattr(tc, "_extract", lambda *a, **k: [p])
+    run_ = types.SimpleNamespace(add=lambda n: None, notes=[])
 
     class _Run:
         def __enter__(self):
-            return types.SimpleNamespace(add=lambda n: None)
+            return run_
 
         def __exit__(self, *a):
             return False
 
     monkeypatch.setattr(tc, "run", lambda *a, **k: _Run())
+    return run_
 
 
-def _votacao_csv(tmp_path, year: int, linhas: list[tuple[str, str, str]]):
+def _votacao_csv(tmp_path, year: int, linhas: list[tuple[str, str, str]], with_ue: bool = True):
     p = tmp_path / f"votacao_candidato_munzona_{year}_AC.utf8.csv"
-    p.write_text("\n".join(['"SQ_CANDIDATO";"NR_TURNO";"QT_VOTOS_NOMINAIS";"SG_UE"'] + [f'"{sq}";"1";"{v}";"{ue}"' for sq, v, ue in linhas]) + "\n",
-                 encoding="utf-8")
+    if with_ue:
+        body = ['"SQ_CANDIDATO";"NR_TURNO";"QT_VOTOS_NOMINAIS";"SG_UE"'] + [f'"{sq}";"1";"{v}";"{ue}"' for sq, v, ue in linhas]
+    else:
+        body = ['"SQ_CANDIDATO";"NR_TURNO";"QT_VOTOS_NOMINAIS"'] + [f'"{sq}";"1";"{v}"' for sq, v, _ in linhas]
+    p.write_text("\n".join(body) + "\n", encoding="utf-8")
     return p
 
 
@@ -215,7 +222,8 @@ def test_load_votes_do_loader_em_2012_por_ue(conn, tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("year", [2022, 2024])
 def test_load_votes_do_loader_fora_de_sq_com_ue_nada_muda(conn, tmp_path, monkeypatch, year):
-    """Caracterização do loader: fora de SQ_COM_UE soma por SQ e ignora o SG_UE. Passa igual no main e neste branch."""
+    """Caracterização do loader com valores fixos: fora de SQ_COM_UE soma por SQ e ignora o SG_UE. Passa igual no main e
+    neste branch."""
     from civico_etl.jobs import tse_candidatos as tc
 
     _need(conn)
@@ -226,3 +234,127 @@ def test_load_votes_do_loader_fora_de_sq_com_ue_nada_muda(conn, tmp_path, monkey
         tc._load_votes(conn, year, None, True)
         s = _state(conn, cids)
         assert (s["99483"][0], s["99484"][0]) == (110, 5)
+
+
+# ---------- B4: _place_votes, doadores, notas, candidatura sem chave, cassação fora do mapa ----------
+
+def _key(conn, cid: str, external_id: str) -> None:
+    """Chave tse a mais na pessoa da candidatura (pessoa com 2 UEs para o mesmo SQ)."""
+    conn.execute("""insert into person_external_ids (person_id, source_id, external_id, match_method, match_confidence)
+                    select person_id, (select id from sources where slug = 'tse'), %s, 'exact_id', 1 from candidacies where id = %s""",
+                 (external_id, cid))
+
+
+def _drop_key(conn, cid: str) -> None:
+    """Tira a chave tse ANO:UE:SQ da pessoa da candidatura (candidatura sem chave UE)."""
+    conn.execute("""delete from person_external_ids where source_id = (select id from sources where slug = 'tse')
+                    and person_id = (select person_id from candidacies where id = %s)""", (cid,))
+
+
+def _place_rows(conn, cid: str) -> list[tuple[str, int]]:
+    return [(x["name"], x["votes"]) for x in conn.execute(
+        """select pl.name, v.votes from candidacy_place_votes v join places pl on pl.id = v.place_id
+           where v.candidacy_id = %s order by 1""", (cid,))]
+
+
+def test_2012_votos_por_municipio_de_cada_ue(conn):
+    """_place_votes de verdade: cargo com voto por município (CD_CARGO 7, fora de MUNICIPAL_CARGOS) e o mesmo SQ em 2 UEs.
+    Cada candidatura recebe só as linhas da sua UE. Antes, uma das duas levava os votos por município das duas."""
+    _need(conn)
+    with conn.transaction(force_rollback=True):
+        cids = _setup(conn, 2012, [("99481", "municipal", "1"), ("99482", "suplementar", "2")], {"99481": SQ, "99482": SQ})
+        _run_votes_compat(conn, 2012, _votacao(2012, [
+            [SQ, "1", "", "100", "AC", "TESTE BUG-048 1", "7", "#NULO", "99481"],
+            [SQ, "1", "", "20", "AC", "TESTE BUG-048 2", "7", "#NULO", "99481"],
+            [SQ, "1", "", "7", "AC", "TESTE BUG-048 2", "7", "#NULO", "99482"],
+        ]))
+        assert _place_rows(conn, cids["99481"]) == [("Teste BUG-048 1", 100), ("Teste BUG-048 2", 20)]
+        assert _place_rows(conn, cids["99482"]) == [("Teste BUG-048 2", 7)]
+
+
+def test_2012_source_key_dos_doadores_leva_a_ue(conn):
+    """campaign_finance_donors em 2012: source_key tse:2012:UE:SQ:..., um por UE, sem colidir."""
+    _need(conn)
+    with conn.transaction(force_rollback=True):
+        cids = _setup(conn, 2012, [("99481", "municipal", "1"), ("99482", "suplementar", "2")], {"99481": SQ, "99482": SQ})
+        _run_finance_compat(conn, 2012, _contas(2012, [
+            [SQ, "P1", "1000,00", "Recursos de partido político", "FUNDO ESPECIAL", "", "Direção Nacional", "", "PX", "99481"],
+            [SQ, "P2", "50,00", "Recursos de partido político", "FUNDO ESPECIAL", "", "Direção Estadual", "", "PX", "99482"],
+        ], []))
+        got = {ue: [(x["source_key"], x["amount_cents"]) for x in conn.execute(
+            "select source_key, amount_cents from campaign_finance_donors where candidacy_id = %s", (cid,))] for ue, cid in cids.items()}
+        assert [v for _, v in got["99481"]] == [100000] and got["99481"][0][0].startswith(f"tse:2012:99481:{SQ}:fefc:")
+        assert [v for _, v in got["99482"]] == [5000] and got["99482"][0][0].startswith(f"tse:2012:99482:{SQ}:fefc:")
+
+
+def test_2012_candidatura_sem_chave_ue_ou_com_2_ues_nao_grava_e_deixa_nota(conn):
+    """B2: candidatura de 2012 sem a chave tse 2012:UE:SQ, ou com 2 UEs, fica fora da votação e das contas, com a contagem
+    nas notas do run (uma vez por run). A outra candidatura do mesmo SQ recebe só o seu."""
+    from civico_etl.jobs import tse_votos_contas as tv
+
+    _need(conn)
+    with conn.transaction(force_rollback=True):
+        cids = _setup(conn, 2012, [("99481", "municipal", "1"), ("99482", "suplementar", "2"), ("99485", "municipal", "5")],
+                      {"99481": SQ, "99482": SQ, "99485": SQ})
+        _drop_key(conn, cids["99482"])  # sem chave
+        _key(conn, cids["99485"], f"2012:99486:{SQ}")  # 2 UEs
+        r = types.SimpleNamespace(notes=[])
+        agg = {(("99481", SQ), 1): 100, (("99482", SQ), 1): 7, (("99485", SQ), 1): 3, (("99486", SQ), 1): 4}
+        tv._apply(conn, 2012, "votes", agg, by_round=True, r=r)
+        tv._apply(conn, 2012, "raised_cents", {("99481", SQ): 500, ("99482", SQ): 9}, by_round=False, r=r)
+        s = _state(conn, cids)
+        assert (s["99481"][0], s["99482"][0], s["99485"][0]) == (100, None, None)
+        assert (s["99481"][1], s["99482"][1]) == (500, None)
+        notes = [n for n in r.notes if "BUG-048" in n]
+        assert len(notes) == 1 and "candidaturas de 2012 sem chave tse" in notes[0]
+        # as contagens contam todas as candidaturas de 2012 do banco (o banco pode ter outras); cada uma das nossas soma 1
+        sem = int(notes[0].split()[0])
+        _key(conn, cids["99482"], f"2012:99482:{SQ}")
+        r2 = types.SimpleNamespace(notes=[])
+        tv._apply(conn, 2012, "votes", agg, by_round=True, r=r2)
+        assert int(next(n for n in r2.notes if "BUG-048" in n).split()[0]) == sem - 1
+        assert _state(conn, cids)["99482"][0] == 7
+
+
+def test_2012_loader_sem_coluna_sg_ue_nao_grava_e_deixa_nota(conn, tmp_path, monkeypatch):
+    """B1: tse_candidatos._load_votes em 2012 com arquivo sem SG_UE: não grava nada e anota quantas candidaturas ficaram."""
+    from civico_etl.jobs import tse_candidatos as tc
+
+    _need(conn)
+    run_ = _patch_loader(monkeypatch, tc, _votacao_csv(tmp_path, 2012, [(SQ, "100", ""), ("99000480009", "5", "")], with_ue=False))
+    with conn.transaction(force_rollback=True):
+        cids = _setup(conn, 2012, [("99481", "municipal", "1"), ("99482", "suplementar", "2")], {"99481": SQ, "99482": SQ})
+        tc._load_votes(conn, 2012, None, True)
+        s = _state(conn, cids)
+        assert (s["99481"][0], s["99482"][0]) == (None, None)
+        assert any(n.startswith("2 candidaturas da votação de 2012 sem SG_UE") for n in run_.notes)
+
+
+def test_2012_loader_pessoa_com_2_ues_para_o_mesmo_sq_nao_recebe_valor_arbitrario(conn, tmp_path, monkeypatch):
+    """B1: pessoa com as chaves 2012:UE1:SQ e 2012:UE2:SQ. Antes o UPDATE...FROM casava as 2 linhas e gravava uma delas ao
+    acaso; agora a candidatura fica fora (como em _cand_by_ue), com nota."""
+    from civico_etl.jobs import tse_candidatos as tc
+
+    _need(conn)
+    run_ = _patch_loader(monkeypatch, tc, _votacao_csv(tmp_path, 2012, [(SQ, "100", "99481"), (SQ, "7", "99489")]))
+    with conn.transaction(force_rollback=True):
+        cids = _setup(conn, 2012, [("99481", "municipal", "1")], {"99481": SQ})
+        _key(conn, cids["99481"], f"2012:99489:{SQ}")
+        tc._load_votes(conn, 2012, None, True)
+        assert _state(conn, cids)["99481"][0] is None
+        assert any("com 2+ UEs" in n for n in run_.notes)
+
+
+def test_2012_cassacao_fora_do_mapa_nao_e_revertida(conn):
+    """B3: o revert de _mark_cassados ('cassado' que deixou de constar volta a em_exercicio/encerrado) só vale para candidaturas
+    do mapa (UE, SQ). A de 2012 sem chave UE não teve a votação lida: a cassação dela fica."""
+    from civico_etl.jobs import tse_votos_contas as tv
+
+    _need(conn)
+    with conn.transaction(force_rollback=True):
+        cids = _setup(conn, 2012, [("99481", "municipal", "1"), ("99482", "suplementar", "2")], {"99481": SQ, "99482": SQ})
+        conn.execute("update mandates set status = 'cassado' where candidacy_id = any(%s::uuid[])", (list(cids.values()),))
+        _drop_key(conn, cids["99482"])
+        tv._mark_cassados(conn, 2012, set())
+        s = _state(conn, cids)
+        assert (s["99481"][3], s["99482"][3]) == ("em_exercicio", "cassado")  # antes: as duas voltavam a em_exercicio
