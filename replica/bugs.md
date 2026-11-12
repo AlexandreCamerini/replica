@@ -927,5 +927,18 @@ Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não conve
 - Expected: o histórico do título (todas as situações) no crachá na mesma rodada.
 - Actual: faltam 12 candidaturas de 5 pessoas (as 8 eleitas, 3 não eleitas dos mesmos 4 e 1 de nilson-chaves, 2016). No cache da fonte, todas têm o mesmo nascimento e a mesma UE da linha de 2024; uma tem o nome a 1 edição. É dado faltando, não fusão.
 - Fix sugerido: passo `historico` em `repairs.STEPS`, depois de `titulos`: para título do diretório com linha de um ano sem candidatura da pessoa naquele ano, `_load_year(only={(UE, SQ)})` a partir do cache (mecanismo do `identity.fix041`). Paliativo manual, só pelo dono (escrita em produção fora da agenda): `civico-etl tse.candidatos --all --force --year 2020 --year 2016 --year 2012 --uf MG --uf BA --uf AL --uf SE`, depois `identity.repairs --apply` e `check`.
-- Status: open. Correção planejada para depois do merge da PR #27 (mesmos arquivos).
+- Status: fixed (PR #32, merge 680ae3d; aplicado em produção em 12/11/2026, run 43310865469, D306). Passo `historico` do `identity.repairs` (o último): só entra linha que casa na pessoa do título com todas as travas de identidade, nascimento a menos de 1 ano e mandato já encerrado; não eleitas só de quem ainda não tem histórico; só eleição ordinária; bens por cache ou download (sem bens o ano não entra); teto de 200 candidaturas e 10 min por run; `ETL_REPAIRS_SKIP=historico` desliga. Em produção: universo 3.604, 39 candidaturas, 8 mandatos (todos encerrados), 24 declarações de bens, 0 recusas; check 8 → 0. Fica de fora o backlog do BUG-047: 3.439 não eleitas de quem já tem histórico (carga em massa, decisão do dono).
+
+### BUG-054: cota de 2025–2026 em dobro pelo complemento da API
+
+- Severity: S2 (o site mostra gasto a mais: ~R$ 4,04 mi em 2025, 182 deputados; ~R$ 4,49 mi em 2026, 95 deputados)
+- Symptom: em 12/11/2026 o check `cota: amostra fixa…` falhou em 4 casos de 2025 (160541 +18,75%, 178975 +3,29%, 204534 +22,43%, 209787 +2,16% sobre a página da Câmara).
+- Cause: em 12/11/2026 a API `/deputados/{id}/despesas` passou a devolver valores com centavos e o `valorLiquido` negado fora do SIGEPA; o `Ano-AAAA.csv.zip` segue com 6 dígitos significativos. O casamento (documento, valor) do complemento D181 falhou e o `cotaapi` regravou linhas que o arquivo já tem (ex.: 11892.53 × 11892.5 no documento 7896551; parcela 2500/0/−311,55 × +311,55 no 8022455). "Passagem aérea - SIGEPA" é legítima e a página a soma.
+- Status: em correção (PR #35). Segunda passada por documento: 6 dígitos significativos e líquido negado. Os dados de produção se corrigem no próximo `camara.diario` (prune por prefixo `cotaapi`), sem DELETE manual.
+
+### BUG-055: check de carimbo vencido cobra 48 h de tarefas semanais
+
+- Severity: S4 (falso alarme; deixa o `etl.yml` vermelho)
+- Cause: `camara.equipe` e `parlamento.extras` são semanais (`schedule.TASKS`, `7 * D`), mas o check cobrava 48 h de toda família camara/senado.
+- Status: em correção (PR #35): régua = cadência da tarefa + 48 h para tarefas com cadência acima de 48 h; diárias seguem em 48 h.
 
