@@ -1083,7 +1083,7 @@ export const pgSource: DataSource = {
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
       from votes v join voting_events e on e.id = v.voting_event_id join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id
       where ${where}
-      order by e.occurred_at desc limit ${limit} offset ${offset}`;
+      order by e.occurred_at desc, e.id desc limit ${limit} offset ${offset}`;
     return {
       ...page(
         rows.map(personVoteRow),
