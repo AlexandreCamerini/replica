@@ -5,6 +5,7 @@ import { fraseLida, lidoEm } from "@/components/sv/carimbo";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA, SEM_DADO } from "@/components/sv/estados";
 import { BODY_NAME, fmtInt } from "@/components/sv/fmt";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { VotacaoItem } from "@/components/sv/votacao-item";
 import { data, type Body } from "@/lib/data";
@@ -15,7 +16,7 @@ const PASSO = 30;
 const TETO = 200; // a lista não passa disso: o que fica de fora é dito, não escondido
 const DA_CASA = { camara: "da Câmara", senado: "do Senado" } as const;
 
-export default async function Votacoes({ searchParams }: { searchParams: Promise<{ casa?: string | string[]; tudo?: string | string[]; n?: string | string[] }> }) {
+export default async function Votacoes({ searchParams }: { searchParams: Promise<{ casa?: string | string[]; tudo?: string | string[]; n?: string | string[]; simular?: string | string[] }> }) {
   const sp = await searchParams;
   const so = (v: unknown) => (typeof v === "string" ? v : undefined); // parâmetro repetido chega como array: ignorado
   const body: Body = so(sp.casa) === "senado" ? "senado" : "camara";
@@ -23,7 +24,8 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
   const pedido = Math.min(TETO, Math.max(PASSO, Number.parseInt(so(sp.n) ?? `${PASSO}`, 10) || PASSO));
 
   const [page, stamp] = await Promise.all([
-    data.listVotingEvents({ body, limit: pedido, scope: tudo ? "tudo" : "lei" }).catch(() => null),
+    // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
+    lerOuFalhar(simulacao(sp.simular) === "erro", () => data.listVotingEvents({ body, limit: pedido, scope: tudo ? "tudo" : "lei" })).catch(() => null),
     data.getStamp(`${body}.votacoes`).catch(() => null),
   ]);
   const lida = lidoEm(stamp);

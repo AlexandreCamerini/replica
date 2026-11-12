@@ -6,6 +6,7 @@ import { esferaDoCargo } from "@/components/sv/esfera";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA } from "@/components/sv/estados";
 import { fmtInt } from "@/components/sv/fmt";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type Officeholder, type OfficeSlug } from "@/lib/data";
 
@@ -37,7 +38,7 @@ function Pessoas({ items }: { items: Officeholder[] }) {
   );
 }
 
-export default async function PessoasPage({ searchParams }: { searchParams: Promise<{ nome?: string; cargo?: string; uf?: string; cidade?: string; grupo?: string; pagina?: string }> }) {
+export default async function PessoasPage({ searchParams }: { searchParams: Promise<{ nome?: string; cargo?: string; uf?: string; cidade?: string; grupo?: string; pagina?: string; simular?: string | string[] }> }) {
   const raw = await searchParams;
   // parâmetro repetido chega como array: só string vale, o resto é ignorado (nunca erro 500)
   const so = (v: unknown) => (typeof v === "string" ? v : undefined);
@@ -45,13 +46,18 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
   const q = (sp.nome ?? "").trim().slice(0, 80);
   const office = isOffice(sp.cargo) ? sp.cargo : undefined;
   const uf = sp.uf && /^[A-Za-z]{2}$/.test(sp.uf) ? sp.uf.toUpperCase() : undefined;
+  // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
+  const falhar = simulacao(raw.simular) === "erro";
   const stamp = await data.getStamp("tse.candidatos").catch(() => null);
   const fonte = `Fonte: ${FONTE}${fraseLida(stamp)}.`;
 
   // Vindo de um lugar: as pessoas de um grupo (ex.: vereadores) de uma cidade.
+  let grupoFalhou = false;
   if (sp.cidade && /^\d{7}$/.test(sp.cidade)) {
-    const place = await data.getPlace(sp.cidade).catch(() => null);
+    const place = await lerOuFalhar(falhar, () => data.getPlace(sp.cidade!)).catch(() => undefined);
     const groups = place ? await data.getRepresentatives(place).catch(() => null) : null;
+    // leitura que falhou (lugar ou grupo) não vira a lista geral em silêncio: a tela diz que falhou
+    grupoFalhou = place === undefined || (!!place && groups === null);
     const group = groups?.find((g) => g.key === sp.grupo) ?? null;
     if (place && group) {
       const onde = `${place.name}${place.uf ? `, ${place.uf}` : ""}`;
@@ -106,9 +112,9 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
   }
 
   const [offices, ufs, page] = await Promise.all([
-    data.listOffices().catch(() => []),
-    data.listUfs().catch(() => []),
-    data.listPeople({ q: q || undefined, office, uf, cursor: sp.pagina, limit: POR_PAGINA }).catch(() => null),
+    data.listOffices().catch(() => null),
+    data.listUfs().catch(() => null),
+    lerOuFalhar(falhar, () => data.listPeople({ q: q || undefined, office, uf, cursor: sp.pagina, limit: POR_PAGINA })).catch(() => null),
   ]);
   const next = new URLSearchParams();
   if (q) next.set("nome", q);
@@ -125,6 +131,11 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
         <p className="sv-intro">Quem ocupa cargo eletivo hoje, em ordem alfabética. Procure pelo nome ou filtre por cargo e estado.</p>
       </div>
 
+      {grupoFalhou && (
+        <Quadro id="pp-lugar" variante="lacuna" pergunta="Quem são as pessoas deste lugar?" prova={fonte}>
+          <Lacuna motivo="As pessoas deste lugar não puderam ser lidas. Abaixo, a lista geral.">{FALHOU_LEITURA}</Lacuna>
+        </Quadro>
+      )}
       <Quadro id="pp-1" numero={1} pergunta="Quem você procura?">
         <form className="sv-filtro" action="/v2/pessoas" method="get" role="search" aria-label="Procurar pessoas">
           <label htmlFor="pp-nome">Nome</label>
@@ -132,7 +143,7 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
           <label htmlFor="pp-cargo">Cargo</label>
           <select className="sv-campo" id="pp-cargo" name="cargo" defaultValue={office ?? ""}>
             <option value="">Todos os cargos</option>
-            {offices.map((o) => (
+            {(offices ?? []).map((o) => (
               <option key={o.slug} value={o.slug}>
                 {o.nameM}
               </option>
@@ -141,7 +152,7 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
           <label htmlFor="pp-uf">Estado</label>
           <select className="sv-campo" id="pp-uf" name="uf" defaultValue={uf ?? ""}>
             <option value="">Todos os estados</option>
-            {ufs.map((u) => (
+            {(ufs ?? []).map((u) => (
               <option key={u.ibge} value={u.uf ?? ""}>
                 {u.name}
               </option>
@@ -152,6 +163,11 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
             Procurar
           </button>
         </form>
+        {(!offices || !ufs) && (
+          <Lacuna motivo="O filtro fica sem essas opções até a leitura voltar.">
+            Não conseguimos ler a lista de {!offices && !ufs ? "cargos e de estados" : !offices ? "cargos" : "estados"} agora.
+          </Lacuna>
+        )}
         {filtrou && (
           <Link className="sv-lk" href="/v2/pessoas">
             Limpar os filtros
@@ -191,7 +207,7 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
                 Próximas {POR_PAGINA} <span aria-hidden="true">→</span>
               </Link>
             )}
-            <Nota>Partido é o da filiação vigente, como a fonte publica. Nenhuma lista tem ordem de mérito.</Nota>
+            <Nota>Partido: o da filiação vigente quando a fonte a registra; sem esse registro, o do mandato. Nenhuma lista tem ordem de mérito.</Nota>
           </>
         )}
       </Quadro>

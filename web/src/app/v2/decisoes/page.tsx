@@ -6,8 +6,10 @@ import { FALHOU_LEITURA, SEM_DADO } from "@/components/sv/estados";
 import { clip, fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
 import { NotaRegra } from "@/components/sv/inicio/semana";
 import { PautaItem } from "@/components/sv/pauta-item";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type PautaEntry, type PautaOverview } from "@/lib/data";
+import { weekLastDay } from "@/lib/pauta";
 
 export const metadata: Metadata = { title: "O que mexe comigo?" };
 
@@ -16,9 +18,11 @@ const byDate = (a: PautaEntry, b: PautaEntry) => a.scheduledFor.localeCompare(b.
 const plural = (n: number, um: string, varios: string) => (n === 1 ? `1 ${um}` : `${fmtInt(n)} ${varios}`);
 const FONTE_PAUTA = "pauta da Câmara dos Deputados e do Senado Federal";
 
-export default async function Decisoes({ searchParams }: { searchParams: Promise<{ aba?: string | string[] }> }) {
+export default async function Decisoes({ searchParams }: { searchParams: Promise<{ aba?: string | string[]; simular?: string | string[] }> }) {
   const sp = await searchParams;
   const tab = sp.aba === "leis" ? "leis" : "pauta";
+  // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
+  const falhar = simulacao(sp.simular) === "erro";
 
   return (
     <div className="sv-pg sv-pg--dcs">
@@ -34,14 +38,14 @@ export default async function Decisoes({ searchParams }: { searchParams: Promise
           Viraram lei
         </Link>
       </nav>
-      {tab === "pauta" ? <Pauta /> : <Leis />}
+      {tab === "pauta" ? <Pauta falhar={falhar} /> : <Leis falhar={falhar} />}
       <Proxima href="/v2/temas" pergunta="O que está em jogo no Congresso?" className="sv-c5" />
     </div>
   );
 }
 
-async function Pauta() {
-  const o: PautaOverview | null = await data.getPautaOverview().catch(() => null);
+async function Pauta({ falhar }: { falhar: boolean }) {
+  const o: PautaOverview | null = await lerOuFalhar(falhar, () => data.getPautaOverview()).catch(() => null);
   if (!o) {
     return (
       <>
@@ -59,7 +63,7 @@ async function Pauta() {
   const prova = `Fonte: ${FONTE_PAUTA}${readAt ? `, lida em ${fmtDateTime(readAt)}` : ", ainda não lida"}.`;
   const plenario = [...o.plenary].sort(byDate);
   const comissoes = [...o.committees].sort(byDate);
-  const ateQuando = fmtDate(o.week.weekEnds);
+  const ateQuando = fmtDate(weekLastDay(o.week.weekEnds)); // weekEnds é exclusivo: o último dia é o anterior
   let legendaFeita = false;
   const legenda = () => {
     const l = !legendaFeita;
@@ -137,8 +141,8 @@ async function Pauta() {
   );
 }
 
-async function Leis() {
-  const laws = await data.listLaws({ limit: LEIS }).catch(() => null);
+async function Leis({ falhar }: { falhar: boolean }) {
+  const laws = await lerOuFalhar(falhar, () => data.listLaws({ limit: LEIS })).catch(() => null);
   const prova = "Fonte: Câmara dos Deputados, dados abertos (normas), data da leitura não registrada.";
   const n = laws?.items.length ?? 0;
   return (
@@ -166,7 +170,7 @@ async function Leis() {
           <ol className="sv-pis">
             {laws.items.map((l) => (
               <li key={l.number} className="sv-pi">
-                <p className="sv-vl__d">Publicada em {fmtDate(l.sanctionedOn)}</p>
+                <p className="sv-vl__d">Sancionada em {fmtDate(l.sanctionedOn)}</p>
                 <Resposta tamanho="m">{l.url ? <a href={l.url} rel="noopener noreferrer">{clip(l.summary, 200)}</a> : clip(l.summary, 200)}</Resposta>
                 <Nota>
                   Lei {l.number}
