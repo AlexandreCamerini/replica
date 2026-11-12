@@ -10,7 +10,7 @@ import { brl, hojeBR, ler, statusLacuna } from "@/components/sv/pessoa/format";
 import { Falha, Linha, Sem, SemCobertura, TabelaGastos, vmGastos } from "@/components/sv/pessoa/secoes";
 import { CabecalhoSub, Paginacao } from "@/components/sv/pessoa/sub";
 import { Lacuna, Nota, Selo } from "@/components/sv/ui";
-import { data } from "@/lib/data";
+import { data, type OfficeSlug } from "@/lib/data";
 
 // Gastos detalhados (nota por nota) da cota ou verba do gabinete. Ordem cronológica, da mais recente para a mais antiga;
 // nunca por valor. Categorias em ordem alfabética. Fornecedor como a fonte publica, sem acréscimo.
@@ -27,8 +27,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** Só link http(s) da fonte vira link. */
 const linkSeguro = (u: string | null) => (u && /^https?:\/\//i.test(u) ? u : null);
 
-/** A casa lança o gasto no dia 1 do mês quando só o mês é fato (Assembleias, câmaras): então mostra mm/aaaa. */
-const soMes = (datas: string[]) => datas.length > 0 && datas.every((d) => /^\d{4}-\d{2}-01/.test(d));
+/**
+ * D261: Assembleias e câmaras municipais lançam o gasto no dia 1 do mês (a fonte dá o mês); só Câmara dos Deputados e
+ * Senado dão o dia. Decide pela casa cuja leitura sustenta a página (cargo estadual, distrital ou vereador com o conjunto
+ * de gastos `lido`), nunca pelo padrão das datas. Nota sem origem registrada mostra a data como está gravada, sem afirmar.
+ */
+const CASA_SO_MES = new Set<OfficeSlug>(["deputado_estadual", "deputado_distrital", "vereador"]);
 
 export default async function GastosPessoa({ params, searchParams }: Props) {
   const { slug } = await params;
@@ -72,7 +76,7 @@ export default async function GastosPessoa({ params, searchParams }: Props) {
   const temDado = !!v && v.byCategory.length > 0;
   const vm = v ? vmGastos(v.byCategory, ano) : null;
   const itens = v?.items ?? [];
-  const mes = soMes(itens.map((e) => e.occurredOn));
+  const mes = !ctx.body && !!ctx.office && CASA_SO_MES.has(ctx.office) && ctx.cob("gastos")?.estado === "lido";
   const forma = ctx.main ? ESFERA[ctx.main.office] : null;
   const base = `/v2/pessoa/${ctx.person.slug}/gastos`;
   // nota sem carimbo da casa do mandato (fora da esfera federal e cobertura não lida): a origem não é afirmada
@@ -169,7 +173,7 @@ export default async function GastosPessoa({ params, searchParams }: Props) {
                   nome={{ um: "nota", varios: "notas" }}
                   ordem="da mais recente para a mais antiga"
                 />
-                {mes && <Nota>A fonte lança cada gasto no primeiro dia do mês: só o mês é informado.</Nota>}
+                {mes && <Nota>A {ctx.casa ?? "casa"} lança cada gasto no primeiro dia do mês: só o mês é informado.</Nota>}
                 {semOrigem && <Nota>Estas notas estão ligadas a esta pessoa, mas a leitura não registra de que casa vieram: podem ser de outro mandato.</Nota>}
                 <Nota>Fornecedor como a fonte publica. O link leva ao documento oficial quando a fonte o publica.</Nota>
               </>
