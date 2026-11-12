@@ -614,3 +614,21 @@ Decisões tomadas sem o dono, sob a autorização prévia da execução. Andamen
   - **Escolha.** Agenda continua ligada (mesmo critério da D294: nenhum job falhou; vigia `ok:true`; desligar deixaria as fontes vencerem). O check não é afrouxado. Correção vira BUG-053.
   - **Observação.** O cron do GitHub entregou 4 disparos do `etl.yml` em 11/11 (06:20, 11:25, 16:04, 17:08 UTC) em vez de 8, e nenhum entre 17:08 e 00:25 UTC; as duas janelas noturnas de 11/11 foram perdidas e o alerta "JANELA PERDIDA" está ativo. Workflow `active`, variável `true`. Não há correção sem agendador externo (custo/conta: fora da autorização); risco registrado.
   - **Execução interrompida e retomada.** O dono interrompeu a sessão por volta de 11:30 BRT e mandou seguir às 21:20 BRT. Os quatro agentes em andamento foram encerrados sem publicar; foram relançados aproveitando o trabalho parcial dos worktrees.
+- **D304 · Itens "Talvez" do catálogo de 08/11 e stubs: decisão um a um (produto, 12/11/2026).** Critério: entra o que cabe sem conta nova, sem fonte bloqueada e sem reabrir decisão de design; o resto é adiado ou aposentado com o motivo. Nenhum item abaixo foi implementado nesta decisão; os "fazer" entram nas PRs do `/v2` indicadas.
+
+  | Item | Decisão | Motivo | Onde entra / o que falta |
+  | --- | --- | --- | --- |
+  | D04 SICONFI (contas dos estados) | adiar | M (2 a 5 dias), mapeamento de função por exercício; não serve às telas do `/v2` desta execução | backlog de dados |
+  | D05 salário pago pelos TCEs | adiar | G: 27 adaptadores, sem padrão nacional | backlog de dados |
+  | D07 STF (pauta e resultado) | adiar | fonte em HTML ainda não confirmada como aberta; só os temas tributário e previdenciário servem ao "no seu bolso" | backlog de dados |
+  | D10 ALEs com fonte própria | adiar | G: cinco formatos | backlog de dados |
+  | D16 MCP público `/api/mcp` | adiar | exige limite de taxa no WAF da Vercel (configuração de conta) e teste contra produção da recusa de recomendação de voto | o dono configura o WAF |
+  | U04 resumo do ano em frases | fazer | P; dado já carregado; sem média nem comparação com outros (seria ranking implícito); temas em ordem fixa | Pessoa do `/v2` (P11) |
+  | U07 barra inferior no celular | aposentar | a Direção 2 já redesenhou a navegação do `/v2`; no v1 seria reabrir o design fechado | — |
+  | U16 matriz "quem faz o quê" em `/cargos` | adiar | cada célula precisa do artigo da CF conferido; `/cargos` já tem o diagrama de relações | backlog de conteúdo |
+  | U18 trajetória com trocas de partido e derrotas | fazer | P; `party_memberships` e `candidacies` carregados; ordem cronológica, sem adjetivo | Pessoa do `/v2` (P11) |
+  | U19 aviso semanal por canal de WhatsApp | bloqueado | conta e publicação manual pelo dono | o dono cria o canal |
+  | stub `/mais-vistos` | aposentar | popularidade como ordenação está em "Não adaptar" (efeito manada); o stub promete um módulo que não vai existir | rota removida na promoção (P14) |
+  | stub `/stf` | aposentar | promete um módulo sem fonte nem prazo; volta quando D07 for feito | rota removida na promoção (P14) |
+
+  **Como reverter.** Cada linha é independente; "adiar" não deixa código.
