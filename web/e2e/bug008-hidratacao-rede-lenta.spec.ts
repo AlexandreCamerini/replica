@@ -4,10 +4,14 @@ import { expect, test } from "./fixtures";
 // Sem a espera de AguardaDocumento, o React vendorizado pelo Next 15.5 dava #418 em ~29% das cargas do perfil
 // (n=100, HTML a 200 KB/s) e apagava o data-theme do <html>. Aqui: várias cargas seguidas, cada uma tem de sair
 // sem pageerror e com o tema claro escolhido. Só Chromium (CDP).
-const CARGAS = 15; // sem a correção, P(todas passarem) ≈ 0,71^15 ≈ 0,6%
+// Contra o build sem a correção (main b095ba9), este teste falhou em 9 de 10 execuções (--repeat-each 10, 2 workers);
+// com a correção, 0 falhas. A detecção é probabilística: uma regressão pode passar numa execução isolada.
+const CARGAS = 30;
 
 test.describe("BUG-008: perfil hidrata sem erro com o HTML chegando devagar", () => {
   test.use({ timezoneId: "Pacific/Pago_Pago", colorScheme: "dark" });
+  // sem retry: uma regressão que falha só às vezes não pode virar "flaky" e passar no CI
+  test.describe.configure({ retries: 0 });
 
   test("perfil /p/[slug] com rede lenta: zero pageerror e data-theme preservado", async ({ page, browserName }) => {
     test.skip(browserName !== "chromium", "emulação de rede via CDP");
