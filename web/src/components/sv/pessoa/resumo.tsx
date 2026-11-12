@@ -39,8 +39,9 @@ export function frasesDoAno(i: {
   // propostas
   const autor = i.fem ? "autora" : "autor";
   if (i.propostas === undefined) out.push({ tipo: "lacuna", texto: `Propostas em ${ano}: ${FALHOU_LEITURA}` });
-  else if (i.propostas !== null && i.propostas > 0) out.push({ tipo: "fato", texto: `Apresentou ${fmtInt(i.propostas)} ${i.propostas === 1 ? "proposta" : "propostas"} como ${autor} principal em ${ano}.` });
-  else out.push(lacuna(`Propostas em ${ano}`, `proposta como ${autor} principal em ${ano}`, i.cobPropostas));
+  // o ano da proposta é o da numeração (PL 123/2026), como na conta do ETL (derive_stats); emenda sem ano não entra
+  else if (i.propostas !== null && i.propostas > 0) out.push({ tipo: "fato", texto: `${fmtInt(i.propostas)} ${i.propostas === 1 ? "proposta" : "propostas"} de ${ano} como ${autor} principal.` });
+  else out.push(lacuna(`Propostas de ${ano}`, `proposta de ${ano} como ${autor} principal`, i.cobPropostas));
   // leis: só com o conjunto lido para o cargo
   if (i.leis) {
     const n = i.leis.filter((l) => l.role === "autor" && anoDe(l.sanctionedOn) === ano).length;

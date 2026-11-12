@@ -279,7 +279,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
       >
         <div className="sv-bloco">
           <ResumoDoAno frases={frasesAno} />
-          <Nota>Só o que lemos desta pessoa, sem média nem comparação com outras pessoas.</Nota>
+          <Nota>Só o que lemos desta pessoa, sem média nem comparação com outras pessoas. Proposta de {anoResumo} é a numerada em {anoResumo} (PL 123/{anoResumo}); emendas não entram nesta conta.</Nota>
         </div>
       </Linha>
 
