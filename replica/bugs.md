@@ -149,7 +149,8 @@ Expected: o toque abre Campinas.
 Actual: o toque cai no conteúdo atrás da lista até ~400–650 ms depois de ela aparecer; `elementFromPoint` no centro da opção devolve o contêiner da página nesse intervalo (sonda: hit=false até 325 ms, true a partir de 652 ms). Sem emulação de toque, hit=true desde 0 ms.
 Evidence: `.local/e2e-run9.log` (F01-E6 mobile); sonda de 25 amostras a cada 80 ms.
 Suspected cause: comportamento do Popover do React Aria em dispositivos de toque (posicionamento/visibilidade ajustados ao viewport visual depois de abrir). Não isolado no código da biblioteca.
-Status: open (S4). O teste espera a opção ficar tocável antes de tocar e documenta o atraso. Reavaliar ao atualizar `react-aria-components`.
+Cause: `react-aria-components` 1.22.1. O Popover adia a revelação até o teclado virtual abrir (`Popover.mjs`: `runAfterKeyboard` → `setIsOpen`, até 600 ms) e, enquanto isso, `useEnterAnimation` (`react-aria/dist/private/utils/animation.mjs:31`) grava inline `opacity:0`, `clip`, `clip-path:inset(50%)` e `mask-image`; `clip-path`/`mask-image` tiram o elemento do hit-testing. Sem toque, `runAfterKeyboard` executa na hora (por isso não reproduzia).
+Status: fixed (PR #31, 12/11/2026). `search-combobox.tsx` anula o ocultamento com classes `!important` quando `data-placement` existe. Antes, 1º toque válido em ~460 ms (n=3); depois, 0–1 ms em 20 de 20. F01-E6 mobile toca sem espera e falha contra a main (5/5). Pendências: o mesmo atraso existe em `person-picker.tsx:69` (/comparar, ~635 ms, medido na revisão); em tela de 320 px a lista agora aparece abaixo do campo e pula para cima quando o teclado abre (~0,3 s), a conferir em aparelho real; o `!important` anula qualquer animação futura de entrada no Popover.
 
 ### BUG-010: presença derivada de voto mostrada como presença oficial
 
