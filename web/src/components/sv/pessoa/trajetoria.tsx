@@ -78,7 +78,10 @@ export function itensTrajetoria(cands: Cand[], mandatos: Mand[], partidoAtual: {
       chave: "partido-atual",
       quando: p.since.slice(0, 4),
       ordem: `${p.since}-p`,
-      texto: `Partido atual, ${sigla(partidoAtual.party)}, registrado desde ${fmtDate(p.since)}.`,
+      texto:
+        p.kind === "tse" && p.electionYear
+          ? `Partido atual, ${sigla(partidoAtual.party)}, registrado pelo TSE na candidatura de ${p.electionYear}.`
+          : `Partido atual, ${sigla(partidoAtual.party)}, registrado desde ${fmtDate(p.since)}.`,
       fonte: p.kind === "tse" && p.electionYear ? `${FONTE_PARTIDO.tse}, candidatura de ${p.electionYear}` : FONTE_PARTIDO[p.kind],
     });
   }

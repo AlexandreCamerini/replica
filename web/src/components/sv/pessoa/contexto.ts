@@ -90,7 +90,8 @@ export async function contextoPessoa(person: ContextoPessoa["person"]): Promise<
 /** Número inteiro positivo de um parâmetro de URL (`pagina=3`); qualquer outra coisa = null. */
 export function inteiroPositivo(v: string | string[] | undefined): number | null {
   const s = Array.isArray(v) ? v[0] : v;
-  if (!s || !/^\d{1,6}$/.test(s)) return null;
+  // teto de 4 dígitos: página além disso não existe em nenhuma lista da Pessoa e o offset gigante não chega ao banco
+  if (!s || !/^\d{1,4}$/.test(s)) return null;
   const n = Number(s);
   return n >= 1 ? n : null;
 }

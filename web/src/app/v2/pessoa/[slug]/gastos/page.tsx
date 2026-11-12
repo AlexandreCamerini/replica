@@ -170,7 +170,7 @@ export default async function GastosPessoa({ params, searchParams }: Props) {
                   pagina={pagina}
                   por={POR}
                   total={v.total}
-                  nome={{ um: "nota", varios: "notas" }}
+                  nome={{ um: "nota", varios: "notas", fem: true }}
                   ordem="da mais recente para a mais antiga"
                 />
                 {mes && <Nota>A {ctx.casa ?? "casa"} lança cada gasto no primeiro dia do mês: só o mês é informado.</Nota>}

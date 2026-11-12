@@ -22,7 +22,7 @@ export function CabecalhoSub({ ctx, titulo, esfera }: { ctx: ContextoPessoa; tit
  * "Mostrando 51 a 100 de 345 notas" e links de página anterior e próxima (≥ 44 px), mantendo os filtros da URL.
  * `pagina` é 1-based; `por` é o tamanho da página. Nada aparece quando a lista cabe numa página.
  */
-export function Paginacao({ base, params, pagina, por, total, nome, ordem }: { base: string; params: Record<string, string | null>; pagina: number; por: number; total: number; nome: { um: string; varios: string }; /** "da mais recente para a mais antiga" */ ordem: string }) {
+export function Paginacao({ base, params, pagina, por, total, nome, ordem }: { base: string; params: Record<string, string | null>; pagina: number; por: number; total: number; nome: { um: string; varios: string; fem?: boolean }; /** "da mais recente para a mais antiga" */ ordem: string }) {
   const ini = (pagina - 1) * por + 1;
   const fim = Math.min(total, pagina * por);
   const href = (n: number) => {
@@ -43,7 +43,7 @@ export function Paginacao({ base, params, pagina, por, total, nome, ordem }: { b
       {total > por && (
         <nav className="sv-selo__l sv-pag" aria-label="Páginas">
           {pagina > 1 && <Link href={href(pagina - 1)}>Página anterior (mais recentes)</Link>}
-          {pagina < ultima && <Link href={href(pagina + 1)}>Próxima página (mais antigos)</Link>}
+          {pagina < ultima && <Link href={href(pagina + 1)}>Próxima página ({nome.fem ? "mais antigas" : "mais antigos"})</Link>}
           <span className="sv-pag__n">
             Página {fmtInt(pagina)} de {fmtInt(ultima)}
           </span>

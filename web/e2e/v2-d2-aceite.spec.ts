@@ -1293,6 +1293,12 @@ test.describe("rotas da Pessoa", () => {
     const res = await page.goto("/v2/pessoa/helena-siqueira/gastos?ano=abc&categoria=%3Cscript%3E&pagina=-1");
     expect(res?.status()).toBe(200);
     await expect(page.locator(".sv-notas li").first()).toBeVisible();
+    // página acima do teto de 4 dígitos cai na primeira (o offset gigante não chega ao banco)
+    for (const url of ["/v2/pessoa/helena-siqueira/gastos?ano=2024&pagina=99999", "/v2/pessoa/helena-siqueira/votos?pagina=99999"]) {
+      const r = await page.goto(url);
+      expect(r?.status(), url).toBe(200);
+      await expect(page.locator(".sv-main"), url).toContainText(/Mostrando 1 a 50 de \d+/);
+    }
   });
 
   test("equipe: só agregado, sem nome de assessor, e lacuna nomeada quando não lida", async ({ page }) => {
