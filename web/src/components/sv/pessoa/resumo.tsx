@@ -39,7 +39,8 @@ export function frasesDoAno(i: {
   // propostas
   const autor = i.fem ? "autora" : "autor";
   if (i.propostas === undefined) out.push({ tipo: "lacuna", texto: `Propostas em ${ano}: ${FALHOU_LEITURA}` });
-  // o ano da proposta é o da numeração (PL 123/2026), como na conta do ETL (derive_stats); emenda sem ano não entra
+  // o ano da proposta é o da numeração (proposals.year, PL 123/2026), como na conta do ETL (derive_stats), sem filtro de tipo:
+  // emendas (EMC/EMP/EMR/ESB) entram no ano da numeração delas
   else if (i.propostas !== null && i.propostas > 0) out.push({ tipo: "fato", texto: `${fmtInt(i.propostas)} ${i.propostas === 1 ? "proposta" : "propostas"} de ${ano} como ${autor} principal.` });
   // "nenhuma" só com 0 lido; null = a fonte não publica ou não há linha do ano: lacuna, nunca "nenhum registro"
   else if (i.propostas === 0) out.push(lacuna(`Propostas de ${ano}`, `proposta de ${ano} como ${autor} principal`, i.cobPropostas));
