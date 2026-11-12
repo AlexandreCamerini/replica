@@ -148,8 +148,9 @@ def test_api_aplica_a_mesma_regra_e_casa_com_o_arquivo():
     assert cota_api_extra([("7877201", 680582)], api) == []
 
 
-# BUG-054: Ano-2025.csv.zip republicado em 12/11/2026 com 6 dígitos significativos e API com o líquido negado. Linhas reais
-# de Tabata Amaral (204534) e de 160541, arquivo e API /deputados/{id}/despesas?ano=2025 lidos em 12/11/2026.
+# BUG-054: o arquivo traz 6 dígitos significativos; desde 12/11/2026 a API traz os centavos e o líquido negado fora do
+# SIGEPA. Linhas reais de Tabata Amaral (204534), arquivo Ano-2025.csv.zip e API /deputados/{id}/despesas?ano=2025 lidos
+# em 12/11/2026, exceto onde o comentário diz que o caso é sintético.
 def test_arquivo_com_seis_digitos_casa_com_a_api():
     api = [{"codDocumento": "7896551", "valorDocumento": 11892.53, "valorGlosa": 0.0, "valorLiquido": -11892.53},
            {"codDocumento": "7908965", "valorDocumento": 13848.35, "valorGlosa": 0.0, "valorLiquido": -13848.35}]
@@ -157,7 +158,8 @@ def test_arquivo_com_seis_digitos_casa_com_a_api():
 
 
 def test_missao_oficial_sem_documento_com_seis_digitos():
-    # 160541/2025: arquivo "61932.8" sem ideDocumento; API codDocumento null, 61932.76 (BUG-030 + BUG-054)
+    # sintético, montado sobre 160541/2025 (BUG-030): arquivo "61932.8" sem ideDocumento (como até 11/11) contra a API de
+    # hoje, codDocumento null e 61932.76. O arquivo de 12/11 não traz essa linha; a simulação a mantém como complemento.
     api = [{"codDocumento": None, "valorDocumento": 61932.76, "valorGlosa": None, "valorLiquido": 61932.76}]
     assert cota_api_extra([("-", 6193280)], api) == []
 

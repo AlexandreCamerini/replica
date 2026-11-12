@@ -737,11 +737,13 @@ def cota_api_amounts(api_rows: list[dict]) -> list[int | None]:
 
 
 def cota_seis_digitos(api_cents: int, file_cents: int) -> bool:
-    """BUG-054: o arquivo Ano-AAAA.csv.zip republicado em 12/11/2026 traz os valores com 6 dígitos significativos (formato
-    %g: 11892.53 -> "11892.5", 290386.82 -> "290387"; nenhum valor >= 10.000 do arquivo de 2025 tem centavos). O valor do
-    arquivo é o da API arredondado nessa precisão: diferença de até meia unidade do 6º dígito do valor da API (5 centavos de
-    10.000 a 99.999,99, 50 centavos de 100.000 a 999.999,99) e o arquivo com os zeros finais dessa precisão. Abaixo de
-    10.000 o arquivo tem os centavos e só o valor exato casa. Se o arquivo voltar com centavos, a regra não casa nada novo."""
+    """BUG-054: o arquivo Ano-AAAA.csv.zip traz os valores com 6 dígitos significativos (formato %g: 11892.53 -> "11892.5",
+    290386.82 -> "290387"; nenhum valor >= 10.000 de cota2023 a cota2026 no banco tem centavos). Até 11/11/2026 a API
+    devolvia o mesmo valor arredondado (160541/2025, missão oficial: 61932.8 nos dois); desde 12/11/2026 devolve o valor
+    com centavos (61932.76), e o casamento exato deixou de achar o par. O valor do arquivo é o da API nessa precisão:
+    diferença de até meia unidade do 6º dígito do valor da API (5 centavos de 10.000 a 99.999,99, 50 centavos de 100.000 a
+    999.999,99) e o arquivo com os zeros finais dessa precisão. Abaixo de 10.000 só o valor exato casa. Se o arquivo
+    passar a ter centavos, a regra não casa nada novo."""
     a = abs(api_cents)
     if a < 1_000_000 or (api_cents < 0) != (file_cents < 0):
         return False
@@ -757,8 +759,8 @@ def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> li
     são o mesmo "sem documento" (BUG-030: a passagem de missão oficial entrava duas vezes). O valor da API passa pela mesma
     regra de sinal do arquivo (`cota_liquido`).
 
-    BUG-054: depois do casamento exato, uma segunda passada casa, no mesmo documento, o que sobrou nas duas regressões da
-    fonte vistas em 12/11/2026: (1) o arquivo com 6 dígitos significativos (`cota_seis_digitos`); (2) a API com o
+    BUG-054: depois do casamento exato, uma segunda passada casa, no mesmo documento, o que sobrou nas duas mudanças da API
+    vistas em 12/11/2026: (1) a API com centavos contra o arquivo com 6 dígitos significativos (`cota_seis_digitos`); (2) o
     `valorLiquido` negado nas linhas fora do SIGEPA (11892.53 / -11892.53; a regra D200 de `cota_liquido` já desfaz o caso
     líquido = -documento, mas não a parcela, 2500 / 0 / -311.55 contra +311.55 no arquivo): o valor da API com documento
     positivo e líquido negativo casa com a linha do arquivo de valor oposto. Estorno de verdade (documento negativo) não
