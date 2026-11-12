@@ -499,6 +499,35 @@ def test_conjunto_versionado_tem_a_composicao_da_divisao():
     assert {i["id"] for i in inj} == {c["id"] for c in P.casos_injecao()}  # o arquivo é o que o gerador produz
 
 
+def test_armadilhas_jsonl_e_o_que_o_gerador_produz(monkeypatch):
+    """Como para injecao.jsonl: o arquivo versionado sai de bases.jsonl + fontes.jsonl + divisão pelo gerador, sem edição à mão.
+    Sem rede: a conferência contra o PDF (`problemas`) fica de fora; o que se compara é a plantação e os rótulos."""
+    from evals import verificacao_construir as C
+    monkeypatch.setattr(C, "problemas", lambda *a, **k: [])
+    fontes = {f["camara_id"]: f for f in C.ler(C.HERE / "fontes.jsonl")}
+    div = C.divisao(list(fontes))
+    gerado = []
+    for b in C.ler(C.HERE / "bases.jsonl"):
+        f = fontes[b["camara_id"]]
+        gerado += C.casos_de(b, f, [], div[str(f["camara_id"])])[0]
+    assert E.ler(E.HERE / "armadilhas.jsonl") == gerado
+    assert json.loads((E.HERE / "divisao.json").read_text())["por_proposicao"] == div
+
+
+def test_numeros_citados_no_relatorio_batem_com_o_conjunto():
+    arm = [c for c in E.ler(E.HERE / "armadilhas.jsonl") if c["conjunto"] == "medida"]
+    plantas = [c for c in arm if c["tipo"] == "armadilha" and c["defeito"] != "condicionado"]
+    assert len({c["fonte"]["camara_id"] for c in arm}) == E.BASES_ARMADILHA_MEDIDA
+    assert len({c["base"] for c in E.ler(E.HERE / "injecao.jsonl")}) == E.BASES_INJECAO
+    assert (sum(c["defeito"] == "justificacao" for c in plantas), len(plantas)) == E.JUSTIFICACAO_EM_PLANTAS
+
+
+def test_relatorio_avisa_independencia_e_justificacao(rodada):
+    *_, m, _, _ = rodada
+    md = E.relatorio(m, {}, {"conjunto": "medida", "simulado": True}).lower()
+    assert "supõem independência" in md and "superestimada" in md and "classificador de trecho" in md
+
+
 def test_pdfs_de_injecao_tem_o_comportamento_declarado():
     """Texto invisível detectável é pego pelo portão; as fugas declaradas na §17 (retângulo, recorte) não: isso é medido, não corrigido."""
     for c in P.casos_injecao():
