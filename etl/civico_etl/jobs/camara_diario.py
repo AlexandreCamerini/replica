@@ -736,23 +736,59 @@ def cota_api_amounts(api_rows: list[dict]) -> list[int | None]:
     return [cota_api_liquido(x, f) for x, f in zip(api_rows, flags)]
 
 
+def cota_seis_digitos(api_cents: int, file_cents: int) -> bool:
+    """BUG-054: o arquivo Ano-AAAA.csv.zip republicado em 12/11/2026 traz os valores com 6 dígitos significativos (formato
+    %g: 11892.53 -> "11892.5", 290386.82 -> "290387"; nenhum valor >= 10.000 do arquivo de 2025 tem centavos). O valor do
+    arquivo é o da API arredondado nessa precisão: diferença de até meia unidade do 6º dígito do valor da API (5 centavos de
+    10.000 a 99.999,99, 50 centavos de 100.000 a 999.999,99) e o arquivo com os zeros finais dessa precisão. Abaixo de
+    10.000 o arquivo tem os centavos e só o valor exato casa. Se o arquivo voltar com centavos, a regra não casa nada novo."""
+    a = abs(api_cents)
+    if a < 1_000_000 or (api_cents < 0) != (file_cents < 0):
+        return False
+    unit = 10 ** (len(str(a)) - 6)  # unidade do 6º dígito significativo, em centavos
+    return file_cents % unit == 0 and abs(api_cents - file_cents) * 2 <= unit
+
+
 def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> list[dict]:
     """Linhas da API que o arquivo não tem: diferença de multiconjunto por (documento, valor líquido em centavos).
     Linhas do arquivo que a API não tem (telefonia sem documento) ficam: o arquivo é a fonte principal.
 
     Documento vazio: o arquivo traz `ideDocumento` vazio (gravado como "-" na chave) e a API traz `codDocumento` null; os dois
     são o mesmo "sem documento" (BUG-030: a passagem de missão oficial entrava duas vezes). O valor da API passa pela mesma
-    regra de sinal do arquivo (`cota_liquido`)."""
+    regra de sinal do arquivo (`cota_liquido`).
+
+    BUG-054: depois do casamento exato, uma segunda passada casa, no mesmo documento, o que sobrou nas duas regressões da
+    fonte vistas em 12/11/2026: (1) o arquivo com 6 dígitos significativos (`cota_seis_digitos`); (2) a API com o
+    `valorLiquido` negado nas linhas fora do SIGEPA (11892.53 / -11892.53; a regra D200 de `cota_liquido` já desfaz o caso
+    líquido = -documento, mas não a parcela, 2500 / 0 / -311.55 contra +311.55 no arquivo): o valor da API com documento
+    positivo e líquido negativo casa com a linha do arquivo de valor oposto. Estorno de verdade (documento negativo) não
+    troca de sinal. Sem as duas passadas, a linha que o arquivo já tem entra de novo como complemento (cota em dobro)."""
     left: dict[tuple[str, int], int] = defaultdict(int)
     for doc, amount in file_rows:
         left[(_cota_doc(doc), amount)] += 1
-    extra = []
+    pending = []
     for x, amount in zip(api_rows, cota_api_amounts(api_rows)):
         k = (_cota_doc(x.get("codDocumento")), amount or 0)
         if left.get(k, 0) > 0:
             left[k] -= 1
         else:
+            pending.append((x, amount or 0))
+    by_doc: dict[str, list[int]] = defaultdict(list)
+    for (doc, amount), n in left.items():
+        by_doc[doc] += [amount] * n
+    extra = []
+    for x, amount in pending:
+        doc = _cota_doc(x.get("codDocumento"))
+        cands = by_doc.get(doc, [])
+        doc_value = cents(x.get("valorDocumento"))
+        targets = [amount]
+        if amount < 0 and doc_value is not None and doc_value > 0:
+            targets.append(-amount)  # (2) líquido negado pela API
+        hit = next((f for t in targets for f in cands if f == t or cota_seis_digitos(t, f)), None)
+        if hit is None:
             extra.append(x)
+        else:
+            cands.remove(hit)
     return extra
 
 
