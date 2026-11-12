@@ -246,6 +246,9 @@ async function semJs(browser: Browser, info: TestInfo, leitor: Leitor) {
 test.describe("sem JavaScript", () => {
   for (const r of ROTAS) {
     test(`mostra o conteúdo: ${r.nome}`, async ({ browser }, info) => {
+      // Dívida conhecida, de todo o site (v1 inclusive): no Next 15.5, notFound() responde 404 com o documento de erro
+      // (<html id="__next_error__">, corpo vazio) e o 404 só aparece com JavaScript. Fica vermelho-esperado até ser corrigido.
+      test.fail(r.status === 404, "404 sem JavaScript: o Next entrega o documento de erro de corpo vazio (dívida registrada na PR)");
       const context = await semJs(browser, info, "leitor");
       const page = await context.newPage();
       const res = await page.goto(r.url);

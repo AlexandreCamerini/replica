@@ -462,7 +462,7 @@ main:has(.sv){padding-bottom:0}
 .sv .sv-vls>.sv-vl:first-child{border-top:0;padding-top:2px}
 .sv .sv-vl__d{font-size:14px;line-height:1.3;font-weight:700;font-stretch:84%;color:var(--tinta2)}
 .sv .sv-vl__t{font-size:18px;line-height:1.25;font-weight:700;letter-spacing:-.005em}
-.sv .sv-vl__t a{text-underline-offset:4px}
+.sv .sv-vl__t a{display:block;min-height:44px;padding:2px 0 6px;text-underline-offset:4px}
 .sv .sv-vl__k{font-size:14px;line-height:1.4;font-stretch:88%;color:var(--tinta2)}
 .sv .sv-pl{display:flex;flex-wrap:wrap;align-items:center;column-gap:16px;row-gap:2px;font-size:16px;line-height:1.4}
 .sv .sv-pl .sv-voto{font-weight:700}
