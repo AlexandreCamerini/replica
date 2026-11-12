@@ -283,6 +283,75 @@ def test_real_nao_preparado_e_sem_rotulo_deixam_os_reais_incompletos(monkeypatch
     assert m["barra"]["campos_reais_no_maximo_3_erros_em_300"]["estado"] == "incompleta"
 
 
+class _BarraTudo(E.ClienteSimulado):
+    """Verificador degenerado: nenhuma frase sustenta. Nada publica; escape, injeção e leitor zeram por construção."""
+
+    def create(self, **kw):
+        r = super().create(**kw)
+        if E.PAPEL_POR_SYSTEM[kw["system"][0]["text"]] == "sustentacao":
+            o = json.loads(r.content[0].text)
+            o["itens"] = [{**i, "veredito": "nao_sustenta"} for i in o["itens"]]
+            r.content[0].text = json.dumps(o)
+        return r
+
+
+def _sem_escape():
+    return [c for c in conjunto() if c["id"] != "escapa"]
+
+
+def test_verificador_que_barra_tudo_nao_atinge_nenhum_item(tmp_path, monkeypatch):
+    orc = E.Orcamento(teto=100)
+    casos, res, _ = E.executar(conjunto="medida", cliente=_BarraTudo(), orc=orc, saida=tmp_path, fases=["injecao", "armadilhas", "segunda"],
+                               limite=None, n_segunda=10, casos_extra=_sem_escape(), so_extra=True)
+    assert not any(r.get("publica") for r in res)
+    m = E.metricas(casos, res, orc=orc)
+    assert m["barra"]["portao_de_cobertura"]["estado"] == "nao_passou"
+    assert not [k for k, v in m["barra"].items() if v.get("estado") == "atingida"]
+    assert m["barra"]["leitor_confunde_proposta_com_lei_0"]["estado"] == "sem_cobertura"
+    assert m["barra"]["autoconcordancia_95"]["estado"] == "sem_cobertura"
+    # o teste morde: com o portão desligado, os mesmos resultados dariam "atingida"
+    monkeypatch.setattr(E, "COBERTURA_MIN_CONTROLES_PUBLICANDO", -1.0)
+    monkeypatch.setattr(E, "COBERTURA_MAX_CORRETO_NAO_CONFERIDO", 2.0)
+    m2 = E.metricas(casos, res, orc=orc)
+    assert m2["barra"]["leitor_confunde_proposta_com_lei_0"]["estado"] == "atingida"
+
+
+def test_verificador_ingenuo_passa_no_portao_de_cobertura(tmp_path):
+    orc = E.Orcamento(teto=100)
+    casos, res, _ = E.executar(conjunto="medida", cliente=E.ClienteSimulado(ROTEIRO), orc=orc, saida=tmp_path, fases=["injecao", "armadilhas", "segunda"],
+                               limite=None, n_segunda=10, casos_extra=_sem_escape(), so_extra=True)
+    m = E.metricas(casos, res, orc=orc)
+    assert m["barra"]["portao_de_cobertura"]["estado"] == "passou"
+    assert m["barra"]["leitor_confunde_proposta_com_lei_0"]["estado"] == "atingida"
+
+
+def test_portao_de_cobertura_pega_correto_em_nao_conferido_e_controle_sem_medir():
+    def m(pub_k, n, nc_k, nc_n):
+        return {"correto_em_nao_conferido": {"controles_barrados": E.taxa(n - pub_k, n), "so_controles": E.taxa(nc_k, nc_n)}}
+    assert E._cobertura(m(10, 10, 1, 60), {})["ok"]
+    assert not E._cobertura(m(10, 10, 30, 60), {})["ok"]  # todo controle publica, mas com metade dos campos corretos zerados
+    assert not E._cobertura(m(5, 10, 0, 60), {})["ok"]  # metade não é maioria
+    assert not E._cobertura(m(0, 0, 0, 0), {})["ok"]  # não avaliável = não passou
+    assert not E._cobertura(m(10, 10, 1, 60), {"cobertura_controles": {"teto": ["ctl"]}})["ok"]
+
+
+class _ContraditorRecusa(E.ClienteSimulado):
+    def create(self, **kw):
+        r = super().create(**kw)
+        if self.caso_id == "inj-sutil" and E.PAPEL_POR_SYSTEM[kw["system"][0]["text"]] == "contraditor":
+            r.stop_reason = "refusal"
+        return r
+
+
+def test_agente_que_falhou_tem_contagem_propria(tmp_path):
+    orc = E.Orcamento(teto=100)
+    casos, res, _ = E.executar(conjunto="medida", cliente=_ContraditorRecusa(), orc=orc, saida=tmp_path, fases=["injecao"],
+                               limite=None, n_segunda=0, casos_extra=conjunto(), so_extra=True)
+    m = E.metricas(casos, res, orc=orc)
+    d = next(x for x in m["injecao"]["detalhe"] if x["id"] == "inj-sutil")
+    assert d["camada"] == "agente_falhou" and m["injecao"]["por_camada"].get("agente_falhou") == 1
+
+
 def test_kappa():
     assert E.kappa([("a", "a"), ("a", "b"), ("b", "b"), ("b", "b")]) == 0.5
     assert E.kappa([("a", "a"), ("b", "b")]) == 1.0
