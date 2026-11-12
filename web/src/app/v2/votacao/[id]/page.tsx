@@ -63,7 +63,7 @@ function PlacarDaUf({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
       </p>
       <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
         Cadeiras: {p.fonteCadeiras}. Menos registros que cadeiras não quer dizer ausência: a fonte publica só quem teve registro.
-        {p.semUf > 0 ? ` ${p.semUf} ${p.semUf === 1 ? "registro sem estado identificado" : "registros sem estado identificado"} (sem mandato desta casa carregado na data).` : ""}
+        {p.semUf > 0 ? ` ${p.semUf} ${p.semUf === 1 ? "registro sem estado identificado" : "registros sem estado identificado"} (${p.motivoSemUf}).` : ""}
       </p>
     </div>
   );
@@ -77,8 +77,9 @@ export default async function Votacao({ params, searchParams }: { params: Promis
   const c = ev.counts;
   const total = ORDER.reduce((s, k) => s + (c[k] ?? 0), 0);
   const others = (c.obstrucao ?? 0) + (c.art17 ?? 0) + (c.nao_votou ?? 0);
-  // sem voto individual carregado (secreta, aberta sem voto publicado ou nenhum registro): o placar por UF já é lacuna
-  const semIndividual = ev.porUf.kind === "lacuna" || total === 0;
+  // sem voto individual carregado (secreta, aberta sem voto publicado ou nenhum registro): o placar por UF já é lacuna.
+  // Lacuna `semMandatos` é outra coisa: há voto individual, só não há UF na data para a maioria (o placar geral fica).
+  const semIndividual = (ev.porUf.kind === "lacuna" && !ev.porUf.semMandatos) || total === 0;
   const ufs = [...new Set(ev.votes.map((v) => v.uf).filter((u): u is string => !!u))].sort();
   const ufRaw = typeof sp.uf === "string" ? sp.uf.toUpperCase() : null; // `?uf=SP&uf=RJ` chega como array: ignorado
   const uf = ufRaw && ufs.includes(ufRaw) ? ufRaw : null;
@@ -143,6 +144,15 @@ export default async function Votacao({ params, searchParams }: { params: Promis
           )}
           {uf && <PlacarDaUf ev={ev} uf={uf} />}
           {uf && <Names ev={ev} uf={uf} />}
+          {ev.porUf.kind === "placar" && ev.porUf.semUf > 0 && (
+            // quem ficou fora do placar por UF, nominalmente e em ordem alfabética: a lacuna tem nome
+            <div className="sv-mt-3" data-sem-uf>
+              <Label>Sem estado identificado ({ev.porUf.semUf})</Label>
+              <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
+                Fora do placar por estado: {ev.porUf.motivoSemUf}. {ev.porUf.semUfNomes.join(", ")}.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

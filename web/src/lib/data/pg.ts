@@ -1227,16 +1227,20 @@ export const pgSource: DataSource = {
       from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id
       where e.id = ${id}::uuid`;
     if (!r) return null;
-    // UF = a do mandato da pessoa NESTA casa, de preferência o que cobre a data da votação (placar por UF). Sem mandato na
-    // casa: null ("UF não identificada"), nunca a UF de outro cargo.
+    // uf = a do mandato da pessoa NESTA casa que COBRE a data da votação (placar por UF). Sem esse mandato: null ("sem
+    // estado identificado"), nunca a UF de um mandato que não cobre a data nem a de outro cargo.
+    // uf_atual = a do mandato mais recente de qualquer cargo (sigla de identificação do v1, como na main); não vai ao placar.
     const votes = await sql`
-      select p.slug, p.display_name, coalesce(pa.acronym, '—') as party, pl.uf, v.value
+      select p.slug, p.display_name, coalesce(pa.acronym, '—') as party, pl.uf, ua.uf as uf_atual, v.value
       from votes v join people p on p.id = v.person_id
       left join parties pa on pa.id = v.party_id
       left join lateral (
         select pl.uf from mandates m join places pl on pl.id = m.place_id
         where m.person_id = p.id and m.body_id = ${r.body_id as string}::uuid
-        order by (m.started_on <= ${r.occurred_on as string}::date and m.ends_on > ${r.occurred_on as string}::date) desc, m.started_on desc limit 1) pl on true
+          and m.started_on <= ${r.occurred_on as string}::date and (m.ends_on is null or m.ends_on > ${r.occurred_on as string}::date)
+        order by m.started_on desc limit 1) pl on true
+      left join lateral (
+        select pl2.uf from mandates m2 join places pl2 on pl2.id = m2.place_id where m2.person_id = p.id order by m2.started_on desc limit 1) ua on true
       where v.voting_event_id = ${id}::uuid
       order by p.display_name collate pt_br`;
     const orientations = await sql`
@@ -1256,12 +1260,12 @@ export const pgSource: DataSource = {
     const sum = summary(r, r.body === "senado" ? "senado" : "camara");
     return {
       ...sum,
-      porUf: placarPorUf(sum, votes.map((v) => ({ uf: (v.uf as string | null) ?? null, value: v.value as VoteValue }))),
+      porUf: placarPorUf(sum, votes.map((v) => ({ uf: (v.uf as string | null) ?? null, value: v.value as VoteValue, name: String(v.display_name) }))),
       counts,
       orientations: orientations.map((o) => ({ label: String(o.label), kind: o.kind as VotingEventDetail["orientations"][number]["kind"], value: o.orientation as VotingEventDetail["orientations"][number]["value"] })),
       // partidos em ordem alfabética: nunca por tamanho nem por "fidelidade"
       byParty: [...parties.values()].sort((a, b) => a.party.localeCompare(b.party, "pt-BR")),
-      votes: votes.map((v) => ({ slug: String(v.slug), name: String(v.display_name), party: String(v.party), uf: (v.uf as string | null) ?? null, value: v.value as VoteValue })),
+      votes: votes.map((v) => ({ slug: String(v.slug), name: String(v.display_name), party: String(v.party), uf: (v.uf as string | null) ?? null, ufAtual: (v.uf_atual as string | null) ?? null, value: v.value as VoteValue })),
     } satisfies VotingEventDetail;
   },
   async getActivity(personIds, limit = 60) {

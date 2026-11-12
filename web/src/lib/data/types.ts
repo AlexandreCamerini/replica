@@ -268,8 +268,13 @@ export type VotingEventDetail = VotingEventSummary & {
   counts: Record<VoteValue, number>;
   orientations: { label: string; kind: "partido" | "bloco" | "governo" | "maioria" | "minoria" | "oposicao"; value: OrientationValue }[];
   byParty: { party: string; counts: Partial<Record<VoteValue, number>>; total: number }[];
-  /** `uf`: UF do mandato da pessoa NESTA casa na data da votação (null = sem mandato na casa carregado). */
-  votes: { slug: string; name: string; party: string; uf: string | null; value: VoteValue }[];
+  /**
+   * `uf`: UF do mandato da pessoa NESTA casa que COBRE a data da votação (null = sem esse mandato carregado; nunca a UF de
+   * outro mandato ou cargo). É a UF do placar por UF.
+   * `ufAtual`: UF do mandato mais recente da pessoa, de qualquer cargo (a sigla de identificação da lista do v1). Não é a
+   * UF na data e não entra no placar.
+   */
+  votes: { slug: string; name: string; party: string; uf: string | null; ufAtual: string | null; value: VoteValue }[];
   /** Placar por UF com as cadeiras legais da UF; lacuna quando não há voto individual. */
   porUf: PlacarPorUf;
 };
@@ -277,13 +282,15 @@ export type VotingEventDetail = VotingEventSummary & {
 export type PlacarUf = { uf: string; cadeiras: number; contagem: Record<VoteValue, number>; registros: number };
 /**
  * Placar por UF (cadeiras.ts `placarPorUf`). `placar`: uma linha por UF da casa, em ordem alfabética de sigla (nunca por
- * tamanho); `semUf` = registros de quem não tem mandato na casa na data da votação (a UF não é identificada, não é inventada).
- * `lacuna`: a votação não tem voto individual (secreta, aberta sem voto publicado ou só o placar total).
+ * tamanho); `semUf` = registros de quem não tem mandato nesta casa que cubra a data da votação (a UF não é identificada,
+ * não é inventada), `semUfNomes` os nomes deles em ordem alfabética e `motivoSemUf` a frase do motivo.
+ * `lacuna`: a votação não tem voto individual (secreta, aberta sem voto publicado ou só o placar total), ou
+ * `semMandatos`: há voto individual, mas mais de LIMITE_SEM_UF dos registros ficariam sem UF (legislatura não carregada).
  * Registros abaixo das cadeiras não é ausência: a fonte publica só quem teve registro.
  */
 export type PlacarPorUf =
-  | { kind: "placar"; casa: Body; ufs: PlacarUf[]; semUf: number; fonteCadeiras: string }
-  | { kind: "lacuna"; motivo: string };
+  | { kind: "placar"; casa: Body; ufs: PlacarUf[]; semUf: number; semUfNomes: string[]; motivoSemUf: string; fonteCadeiras: string }
+  | { kind: "lacuna"; motivo: string; semMandatos?: true };
 export type ActivityItem = {
   personSlug: string;
   personName: string;

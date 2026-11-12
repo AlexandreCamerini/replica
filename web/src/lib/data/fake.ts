@@ -984,7 +984,9 @@ export const fakeSource: DataSource = {
       const person = store().personById.get(pid)!;
       const party = partyById[v.partyId].acronym;
       counts[v.value]++;
-      votes.push({ slug: person.slug, name: person.displayName, party, uf: store().placeByIbge.get(mainMandate(pid)!.placeIbge)?.uf ?? null, value: v.value });
+      // demonstração: o mandato principal cobre todas as votações simuladas, então a UF na data é a atual
+      const uf = store().placeByIbge.get(mainMandate(pid)!.placeIbge)?.uf ?? null;
+      votes.push({ slug: person.slug, name: person.displayName, party, uf, ufAtual: uf, value: v.value });
       const p = parties.get(party) ?? { party, counts: {}, total: 0 };
       p.counts[v.value] = (p.counts[v.value] ?? 0) + 1;
       p.total++;

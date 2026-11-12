@@ -33,28 +33,44 @@ export const PORUF_MOTIVO = {
   semLinhas: "Não há voto individual carregado para esta votação, então não há placar por estado.",
 } as const;
 
+/** Por que um registro fica sem UF no placar: a UF só vale se o mandato da pessoa nesta casa cobre a data da votação. */
+export const MOTIVO_SEM_UF = "sem mandato desta casa carregado para a data da votação";
+/**
+ * Acima desta fração de registros sem UF, o placar por UF não sustenta leitura (ex.: votações de 2019–2022 com a 56ª
+ * legislatura não carregada): vira lacuna nomeada inteira, nunca um placar quase vazio.
+ */
+export const LIMITE_SEM_UF = 0.1;
+export const motivoSemMandatos = (semUf: number, total: number) =>
+  `Não temos os mandatos dessa legislatura carregados: ${semUf} de ${total} registros desta votação ficariam sem estado identificado, então não há placar por estado.`;
+
 const zero = (): Record<VoteValue, number> => ({ sim: 0, nao: 0, abstencao: 0, obstrucao: 0, art17: 0, nao_votou: 0 });
 
 /**
  * Placar por UF a partir dos votos individuais. Sem voto individual (secreta, aberta sem voto publicado ou nenhum registro):
  * lacuna com o motivo, nunca uma tabela de zeros. Uma linha por UF da casa (todas as 27), em ordem alfabética de sigla.
- * Registro com UF desconhecida vai para `semUf`. A soma de todas as linhas mais `semUf` fecha com o total de registros.
+ * Registro com UF desconhecida vai para `semUf` (com o nome em `semUfNomes`, ordem alfabética). A soma de todas as linhas
+ * mais `semUf` fecha com o total de registros. Mais de LIMITE_SEM_UF dos registros sem UF: lacuna `semMandatos`.
+ * `uf` de cada voto deve ser a do mandato NESTA casa que cobre a data (nunca a de outro mandato ou cargo).
  */
-export function placarPorUf(ev: { body: Body; isSecret?: boolean; openNoVotes?: boolean }, votos: { uf: string | null; value: VoteValue }[]): PlacarPorUf {
+export function placarPorUf(ev: { body: Body; isSecret?: boolean; openNoVotes?: boolean }, votos: { uf: string | null; value: VoteValue; name?: string }[]): PlacarPorUf {
   if (ev.isSecret) return { kind: "lacuna", motivo: PORUF_MOTIVO.secreta };
   if (ev.openNoVotes) return { kind: "lacuna", motivo: PORUF_MOTIVO.semVotos };
   if (votos.length === 0) return { kind: "lacuna", motivo: PORUF_MOTIVO.semLinhas };
   const by = new Map<string, PlacarUf>();
   for (const uf of Object.keys(CADEIRAS_CAMARA).sort()) by.set(uf, { uf, cadeiras: cadeirasDaUf(ev.body, uf)!, contagem: zero(), registros: 0 });
   let semUf = 0;
+  const semUfNomes: string[] = [];
   for (const v of votos) {
     const row = v.uf ? by.get(v.uf.toUpperCase()) : undefined;
     if (!row) {
       semUf++;
+      if (v.name) semUfNomes.push(v.name);
       continue;
     }
     row.contagem[v.value]++;
     row.registros++;
   }
-  return { kind: "placar", casa: ev.body, ufs: [...by.values()], semUf, fonteCadeiras: FONTE_CADEIRAS[ev.body] };
+  if (semUf / votos.length > LIMITE_SEM_UF) return { kind: "lacuna", motivo: motivoSemMandatos(semUf, votos.length), semMandatos: true };
+  semUfNomes.sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return { kind: "placar", casa: ev.body, ufs: [...by.values()], semUf, semUfNomes, motivoSemUf: MOTIVO_SEM_UF, fonteCadeiras: FONTE_CADEIRAS[ev.body] };
 }
