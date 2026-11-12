@@ -482,6 +482,11 @@ def apply_history(conn: psycopg.Connection, r: Any, plan: dict[str, Any], *, cap
                            where e.year = %s and c.tse_sequencial = any(%s)""", (year, sorted({i["sq"] for i in items})))}
                     wrong = [i for i in items if any(s == i["sq"] and p != i["person_id"] for p, s in got)]
                     empty = sorted({i["person_id"] for i in items} - {p for p, _ in got})
+                    # a chave tse de uma linha aceita ligada a outra pessoa (ramo de nome do resolve) também desfaz o ano
+                    own = {tse_key(year, i["sq"], i["ue"]): i["person_id"] for i in items}
+                    wrong += [{"sq": x["external_id"]} for x in conn.execute(
+                        "select external_id, person_id::text p from person_external_ids where source_id = %s and external_id = any(%s)",
+                        (tse, keys)) if x["p"] != own[x["external_id"]]]
                     if wrong or empty:
                         raise _HistoryMismatch(wrong, empty)
                     n = _log_created(conn, items, year, keys_before)
