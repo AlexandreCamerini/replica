@@ -19,11 +19,12 @@ from civico_etl.jobs.checks_identity import IDENTITY_CHECKS
 CHECK = next(q for n, q in IDENTITY_CHECKS if "título com linha ELEITO na fonte e pessoa sem candidatura eleita" in n)
 UE = "99053"
 NM_UE = "TESTE BUG-053 A"
-T_DUDU = "999990530011"   # vereador novo de 2024; histórico 2012 (eleito), 2016 (eleito), 2020 (suplente), 2014 (não eleito)
+T_DUDU = "999990530011"   # vereador novo de 2024; histórico 2012 (eleito), 2016 (eleito), 2020 (suplente)
 T_MARIA = "999990530022"  # o TSE repete o título dela na linha de outra pessoa (2016)
 T_ANA = "999990530033"    # título em 2 SQ da mesma eleição com nomes diferentes (shared_title)
 T_EXTRA = ("999990530044", "999990530055")  # teto
-TITLES = {T_DUDU, T_MARIA, T_ANA, *T_EXTRA}
+T_VELHO = "999990530066"  # já tem histórico (2016 no banco): a suplência de 2012 que falta é backlog do BUG-047, não entra
+TITLES = {T_DUDU, T_MARIA, T_ANA, *T_EXTRA, T_VELHO}
 HELD = {2012: "07/10/2012", 2014: "05/10/2014", 2016: "02/10/2016", 2020: "15/11/2020", 2024: "06/10/2024"}
 
 
@@ -42,8 +43,7 @@ SOURCE = [
     _src(2012, "990530000112", T_DUDU, "Dudu Teste da Silva", "01/01/1980", "ELEITO POR QP"),
     _src(2016, "990530000116", T_DUDU, "Dudu Teste da Silva", "01/01/1980", "ELEITO"),
     _src(2020, "990530000120", T_DUDU, "Dudu Teste da Silva", "01/01/1980", "SUPLENTE"),
-    # não eleito numa disputa sem candidatura não eleita no banco (o ano foi carregado só com eleitos ali): a carga normal não traria
-    _src(2014, "990530000114", T_DUDU, "Dudu Teste da Silva", "01/01/1980", "NÃO ELEITO"),
+    _src(2012, "990530000612", T_VELHO, "Velho Historico Teste", "08/08/1958", "SUPLENTE", nr="33333"),
     # BUG-041: o título da Maria na linha de outra pessoa (outro nome, outro nascimento)
     _src(2016, "990530000216", T_MARIA, "Jose Carlos Pereira Teste", "03/03/1960", "ELEITO"),
     # BUG-044: o título da Ana em 2 SQ da mesma eleição com primeiros nomes diferentes
@@ -127,6 +127,9 @@ def _setup(conn) -> dict[str, str]:
     out["ana"] = person("teste-bug053-ana", "Ana Lucia Ferreira Teste", date(1970, 4, 4), T_ANA, "990530002324")
     out["beto"] = person("teste-bug053-beto", "Beto Extra Teste", date(1966, 6, 6), T_EXTRA[0], "990530002424")
     out["caio"] = person("teste-bug053-caio", "Caio Extra Teste", date(1967, 7, 7), T_EXTRA[1], "990530002524")
+    out["velho"] = person("teste-bug053-velho", "Velho Historico Teste", date(1958, 8, 8), T_VELHO, "990530002624")
+    conn.execute("""insert into candidacies (contest_id, election_id, person_id, tse_sequencial, ballot_name, result, currency)
+                    values (%s, %s, %s, '990530000616', 'Velho', 'nao_eleito', 'BRL')""", (ct16, el16, out["velho"]))
     q = person("teste-bug053-outro", "Outro Candidato Teste", date(1990, 9, 9), None, None)
     for el, ct, sq in ((el20, ct20, "990530009920"), (el16, ct16, "990530009916")):
         conn.execute("""insert into candidacies (contest_id, election_id, person_id, tse_sequencial, ballot_name, result, currency)
@@ -156,7 +159,7 @@ def _sync(conn, fonte, **kw):
 
 def test_pessoa_nova_ganha_o_historico_do_proprio_titulo(conn, fonte, monkeypatch):
     """Pelos passos da rotina: o check do BUG-039 acusa as linhas ELEITO (dudu 2012 e 2016) depois de `titulos` e zera depois
-    do identity.repairs. 2020 (suplente) entra também; 2014 (não eleito numa disputa só com eleitos) não."""
+    do identity.repairs. 2020 (suplente) entra também, porque a pessoa não tem histórico nenhum."""
     with conn.transaction(force_rollback=True):
         base = conn.execute(CHECK).fetchone()["count"]
         ids = _setup(conn)
@@ -204,7 +207,7 @@ def test_linha_de_outra_pessoa_e_recusada(conn, fonte):
         assert "título repetido" in rec[(T_ANA, "990530000316")]
         assert (T_ANA, "990530000317") in rec  # a outra linha do mesmo título também não prova nada
         assert not {(i["titulo"], i["sq"]) for i in plan["aceitas"]} & set(rec)
-        assert plan["fora"]["situação que a carga do ano não trouxe (só eleitos ali)"] == 1  # 2014 não eleito
+        assert plan["fora"][repairs.FORA_COM_HISTORICO] == 1  # suplência de 2012 de quem já tem 2016 no banco
         people_before = conn.execute("select count(*) n from people").fetchone()["n"]
         queue_before = conn.execute("select count(*) n from identity_match_queue").fetchone()["n"]
         _sync(conn, fonte)
@@ -231,7 +234,7 @@ def test_loader_recusa_dono_divergente(conn, fonte):
 
 
 def _snapshot(conn, ids: dict[str, str]) -> dict:
-    pids = [ids[k] for k in ("dudu", "maria", "ana", "beto", "caio", "outro")]
+    pids = [ids[k] for k in ("dudu", "maria", "ana", "beto", "caio", "velho", "outro")]
     q = {
         "candidacies": "select id::text k, xmin::text v from candidacies where person_id = any(%s::uuid[])",
         "mandates": "select id::text k, xmin::text v from mandates where person_id = any(%s::uuid[])",
@@ -242,7 +245,7 @@ def _snapshot(conn, ids: dict[str, str]) -> dict:
     out["titulos"] = sorted((r["k"], r["v"]) for r in conn.execute(
         "select titulo || year || ue || tse_sequencial k, xmin::text v from tse_titulo_candidatura where titulo = any(%s)", (sorted(TITLES),)))
     out["elections"] = sorted((r["k"], r["v"]) for r in conn.execute(
-        "select id::text k, xmin::text v from elections where year in (2012, 2014, 2016, 2020)"))
+        "select id::text k, xmin::text v from elections where year in (2012, 2016, 2020)"))
     out["people"] = conn.execute("select count(*) n from people").fetchone()["n"]
     out["queue"] = conn.execute("select count(*) n from identity_match_queue").fetchone()["n"]
     return out

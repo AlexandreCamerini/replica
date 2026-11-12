@@ -17,10 +17,12 @@ Ordem (fixa; um passo só lê o que os anteriores deixaram):
      `title_row_foreign`, `first_name_match`, `shared_title`, geração/14 anos, chave `tse` de outra pessoa): só entra a que
      casa na pessoa do título; a recusada fica na nota do run e no log, nunca na pessoa, e não consome o teto. A aceita é
      carregada pelo loader (`_load_year(only=, owners=)`), que refaz o resolve e rejeita o que não casar no dono esperado; nunca
-     cria pessoa nem mexe em candidatura existente (linha cuja (ano, SQ) já está no banco fica de fora). Mesma regra de
-     situação da carga normal: ELEITO e 2º TURNO sempre; as outras situações (suplente, não eleito, #NULO#, INAPTO) só se a
-     disputa (ano, cargo, lugar) já tem candidatura não eleita no banco, isto é, se aquele ano foi carregado com `--all` ali.
-     Fora: eleição suplementar (a carga dela encerra e apaga mandatos da cadeira; D241) e cargo sem mandato próprio (suplente
+     cria pessoa nem mexe em candidatura existente (linha cuja (ano, SQ) já está no banco fica de fora). Situação: ELEITO e
+     2º TURNO sempre (é o que o check do BUG-039 cobra); as outras (suplente, não eleito, #NULO#, INAPTO) só para quem não tem
+     candidatura nenhuma antes da mais antiga das 2 eleições ordinárias mais recentes (`history_cutoff`: em 2026, 2024), isto
+     é, quem entrou pela carga do ciclo em curso e ainda não tem histórico. Quem já tem histórico e não tem a não eleita de um
+     ano é o backlog do BUG-047 (2012 carregado em ordem crescente, antes de a pessoa existir): ~1.800 linhas no banco local,
+     carga em massa, decisão do dono, não deste reparo. Fora: eleição suplementar (a carga dela encerra e apaga mandatos da cadeira; D241) e cargo sem mandato próprio (suplente
      de senador). Teto de HISTORY_CAP candidaturas e HISTORY_BUDGET_S segundos por run, por grupo (pessoa, ano): o resto fica
      para a próxima e o run `identity.repairs.historico` fecha `partial`. Cada candidatura, mandato, bem e chave criados vão
      para identity_split_log (bug BUG-053, ação 'criado'), que é o roteiro da reversão. Votos e contas desses anos não entram.
@@ -209,6 +211,17 @@ where not exists (select 1 from candidacies c join elections e on e.id = c.elect
 """
 
 
+FORA_COM_HISTORICO = "não eleita de quem já tem histórico carregado (backlog do BUG-047, fora do reparo)"
+
+
+def history_cutoff(conn: psycopg.Connection) -> int:
+    """Ano da mais antiga das 2 eleições ordinárias mais recentes do banco (em 2026: 2024, a municipal; a geral é 2026). Quem não
+    tem candidatura antes dele entrou no diretório pela carga do ciclo em curso e ainda não tem histórico nenhum."""
+    ys = [r["year"] for r in conn.execute(
+        "select distinct year from elections where kind in ('municipal', 'geral') order by year desc limit 2")]
+    return min(ys) if ys else 0
+
+
 def _history_universe(conn: psycopg.Connection) -> list[dict[str, Any]]:
     """Linhas do título de cada pessoa do diretório em anos em que ela não tem candidatura nenhuma."""
     return [dict(r) for r in conn.execute(_HISTORY_SQL)]
@@ -255,7 +268,7 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
 
     from ..identity import PersonResolver
     from ..util import nz, parse_date, titlecase_pt
-    from .tse_candidatos import CARGO, ELECTED, muni_index, title_rows, tse_key
+    from .tse_candidatos import CARGO, muni_index, title_rows, tse_key
 
     plan: dict[str, Any] = {"universo": Counter(), "fora": Counter(), "aceitas": [], "recusadas": [], "src": {}}
     by_year: dict[int, list[dict[str, Any]]] = defaultdict(list)
@@ -274,11 +287,17 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
     places = {r["ibge_code"]: str(r["id"]) for r in conn.execute("select ibge_code, id from places")}
     by_uf = {r["uf"]: str(r["id"]) for r in conn.execute("select uf, id from places where kind = 'uf'")}
     muni_lookup = muni_index(conn)
-    # disputas já carregadas com todas as situações: a carga normal daquele ano, ali, trouxe os não eleitos
-    full = {(r["year"], r["slug"], str(r["place_id"])) for r in conn.execute(
-        """select distinct e.year, o.slug, ct.place_id from candidacies c join elections e on e.id = c.election_id
-           join contests ct on ct.id = c.contest_id join offices o on o.id = ct.office_id
-           where e.year = any(%s) and (c.result is null or c.result <> all(%s))""", (years, sorted(ELECTED)))}
+    # quem já tem histórico carregado (candidatura antes das 2 eleições ordinárias mais recentes) só ganha a linha eleita: o resto
+    # do histórico dessas pessoas é o backlog do BUG-047 (2012 carregado antes de elas existirem), carga em massa e não reparo
+    cutoff = history_cutoff(conn)
+    persons = sorted({u["person_id"] for us in by_year.values() for u in us})
+    with_history = {str(r["person_id"]) for r in conn.execute(
+        """select distinct c.person_id from candidacies c join elections e on e.id = c.election_id
+           where c.person_id = any(%s::uuid[]) and e.year < %s
+             -- o que este passo já carregou não conta: senão o teto (ou um ano que voltou atrás) tiraria o resto do histórico
+             and not exists (select 1 from identity_split_log l where l.bug = %s and l.table_name = 'candidacies'
+                             and l.row_key = c.id::text)""", (persons, cutoff, BUG_053))}
+    plan["cutoff"] = cutoff
     taken = {(r["year"], r["tse_sequencial"]) for r in conn.execute(
         "select e.year, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id where e.year = any(%s)", (years,))}
     pr = PersonResolver(conn)
@@ -309,9 +328,8 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
                     place = muni_lookup((x["SG_UF"] or "").strip().upper(), x["NM_UE"])
                 civil, birth = titlecase_pt(x["NM_CANDIDATO"]), parse_date(x["DT_NASCIMENTO"])
                 item.update(civil=civil, birth=birth)
-                if (u["result"] or "") not in ALWAYS_LOADED and (year, office, place) not in full:
-                    # a carga daquele ano, ali, foi só de eleitos: o crachá dos outros também não tem essa situação
-                    plan["fora"]["situação que a carga do ano não trouxe (só eleitos ali)"] += 1
+                if (u["result"] or "") not in ALWAYS_LOADED and u["person_id"] in with_history:
+                    plan["fora"][FORA_COM_HISTORICO] += 1
                     continue
                 if not place:
                     plan["recusadas"].append({**item, "why": "lugar sem correspondência no IBGE"})
