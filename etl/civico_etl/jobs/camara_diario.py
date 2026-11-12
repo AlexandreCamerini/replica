@@ -736,24 +736,83 @@ def cota_api_amounts(api_rows: list[dict]) -> list[int | None]:
     return [cota_api_liquido(x, f) for x, f in zip(api_rows, flags)]
 
 
+def cota_seis_digitos(api_cents: int, file_cents: int) -> bool:
+    """BUG-054: o arquivo Ano-AAAA.csv.zip traz os valores com 6 dígitos significativos (formato %g: 11892.53 -> "11892.5",
+    290386.82 -> "290387"; nenhum valor >= 10.000 de cota2023 a cota2026 no banco tem centavos). Até 11/11/2026 a API
+    devolvia o mesmo valor arredondado (160541/2025, missão oficial: 61932.8 nos dois); desde 12/11/2026 devolve o valor
+    com centavos (61932.76), e o casamento exato deixou de achar o par. O valor do arquivo é o da API nessa precisão:
+    diferença de até meia unidade do 6º dígito do valor da API (5 centavos de 10.000 a 99.999,99, 50 centavos de 100.000 a
+    999.999,99) e o arquivo com os zeros finais dessa precisão. Abaixo de 10.000 só o valor exato casa. Se o arquivo
+    passar a ter centavos, a regra não casa nada novo."""
+    a = abs(api_cents)
+    if a < 1_000_000 or (api_cents < 0) != (file_cents < 0):
+        return False
+    unit = 10 ** (len(str(a)) - 6)  # unidade do 6º dígito significativo, em centavos
+    return file_cents % unit == 0 and abs(api_cents - file_cents) * 2 <= unit
+
+
 def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> list[dict]:
     """Linhas da API que o arquivo não tem: diferença de multiconjunto por (documento, valor líquido em centavos).
     Linhas do arquivo que a API não tem (telefonia sem documento) ficam: o arquivo é a fonte principal.
 
     Documento vazio: o arquivo traz `ideDocumento` vazio (gravado como "-" na chave) e a API traz `codDocumento` null; os dois
     são o mesmo "sem documento" (BUG-030: a passagem de missão oficial entrava duas vezes). O valor da API passa pela mesma
-    regra de sinal do arquivo (`cota_liquido`)."""
+    regra de sinal do arquivo (`cota_liquido`).
+
+    BUG-054: depois do casamento exato, uma segunda passada casa, no mesmo documento, o que sobrou nas duas mudanças da API
+    vistas em 12/11/2026: (1) a API com centavos contra o arquivo com 6 dígitos significativos (`cota_seis_digitos`); (2) o
+    `valorLiquido` negado nas linhas fora do SIGEPA (11892.53 / -11892.53; a regra D200 de `cota_liquido` já desfaz o caso
+    líquido = -documento, mas não a parcela, 2500 / 0 / -311.55 contra +311.55 no arquivo): o valor da API com documento
+    positivo e líquido negativo casa com a linha do arquivo de valor oposto. Estorno de verdade (documento negativo) não
+    troca de sinal. Sem as duas passadas, a linha que o arquivo já tem entra de novo como complemento (cota em dobro).
+    A passada (1) roda inteira antes da (2), para o resultado não depender da ordem da API; depois, (3) o documento que a
+    API divide em várias linhas casa pela soma."""
     left: dict[tuple[str, int], int] = defaultdict(int)
     for doc, amount in file_rows:
         left[(_cota_doc(doc), amount)] += 1
-    extra = []
+    pending = []
     for x, amount in zip(api_rows, cota_api_amounts(api_rows)):
         k = (_cota_doc(x.get("codDocumento")), amount or 0)
         if left.get(k, 0) > 0:
             left[k] -= 1
         else:
-            extra.append(x)
-    return extra
+            pending.append((x, amount or 0))
+    by_doc: dict[str, list[int]] = defaultdict(list)
+    for (doc, amount), n in left.items():
+        by_doc[doc] += [amount] * n
+    def take(t: int, cands: list[int]) -> bool:
+        hit = next((f for f in cands if f == t or cota_seis_digitos(t, f)), None)
+        if hit is None:
+            return False
+        cands.remove(hit)
+        return True
+
+    # 2a: todas as pendentes, só com o próprio valor (6 dígitos). Antes da negação, para a ordem da API não decidir quem casa.
+    rest = [(x, a) for x, a in pending if not take(a, by_doc.get(_cota_doc(x.get("codDocumento")), []))]
+    # 2b: o que sobrou, com o líquido negado pela API (documento > 0 e líquido < 0)
+    rest2 = []
+    for x, amount in rest:
+        doc_value = cents(x.get("valorDocumento"))
+        negado = amount < 0 and doc_value is not None and doc_value > 0
+        if not (negado and take(-amount, by_doc.get(_cota_doc(x.get("codDocumento")), []))):
+            rest2.append((x, amount))
+    # 3: documento que a API divide em outras linhas (D230 em duas: 98057/7877201, arquivo 6805.82/528.49/5748.84 vale o
+    # documento; a API traz -6277.33 e +528.49). Se a soma das pendentes da API no documento é a soma das linhas que sobraram
+    # do arquivo nele (exata ou pelos 6 dígitos), o documento está coberto. Documento vazio fica de fora.
+    by_api: dict[str, list[tuple[dict, int]]] = defaultdict(list)
+    for x, amount in rest2:
+        by_api[_cota_doc(x.get("codDocumento"))].append((x, amount))
+    extra = []
+    for doc, items in by_api.items():
+        cands = by_doc.get(doc, [])
+        if doc and cands:
+            s_api, s_file = sum(a for _, a in items), sum(cands)
+            if s_api == s_file or cota_seis_digitos(s_api, s_file):
+                cands.clear()
+                continue
+        extra += [x for x, _ in items]
+    order = {id(x): i for i, x in enumerate(api_rows)}
+    return sorted(extra, key=lambda x: order[id(x)])
 
 
 EXP_COLS = ["person_id", "body_id", "occurred_on", "category", "supplier_name", "supplier_doc", "amount_cents", "currency", "receipt_url", "source_key"]

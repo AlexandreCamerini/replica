@@ -5,7 +5,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from civico_etl.jobs.camara_diario import cota_api_amounts, cota_api_extra, cota_glosa_em_outra_linha, cota_keys, cota_liquido, cota_occurred
+from civico_etl.jobs.camara_diario import (cota_api_amounts, cota_api_extra, cota_glosa_em_outra_linha, cota_keys, cota_liquido, cota_occurred,
+                                           cota_seis_digitos)
 from civico_etl.jobs.checks import CHECKS, COTA_REFERENCIA
 
 # Adriana Ventura (204528), passagem SIGEPA 2025-08-27: emissão e estorno no mesmo documento
@@ -145,6 +146,81 @@ def test_api_aplica_a_mesma_regra_e_casa_com_o_arquivo():
     api = [{"codDocumento": "7877201", "valorDocumento": 6805.82, "valorGlosa": 528.49, "valorLiquido": 5748.84}]
     assert cota_api_amounts(api) == [680582]
     assert cota_api_extra([("7877201", 680582)], api) == []
+
+
+# BUG-054: o arquivo traz 6 dígitos significativos; desde 12/11/2026 a API traz os centavos e o líquido negado fora do
+# SIGEPA. Linhas reais de Tabata Amaral (204534), arquivo Ano-2025.csv.zip e API /deputados/{id}/despesas?ano=2025 lidos
+# em 12/11/2026, exceto onde o comentário diz que o caso é sintético.
+def test_arquivo_com_seis_digitos_casa_com_a_api():
+    api = [{"codDocumento": "7896551", "valorDocumento": 11892.53, "valorGlosa": 0.0, "valorLiquido": -11892.53},
+           {"codDocumento": "7908965", "valorDocumento": 13848.35, "valorGlosa": 0.0, "valorLiquido": -13848.35}]
+    assert cota_api_extra([("7896551", 1189250), ("7908965", 1384840)], api) == []  # arquivo: "11892.5" e "13848.4"
+
+
+def test_missao_oficial_sem_documento_com_seis_digitos():
+    # sintético, montado sobre 160541/2025 (BUG-030): arquivo "61932.8" sem ideDocumento (como até 11/11) contra a API de
+    # hoje, codDocumento null e 61932.76. O arquivo de 12/11 não traz essa linha; a simulação a mantém como complemento.
+    api = [{"codDocumento": None, "valorDocumento": 61932.76, "valorGlosa": None, "valorLiquido": 61932.76}]
+    assert cota_api_extra([("-", 6193280)], api) == []
+
+
+def test_parcela_com_liquido_negado_pela_api_casa_com_o_arquivo():
+    # 204534, documento 8022455 (parcela): arquivo 2500 / 0 / 311.55; API 2500 / 0 / -311.55
+    api = [{"codDocumento": "8022455", "valorDocumento": 2500.0, "valorGlosa": 0.0, "valorLiquido": -311.55}]
+    assert cota_api_extra([("8022455", 31155)], api) == []
+
+
+def test_estorno_e_valor_diferente_continuam_complemento():
+    # estorno de verdade (documento negativo) não troca de sinal para casar com a emissão
+    estorno = {"codDocumento": "349900", "valorDocumento": -624.10, "valorGlosa": 0.0, "valorLiquido": -624.10}
+    assert cota_api_extra([("349900", 62410)], [estorno]) == [estorno]
+    # abaixo de 10.000 o arquivo tem centavos: só o valor exato casa
+    api = {"codDocumento": "7000001", "valorDocumento": 9999.53, "valorGlosa": 0.0, "valorLiquido": 9999.53}
+    assert cota_api_extra([("7000001", 999950)], [api]) == [api]
+    # acima de 10.000, diferença maior que meia unidade do 6º dígito, ou arquivo com centavos: não casa
+    api = {"codDocumento": "7000002", "valorDocumento": 11892.53, "valorGlosa": 0.0, "valorLiquido": 11892.53}
+    assert cota_api_extra([("7000002", 1189240)], [api]) == [api]
+    assert cota_api_extra([("7000002", 1189251)], [api]) == [api]
+    # outro documento não casa
+    assert cota_api_extra([("7000003", 1189250)], [api]) == [api]
+    # SIGEPA só na API continua complemento
+    sigepa = {"codDocumento": "81E9F9E5-A37C-4240-854E-8CAF6BBC5182", "valorDocumento": 1234.56, "valorGlosa": 0.0, "valorLiquido": 1234.56}
+    assert cota_api_extra([("7896551", 1189250)], [sigepa]) == [sigepa]
+
+
+def test_resultado_nao_depende_da_ordem_da_api():
+    # revisão A: a linha negada de outro valor não pode consumir a linha do arquivo antes da linha de valor próprio
+    negada = {"codDocumento": "D", "valorDocumento": 20000.0, "valorGlosa": 0.0, "valorLiquido": -11892.53}
+    propria = {"codDocumento": "D", "valorDocumento": 11892.53, "valorGlosa": 0.0, "valorLiquido": 11892.53}
+    arquivo = [("D", 1189250)]
+    assert cota_api_extra(arquivo, [negada, propria]) == [negada]
+    assert cota_api_extra(arquivo, [propria, negada]) == [negada]
+
+
+def test_documento_dividido_em_duas_linhas_na_api_casa_pela_soma():
+    # Lafayette de Andrada (98057) 01/2025, documento 7877201: arquivo 6805.82 / 528.49 / 5748.84 (D230: vale 6805.82);
+    # a API de 12/11/2026 traz duas linhas, -6277.33 (D200 -> +6277.33) e +528.49. Página 2025: 523.494,83.
+    api = [{"codDocumento": "7877201", "valorDocumento": 6805.82, "valorGlosa": 528.49, "valorLiquido": -6277.33},
+           {"codDocumento": "7877201", "valorDocumento": 6805.82, "valorGlosa": 528.49, "valorLiquido": 528.49}]
+    assert cota_api_amounts(api) == [627733, 52849]
+    assert cota_api_extra([("7877201", 680582)], api) == []
+    # soma diferente: as duas continuam complemento
+    assert cota_api_extra([("7877201", 680583)], api) == api
+
+
+def test_liquido_negado_sem_par_no_arquivo_continua_complemento():
+    so_api = {"codDocumento": "8099999", "valorDocumento": 2500.0, "valorGlosa": 0.0, "valorLiquido": -311.55}
+    assert cota_api_extra([("8022455", 31155)], [so_api]) == [so_api]
+    assert cota_api_extra([], [so_api]) == [so_api]
+
+
+def test_seis_digitos_tem_a_unidade_certa():
+    assert cota_seis_digitos(1189253, 1189250)          # 11892.53 -> 11892.5
+    assert cota_seis_digitos(1384835, 1384840)          # 13848.35 -> 13848.4 (meia unidade, inclusivo)
+    assert cota_seis_digitos(29038682, 29038700)        # 290386.82 -> 290387
+    assert not cota_seis_digitos(29038682, 29038600)
+    assert not cota_seis_digitos(999953, 999950)        # abaixo de 10.000
+    assert not cota_seis_digitos(-1189253, 1189250)     # sinal diferente
 
 
 def test_referencia_tem_casos_de_glosa_dupla():
