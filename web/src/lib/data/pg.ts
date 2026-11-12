@@ -331,6 +331,7 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
     result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
     yes: Number(r.yes_count ?? 0),
     no: Number(r.no_count ?? 0),
+    placarFonte: { sim: r.yes_count == null ? null : Number(r.yes_count), nao: r.no_count == null ? null : Number(r.no_count) },
     isNominal: Boolean(r.is_nominal),
     // D55 trocada pela D123: secreta é o que a fonte marca; null (Câmara não informa) não vira rótulo nenhum
     isSecret: r.is_secret === true,

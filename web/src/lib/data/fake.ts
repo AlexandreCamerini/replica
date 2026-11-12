@@ -972,7 +972,7 @@ export const fakeSource: DataSource = {
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
     const all = f.scope === "lei" ? base.filter((e) => e.kind !== "requerimento" && e.kind !== "urgencia") : base;
     const years = [...new Set(events.map((e) => yearOf(e.occurredAt)))].filter((y) => y <= CURRENT_YEAR).sort((a, b) => b - a);
-    const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null });
+    const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null, placarFonte: { sim: e.yes, nao: e.no } });
     return { ...page(all.map(toSummary), f.cursor, Math.min(f.limit ?? 30, 100)), years, hidden: base.length - all.length };
   },
   async getVotingEvent(id) {
@@ -1004,6 +1004,7 @@ export const fakeSource: DataSource = {
       ...ev,
       isNominal: true,
       proposal: null,
+      placarFonte: { sim: ev.yes, nao: ev.no },
       porUf: placarPorUf(ev, votes),
       counts,
       orientations: PARTIES.map((p) => ({ label: p.acronym, kind: "partido" as const, value: (rng(`ori:${id}:${p.id}`)() < 0.6 ? "sim" : "nao") as "sim" | "nao" })),
@@ -1324,6 +1325,8 @@ function demoVotacaoSemVotos(): VotingEventDetail {
     result: "aprovado" as const,
     yes: 0,
     no: 0,
+    // a fonte não publicou nem o placar total
+    placarFonte: { sim: null, nao: null },
     isNominal: true,
     proposal: null,
   };

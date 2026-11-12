@@ -262,7 +262,17 @@ export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string
 export type Body = "camara" | "senado";
 /** isSecret: a fonte marca a votação como secreta (`voting_events.is_secret`, D123); não é "não votou".
  *  openNoVotes: a fonte diz que foi aberta, mas não publicou o voto de cada pessoa. Fonte que não informa (Câmara) = os dois false. */
-export type VotingEventSummary = VotingEvent & { proposal: { label: string; summary: string; url: string | null } | null; isNominal: boolean; isSecret?: boolean; openNoVotes?: boolean };
+export type VotingEventSummary = VotingEvent & {
+  proposal: { label: string; summary: string; url: string | null } | null;
+  isNominal: boolean;
+  isSecret?: boolean;
+  openNoVotes?: boolean;
+  /**
+   * Placar total como a fonte publicou (voting_events.yes_count / no_count): null = a fonte não publicou; 0 = publicou zero.
+   * `yes`/`no` de VotingEvent fundem os dois em 0 e não servem para dizer "a fonte publicou".
+   */
+  placarFonte: { sim: number | null; nao: number | null };
+};
 export type OrientationValue = "sim" | "nao" | "abstencao" | "obstrucao" | "liberado";
 export type VotingEventDetail = VotingEventSummary & {
   counts: Record<VoteValue, number>;

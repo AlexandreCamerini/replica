@@ -106,9 +106,10 @@ export default async function Votacao({ params, searchParams }: { params: Promis
             // sem voto individual: lacuna nomeada, nunca barras de zeros; o placar total só se a fonte o publicou
             <div className="sv-mt-3" data-sem-voto-individual>
               <Gap>{ev.porUf.kind === "lacuna" ? ev.porUf.motivo : "A fonte não publicou o voto de cada pessoa nesta votação."}</Gap>
-              {(ev.yes ?? 0) + (ev.no ?? 0) > 0 && (
+              {/* nulo = a fonte não publicou; zero publicado é dado e aparece */}
+              {ev.placarFonte.sim !== null && ev.placarFonte.nao !== null && (
                 <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
-                  Placar total publicado pela fonte: {ev.yes} sim e {ev.no} não.
+                  Placar total publicado pela fonte: {ev.placarFonte.sim} sim e {ev.placarFonte.nao} não.
                 </p>
               )}
             </div>

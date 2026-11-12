@@ -1191,6 +1191,8 @@ test.describe("placar por UF na votação", () => {
     await expect(page.locator("[data-sem-voto-individual]")).toBeVisible();
     await expect(page.locator("body")).not.toContainText("0 registros nesta votação");
     await expect(page.locator('[role="img"][aria-label^="Sim 0"]')).toHaveCount(0);
+    // a demo não publicou o placar total (nulo): nada de "0 sim e 0 não" inventado
+    await expect(page.locator("body")).not.toContainText("Placar total publicado pela fonte");
   });
 });
 
