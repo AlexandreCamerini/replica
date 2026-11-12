@@ -12,7 +12,8 @@ const SIGO = ["helena-siqueira", "alvaro-teixeira-sp", "bruno-sampaio"]; // Sena
 const KEY_SEM_RESPOSTA = "camara-pl-79-2020";
 const KEY_RESPONDIDA = "camara-pl-9999-2026";
 
-type Rota = { nome: string; url: string };
+/** `status`: o esperado da resposta (padrão 200). Só o 404 do /v2 muda. */
+type Rota = { nome: string; url: string; status?: number };
 const ROTAS: Rota[] = [
   { nome: "inicio", url: "/v2" },
   { nome: "acompanhando", url: "/v2/acompanhando" },
@@ -28,7 +29,16 @@ const ROTAS: Rota[] = [
   { nome: "tema", url: "/v2/tema/agro" },
   { nome: "votacao", url: "/v2/votacao/camara-v2026-15" },
   { nome: "votacao-uf", url: "/v2/votacao/camara-v2026-15?uf=SP" },
+  // recortes das sete telas redesenhadas depois da PR #22, e o 404 do /v2 (endereço inexistente e notFound() de uma tela)
+  { nome: "votacoes-senado-tudo", url: "/v2/votacoes?casa=senado&tudo=1" },
+  { nome: "votacao-sem-votos", url: "/v2/votacao/camara-demo-sem-votos?uf=SP" },
+  { nome: "decisoes-leis", url: "/v2/decisoes?aba=leis" },
+  { nome: "pessoas-grupo", url: "/v2/pessoas?cidade=3509502&grupo=vereadores" },
+  { nome: "pessoas-filtro", url: "/v2/pessoas?cargo=senador&uf=SP" },
+  { nome: "404", url: "/v2/nao-existe", status: 404 },
+  { nome: "404-decisao", url: "/v2/decisao/nao-existe", status: 404 },
 ];
+const STATUS = new Map(ROTAS.map((r) => [r.url, r.status ?? 200]));
 type Leitor = "anon" | "leitor";
 const LEITORES: Leitor[] = ["anon", "leitor"];
 
@@ -42,7 +52,7 @@ async function cookiesDoLeitor(context: BrowserContext, leitor: Leitor) {
 
 async function abrir(page: Page, url: string) {
   const res = await page.goto(url, { waitUntil: "load" });
-  expect(res?.status(), url).toBe(200);
+  expect(res?.status(), url).toBe(STATUS.get(url) ?? 200);
   await expect(page.locator(".sv h1").first()).toBeVisible();
 }
 
@@ -239,7 +249,7 @@ test.describe("sem JavaScript", () => {
       const context = await semJs(browser, info, "leitor");
       const page = await context.newPage();
       const res = await page.goto(r.url);
-      expect(res?.status()).toBe(200);
+      expect(res?.status()).toBe(r.status ?? 200);
       await expect(page.locator(".sv h1")).toHaveCount(1);
       await expect(page.locator(".sv h1")).toBeVisible();
       expect((await page.locator(".sv-main").innerText()).length, "conteúdo do main").toBeGreaterThan(200);
@@ -453,7 +463,7 @@ const GEOMETRIA = new Set(["width", "height", "inline-size", "block-size", "pers
 type Snap = { chave: string; props: Record<string, string> }[];
 
 test.describe("neutralidade", () => {
-  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema"].includes(r.nome));
+  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro"].includes(r.nome));
   for (const r of ROTAS_PESSOAS) {
     test(`trocar nomes e siglas: 0 diferenças de estilo, pseudo-elementos e ordem: ${r.nome} [leitor]`, async ({ page, context }, info) => {
       await cookiesDoLeitor(context, "leitor");
@@ -534,7 +544,7 @@ test.describe("neutralidade", () => {
       );
       nota(info, "trocas", JSON.stringify({ nomes: trocados.nomes, partidos: trocados.partidos, encontrados: trocados.nomesEncontrados.slice(0, 6) }));
       // o teste só vale se houve o que trocar (rotas com pessoa)
-      if (["acompanhando", "pessoa", "pessoas", "votacao-uf"].includes(r.nome)) expect(trocados.nomes, "sem nome para trocar: o teste não provaria nada").toBeGreaterThan(0);
+      if (["acompanhando", "pessoa", "pessoas", "votacao-uf", "pessoas-grupo", "pessoas-filtro"].includes(r.nome)) expect(trocados.nomes, "sem nome para trocar: o teste não provaria nada").toBeGreaterThan(0);
 
       const depois = await snapshot();
       const dif: string[] = [];
@@ -709,7 +719,7 @@ test.describe("conteúdo", () => {
   test("'Exemplo ilustrativo' presente no modo demo nas telas com dado fictício", async ({ page, context }) => {
     await cookiesDoLeitor(context, "leitor");
     const falhas: string[] = [];
-    const comDado = ROTAS.filter((r) => !["como-funciona", "ajustes"].includes(r.nome));
+    const comDado = ROTAS.filter((r) => !["como-funciona", "ajustes", "404", "404-decisao"].includes(r.nome));
     for (const r of comDado) {
       await abrir(page, r.url);
       const t = await page.locator(".sv").innerText();
@@ -1060,6 +1070,13 @@ test.describe("capturas", () => {
     ["decisao", `/v2/decisao/${KEY_RESPONDIDA}`],
     ["temas", "/v2/temas"],
     ["ajustes", "/v2/ajustes"],
+    ["votacoes", "/v2/votacoes"],
+    ["votacao-uf", "/v2/votacao/camara-v2026-15?uf=SP"],
+    ["decisoes", "/v2/decisoes"],
+    ["pessoas", "/v2/pessoas"],
+    ["tema", "/v2/tema/agro"],
+    ["como-funciona", "/v2/como-funciona"],
+    ["404", "/v2/nao-existe"],
   ];
   for (const [nome, url] of alvos)
     for (const width of [390, 1280]) {
@@ -1215,4 +1232,22 @@ test.describe("listas sem truncar em silêncio", () => {
     await abrir(page, `/v2/decisao/${KEY_RESPONDIDA}`);
     await expect(page.locator("body")).not.toContainText(/Mostrando \d+ (de|as)/);
   });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 404 do /v2: endereço inexistente e notFound() de uma tela caem no mesmo 404, dentro do casco novo, sem afirmar que o registro não existe
+// ---------------------------------------------------------------------------------------------------------------------
+test.describe("404 do /v2", () => {
+  for (const url of ["/v2/nao-existe", "/v2/nao/existe/mesmo", "/v2/decisao/nao-existe", "/v2/votacao/nao-existe", "/v2/tema/nao-existe"])
+    test(`404 no casco D2: ${url}`, async ({ page }) => {
+      const res = await page.goto(url);
+      expect(res?.status(), url).toBe(404);
+      await expect(page.locator(".sv h1")).toHaveText("Não consta");
+      await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
+      await expect(page.locator("header.sticky")).toHaveCount(0);
+      const q = page.locator('[aria-labelledby="nf-1"]');
+      await expect(q).toContainText("Não encontramos esta página.");
+      await expect(q).toContainText("não quer dizer que a pessoa, a proposta ou a votação não existam");
+      await expect(page.locator('[aria-labelledby="nf-2"] a[href="/v2"]')).toBeVisible();
+    });
 });
