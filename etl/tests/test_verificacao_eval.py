@@ -182,6 +182,22 @@ def test_intervalos_conhecidos():
     assert E.taxa(0, 0)["taxa"] is None
 
 
+@pytest.mark.parametrize("teto", ["nan", "inf", "-inf", "0", "50.01"])
+def test_teto_nao_finito_ou_fora_da_faixa_e_recusado(teto, monkeypatch, tmp_path):
+    """nan passaria em `teto <= 0` e em `teto > max`; com ele, a conferência do teto nunca dispara. O máximo é o do workflow (50)."""
+    monkeypatch.setattr("sys.argv", ["verificacao_eval", "rodar", "--simulado", "--teto-usd", teto, "--saida", str(tmp_path / "s")])
+    with pytest.raises(SystemExit) as x:
+        E.main()
+    assert x.value.code == 2
+    assert not (tmp_path / "s").exists()
+
+
+@pytest.mark.parametrize("teto", [float("nan"), float("inf"), 0.0])
+def test_orcamento_recusa_teto_nao_finito(teto):
+    with pytest.raises(ValueError):
+        E.Orcamento(teto=teto)
+
+
 def test_kappa():
     assert E.kappa([("a", "a"), ("a", "b"), ("b", "b"), ("b", "b")]) == 0.5
     assert E.kappa([("a", "a"), ("b", "b")]) == 1.0

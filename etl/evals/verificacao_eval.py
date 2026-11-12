@@ -60,6 +60,7 @@ PRECOS: dict[str, tuple[float, float, float]] = {**drafting.PRICES, "claude-opus
 # Rotuladores: modelos diferentes entre si, do verificador (opus-5-5, haiku-5-5) e do redator (sonnet-5-5).
 ROTULADORES = {"rotulador_a": "claude-opus-5", "rotulador_b": "claude-sonnet-5", "arbitro_rotulo": "claude-opus-4-8"}
 SAIDA_MAX = 16000  # o max_tokens que verificar.call_agent e drafting.request_params pedem
+TETO_MAX_USD = 50.0  # o mesmo máximo do workflow (.github/workflows/verificacao-eval.yml)
 
 DEFEITO_DIZ = {"sem_sustentacao", "contradito", "direcao_errada", "justificacao", "injecao"}  # escape = campo de pé em "diz"
 SEM_SUSTENTACAO = {"sem_sustentacao", "contradito", "justificacao", "injecao"}  # "frase sem sustentação" da §10.3
@@ -101,6 +102,8 @@ class Orcamento:
     na volta. Gasto + reservado + pior caso da próxima nunca passa do teto. O acumulado por caso é por thread."""
 
     def __init__(self, teto: float):
+        if not (isinstance(teto, (int, float)) and math.isfinite(teto) and teto > 0):
+            raise ValueError(f"teto precisa ser finito e positivo: {teto!r}")  # com nan, `gasto + pior > teto` nunca dispara
         self.teto, self.gasto, self.reservado, self.chamadas = teto, 0.0, 0.0, 0
         self.teto_fase = teto  # executar() baixa durante a primeira passada para sobrar dinheiro para a segunda
         self.tokens = {"entrada": 0, "saida": 0, "cache_lido": 0, "cache_gravado": 0}
@@ -1006,8 +1009,8 @@ def main() -> int:
     ap.add_argument("--paralelo", type=int, default=1, help="casos verificados ao mesmo tempo (o teto continua valendo: cada chamada reserva o pior caso)")
     a = ap.parse_args()
     fases = [f.strip() for f in a.fases.split(",") if f.strip()]
-    if a.teto_usd <= 0 or a.teto_usd > 200:
-        ap.error("--teto-usd fora de (0, 200]")
+    if not math.isfinite(a.teto_usd) or a.teto_usd <= 0 or a.teto_usd > TETO_MAX_USD:  # nan passaria nas duas comparações
+        ap.error(f"--teto-usd fora de (0, {TETO_MAX_USD:g}] ou não finito")
     if not 0 <= a.reserva_segunda < 1:
         ap.error("--reserva-segunda fora de [0, 1)")
     if a.limite is not None and a.limite <= 0:
