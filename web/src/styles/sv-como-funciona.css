@@ -1,0 +1,21 @@
+/* Segue o Voto, D2 · tela Como funciona (/v2/como-funciona). Importado pela própria página.
+   Só regras desta tela, sob .sv e com prefixo sv-. Âncoras #verificacao, #fontes, #regras e #correcoes ficam no h2 de cada
+   quadro (o rodapé e o selo levam a #correcoes). Esta tela não usa --agora nem --vida. */
+
+.sv .sv-cf-l{display:flex;flex-direction:column}
+.sv .sv-cf-l li{padding:6px 0;border-top:1.5px solid var(--tinta);font-size:16px;line-height:1.4}
+.sv .sv-cf-l li:first-child{border-top:0}
+.sv .sv-cf-l--g li{font-size:20px;line-height:1.2;font-weight:800;letter-spacing:-.01em;padding:8px 0}
+.sv ol.sv-cf-l--n{counter-reset:cf}
+.sv .sv-cf-l--n li{counter-increment:cf;display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:6px}
+.sv .sv-cf-l--n li::before{content:counter(cf) ".";font-weight:800}
+.sv .sv-cf-v{display:flex;flex-wrap:wrap;column-gap:20px;row-gap:4px;font-size:18px}
+.sv .sv-cf-f{display:flex;flex-direction:column}
+.sv .sv-cf-f li{display:flex;flex-direction:column;padding:2px 0 8px;border-top:1.5px solid var(--tinta);min-width:0}
+.sv .sv-cf-f li:first-child{border-top:0}
+.sv .sv-cf-f a{display:inline-flex;align-items:center;align-self:flex-start;min-height:44px;font-size:17px;font-weight:700;overflow-wrap:anywhere}
+.sv .sv-cf-f__m{font-size:14px;line-height:1.4;font-stretch:88%;color:var(--tinta2)}
+.sv .sv-pg--cf a.sv-enviar{text-decoration:none}
+@media (min-width:900px){
+  .sv .sv-cf-l--g li{font-size:26px;padding:10px 0}
+}
