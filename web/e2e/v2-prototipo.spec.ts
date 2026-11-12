@@ -81,7 +81,7 @@ test("v2: a UF se escolhe por formulário em Ajustes (sem busca por cidade) e ap
 test("v2: pessoas de um grupo aparecem em ordem alfabética", async ({ page }) => {
   await page.goto("/v2/pessoas?cidade=3509502&grupo=vereadores");
   await expect(page.locator(".sv h1")).toHaveText("Vereadores");
-  const names = await page.locator(".sv-item > div").evaluateAll((els) => els.map((e) => (e.firstChild?.textContent ?? "").trim()));
+  const names = await page.locator(".sv-pp > li > a").evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim()));
   expect(names.length).toBeGreaterThan(1);
   expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, "pt-BR")));
 });
@@ -149,8 +149,8 @@ test("páginas atuais continuam com o shell atual", async ({ page }) => {
 
 test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async ({ page }) => {
   await page.goto("/v2/pessoas?cargo=senador&uf=SP");
-  const first = page.locator(".sv-item").first();
-  const name = ((await first.locator("div").first().evaluate((e) => e.firstChild?.textContent)) ?? "").trim();
+  const first = page.locator(".sv-pp > li > a").first();
+  const name = ((await first.textContent()) ?? "").trim();
   await first.click();
   await page.getByRole("button", { name: /Votei nesta pessoa/ }).click();
   await expect(page.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
@@ -164,7 +164,7 @@ test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async 
   await expect(page.locator(".sv-main").getByText(name).first()).toBeVisible();
   // desmarcar: volta ao estado vazio, com convite
   await page.goto("/v2/pessoas?cargo=senador&uf=SP");
-  await page.locator(".sv-item").first().click();
+  await page.locator(".sv-pp > li > a").first().click();
   await page.getByRole("button", { name: "Você acompanha" }).click();
   await page.goto("/v2/acompanhando");
   await expect(page.getByRole("heading", { name: "Você ainda não marcou ninguém." })).toBeVisible();

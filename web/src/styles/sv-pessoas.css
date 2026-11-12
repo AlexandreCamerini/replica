@@ -1,0 +1,18 @@
+/* Segue o Voto, D2 · tela Pessoas (/v2/pessoas). Importado pela própria página.
+   Só regras desta tela, sob .sv e com prefixo sv-. Toda pessoa tem a mesma moldura: nome (link), cargo e lugar com o
+   partido em palavra, esfera em palavra. Nada aqui tem cor nem varia por partido, esfera ou pessoa. */
+
+.sv .sv-pp{display:grid;grid-template-columns:minmax(0,1fr);column-gap:28px}
+.sv .sv-pp li{display:flex;flex-direction:column;gap:1px;min-width:0;padding:4px 0 8px;border-top:1.5px solid var(--tinta)}
+.sv .sv-pp a{display:inline-flex;align-items:center;align-self:flex-start;min-height:44px;font-size:18px;line-height:1.2;font-weight:800;letter-spacing:-.01em;overflow-wrap:anywhere}
+.sv .sv-pp__c{font-size:15px;line-height:1.35;font-stretch:88%}
+.sv .sv-pg--pps .sv-quadro--dom .sv-a--dom{max-width:18ch}
+.sv .sv-filtro__b{display:none}
+@media (min-width:900px){
+  .sv .sv-pp{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sv .sv-filtro__b{display:block}
+  .sv .sv-pg--pps .sv-quadro--dom .sv-a--dom{font-size:clamp(36px,4vw,56px)}
+}
+@media (min-width:1100px){
+  .sv .sv-pp{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
