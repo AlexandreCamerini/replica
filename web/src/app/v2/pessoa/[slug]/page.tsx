@@ -32,6 +32,7 @@ import {
   vmPatrimonio,
 } from "@/components/sv/pessoa/secoes";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
+import { fonteDoConjunto } from "@/lib/data/cobertura";
 
 const SLUG = /^[a-z0-9-]{1,120}$/;
 // cache(): generateMetadata e a página leem a mesma pessoa numa só ida ao banco por requisição
@@ -161,14 +162,11 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
   // casa do mandato, citada como fonte quando o dado apareceu sem carimbo de leitura (fora da esfera federal)
   const casa = main ? casaDoMandato(main.office, ufSigla, main.placeLabel) : null;
   const F = (rotulo: string, s: Stamp | null, temDado = false) => `Fonte: ${fonteTexto(rotulo, usa(s), temDado ? casa : null)}.`;
-  // Fonte de um conjunto com cobertura: lido = a fonte e a data da carga da família certa (não o carimbo mais novo da fonte
-  // inteira); lacuna = a fonte que sustenta o motivo, sem data. Sem cobertura lida: o carimbo antigo (getStamp).
+  // Fonte de um conjunto com cobertura (regra em cobertura.ts `fonteDoConjunto`): com dado na tela, o carimbo nunca some,
+  // qualquer que seja o estado; sem dado, a fonte que sustenta o motivo da lacuna.
   const Fc = (c: ConjuntoPessoa, rotulo: string, s: Stamp | null, temDado = false) => {
-    const k = cob(c);
-    if (!k) return F(rotulo, s, temDado);
-    if (k.estado === "lido" && k.lidoEm) return F(rotulo, { dataset: c, source: k.fonte?.nome ?? s?.source ?? "Fonte oficial", sourceUrl: k.fonte?.url ?? "", refreshedAt: k.lidoEm }, temDado);
-    if (k.fonte && !temDado) return `Fonte: ${k.fonte.nome}, ${rotulo}.`;
-    return F(rotulo, null, temDado);
+    const f = fonteDoConjunto(cob(c), s, temDado);
+    return f.tipo === "lacuna" ? `Fonte: ${f.nome}, ${rotulo}.` : F(rotulo, f.s, temDado);
   };
   const consta: string[] = [];
   const naoConsta: string[] = [];

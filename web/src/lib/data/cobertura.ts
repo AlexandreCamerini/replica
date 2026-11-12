@@ -1,7 +1,7 @@
 // Regra única da cobertura por pessoa: para cada conjunto (presença, votos, gastos…), o que o banco sustenta dizer.
 // Puro: pg.ts e fake.ts montam a entrada (mandato, data_coverage, carimbos) e chamam `coberturaDe`; a tela só lê o estado.
 // Importável pelos testes (node --test): imports com extensão e só de tipo.
-import type { AssemblyInfo, CoberturaConjunto, ConjuntoPessoa, CoverageStatus, EstadoCobertura, MandateStatus, OfficeSlug } from "./types.ts";
+import type { AssemblyInfo, CoberturaConjunto, ConjuntoPessoa, CoverageStatus, EstadoCobertura, MandateStatus, OfficeSlug, Stamp } from "./types.ts";
 import { CONJUNTOS_PESSOA } from "./types.ts";
 
 export type CarimboFonte = { nome: string; url: string | null; em: string };
@@ -121,6 +121,24 @@ function deLinha(c: ConjuntoPessoa, linha: EntradaCobertura["coberturaLugar"][nu
 function patrimonio(e: EntradaCobertura): CoberturaConjunto {
   const k = e.carimbos["tse.candidatos"] ?? null;
   return k ? lido("patrimonio", k, "Bens declarados à Justiça Eleitoral nas candidaturas.") : item("patrimonio", "nao_carregado", MOTIVO.semTse);
+}
+
+/**
+ * O que a linha "Fonte:" de um conjunto cita. `carimbo` = o carimbo a passar a fonteTexto (null = sem carimbo);
+ * `lacuna` = a fonte que sustenta o motivo da lacuna, sem data.
+ * - `lido` com data: a fonte e a data da carga da família certa (não o carimbo mais novo da fonte inteira).
+ * - Com dado na tela e estado diferente de `lido` (licenciado, encerrado, aguardando posse…): o carimbo da leitura que
+ *   trouxe o dado (`s`). O estado decide só a frase da lacuna; nunca apaga a data de um dado que está na tela.
+ * - Sem dado: a fonte do motivo, quando há; senão nenhum carimbo.
+ * - Sem cobertura lida (leitura falhou): o carimbo da leitura, como antes do contrato.
+ */
+export type FonteDoConjunto = { tipo: "carimbo"; s: Stamp | null } | { tipo: "lacuna"; nome: string };
+export function fonteDoConjunto(k: CoberturaConjunto | null, s: Stamp | null, temDado: boolean): FonteDoConjunto {
+  if (!k) return { tipo: "carimbo", s };
+  if (k.estado === "lido" && k.lidoEm) return { tipo: "carimbo", s: { dataset: k.conjunto, source: k.fonte?.nome ?? s?.source ?? "Fonte oficial", sourceUrl: k.fonte?.url ?? "", refreshedAt: k.lidoEm } };
+  if (temDado) return { tipo: "carimbo", s };
+  if (k.fonte) return { tipo: "lacuna", nome: k.fonte.nome };
+  return { tipo: "carimbo", s: null };
 }
 
 /** Cobertura de uma pessoa, um item por conjunto, na ordem de CONJUNTOS_PESSOA. */

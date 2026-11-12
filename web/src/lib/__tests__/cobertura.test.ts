@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { FAMILIAS_CARIMBO, coberturaDe, type EntradaCobertura } from "../data/cobertura.ts";
+import { FAMILIAS_CARIMBO, coberturaDe, fonteDoConjunto, type EntradaCobertura } from "../data/cobertura.ts";
 import { CONJUNTOS_PESSOA, ESTADOS_COBERTURA, type AssemblyInfo, type CoberturaConjunto, type EstadoCobertura } from "../data/types.ts";
 
 const k = (nome: string) => ({ nome, url: "https://exemplo.gov.br", em: "2026-11-10T20:00:00Z" });
@@ -136,4 +136,26 @@ test("os casos acima emitem todos os estados do contrato", () => {
   ];
   for (const e of casos) for (const x of coberturaDe(e)) vistos.add(x.estado);
   assert.deepEqual([...vistos].sort(), [...ESTADOS_COBERTURA].sort());
+});
+
+test("C1: com dado na tela, a fonte cita o carimbo da leitura qualquer que seja o estado (licenciado, encerrado…)", () => {
+  const s = { dataset: "camara.presenca", source: "Câmara dos Deputados", sourceUrl: "https://dadosabertos.camara.leg.br", refreshedAt: "2026-11-09T10:00:00Z" };
+  for (const status of ["licenciado", "encerrado", "afastado", "eleito_aguardando_posse"] as const) {
+    const cs = coberturaDe({ ...base, office: "deputado_federal", status, faltaFederal: [], carimbos: todos });
+    const pres = cs.find((x) => x.conjunto === "presenca")!;
+    assert.equal(pres.estado, "fora_do_mandato", status);
+    // com dado: o carimbo existe e aparece (nunca "data da leitura não registrada")
+    assert.deepEqual(fonteDoConjunto(pres, s, true), { tipo: "carimbo", s }, status);
+    // sem dado: a frase é da lacuna; sem fonte do motivo, nenhum carimbo
+    assert.deepEqual(fonteDoConjunto(pres, s, false), { tipo: "carimbo", s: null }, status);
+  }
+  // lido: a data da carga da família, não a do carimbo antigo
+  const lidoP = coberturaDe({ ...base, office: "deputado_federal", status: "em_exercicio", faltaFederal: [], carimbos: todos }).find((x) => x.conjunto === "presenca")!;
+  const f = fonteDoConjunto(lidoP, s, true);
+  assert.equal(f.tipo === "carimbo" && f.s?.refreshedAt, lidoP.lidoEm);
+  // lacuna com fonte do motivo e sem dado: cita a fonte, sem data
+  const sen = coberturaDe({ ...base, office: "senador", status: "em_exercicio", carimbos: todos }).find((x) => x.conjunto === "presenca")!;
+  assert.deepEqual(fonteDoConjunto(sen, null, false), { tipo: "lacuna", nome: "Senado Federal" });
+  // cobertura não lida: o carimbo da leitura
+  assert.deepEqual(fonteDoConjunto(null, s, true), { tipo: "carimbo", s });
 });
