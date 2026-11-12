@@ -915,3 +915,14 @@ Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não conve
 - Severity: S3 latente (achado nas revisões da PR #25; anterior a ela)
 - Onde: o ramo do titular insere `(início da legislatura, fim)` por cima do mandato de suplente aberto da mesma pessoa; a exclusão `no_overlapping_mandate` (por pessoa e cargo) estoura fora do savepoint e desfaz a carga de deputados do ciclo. O mesmo vale para mandato da mesma pessoa em outra UF (`known` é por UF, a exclusão é por cargo).
 - Status: open. Em produção, 11/11/2026: nenhuma pessoa com titular do 1º dia e suplente aberto na legislatura (consulta de leitura).
+
+### BUG-053: pessoa criada por carga recente fica sem as candidaturas de eleições antigas do próprio título
+
+- Severity: S3 (crachá incompleto, sem fato errado; o check do BUG-039 acusa e o `etl.yml` fecha com exit 2 a cada ciclo)
+- Flow / case: agenda `tse.candidatos.recentes` (2024, 2026) + `identity.repairs` · Build: main b095ba9
+- Steps: em 11/11/2026 a retotalização de 2024 cria 10 vereadores novos no diretório (D07: só eleito com mandato atual cria pessoa, `tse_candidatos.py:336`). O passo `titulos` do reparo (`repairs.py:8-11`) grava as linhas 2012–2020 dos títulos deles, mas nenhum passo carrega essas candidaturas (`schedule.py:179` só recarrega 2024 e 2026). O check "título com linha ELEITO na fonte e pessoa sem candidatura eleita nesse ano" (`checks_identity.py:85`) dá 8: cosme-do-leite 2016; dudu-mg-vereador e lilo-da-bititinga 2012, 2016 e 2020; professor-moises-se 2020.
+- Expected: o histórico do título (todas as situações) no crachá na mesma rodada.
+- Actual: faltam 12 candidaturas de 5 pessoas (as 8 eleitas, 3 não eleitas dos mesmos 4 e 1 de nilson-chaves, 2016). No cache da fonte, todas têm o mesmo nascimento e a mesma UE da linha de 2024; uma tem o nome a 1 edição. É dado faltando, não fusão.
+- Fix sugerido: passo `historico` em `repairs.STEPS`, depois de `titulos`: para título do diretório com linha de um ano sem candidatura da pessoa naquele ano, `_load_year(only={(UE, SQ)})` a partir do cache (mecanismo do `identity.fix041`). Paliativo manual, só pelo dono (escrita em produção fora da agenda): `civico-etl tse.candidatos --all --force --year 2020 --year 2016 --year 2012 --uf MG --uf BA --uf AL --uf SE`, depois `identity.repairs --apply` e `check`.
+- Status: open. Correção planejada para depois do merge da PR #27 (mesmos arquivos).
+

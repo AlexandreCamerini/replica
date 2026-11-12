@@ -136,11 +136,14 @@ Atualizado em 11/11/2026, fim da onda 0 (Fase 1) e começo da onda 1.
 | A8 integração do `run_verificar` | #24 | feito | merge `eb77a09`; 97 testes novos, suíte 510 passaram, 32 pulados; 6 divergências código × especificação confirmadas (D300) |
 | A5 BUG-050 | #25 | feito | merge `ead585e`; duas revisões (opus) e re-revisão do delta; 21 testes, suíte 434 passaram; em produção encerrou exatamente 1 mandato (D301) |
 | A4 CI do web | #26 | feito | merge `b095ba9`; jobs `web-verificar` (1m16s), `web-build` (1m34s), `web-e2e` (8m03s; 464 passaram, 74 pulados por exigirem banco, 0 falhas, 0 flaky); SHAs das actions conferidos contra as tags; run da main não é mais cancelado; `forbidOnly` no CI |
-| A6 BUG-008 | P03 | em execução | o #418 também aparece em `tema-perfil.spec.ts` sob carga (D297) |
-| A9 contrato de dados | P06 | em execução | inclui o leitor em lote dos escolhidos (dívida da #22) |
+| A6 BUG-008 | P03 | em execução (3ª tentativa) | dois agentes interrompidos pela queda da sessão sem deixar correção; o #418 também aparece em `tema-perfil.spec.ts` sob carga (D297) |
 | ETL: migrações, pauta, webhook, agenda | — | feito antes desta execução | §1 |
 | ETL: run verde | #25 | feito | run 43024305280 (11/11 09:53–10:00 BRT): `success`, 3 tarefas, 0 falhas, 0 invariantes quebradas; vigia 43025369561 `success`; `/api/health/fontes` `ok:true` (D301) |
-| A10 identidade BUG-044/048 | P07 | em execução | |
+| A10 identidade BUG-044/048 | #27 | em revisão | duas revisões (opus): mergear com dívida; correções A1–A7 e B1–B5 aplicadas em `faf8630`; simulação no banco local: 1.680 linhas com nascimento diferente, 2 recusas antes e depois, 0 mudam; CI verde; delta em re-revisão |
+| A9 contrato de dados | #28 | em revisão | CI verde; contagens reais do banco local na descrição; revisão independente em curso |
+| A15 avaliação da verificação | #29 | em revisão | harness, conjunto (117 armadilhas, 20 PDFs de injeção) e workflow manual; revisão: mergear com dívida, 6 correções em curso; NENHUMA chamada real à API; barra da §10 não medida |
+| BUG-053 histórico de quem entra no diretório | — | pendente | causa confirmada (D303); depende do merge da #27 |
+| ETL depois do BUG-050 | — | vermelho por BUG-053 | runs agendados de 11/11 16:04 e 17:08 e 12/11 00:43 UTC com exit 2 por 1 invariante (8 linhas); tarefas sem falha; vigia `ok:true` |
 
 ### Dívidas registradas nas revisões
 
