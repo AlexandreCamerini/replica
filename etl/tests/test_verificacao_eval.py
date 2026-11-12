@@ -210,6 +210,105 @@ def test_preco_desconhecido_aborta():
     assert E.preco("claude-opus-5-5")[1] == 20.0
 
 
+def _req():
+    import httpx
+    return httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+
+
+class _Explode:
+    """Cliente que levanta `erro` em toda chamada."""
+
+    def __init__(self, erro):
+        self.erro, self.n = erro, 0
+        self.messages = self
+        self.beta = type("B", (), {"messages": self})()
+
+    def create(self, **kw):
+        self.n += 1
+        raise self.erro
+
+
+KW = {"model": "claude-haiku-5-5", "max_tokens": 1000, "messages": "x"}
+
+
+@pytest.mark.parametrize("erro", ["timeout", "conexao"])
+def test_timeout_ou_conexao_conta_a_reserva_como_gasta(erro):
+    """Sem resposta não há `usage`, mas o servidor pode ter gerado e cobrado: soltar a reserva deixaria o teto vazar."""
+    import anthropic
+    x = anthropic.APITimeoutError(request=_req()) if erro == "timeout" else anthropic.APIConnectionError(request=_req())
+    orc = E.Orcamento(teto=10)
+    with pytest.raises(type(x)):
+        E.ClienteMedido(_Explode(x), orc).messages.create(**KW)
+    assert orc.reservado == 0 and orc.gasto > 0 and orc.gasto == pytest.approx(orc.gasto_presumido)
+    assert orc.chamadas_presumidas == 1
+
+
+def test_erro_com_resposta_da_api_solta_a_reserva():
+    import anthropic
+    import httpx
+    orc = E.Orcamento(teto=10)
+    x = anthropic.BadRequestError("ruim", response=httpx.Response(400, request=_req()), body=None)
+    with pytest.raises(anthropic.BadRequestError):
+        E.ClienteMedido(_Explode(x), orc).messages.create(**KW)
+    assert orc.reservado == 0 and orc.gasto == 0
+
+
+def test_429_e_refeito_pelo_harness_sem_cobrar(monkeypatch):
+    import anthropic
+    import httpx
+    monkeypatch.setattr(E.time, "sleep", lambda s: None)
+    orc = E.Orcamento(teto=10)
+    cli = _Explode(anthropic.RateLimitError("429", response=httpx.Response(429, request=_req()), body=None))
+    with pytest.raises(anthropic.RateLimitError):
+        E.ClienteMedido(cli, orc).messages.create(**KW)
+    assert cli.n == E.RETENTATIVAS_429 + 1 and orc.gasto == 0 and orc.reservado == 0
+
+
+def test_cliente_real_sem_retentativa_do_sdk_e_com_timeout(monkeypatch, tmp_path):
+    import anthropic
+    criado = {}
+
+    class Falso:
+        def __init__(self, **kw):
+            criado.update(kw)
+
+    monkeypatch.setattr(anthropic, "Anthropic", Falso)
+    monkeypatch.setattr(E, "executar", lambda **kw: (_ for _ in ()).throw(J.Fatal("parar aqui")))
+    monkeypatch.setattr("sys.argv", ["verificacao_eval", "rodar", "--confirmo-custo", "--teto-usd", "1", "--saida", str(tmp_path), "--fases", "injecao"])
+    (tmp_path / "casos.jsonl").write_text("")
+    E.main()
+    assert criado["max_retries"] == 0 and 0 < criado["timeout"] < float("inf")
+
+
+def test_preco_servido_desconhecido_aborta_o_run_e_conta_o_gasto(tmp_path):
+    """O modelo servido sem preço não vira não medido caso a caso: o run para (Fatal) e a chamada já paga entra no gasto."""
+    class Servido(E.ClienteSimulado):
+        def create(self, **kw):
+            r = super().create(**kw)
+            r.model = "claude-desconhecido-9"
+            return r
+
+    orc = E.Orcamento(teto=100)
+    with pytest.raises(J.Fatal):
+        E.executar(conjunto="medida", cliente=Servido(), orc=orc, saida=tmp_path, fases=["armadilhas"], limite=None, n_segunda=0,
+                   casos_extra=conjunto()[:3], so_extra=True)
+    assert orc.gasto > 0 and orc.reservado == 0
+    assert not (tmp_path / "casos.jsonl").read_text().strip()  # nenhum caso registrado como não medido
+
+
+def test_preco_desconhecido_do_rotulador_nao_vira_caso_sem_rotulo():
+    orc = E.Orcamento(teto=100)
+
+    class Servido(E.ClienteSimulado):
+        def create(self, **kw):
+            r = super().create(**kw)
+            r.model = "claude-desconhecido-9"
+            return r
+
+    with pytest.raises(E.PrecoDesconhecido):
+        E._pedir(E.ClienteMedido(Servido(), orc), "rotulador_a", E.ROTULO_A_SYSTEM, '<campo nome="o_que_propoe" diz="true"', E.ROTULO_SCHEMA)
+
+
 def test_cliente_medido_soma_resposta_descartada_pelo_verificador():
     """Resposta fora do esquema é paga; o custo de produção (`Outcome.cost`) não a soma, o harness soma."""
     orc = E.Orcamento(teto=100)

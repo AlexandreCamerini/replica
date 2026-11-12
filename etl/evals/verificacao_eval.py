@@ -61,6 +61,10 @@ PRECOS: dict[str, tuple[float, float, float]] = {**drafting.PRICES, "claude-opus
 ROTULADORES = {"rotulador_a": "claude-opus-5", "rotulador_b": "claude-sonnet-5", "arbitro_rotulo": "claude-opus-4-8"}
 SAIDA_MAX = 16000  # o max_tokens que verificar.call_agent e drafting.request_params pedem
 TETO_MAX_USD = 50.0  # o mesmo máximo do workflow (.github/workflows/verificacao-eval.yml)
+# Cliente real: sem retentativa automática do SDK (uma retentativa depois de timeout pode pagar a mesma resposta duas vezes sem
+# que o harness veja) e timeout explícito. Só o 429 é refeito aqui, pelo harness, com a reserva conferida de novo a cada vez.
+TIMEOUT_API_S = 600.0  # Opus com effort alto e 16 mil tokens de saída leva minutos; acima disso a reserva conta como gasta
+RETENTATIVAS_429, ESPERA_429_S = 2, 20.0
 
 DEFEITO_DIZ = {"sem_sustentacao", "contradito", "direcao_errada", "justificacao", "injecao"}  # escape = campo de pé em "diz"
 SEM_SUSTENTACAO = {"sem_sustentacao", "contradito", "justificacao", "injecao"}  # "frase sem sustentação" da §10.3
@@ -76,10 +80,14 @@ class TetoAtingido(Exception):
         self.suave = suave
 
 
+class PrecoDesconhecido(J.Fatal, ValueError):
+    """Modelo (pedido ou servido) sem preço na tabela: o teto deixa de valer. Aborta o run inteiro; nunca vira não medido caso a caso."""
+
+
 def preco(model: str) -> tuple[float, float, float]:
     hit = max((k for k in PRECOS if model == k or model.startswith(k + "-")), key=len, default=None)
     if hit is None:
-        raise ValueError(f"modelo sem preço na tabela: {model}; o harness não estima custo inventado")
+        raise PrecoDesconhecido(f"modelo sem preço na tabela: {model}; o harness não estima custo inventado")
     return PRECOS[hit]
 
 
@@ -105,6 +113,7 @@ class Orcamento:
         if not (isinstance(teto, (int, float)) and math.isfinite(teto) and teto > 0):
             raise ValueError(f"teto precisa ser finito e positivo: {teto!r}")  # com nan, `gasto + pior > teto` nunca dispara
         self.teto, self.gasto, self.reservado, self.chamadas = teto, 0.0, 0.0, 0
+        self.gasto_presumido, self.chamadas_presumidas = 0.0, 0  # reservas contadas como gastas (timeout, conexão)
         self.teto_fase = teto  # executar() baixa durante a primeira passada para sobrar dinheiro para a segunda
         self.tokens = {"entrada": 0, "saida": 0, "cache_lido": 0, "cache_gravado": 0}
         self._lock = threading.Lock()
@@ -134,8 +143,24 @@ class Orcamento:
         with self._lock:
             self.reservado = max(0.0, self.reservado - reserva)
 
+    def presume_gasto(self, reserva: float) -> None:
+        """A chamada pode ter sido cobrada sem que o uso volte (timeout, conexão caída, preço servido desconhecido):
+        o pior caso reservado conta como gasto, para o teto nunca vazar."""
+        with self._lock:
+            self.reservado = max(0.0, self.reservado - reserva)
+            self.gasto += reserva
+            self.gasto_presumido += reserva
+            self.chamadas_presumidas += 1
+        c = self.caso
+        if c:
+            c["usd"] += reserva
+
     def depois(self, resp: Any, reserva: float = 0.0) -> None:
-        usd = custo(resp.model, resp.usage)
+        try:
+            usd = custo(resp.model, resp.usage)
+        except PrecoDesconhecido:
+            self.presume_gasto(reserva)  # a chamada já foi paga
+            raise
         u = resp.usage
         g = lambda n: int(getattr(u, n, 0) or 0)  # noqa: E731
         with self._lock:
@@ -163,15 +188,30 @@ class ClienteMedido:
         self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create(lambda: inner.beta.messages.create)))
 
     def _create(self, alvo: Callable[[], Callable[..., Any]]) -> Callable[..., Any]:
+        import anthropic
+
         def create(**kw: Any) -> Any:
-            reserva = self.orc.antes(kw["model"], kw)
-            try:
-                resp = alvo()(**kw)
-            except BaseException:
-                self.orc.solta(reserva)  # erro da API não é cobrado
-                raise
-            self.orc.depois(resp, reserva)
-            return resp
+            for tentativa in range(RETENTATIVAS_429 + 1):
+                reserva = self.orc.antes(kw["model"], kw)
+                try:
+                    resp = alvo()(**kw)
+                except anthropic.RateLimitError:
+                    self.orc.solta(reserva)  # 429: recusada antes de gerar, não cobrada; pode tentar de novo
+                    if tentativa == RETENTATIVAS_429:
+                        raise
+                    time.sleep(ESPERA_429_S * 2 ** tentativa)
+                    continue
+                except anthropic.APIStatusError:
+                    self.orc.solta(reserva)  # a API respondeu com erro: não cobrada
+                    raise
+                except BaseException:
+                    # timeout, conexão caída ou qualquer erro sem resposta da API: o servidor pode ter gerado (e cobrado)
+                    # a resposta inteira. A reserva (pior caso) conta como gasta; soltar aqui deixaria o teto vazar.
+                    self.orc.presume_gasto(reserva)
+                    raise
+                self.orc.depois(resp, reserva)
+                return resp
+            raise AssertionError("inalcançável")
         return create
 
 
@@ -333,7 +373,7 @@ def _pedir(cliente: Any, papel: str, system: str, user: str, schema: dict[str, A
     try:
         resp = cliente.messages.create(model=ROTULADORES[papel], max_tokens=SAIDA_MAX, system=[{"type": "text", "text": system}],
                                        messages=[{"role": "user", "content": user}], output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}})
-    except TetoAtingido:
+    except (TetoAtingido, J.Fatal):  # J.Fatal inclui PrecoDesconhecido: para o run, não vira caso sem rótulo
         raise
     except Exception as x:  # noqa: BLE001 - rotulador que falha deixa o caso sem rótulo; nunca vira rótulo
         _fatal_se_configuracao(x, papel)
@@ -628,6 +668,8 @@ def _custo(resultados: list[dict[str, Any]], orc: Orcamento | None) -> dict[str,
     for r in med:
         por_tipo.setdefault(r["tipo"], []).append(r["custo_usd"])
     return {"total_usd": round(orc.gasto, 4) if orc else None, "chamadas": orc.chamadas if orc else None, "tokens": orc.tokens if orc else None,
+            "presumido_usd": round(orc.gasto_presumido, 4) if orc else None, "chamadas_sem_resposta": orc.chamadas_presumidas if orc else None,
+            "nota_presumido": "chamadas sem resposta (timeout, conexão) contam o pior caso reservado como gasto; o total inclui isso",
             "verificador_por_caso_usd": {t: {"n": len(v), "media": round(sum(v) / len(v), 4), "max": round(max(v), 4)} for t, v in sorted(por_tipo.items())}}
 
 
@@ -1026,7 +1068,7 @@ def main() -> int:
             print("Modo real chama a API e custa dinheiro. Repita com --confirmo-custo (e defina --teto-usd).")
             return 2
         import anthropic
-        cliente = anthropic.Anthropic()  # credencial só pelo ambiente
+        cliente = anthropic.Anthropic(max_retries=0, timeout=TIMEOUT_API_S)  # credencial só pelo ambiente; sem retentativa oculta
     orc = Orcamento(teto=a.teto_usd)
     a.saida.mkdir(parents=True, exist_ok=True)
     (a.saida / "plano.json").write_text(json.dumps(pl, ensure_ascii=False, indent=1))
