@@ -10,7 +10,21 @@ Ordem (fixa; um passo só lê o que os anteriores deixaram):
      conhece naquele momento: um título que entra na carga de 2024 não ganha as linhas de 2012, já carregado. Os checks do
      BUG-038/039/041/043 e o `reissue` do resolve (BUG-042: dois títulos na mesma eleição são duas pessoas) leem essa tabela.
      Antes, só o `--apply` do identity.fix038/fix041 a completava.
-  2. `mandatos_tse`: mandato de vereador, prefeito ou vice cuja única fonte é a candidatura do TSE (`status_source = 'tse'`)
+  2. `historico` (BUG-053): quem entra no diretório por uma carga recente (D07: só eleito com mandato atual cria pessoa) ganha
+     as candidaturas das eleições antigas do próprio título, que a carga daquele ano não trouxe porque a pessoa ainda não
+     existia. Universo: linha de `tse_titulo_candidatura` (gravada pelo passo 1) de um ano em que a pessoa do título não tem
+     candidatura nenhuma. A linha é classificada antes, sem gravar, pelo mesmo `PersonResolver` da carga (todas as travas:
+     `title_row_foreign`, `first_name_match`, `shared_title`, geração/14 anos, chave `tse` de outra pessoa): só entra a que
+     casa na pessoa do título; a recusada fica na nota do run e no log, nunca na pessoa, e não consome o teto. A aceita é
+     carregada pelo loader (`_load_year(only=, owners=)`), que refaz o resolve e rejeita o que não casar no dono esperado; nunca
+     cria pessoa nem mexe em candidatura existente (linha cuja (ano, SQ) já está no banco fica de fora). Mesma regra de
+     situação da carga normal: ELEITO e 2º TURNO sempre; as outras situações (suplente, não eleito, #NULO#, INAPTO) só se a
+     disputa (ano, cargo, lugar) já tem candidatura não eleita no banco, isto é, se aquele ano foi carregado com `--all` ali.
+     Fora: eleição suplementar (a carga dela encerra e apaga mandatos da cadeira; D241) e cargo sem mandato próprio (suplente
+     de senador). Teto de HISTORY_CAP candidaturas e HISTORY_BUDGET_S segundos por run, por grupo (pessoa, ano): o resto fica
+     para a próxima e o run `identity.repairs.historico` fecha `partial`. Cada candidatura, mandato, bem e chave criados vão
+     para identity_split_log (bug BUG-053, ação 'criado'), que é o roteiro da reversão. Votos e contas desses anos não entram.
+  3. `mandatos_tse`: mandato de vereador, prefeito ou vice cuja única fonte é a candidatura do TSE (`status_source = 'tse'`)
      e cuja candidatura a fonte rebaixou para NÃO ELEITO ou suplente (retotalização) sai do exercício: `encerrado`, com
      `ends_on` na data em que o TSE publicou o arquivo revisto e o motivo em `vacancy_note`. Nada é apagado; a linha anterior
      vai inteira para identity_split_log (BUG-049). Se a Câmara Municipal confirma o vereador no SAPL (parlamentar casado com
@@ -176,9 +190,332 @@ def demote_tse_mandates(conn: psycopg.Connection, *, apply: bool, published_on: 
     return n
 
 
+# ---------- passo `historico` (BUG-053) ----------
+
+HISTORY_CAP = 200  # candidaturas por run; o resto fica para a próxima (run partial). Não é carga em massa.
+HISTORY_BUDGET_S = 30 * 60  # tempo de carga por run; o identity.repairs inteiro tem 2 h na agenda (schedule.py)
+HISTORY_DATASET = "identity.repairs.historico"
+BUG_053 = "BUG-053"
+# situações que a carga padrão (só eleitos) também lê: entram sempre
+ALWAYS_LOADED = {"ELEITO", "ELEITO POR QP", "ELEITO POR MÉDIA", "2º TURNO"}
+STATE_OFFICES = {"governador", "vice_governador", "senador", "deputado_federal", "deputado_estadual", "deputado_distrital"}
+
+_HISTORY_SQL = """
+select t.titulo, t.year, t.ue, t.tse_sequencial, t.kind, t.cargo, t.result, x.person_id::text as person_id
+from tse_titulo_candidatura t join person_external_ids x on x.external_id = t.titulo
+join sources s on s.id = x.source_id and s.slug = 'tse-titulo'
+where not exists (select 1 from candidacies c join elections e on e.id = c.election_id
+                  where c.person_id = x.person_id and e.year = t.year)
+"""
+
+
+def _history_universe(conn: psycopg.Connection) -> list[dict[str, Any]]:
+    """Linhas do título de cada pessoa do diretório em anos em que ela não tem candidatura nenhuma."""
+    return [dict(r) for r in conn.execute(_HISTORY_SQL)]
+
+
+def _source_paths_year(year: int):
+    from .tse_bug032 import _source_paths
+
+    return _source_paths(year)  # cache do ETL; sem cache, baixa pelo mesmo cliente HTTP (http.fetch)
+
+
+def _bens_paths_year(year: int):
+    from .identity_bug041 import bens_paths
+
+    return bens_paths(year)  # só cache: sem o arquivo de bens, a candidatura entra sem bens (nota no run)
+
+
+def _title_source(paths, titles: set[str]) -> list[dict[str, Any]]:
+    """Todas as linhas (os dois turnos, todas as situações) do arquivo do ano com um dos títulos: é o que o `shared_title` precisa
+    para ver o 2º SQ do mesmo título na mesma eleição."""
+    import duckdb
+
+    from .tse_candidatos import COLS
+
+    con = duckdb.connect()
+    con.execute("create table want (t varchar)")
+    con.executemany("insert into want values (?)", [(t,) for t in sorted(titles)])
+    out: list[dict[str, Any]] = []
+    for p in paths:
+        rel = con.read_csv(str(p), delimiter=";", header=True, quotechar='"', all_varchar=True)
+        con.register("t", rel)
+        sel = ", ".join(c if c in rel.columns else f"NULL as {c}" for c in COLS)
+        out.extend(dict(zip(COLS, r)) for r in con.execute(
+            f"select {sel} from t where trim(NR_TITULO_ELEITORAL_CANDIDATO) in (select t from want)").fetchall())
+        con.unregister("t")
+    return out
+
+
+def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _source_paths_year,
+                 universe: Callable[[psycopg.Connection], list[dict[str, Any]]] = _history_universe) -> dict[str, Any]:
+    """Classifica o universo do passo `historico` sem gravar nada. Devolve aceitas (casam na pessoa do título pelo resolve da
+    carga), recusadas (com motivo) e fora (contagem por motivo), mais as linhas da fonte por ano para a carga."""
+    from collections import Counter, defaultdict
+
+    from ..identity import PersonResolver
+    from ..util import nz, parse_date, titlecase_pt
+    from .tse_candidatos import CARGO, ELECTED, muni_index, title_rows, tse_key
+
+    plan: dict[str, Any] = {"universo": Counter(), "fora": Counter(), "aceitas": [], "recusadas": [], "src": {}}
+    by_year: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for u in universe(conn):
+        plan["universo"][(u["year"], u["result"] or "-")] += 1
+        if u["kind"] != "ordinaria":
+            plan["fora"]["eleição suplementar"] += 1
+        elif u["cargo"] not in CARGO.values():
+            plan["fora"]["cargo sem mandato próprio"] += 1
+        else:
+            by_year[u["year"]].append(u)
+    if not by_year:
+        return plan
+
+    years = sorted(by_year)
+    places = {r["ibge_code"]: str(r["id"]) for r in conn.execute("select ibge_code, id from places")}
+    by_uf = {r["uf"]: str(r["id"]) for r in conn.execute("select uf, id from places where kind = 'uf'")}
+    muni_lookup = muni_index(conn)
+    # disputas já carregadas com todas as situações: a carga normal daquele ano, ali, trouxe os não eleitos
+    full = {(r["year"], r["slug"], str(r["place_id"])) for r in conn.execute(
+        """select distinct e.year, o.slug, ct.place_id from candidacies c join elections e on e.id = c.election_id
+           join contests ct on ct.id = c.contest_id join offices o on o.id = ct.office_id
+           where e.year = any(%s) and (c.result is null or c.result <> all(%s))""", (years, sorted(ELECTED)))}
+    taken = {(r["year"], r["tse_sequencial"]) for r in conn.execute(
+        "select e.year, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id where e.year = any(%s)", (years,))}
+    pr = PersonResolver(conn)
+    try:
+        for year in sorted(by_year, reverse=True):
+            us = by_year[year]
+            src = _title_source(paths(year), {u["titulo"] for u in us})
+            plan["src"][year] = src
+            pr.note_title_rows(title_rows(src, None))  # como a carga: o 2º SQ do título no mesmo ano tira a prova do título
+            first: dict[tuple[str, str], dict[str, Any]] = {}
+            for x in src:
+                k = ((x["SG_UE"] or "").strip(), (x["SQ_CANDIDATO"] or "").strip())
+                if k not in first or (x["NR_TURNO"] or "1") == "1":
+                    first[k] = x
+            for u in us:
+                x = first.get((u["ue"], u["tse_sequencial"]))
+                item = {"year": year, "ue": u["ue"], "sq": u["tse_sequencial"], "titulo": u["titulo"], "person_id": u["person_id"],
+                        "result": u["result"], "cargo": u["cargo"]}
+                if x is None:
+                    plan["fora"]["sem a linha na fonte"] += 1
+                    continue
+                office = u["cargo"]
+                if office in ("presidente", "vice_presidente"):
+                    place = places.get("BR")
+                elif office in STATE_OFFICES:
+                    place = by_uf.get((x["SG_UE"] or "").strip().upper())
+                else:
+                    place = muni_lookup((x["SG_UF"] or "").strip().upper(), x["NM_UE"])
+                civil, birth = titlecase_pt(x["NM_CANDIDATO"]), parse_date(x["DT_NASCIMENTO"])
+                item.update(civil=civil, birth=birth)
+                if (u["result"] or "") not in ALWAYS_LOADED and (year, office, place) not in full:
+                    # a carga daquele ano, ali, foi só de eleitos: o crachá dos outros também não tem essa situação
+                    plan["fora"]["situação que a carga do ano não trouxe (só eleitos ali)"] += 1
+                    continue
+                if not place:
+                    plan["recusadas"].append({**item, "why": "lugar sem correspondência no IBGE"})
+                    continue
+                if (year, u["tse_sequencial"]) in taken:
+                    plan["recusadas"].append({**item, "why": f"candidatura {year} SQ {u['tse_sequencial']} já está no banco (noutra pessoa); não mexe"})
+                    continue
+                titulo = nz(x["NR_TITULO_ELEITORAL_CANDIDATO"])
+                m = pr.resolve(source="tse", external_id=tse_key(year, u["tse_sequencial"], u["ue"]), civil_name=civil, birth_date=birth,
+                               birth_uf=(nz(x["SG_UF_NASCIMENTO"]) or "").upper() or None, titulo=titulo if titulo and titulo.isdigit() else None,
+                               uf=x["SG_UF"], place_id=place, year=year)
+                if m.title_foreign:
+                    why = "título repetido pelo TSE: a linha é de outra pessoa (ou o título está em 2 SQ da eleição com nomes diferentes)"
+                elif m.method == "queued":
+                    why = "o resolve manda para a fila"
+                elif m.person_id != u["person_id"]:
+                    why = f"o resolve casa noutra pessoa ({m.person_id}, {m.method})" if m.person_id else "o resolve não casa em ninguém"
+                else:
+                    plan["aceitas"].append(item)
+                    continue
+                plan["recusadas"].append({**item, "why": why})
+    finally:
+        pr._pending_ext, pr._pending_queue = [], []  # classificação: nada do resolve é gravado
+    return plan
+
+
+def _cap_groups(items: list[dict[str, Any]], cap: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Corta no teto por grupo (pessoa, ano), nunca no meio: registro substituído e válido do mesmo título e ano entram juntos.
+    Grupos com linha eleita primeiro (zeram o check do BUG-039), depois do ano mais novo para o mais antigo."""
+    from collections import defaultdict
+
+    groups: dict[tuple[str, int], list[dict[str, Any]]] = defaultdict(list)
+    for it in items:
+        groups[(it["person_id"], it["year"])].append(it)
+    order = sorted(groups, key=lambda k: (not any((i["result"] or "") in ALWAYS_LOADED for i in groups[k]), -k[1], k[0]))
+    take: list[dict[str, Any]] = []
+    rest: list[dict[str, Any]] = []
+    for k in order:
+        g = groups[k]
+        if rest or (take and len(take) + len(g) > cap):
+            rest.extend(g)
+        else:
+            take.extend(g)
+    return take, rest
+
+
+def _write_history_csv(rows: list[dict[str, Any]], path) -> None:
+    import csv
+
+    from .tse_candidatos import COLS
+
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        w.writerow(COLS)
+        for x in rows:
+            w.writerow(["" if x.get(c) is None else x[c] for c in COLS])
+
+
+def _log_created(conn: psycopg.Connection, items: list[dict[str, Any]], year: int, keys_before: set[str]) -> dict[str, int]:
+    """Tudo o que a carga criou para os grupos do ano vai para identity_split_log (BUG-053, 'criado'). Devolve as contagens."""
+    import json
+
+    from .tse_candidatos import tse_key
+
+    n = {"candidacies": 0, "mandates": 0, "asset_declarations": 0, "person_external_ids": 0}
+
+    def put(table: str, ext: str, pid: str, key: str, raw: dict[str, Any], note: str) -> None:
+        conn.execute(
+            """insert into identity_split_log (bug, source, external_id, person_id, table_name, action, row_key, raw, note)
+               values (%s, 'tse', %s, %s, %s, 'criado', %s, %s, %s) on conflict (bug, source, external_id, table_name, row_key) do nothing""",
+            (BUG_053, ext, pid, table, key, json.dumps(raw, default=str, ensure_ascii=False), note))
+        n[table] += 1
+
+    tse = conn.execute("select id from sources where slug = 'tse'").fetchone()["id"]
+    for pid in sorted({i["person_id"] for i in items}):
+        mine = [i for i in items if i["person_id"] == pid]
+        titulo = mine[0]["titulo"]
+        note = f"histórico do título {titulo}: candidatura de {year} carregada para quem entrou no diretório depois (BUG-053)"
+        for c in conn.execute("""select c.* from candidacies c join elections e on e.id = c.election_id
+                                 where c.person_id = %s and e.year = %s""", (pid, year)).fetchall():
+            ext = f"{year}:{c['tse_sequencial']}"
+            put("candidacies", ext, pid, str(c["id"]), dict(c), note)
+            for m in conn.execute("select * from mandates where candidacy_id = %s", (c["id"],)).fetchall():
+                put("mandates", ext, pid, str(m["id"]), dict(m), note)
+            for a in conn.execute("select * from asset_declarations where candidacy_id = %s", (c["id"],)).fetchall():
+                put("asset_declarations", ext, pid, str(a["id"]), dict(a), note)
+        for i in mine:
+            key = tse_key(year, i["sq"], i["ue"])
+            if key in keys_before:
+                continue
+            for x in conn.execute("select * from person_external_ids where source_id = %s and external_id = %s and person_id = %s",
+                                  (tse, key, pid)).fetchall():
+                put("person_external_ids", key, pid, str(x["id"]), dict(x), note)
+    return n
+
+
+def apply_history(conn: psycopg.Connection, r: Any, plan: dict[str, Any], *, cap: int = HISTORY_CAP, budget_s: float = HISTORY_BUDGET_S,
+                  bens: Callable[[int], Any] = _bens_paths_year, commit: bool = True) -> int:
+    """Carrega as aceitas do plano (até o teto), um ano por transação (savepoint quando já há uma aberta). Devolve quantas
+    candidaturas entraram. Grupo aceito que a carga não pôs no dono: o ano volta atrás inteiro e o run fica partial."""
+    import tempfile
+    import time
+    from collections import defaultdict
+    from pathlib import Path
+
+    from .tse_candidatos import _load_year, tse_key
+
+    take, rest = _cap_groups(plan["aceitas"], cap)
+    if rest:
+        r.partial(f"historico: teto de {cap} candidaturas por run; {len(rest)} aceita(s) ficam para a próxima execução")
+    by_year: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for it in take:
+        by_year[it["year"]].append(it)
+    t0 = time.monotonic()
+    loaded = 0
+    tse = conn.execute("select id from sources where slug = 'tse'").fetchone()["id"]
+    for year in sorted(by_year, reverse=True):
+        items = by_year[year]
+        if time.monotonic() - t0 > budget_s:
+            left = sum(len(v) for y, v in by_year.items() if y <= year)
+            r.partial(f"historico: tempo de {budget_s:.0f}s esgotado; {left} aceita(s) de {year} para trás ficam para a próxima execução")
+            break
+        titles = {i["titulo"] for i in items}
+        rows = [x for x in plan["src"][year] if (x["NR_TITULO_ELEITORAL_CANDIDATO"] or "").strip() in titles]
+        only = {(i["ue"], i["sq"]) for i in items}
+        owners = {(i["ue"], i["sq"]): i["person_id"] for i in items}
+        keys = [tse_key(year, i["sq"], i["ue"]) for i in items]
+        keys_before = {x["external_id"] for x in conn.execute(
+            "select external_id from person_external_ids where source_id = %s and external_id = any(%s)", (tse, keys))}
+        bp = list(bens(year) or [])
+        with tempfile.TemporaryDirectory() as d:
+            csv_path = Path(d) / f"historico_{year}.csv"
+            _write_history_csv(rows, csv_path)
+            try:
+                with conn.transaction():
+                    _load_year(conn, r, year, None, None, None, False, cand_paths=[csv_path], bens_paths=bp or None, only=only,
+                               bug=BUG_053, owners=owners)
+                    got = {(str(c["person_id"]), c["tse_sequencial"]) for c in conn.execute(
+                        """select c.person_id, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id
+                           where e.year = %s and c.tse_sequencial = any(%s)""", (year, sorted({i["sq"] for i in items})))}
+                    wrong = [i for i in items if any(s == i["sq"] and p != i["person_id"] for p, s in got)]
+                    empty = sorted({i["person_id"] for i in items} - {p for p, _ in got})
+                    if wrong or empty:
+                        raise _HistoryMismatch(wrong, empty)
+                    n = _log_created(conn, items, year, keys_before)
+            except _HistoryMismatch as e:
+                log.error("historico %d: a carga divergiu da classificação (%s); o ano voltou atrás", year, e)
+                r.partial(f"historico {year}: a carga divergiu da classificação ({e}); nada do ano entrou")
+                continue
+        if commit:
+            conn.commit()
+        loaded += n["candidacies"]
+        r.note(f"historico {year}: {n['candidacies']} candidatura(s), {n['mandates']} mandato(s), {n['asset_declarations']} declaração(ões) "
+               f"de bens e {n['person_external_ids']} chave(s) tse criadas (identity_split_log {BUG_053})"
+               + ("" if bp else "; bens do ano fora do cache: não carregados"))
+        log.info("historico %d: %s", year, n)
+    if loaded:
+        r.note(f"historico: votos e contas de campanha das {loaded} candidatura(s) carregadas não entram neste passo (tse.votos/tse.contas)")
+    return loaded
+
+
+class _HistoryMismatch(Exception):
+    def __init__(self, wrong: list[dict[str, Any]], empty: list[str]):
+        super().__init__(f"{len(wrong)} linha(s) noutra pessoa, {len(empty)} pessoa(s) sem candidatura")
+
+
+def _log_plan(plan: dict[str, Any], cap: int) -> None:
+    uni = sum(plan["universo"].values())
+    log.info("historico: universo %d linha(s) de título sem candidatura da pessoa no ano; fora %s; aceitas %d; recusadas %d; teto %d",
+             uni, dict(plan["fora"]), len(plan["aceitas"]), len(plan["recusadas"]), cap)
+    for (y, res), n in sorted(plan["universo"].items()):
+        log.info("historico: universo %d %s: %d", y, res, n)
+    for i in plan["recusadas"]:
+        log.info("historico: recusada %s %s SQ %s título %s '%s' %s -> pessoa %s: %s", i["year"], i["ue"], i["sq"], i["titulo"], i.get("civil"),
+                 i.get("birth"), i["person_id"], i["why"])
+
+
+def sync_history(conn: psycopg.Connection, *, apply: bool, paths: Callable[[int], Any] = _source_paths_year,
+                 bens: Callable[[int], Any] = _bens_paths_year, universe: Callable[[psycopg.Connection], list[dict[str, Any]]] = _history_universe,
+                 cap: int = HISTORY_CAP, budget_s: float = HISTORY_BUDGET_S, commit: bool = True) -> int:
+    """Passo `historico` (BUG-053). Dry-run: quantas candidaturas entrariam nesta execução (até o teto). Com --apply: quantas
+    entraram. A carga abre o run `identity.repairs.historico` (fonte tse-titulo, para não carimbar o frescor do TSE) só quando há
+    o que carregar; `commit=False` (testes): sem run em ingest_runs, nada é confirmado."""
+    from ..db import Run, run
+
+    plan = plan_history(conn, paths=paths, universe=universe)
+    _log_plan(plan, cap)
+    if not apply or not plan["aceitas"]:
+        return len(_cap_groups(plan["aceitas"], cap)[0])
+    if not commit:
+        return apply_history(conn, Run(conn, HISTORY_DATASET, "tse-titulo"), plan, cap=cap, budget_s=budget_s, bens=bens, commit=False)
+    with run(conn, HISTORY_DATASET, "tse-titulo") as r:
+        r.read(sum(plan["universo"].values()))
+        for i in plan["recusadas"][:20]:
+            r.note(f"recusada {i['year']} SQ {i['sq']} '{i.get('civil')}' {i.get('birth')}: {i['why']}")
+        if len(plan["recusadas"]) > 20:
+            r.note(f"... e mais {len(plan['recusadas']) - 20} recusada(s) (log do job)")
+        return apply_history(conn, r, plan, cap=cap, budget_s=budget_s, bens=bens, commit=True)
+
+
 # ordem fixa da rotina: (nome, passo). Novo passo entra aqui, com a justificativa no docstring do módulo e uma decisão.
 STEPS: tuple[tuple[str, Callable[..., int]], ...] = (
     ("titulos", sync_titles),
+    ("historico", sync_history),
     ("mandatos_tse", demote_tse_mandates),
 )
 
