@@ -363,6 +363,31 @@ def test_agente_que_falhou_tem_contagem_propria(tmp_path):
     assert d["camada"] == "agente_falhou" and m["injecao"]["por_camada"].get("agente_falhou") == 1
 
 
+class _SustentacaoRecusa(E.ClienteSimulado):
+    def create(self, **kw):
+        r = super().create(**kw)
+        if self.caso_id == "escapa" and E.PAPEL_POR_SYSTEM[kw["system"][0]["text"]] == "sustentacao":
+            r.stop_reason = "refusal"
+        return r
+
+
+def test_armadilha_barrada_porque_o_agente_caiu_nao_conta_como_detecao(tmp_path):
+    orc = E.Orcamento(teto=100)
+    casos, res, _ = E.executar(conjunto="medida", cliente=_SustentacaoRecusa(), orc=orc, saida=tmp_path, fases=["armadilhas"],
+                               limite=None, n_segunda=0, casos_extra=[c for c in conjunto() if c["id"] == "escapa"], so_extra=True)
+    m = E.metricas(casos, res, orc=orc)
+    assert m["armadilhas_total"]["casos_que_escaparam"] == []
+    assert m["armadilhas_total"]["por_camada_que_pegou"] == {"agente_falhou": 1}  # antes: barrado_por_outro_motivo
+
+
+def test_run_parcial_nunca_sai_atingida(rodada):
+    *_, m, _, _ = rodada
+    assert [k for k, v in m["barra"].items() if v.get("estado") == "atingida"]  # o mesmo run, completo, tem item atingido
+    m2 = E.metricas(*rodada[:2], parcial=True)
+    assert m2["barra"]["autoconcordancia_95"]["estado"] == "parcial"
+    assert not [k for k, v in m2["barra"].items() if v.get("estado") == "atingida"]
+
+
 def test_kappa():
     assert E.kappa([("a", "a"), ("a", "b"), ("b", "b"), ("b", "b")]) == 0.5
     assert E.kappa([("a", "a"), ("b", "b")]) == 1.0

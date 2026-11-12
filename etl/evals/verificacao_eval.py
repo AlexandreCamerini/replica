@@ -774,7 +774,7 @@ def _custo(resultados: list[dict[str, Any]], orc: Orcamento | None) -> dict[str,
 
 
 def _barra(m: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Precedência: nao_atingida > incompleta > sem_cobertura > amostra_insuficiente > atingida. "incompleta" = algum caso da
+    """Precedência: nao_atingida > incompleta > sem_cobertura > amostra_insuficiente > parcial > atingida. "incompleta" = algum caso da
     população do item ficou sem medir (ver _populacoes); uma falha medida continua sendo nao_atingida. "sem_cobertura" = o
     portão de cobertura (controles limpos publicando) não passou ou não pôde ser avaliado: barrar tudo não é atingir a barra."""
     nm = m.get("nao_medidos_por_metrica") or {}
@@ -784,6 +784,8 @@ def _barra(m: dict[str, Any]) -> dict[str, dict[str, Any]]:
         r = _st(ok, n, minimo, nota, pop)
         if r["estado"] in ("atingida", "amostra_insuficiente") and not cob["ok"]:
             return {**r, "estado": "sem_cobertura", "nota": nota + f" (portão de cobertura: {cob['motivo']})"}
+        if r["estado"] == "atingida" and m.get("parcial"):  # caso nunca iniciado (teto, limite) não vira não medido, mas falta
+            return {**r, "estado": "parcial", "nota": nota + " (run parcial: teto ou limite; parte da população nem começou)"}
         return r
 
     def _st(ok: bool | None, n: int, minimo: int, nota: str, pop: str) -> dict[str, Any]:
@@ -921,8 +923,9 @@ def relatorio(m: dict[str, Any], plano: dict[str, Any], args: dict[str, Any]) ->
           f"{BASES_ARMADILHA_MEDIDA} proposições-base e a injeção de {BASES_INJECAO} bases sintéticas. Casos da mesma base erram juntos; "
           "o n efetivo fica entre o número de bases e o de casos, logo a confiança está SUPERESTIMADA (o IC real é mais largo).",
           f"- As {JUSTIFICACAO_EM_PLANTAS[0]} plantas `justificacao` (de {JUSTIFICACAO_EM_PLANTAS[1]} da medida) citam trecho da "
-          "Justificação e são barradas pelo classificador de trecho em código antes de qualquer agente opinar: medem o código, não os "
-          "agentes. Tirando-as, a parte do escape que depende de agente tem n menor do que o total sugere."]
+          "Justificação; o classificador de trecho em código derruba o campo seja qual for o veredito dos agentes (que são chamados e "
+          "pagos, mas não decidem): medem o código, não os agentes. Tirando-as, a parte do escape que depende de agente tem n menor "
+          "do que o total sugere."]
     return "\n".join(L) + "\n"
 
 
