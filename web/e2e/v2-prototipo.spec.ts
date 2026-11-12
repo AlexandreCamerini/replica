@@ -209,5 +209,5 @@ test("v2: a visão por temas leva às votações de cada tema", async ({ page })
   await expect(tema).toBeVisible();
   await tema.click();
   await expect(page).toHaveURL(/\/v2\/tema\//);
-  await expect(page.locator('a.sv-item[href^="/v2/votacao/"]').first()).toBeVisible();
+  await expect(page.locator('.sv-vls .sv-vl a[href^="/v2/votacao/"]').first()).toBeVisible();
 });
