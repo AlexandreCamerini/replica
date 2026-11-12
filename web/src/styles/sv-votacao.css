@@ -1,0 +1,28 @@
+/* Segue o Voto, D2 · tela Votação (/v2/votacao/[id]). Importado pela própria página.
+   Só regras desta tela, sob .sv e com prefixo sv-. Voto é forma + palavra (sv.css §7); nada aqui tem cor: tudo em tinta. */
+
+/* estados: um link de 44px por UF; a escolhida em tinta cheia (papel sobre tinta), sem cor de destaque */
+.sv .sv-ufs{display:flex;flex-wrap:wrap;gap:4px}
+.sv .sv-ufs a{display:inline-flex;align-items:center;justify-content:center;min-width:48px;min-height:44px;padding:0 6px;font-size:16px;font-weight:700;border:2px solid var(--tinta);text-decoration:none}
+.sv .sv-ufs a[aria-current]{background-color:var(--tinta);color:var(--papel);font-weight:800}
+.sv .sv-ufs a[aria-current]:focus-visible{outline-color:var(--tinta)}
+
+/* placar da UF escolhida */
+.sv .sv-vt-uf{display:flex;flex-direction:column;gap:6px;border-top:3px solid var(--tinta);padding-top:8px;margin-top:4px}
+
+/* nomes por voto: um grupo por voto, na ordem fixa; dentro, ordem alfabética */
+.sv .sv-vt-grupos{display:flex;flex-direction:column;gap:10px}
+.sv .sv-vt-grupo h3{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;font-size:17px;line-height:1.3;font-weight:800;border-top:1.5px solid var(--tinta);padding-top:6px}
+.sv .sv-vt-grupo h3>span:last-child{font-weight:600;color:var(--tinta2)}
+.sv .sv-vt-pes{display:grid;grid-template-columns:minmax(0,1fr);column-gap:24px}
+.sv .sv-vt-pes li{display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;min-width:0}
+.sv .sv-vt-pes a{display:inline-flex;align-items:center;min-height:44px;font-size:16px;font-weight:700;overflow-wrap:anywhere}
+.sv .sv-vt-pt{font-size:14px;line-height:1.3;font-weight:600;font-stretch:84%;color:var(--tinta2)}
+.sv .sv-vt-semuf{display:flex;flex-direction:column;gap:4px;border-top:1.5px solid var(--tinta);padding-top:6px}
+.sv .sv-vt-lac{display:flex;flex-direction:column;gap:6px}
+@media (min-width:900px){
+  .sv .sv-vt-pes{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (min-width:1100px){
+  .sv .sv-vt-pes{grid-template-columns:repeat(4,minmax(0,1fr))}
+}

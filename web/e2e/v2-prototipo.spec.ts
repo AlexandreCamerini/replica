@@ -88,13 +88,13 @@ test("v2: pessoas de um grupo aparecem em ordem alfabética", async ({ page }) =
 
 test("v2: voto é forma mais palavra, nunca cor", async ({ page }) => {
   await page.goto("/v2/votacao/camara-v2026-15?uf=SP");
-  const marks = page.locator(".sv-voterow .sv-vote");
+  const marks = page.locator(".sv-vt-grupo .sv-voto");
   await expect(marks.first()).toBeVisible();
   // toda marca vem com a palavra ao lado
   const words = await marks.evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim()));
   expect(words.every((w) => w.length > 0)).toBe(true);
   // a tinta de Sim e de Não é a mesma: só a forma muda
-  const inks = await page.locator(".sv-voterow .sv-mark").evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).borderTopColor))]);
+  const inks = await page.locator(".sv-vt-grupo .sv-m").evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).borderTopColor))]);
   expect(inks).toHaveLength(1);
   // e a tinta é a da página (tinta), não uma cor de destaque
   expect(inks[0]).toBe("rgb(20, 20, 20)");
