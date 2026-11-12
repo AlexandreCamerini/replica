@@ -69,7 +69,7 @@ def test_dr_auri_continua_casando_com_o_hifen():
     ("EDMAR FICTICIO", "Edemar Ficticio"),  # letra a menos
     ("LUIS CARLOS SINTETICO", "Luiz Carlos Sintetico"),
     ("JOSÉ CARLOS EXEMPLO DOS SANTOS", "Jose Carlos Exemplo dos Santos"),  # acento
-    ("JAIME DOMINGO TESTEIRO", "Jaime Domingos Testeiro"),  # primeiro nome igual, sobrenome com grafia
+    ("FICTOR DOMINGO TESTEIRO", "Fictor Domingos Testeiro"),  # primeiro nome igual, sobrenome com grafia
 ])
 def test_mesma_pessoa_com_grafia_variante_e_digito_errado_casa(linha, pessoa):
     """Aceite (c): grafia variante do nome e nascimento com um dígito errado (12 x 13) continuam casando pelo título."""
@@ -89,9 +89,9 @@ def test_mesma_pessoa_com_grafia_variante_e_digito_errado_casa(linha, pessoa):
     # A1: 5 letras ou menos aceitam só 1 edição (José x João são 2)
     ("JOAO PEREIRA DA SILVA", "José Pereira da Silva"),
     # primeiro nome perto, resto diferente; e primeiro nome a mais de 2 edições com o mesmo sobrenome
-    ("JOAO PEREIRA DA SILVA", "José Santos da Silva"), ("ERIKA SANTOS LIMA", "Erivaldo Santos Lima"),
+    ("JOAO PEREIRA DA SILVA", "José Santos da Silva"), ("ERIKA TESTE LIMA", "Erivaldo Teste Lima"),
     # A2: primeiro nome igual, nenhum token do resto em comum
-    ("MARIA APARECIDA SOUZA", "Maria José Oliveira"),
+    ("MARIA FICTICIA SOUZA", "Maria José Oliveira"),
     ("MARIA", "Maria José Oliveira"),  # A2: só o primeiro nome na linha, nada do resto para conferir
 ])
 def test_nome_proximo_que_e_de_outra_pessoa_nao_casa(linha, pessoa):
@@ -103,10 +103,10 @@ def test_nome_proximo_que_e_de_outra_pessoa_nao_casa(linha, pessoa):
 
 
 @pytest.mark.parametrize("linha,pessoa", [
-    ("MARIA APARECIDA SOUSA", "Maria Aparecida Souza"),  # A2: 1 edição por token do resto (s/z)
-    ("MARIA APARECIDA SOUZA", "Maria Aparecida Oliveira Souza"),  # sobrenome a mais
+    ("MARIA FICTICIA SOUSA", "Maria Ficticia Souza"),  # A2: 1 edição por token do resto (s/z)
+    ("MARIA FICTICIA SOUZA", "Maria Ficticia Oliveira Souza"),  # sobrenome a mais
     ("ANA PAULA FELIPE", "Ana Paula Filipe"),  # i/e no sobrenome
-    ("EDERILDO BACHI", "Ederildo Teste Bacchi"),  # letra dobrada
+    ("FICTILDO CAMARELI", "Fictildo Teste Camarelli"),  # letra dobrada
 ])
 def test_primeiro_nome_igual_com_um_token_do_resto_casa(linha, pessoa):
     from civico_etl.identity import title_row_foreign
@@ -156,7 +156,7 @@ def test_regra_nova_contem_a_do_d240():
                                        ("CICLANO JUVENTINO DE SOUSA", date(1983, 5, 5), "José Carlos Exemplo dos Santos", date(1974, 1, 1))]:
         assert not names_compatible(linha, pessoa, None) and title_row_foreign(linha, nasc, pessoa, None, pnasc)
     # nascimento igual: não é decidido por esta regra (a linha da mesma pessoa com nome social, D240)
-    assert not title_row_foreign("ERIKA SANTOS TESTE", date(1992, 1, 1), "Erik Testeiro", None, date(1992, 1, 1))
+    assert not title_row_foreign("ERIKA FICTICIA TESTE", date(1992, 1, 1), "Erik Testeiro", None, date(1992, 1, 1))
 
 
 def test_nomes_diferentes_na_mesma_eleicao():
@@ -165,7 +165,7 @@ def test_nomes_diferentes_na_mesma_eleicao():
     assert names_differ("MARIA ISABEL DE SA MAMEDIR", "SILVANA MARIA DA ROCHA MARQUES")
     assert names_differ("NEI TESTE DE PAULA", "JUCINEI TESTE DE PAULA")
     # registro substituído da mesma pessoa com grafia variante: não é "nome diferente"
-    assert not names_differ("LUIZ MARCELO FICTICIO", "LUIS MARCELO FICTISSIO")
+    assert not names_differ("LUIZ FICTOR TESTEIRO", "LUIS FICTOR TESTEIRRO")
 
 
 # ---------- resolve, contra o banco (transação desfeita) ----------
@@ -180,6 +180,23 @@ def test_resolve_nao_casa_pelo_titulo_com_um_token_em_comum(conn, linha, pessoa)
         m = pr.resolve(source="tse", external_id="2099:440001", titulo=TIT, civil_name=nome, birth_date=nasc, uf="AC", year=2099)
         assert m.person_id != pid and m.title_foreign
         assert not any(e[2] == TIT and e[0] != pid for e in pr._pending_ext)  # o título não vai para ninguém mais
+
+
+@pytest.mark.parametrize("linha,nasc,pessoa,pnasc", [
+    ("CARLOS PEREIRA TESTE", date(1975, 1, 1), "Carla Pereira Teste", date(1972, 1, 1)),  # A1: irmão e irmã
+    ("JOAO PEREIRA TESTE", date(1975, 1, 1), "José Pereira Teste", date(1972, 1, 1)),  # A1: 2 edições com 4 letras
+    ("MARIA FICTICIA SOUZA", date(1975, 1, 1), "Maria José Oliveira", date(1972, 1, 1)),  # A2: nada do resto em comum
+    ("JOSE TESTE DA SILVA FILHO", date(1990, 5, 1), "José Teste da Silva", date(1960, 5, 1)),  # A3: pai e filho
+    (None, date(1975, 1, 1), "Fulano Teste", date(1972, 1, 1)),  # A7: linha sem nome civil
+])
+def test_resolve_nao_casa_pelo_titulo_regras_da_revisao(conn, linha, nasc, pessoa, pnasc):
+    """A1, A2, A3 e A7 pelo resolve (existe no main: sem a correção, falha pela asserção, não pelo import)."""
+    _ids(conn)
+    with conn.transaction(force_rollback=True):
+        pid = _person(conn, "teste-bug044-dono", pessoa, pessoa, pnasc, TIT)
+        pr = PersonResolver(conn)
+        m = pr.resolve(source="tse", external_id="2099:440004", titulo=TIT, civil_name=linha, birth_date=nasc, uf="AC", year=2099)
+        assert m.person_id != pid and m.method != "exact_id"
 
 
 def test_resolve_mesma_pessoa_com_grafia_e_digito_casa_pelo_titulo(conn):

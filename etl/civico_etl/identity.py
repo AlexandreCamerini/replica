@@ -115,7 +115,7 @@ def _first_names_spelling(f: str, g: str) -> bool:
 def first_name_match(civil_name: str | None, person_civil: str | None, person_display: str | None) -> bool:
     """O nome da linha é o da pessoa, pelo primeiro nome (BUG-044):
     - primeiro nome igual ao civil ou ao de exibição, E algum token do resto do nome em comum (a 1 edição) com o resto do
-      civil ou do de exibição. "Maria Aparecida Souza" x "Maria José Oliveira" não casa (A2);
+      civil ou do de exibição. "Maria Ficticia Souza" x "Maria José Oliveira" não casa (A2);
     - ou primeiro nome que pode ser grafia do civil (`_first_names_spelling`) com o resto do nome quase igual (Jaccard >= 0,5).
     O nome de exibição só vale com o primeiro nome igual: "Dr Auri", "Zé", "Di" são curtos demais para distância de edição.
     Não pega outra pessoa com o mesmo sobrenome: Genilde x Renata Silva, Djalmiro x Sarah Urbieta, Daora x Kotsario
