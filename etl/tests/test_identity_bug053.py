@@ -23,19 +23,23 @@ T_DUDU = "999990530011"   # vereador novo de 2024; histórico 2012 (eleito), 201
 T_MARIA = "999990530022"  # o TSE repete o título dela na linha de outra pessoa (2016)
 T_ANA = "999990530033"    # título em 2 SQ da mesma eleição com nomes diferentes (shared_title)
 T_EXTRA = ("999990530044", "999990530055")  # teto
+T_VIG = "999990530077"    # 2022 deputado estadual ELEITO: mandato até 2027, não encerrado
+T_PAI = "999990530088"    # mesmo nome, nascimento 25 anos depois (pai e filho homônimos sem sufixo)
+T_LEO = "999990530099"    # nascimento a 1 mês (digitação): entra
+T_GIL = "999990530100"    # 2016: ELEITO e o registro substituído (#NULO#) do mesmo número: grupo parcial
 T_VELHO = "999990530066"  # já tem histórico (2016 no banco): a suplência de 2012 que falta é backlog do BUG-047, não entra
-TITLES = {T_DUDU, T_MARIA, T_ANA, *T_EXTRA, T_VELHO}
-HELD = {2012: "07/10/2012", 2014: "05/10/2014", 2016: "02/10/2016", 2020: "15/11/2020", 2024: "06/10/2024"}
+TITLES = {T_DUDU, T_MARIA, T_ANA, *T_EXTRA, T_VELHO, T_VIG, T_PAI, T_LEO, T_GIL}
+HELD = {2012: "07/10/2012", 2014: "05/10/2014", 2016: "02/10/2016", 2020: "15/11/2020", 2022: "02/10/2022", 2024: "06/10/2024"}
 
 
 def _src(year: int, sq: str, titulo: str, nome: str, nasc: str, sit: str, *, cargo: str = "13", ue: str = UE, nm_ue: str = NM_UE,
-         nr: str = "12345") -> dict:
+         nr: str = "12345", detalhe: str = "DEFERIDO") -> dict:
     return {
         "ANO_ELEICAO": str(year), "NM_TIPO_ELEICAO": "ELEIÇÃO ORDINÁRIA", "NR_TURNO": "1", "DT_ELEICAO": HELD[year], "SG_UF": "MG",
         "SG_UE": ue, "NM_UE": nm_ue, "CD_CARGO": cargo, "SQ_CANDIDATO": sq, "NR_CANDIDATO": nr, "NM_CANDIDATO": nome.upper(),
         "NM_URNA_CANDIDATO": nome.split()[0].upper(), "NR_PARTIDO": None, "SG_PARTIDO": None, "NM_PARTIDO": None, "NM_COLIGACAO": None,
         "SG_UF_NASCIMENTO": "MG", "NM_MUNICIPIO_NASCIMENTO": None, "DT_NASCIMENTO": nasc, "NR_TITULO_ELEITORAL_CANDIDATO": titulo,
-        "CD_GENERO": "2", "DS_GRAU_INSTRUCAO": None, "DS_SIT_TOT_TURNO": sit, "DS_DETALHE_SITUACAO_CAND": "DEFERIDO",
+        "CD_GENERO": "2", "DS_GRAU_INSTRUCAO": None, "DS_SIT_TOT_TURNO": sit, "DS_DETALHE_SITUACAO_CAND": detalhe,
     }
 
 
@@ -43,6 +47,12 @@ SOURCE = [
     _src(2012, "990530000112", T_DUDU, "Dudu Teste da Silva", "01/01/1980", "ELEITO POR QP"),
     _src(2016, "990530000116", T_DUDU, "Dudu Teste da Silva", "01/01/1980", "ELEITO"),
     _src(2020, "990530000120", T_DUDU, "Dudu Teste da Silva", "01/01/1980", "SUPLENTE"),
+    # só entram em cena nos testes que criam a pessoa do título (sem pessoa no diretório, a linha nem é universo)
+    _src(2022, "990530000822", T_VIG, "Vitor Vigente Teste", "09/09/1979", "ELEITO", cargo="7", ue="MG", nm_ue="MINAS GERAIS"),
+    _src(2012, "990530000912", T_PAI, "Joao Pai Homonimo Teste", "01/01/1975", "ELEITO", nr="44444"),
+    _src(2016, "990530001016", T_LEO, "Leonor Monteiro Teste", "22/06/1951", "SUPLENTE", nr="55555"),
+    _src(2016, "990530001116", T_GIL, "Gil Grupo Teste", "07/07/1977", "#NULO#", nr="66666", detalhe="INDEFERIDO"),
+    _src(2016, "990530001117", T_GIL, "Gil Grupo Teste", "07/07/1977", "ELEITO", nr="66666"),
     _src(2012, "990530000612", T_VELHO, "Velho Historico Teste", "08/08/1958", "SUPLENTE", nr="33333"),
     # BUG-041: o título da Maria na linha de outra pessoa (outro nome, outro nascimento)
     _src(2016, "990530000216", T_MARIA, "Jose Carlos Pereira Teste", "03/03/1960", "ELEITO"),
@@ -76,7 +86,19 @@ def fonte(tmp_path):
         p = tmp_path / f"consulta_cand_{y}_BRASIL.utf8.csv"
         _write_csv(rows, p)
         files[y] = [p]
-    return lambda year: files.get(year, [])
+    bens = {}
+    for y in by_year:  # o bem_candidato do ano: só o dudu declarou bens em 2016; os outros anos têm o arquivo sem linha deles
+        p = tmp_path / f"bem_candidato_{y}_BRASIL.utf8.csv"
+        rows = [{"SQ_CANDIDATO": "990530000116", "SG_UE": UE, "VR_BEM_CANDIDATO": "1.000,50"}] if y == 2016 else \
+            [{"SQ_CANDIDATO": "1", "SG_UE": "0", "VR_BEM_CANDIDATO": "1,00"}]
+        _write_csv(rows, p)
+        bens[y] = [p]
+
+    def f(year):
+        return files.get(year, [])
+
+    f.bens = lambda year: bens.get(year, [])
+    return f
 
 
 def _titles_source(titles):
@@ -89,7 +111,7 @@ def _universe(conn):
     return [u for u in repairs._history_universe(conn) if u["titulo"] in TITLES]
 
 
-def _setup(conn) -> dict[str, str]:
+def _setup(conn, extra: tuple = ()) -> dict[str, str]:
     """Município de teste, as pessoas do diretório (cada uma com o título e a candidatura eleita de 2024, como quem a carga de
     2024 acabou de criar) e candidaturas não eleitas de 2016 e 2020 de outra pessoa (esses anos foram carregados com --all ali)."""
     place = str(conn.execute("""insert into places (ibge_code, kind, name, slug, uf) values ('9905301', 'municipio', 'Teste BUG-053 A',
@@ -135,6 +157,8 @@ def _setup(conn) -> dict[str, str]:
         conn.execute("""insert into candidacies (contest_id, election_id, person_id, tse_sequencial, ballot_name, result, currency)
                         values (%s, %s, %s, %s, 'Outro', 'nao_eleito', 'BRL')""", (ct, el, q, sq))
     out["outro"] = q
+    for key, slug, civil, birth, titulo, sq24 in extra:  # pessoas dos testes de trava, também sem histórico
+        out[key] = person(slug, civil, birth, titulo, sq24)
     return out
 
 
@@ -148,13 +172,13 @@ def _steps(fonte):
     """Os passos reais de repairs.STEPS, com a fonte do teste e sem commit."""
     when = lambda y: date(2026, 11, 12)  # noqa: E731
     kw = {"titulos": dict(source=_titles_source, commit=False),
-          "historico": dict(paths=fonte, bens=lambda y: [], universe=_universe, commit=False),
+          "historico": dict(paths=fonte, bens=fonte.bens, universe=_universe, commit=False),
           "mandatos_tse": dict(published_on=when, commit=False)}
     return tuple((n, functools.partial(f, **kw.get(n, {}))) for n, f in repairs.STEPS)
 
 
 def _sync(conn, fonte, **kw):
-    return repairs.sync_history(conn, apply=True, paths=fonte, bens=lambda y: [], universe=_universe, commit=False, **kw)
+    return repairs.sync_history(conn, apply=True, paths=fonte, bens=fonte.bens, universe=_universe, commit=False, **kw)
 
 
 def test_pessoa_nova_ganha_o_historico_do_proprio_titulo(conn, fonte, monkeypatch):
@@ -189,7 +213,10 @@ def test_pessoa_nova_ganha_o_historico_do_proprio_titulo(conn, fonte, monkeypatc
         assert conn.execute("select * from candidacies where person_id = %s", (ids["outro"],)).fetchall() == outro_before
         logged = {(r["table_name"], r["action"]) for r in conn.execute(
             "select table_name, action from identity_split_log where bug = 'BUG-053' and person_id = %s", (ids["dudu"],))}
-        assert logged == {("candidacies", "criado"), ("mandates", "criado"), ("person_external_ids", "criado")}
+        assert logged == {("candidacies", "criado"), ("mandates", "criado"), ("person_external_ids", "criado"), ("asset_declarations", "criado")}
+        bens = conn.execute("""select a.total_cents from asset_declarations a join candidacies c on c.id = a.candidacy_id
+                               where c.tse_sequencial = '990530000116'""").fetchall()
+        assert [b["total_cents"] for b in bens] == [100050]
         n_log = conn.execute("select count(*) n from identity_split_log where bug = 'BUG-053' and person_id = %s and table_name = 'candidacies'",
                              (ids["dudu"],)).fetchone()["n"]
         assert n_log == 3
@@ -276,15 +303,15 @@ def test_teto_por_grupo_e_run_parcial(conn, fonte):
         assert repairs.sync_history(conn, apply=False, paths=fonte, universe=_universe, cap=1, commit=False) == 1
         r = Run(conn, repairs.HISTORY_DATASET, "tse-titulo")
         plan = repairs.plan_history(conn, paths=fonte, universe=_universe)
-        assert repairs.apply_history(conn, r, plan, cap=1, bens=lambda y: [], commit=False) == 1
+        assert repairs.apply_history(conn, r, plan, cap=1, bens=fonte.bens, commit=False) == 1
         assert r.partial_why and "teto de 1" in r.partial_why[0]
         got = [k for k in ("dudu", "beto", "caio") if len(_cands(conn, ids[k])) > 1]
         assert len(got) == 1
         r2 = Run(conn, repairs.HISTORY_DATASET, "tse-titulo")
-        assert repairs.apply_history(conn, r2, repairs.plan_history(conn, paths=fonte, universe=_universe), cap=1, bens=lambda y: [],
+        assert repairs.apply_history(conn, r2, repairs.plan_history(conn, paths=fonte, universe=_universe), cap=1, bens=fonte.bens,
                                      commit=False) == 1  # a próxima execução retoma
         r3 = Run(conn, repairs.HISTORY_DATASET, "tse-titulo")
-        assert repairs.apply_history(conn, r3, repairs.plan_history(conn, paths=fonte, universe=_universe), cap=200, bens=lambda y: [],
+        assert repairs.apply_history(conn, r3, repairs.plan_history(conn, paths=fonte, universe=_universe), cap=200, bens=fonte.bens,
                                      commit=False) == 3
         assert not r3.partial_why
         assert {k: len(_cands(conn, ids[k])) for k in ("dudu", "beto", "caio")} == {"dudu": 4, "beto": 2, "caio": 2}
@@ -301,5 +328,162 @@ def test_teto_nao_parte_o_grupo():
 
 def test_passo_na_ordem_da_rotina():
     names = [n for n, _ in repairs.STEPS]
-    assert names.index("historico") == names.index("titulos") + 1
-    assert repairs.HISTORY_CAP == 200
+    assert names[-1] == "historico" and names.index("mandatos_tse") < names.index("historico")  # BUG-049 não espera o histórico
+    assert repairs.HISTORY_CAP == 200 and repairs.HISTORY_BUDGET_S == 600
+
+
+# ---------- travas da revisão (A1, A2) e da operação (B1–B3) ----------
+
+VIG = ("vig", "teste-bug053-vig", "Vitor Vigente Teste", date(1979, 9, 9), T_VIG, "990530002724")
+PAI = ("pai", "teste-bug053-pai", "Joao Pai Homonimo Teste", date(1950, 1, 1), T_PAI, "990530002824")
+LEO = ("leo", "teste-bug053-leo", "Leonor Monteiro Teste", date(1951, 5, 22), T_LEO, "990530002924")
+GIL = ("gil", "teste-bug053-gil", "Gil Grupo Teste", date(1977, 7, 7), T_GIL, "990530003024")
+
+
+def _run(conn):
+    from civico_etl.db import Run
+
+    return Run(conn, repairs.HISTORY_DATASET, "tse-titulo")
+
+
+def test_so_cria_mandato_encerrado(conn, fonte):
+    """A1: a linha ELEITO de 2022 (deputado estadual até 2027) é da carga normal; o passo não cria mandato em curso."""
+    with conn.transaction(force_rollback=True):
+        ids = _setup(conn, (VIG,))
+        repairs.sync_titles(conn, apply=True, source=_titles_source, commit=False)
+        plan = repairs.plan_history(conn, paths=fonte, universe=_universe)
+        rec = {i["sq"]: i["why"] for i in plan["recusadas"]}
+        assert rec["990530000822"] == "mandato não encerrado: fica para a carga normal"
+        _sync(conn, fonte)
+        assert set(_cands(conn, ids["vig"])) == {2024}
+        assert not conn.execute("""select 1 from mandates m join identity_split_log l on l.row_key = m.id::text and l.bug = 'BUG-053'
+                                   where m.status <> 'encerrado'""").fetchone()
+
+
+def test_nascimento_a_um_ano_ou_mais_recusa_e_a_um_mes_aceita(conn, fonte):
+    """A2: mesmo nome e título, nascimento 25 anos depois (pai e filho homônimos sem sufixo): recusa. Nascimento a 1 mês
+    (digitação, como leonor-monteiro 22/05 x 22/06/1951): entra."""
+    with conn.transaction(force_rollback=True):
+        ids = _setup(conn, (PAI, LEO))
+        repairs.sync_titles(conn, apply=True, source=_titles_source, commit=False)
+        plan = repairs.plan_history(conn, paths=fonte, universe=_universe)
+        rec = {i["sq"]: i["why"] for i in plan["recusadas"]}
+        assert "1 ano ou mais" in rec["990530000912"]
+        assert "990530001016" in {i["sq"] for i in plan["aceitas"]}
+        _sync(conn, fonte)
+        assert set(_cands(conn, ids["pai"])) == {2024}
+        assert _cands(conn, ids["leo"])[2016] == ("990530001016", "suplente")
+
+
+def test_divergencia_desfaz_o_ano_e_segue(conn, fonte, monkeypatch):
+    """A4: o loader pôs a linha noutra pessoa (simulado): o savepoint do ano volta atrás inteiro, o run fica partial e os outros
+    anos entram; o contador do run não fica inflado pelo ano desfeito."""
+    from civico_etl.jobs import tse_candidatos
+
+    real = tse_candidatos._load_year
+
+    def desvia(conn_, r, year, *a, **kw):
+        real(conn_, r, year, *a, **kw)
+        if year == 2016:
+            q = conn_.execute("insert into people (slug, display_name) values ('teste-bug053-desvio', 'Desvio') returning id").fetchone()["id"]
+            conn_.execute("update candidacies set person_id = %s where tse_sequencial = '990530000116'", (q,))
+
+    with conn.transaction(force_rollback=True):
+        ids = _setup(conn)
+        repairs.sync_titles(conn, apply=True, source=_titles_source, commit=False)
+        monkeypatch.setattr(tse_candidatos, "_load_year", desvia)
+        uni = lambda c: [u for u in _universe(c) if u["titulo"] == T_DUDU]  # noqa: E731
+        r = _run(conn)
+        n = repairs.apply_history(conn, r, repairs.plan_history(conn, paths=fonte, universe=uni), bens=fonte.bens, commit=False)
+        assert n == 2 and set(_cands(conn, ids["dudu"])) == {2024, 2020, 2012}
+        assert not conn.execute("select 1 from candidacies where tse_sequencial = '990530000116'").fetchone()
+        assert any("2016" in w and "divergiu" in w for w in r.partial_why), r.partial_why
+        assert r.rows_upserted == 3  # 2020: 1 candidatura; 2012: candidatura + mandato. O 2016 desfeito não conta
+
+
+def test_grupo_parcial_e_fila_ficam_explicitos(conn, fonte, monkeypatch):
+    """A4: no grupo (gil, 2016), o eleito entra e o registro substituído (#NULO#, mesmo número) é rejeitado pelo loader: a nota
+    diz que o grupo ficou parcial. Linha mandada para a fila dentro do grupo também aparece na nota."""
+    from civico_etl import identity
+    from civico_etl.jobs import tse_candidatos
+
+    with conn.transaction(force_rollback=True):
+        ids = _setup(conn, (GIL,))
+        repairs.sync_titles(conn, apply=True, source=_titles_source, commit=False)
+        uni = lambda c: [u for u in _universe(c) if u["titulo"] == T_GIL]  # noqa: E731
+        plan = repairs.plan_history(conn, paths=fonte, universe=uni)
+        assert {i["sq"] for i in plan["aceitas"]} == {"990530001116", "990530001117"}
+        with conn.transaction(force_rollback=True):
+            r = _run(conn)
+            assert repairs.apply_history(conn, r, plan, bens=fonte.bens, commit=False) == 1
+            assert _cands(conn, ids["gil"])[2016] == ("990530001117", "eleito")
+            assert any("grupo parcial" in n and "990530001116" in n for n in r.notes)
+
+        class Fila(identity.PersonResolver):
+            def resolve(self, **kw):
+                if kw.get("external_id") == "2016:990530001116":
+                    return identity.Match(None, "queued", 0.5)
+                return super().resolve(**kw)
+
+        monkeypatch.setattr(tse_candidatos, "PersonResolver", Fila)
+        r = _run(conn)
+        assert repairs.apply_history(conn, r, plan, bens=fonte.bens, commit=False) == 1
+        assert any("foi para a fila" in n and "990530001116" in n for n in r.notes)
+        assert any("grupo parcial" in n and "990530001116" in n for n in r.notes)
+
+
+def test_sem_bens_o_ano_nao_carrega(conn, fonte):
+    """B1: candidatura antiga nunca entra sem bens. Sem o arquivo (ou com o download falhando), o ano não carrega e o run
+    fica partial; com o arquivo, entra com a declaração."""
+    def falha(year):
+        raise FileNotFoundError(f"bem_candidato_{year}.zip: 404")
+
+    with conn.transaction(force_rollback=True):
+        ids = _setup(conn)
+        repairs.sync_titles(conn, apply=True, source=_titles_source, commit=False)
+        uni = lambda c: [u for u in _universe(c) if u["titulo"] == T_DUDU]  # noqa: E731
+        for bens in (lambda y: [], falha):
+            r = _run(conn)
+            assert repairs.apply_history(conn, r, repairs.plan_history(conn, paths=fonte, universe=uni), bens=bens, commit=False) == 0
+            assert len(r.partial_why) == 3 and all("bem_candidato" in w for w in r.partial_why)
+            assert set(_cands(conn, ids["dudu"])) == {2024}
+            assert r.rows_upserted == 0
+
+
+def test_falha_num_ano_nao_derruba_o_reparo(conn, fonte, monkeypatch):
+    """B2: exceção na carga de um ano: os outros anos entram e os outros passos rodam. Falha na classificação: 0, sem exceção."""
+    from civico_etl.jobs import tse_candidatos
+
+    real = tse_candidatos._load_year
+
+    def quebra(conn_, r, year, *a, **kw):
+        if year == 2016:
+            raise RuntimeError("CSV corrompido")
+        return real(conn_, r, year, *a, **kw)
+
+    with conn.transaction(force_rollback=True):
+        ids = _setup(conn)
+        monkeypatch.setattr(repairs, "STEPS", _steps(fonte))
+        monkeypatch.setattr(tse_candidatos, "_load_year", quebra)
+        res = repairs.run_identity_repairs(conn, apply=True)
+        assert set(res) == {"titulos", "mandatos_tse", "historico"}
+        assert set(_cands(conn, ids["dudu"])) == {2024, 2020, 2012}
+
+        def sem_fonte(year):
+            raise OSError("cache ilegível")
+
+        assert repairs.sync_history(conn, apply=True, paths=sem_fonte, bens=fonte.bens, universe=_universe, commit=False) == 0
+        assert conn.execute("select 1").fetchone()  # conexão utilizável depois da falha
+
+
+def test_desligar_passo_por_ambiente(monkeypatch):
+    """B3: ETL_REPAIRS_SKIP desliga passos sem merge; nome desconhecido é erro."""
+    calls = []
+    monkeypatch.setattr(repairs, "STEPS", tuple((n, (lambda n: lambda conn, *, apply: calls.append(n) or 0)(n))
+                                                 for n in ("titulos", "mandatos_tse", "historico")))
+    monkeypatch.setenv("ETL_REPAIRS_SKIP", "historico")
+    assert repairs.run_identity_repairs(object(), apply=True) == {"titulos": 0, "mandatos_tse": 0}
+    assert calls == ["titulos", "mandatos_tse"]
+    monkeypatch.setenv("ETL_REPAIRS_SKIP", "historia")
+    with pytest.raises(SystemExit):
+        repairs.run_identity_repairs(object(), apply=True)

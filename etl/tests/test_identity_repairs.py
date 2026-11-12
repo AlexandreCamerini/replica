@@ -18,7 +18,7 @@ from civico_etl.jobs.tse_candidatos import load_order
 
 def test_ordem_fixa_e_documentada():
     names = [n for n, _ in repairs.STEPS]
-    assert names == ["titulos", "historico", "mandatos_tse"]
+    assert names == ["titulos", "mandatos_tse", "historico"]
     # o docstring numera os passos na mesma ordem
     doc = [m for m in re.findall(r"^\s+\d+\. `([a-z_]+)`", repairs.__doc__, re.M)]
     assert doc == names

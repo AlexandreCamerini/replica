@@ -10,8 +10,15 @@ Ordem (fixa; um passo só lê o que os anteriores deixaram):
      conhece naquele momento: um título que entra na carga de 2024 não ganha as linhas de 2012, já carregado. Os checks do
      BUG-038/039/041/043 e o `reissue` do resolve (BUG-042: dois títulos na mesma eleição são duas pessoas) leem essa tabela.
      Antes, só o `--apply` do identity.fix038/fix041 a completava.
-  2. `historico` (BUG-053): quem entra no diretório por uma carga recente (D07: só eleito com mandato atual cria pessoa) ganha
-     as candidaturas das eleições antigas do próprio título, que a carga daquele ano não trouxe porque a pessoa ainda não
+  2. `mandatos_tse`: mandato de vereador, prefeito ou vice cuja única fonte é a candidatura do TSE (`status_source = 'tse'`)
+     e cuja candidatura a fonte rebaixou para NÃO ELEITO ou suplente (retotalização) sai do exercício: `encerrado`, com
+     `ends_on` na data em que o TSE publicou o arquivo revisto e o motivo em `vacancy_note`. Nada é apagado; a linha anterior
+     vai inteira para identity_split_log (BUG-049). Se a Câmara Municipal confirma o vereador no SAPL (parlamentar casado com
+     mandato da legislatura em curso), a casa vence e o mandato fica. Roda depois de `titulos` porque lê o resultado já
+     gravado pela carga. Fica aqui, e não no loader, porque cruza duas fontes (TSE e SAPL) que carregam em horas diferentes, e o
+     loader no modo padrão (só eleitos) nem lê a linha rebaixada (D251).
+  3. `historico` (BUG-053), por último (carga pesada, com rede: não pode adiar o `mandatos_tse`): quem entra no diretório
+     por uma carga recente (D07: só eleito com mandato atual cria pessoa) ganha as candidaturas das eleições antigas do próprio título, que a carga daquele ano não trouxe porque a pessoa ainda não
      existia. Universo: linha de `tse_titulo_candidatura` (gravada pelo passo 1) de um ano em que a pessoa do título não tem
      candidatura nenhuma. A linha é classificada antes, sem gravar, pelo mesmo `PersonResolver` da carga (todas as travas:
      `title_row_foreign`, `first_name_match`, `shared_title`, geração/14 anos, chave `tse` de outra pessoa): só entra a que
@@ -23,16 +30,13 @@ Ordem (fixa; um passo só lê o que os anteriores deixaram):
      é, quem entrou pela carga do ciclo em curso e ainda não tem histórico. Quem já tem histórico e não tem a não eleita de um
      ano é o backlog do BUG-047 (2012 carregado em ordem crescente, antes de a pessoa existir): 3.439 linhas no banco local,
      carga em massa, decisão do dono, não deste reparo. Fora: eleição suplementar (a carga dela encerra e apaga mandatos da
-     cadeira; D241) e cargo sem mandato próprio (suplente de senador). Teto de HISTORY_CAP candidaturas e HISTORY_BUDGET_S segundos por run, por grupo (pessoa, ano): o resto fica
-     para a próxima e o run `identity.repairs.historico` fecha `partial`. Cada candidatura, mandato, bem e chave criados vão
+     cadeira; D241), cargo sem mandato próprio (suplente de senador), linha eleita de mandato não encerrado (é da carga
+     normal; o passo só cria mandato encerrado) e linha com nascimento a 1 ano ou mais do da pessoa (pai e filho homônimos).
+     Bens: cache ou download do bem_candidato do ano; sem bens o ano não carrega (partial). Teto de HISTORY_CAP candidaturas e
+     HISTORY_BUDGET_S segundos por run, por grupo (pessoa, ano): o resto fica para a próxima e o run
+     `identity.repairs.historico` fecha `partial`. Falha num ano (ou na classificação) vira `partial` e não derruba o reparo.
+     Desligar sem merge: ETL_REPAIRS_SKIP=historico. Cada candidatura, mandato, bem e chave criados vão
      para identity_split_log (bug BUG-053, ação 'criado'), que é o roteiro da reversão. Votos e contas desses anos não entram.
-  3. `mandatos_tse`: mandato de vereador, prefeito ou vice cuja única fonte é a candidatura do TSE (`status_source = 'tse'`)
-     e cuja candidatura a fonte rebaixou para NÃO ELEITO ou suplente (retotalização) sai do exercício: `encerrado`, com
-     `ends_on` na data em que o TSE publicou o arquivo revisto e o motivo em `vacancy_note`. Nada é apagado; a linha anterior
-     vai inteira para identity_split_log (BUG-049). Se a Câmara Municipal confirma o vereador no SAPL (parlamentar casado com
-     mandato da legislatura em curso), a casa vence e o mandato fica. Roda depois de `titulos` porque lê o resultado já
-     gravado pela carga. Fica aqui, e não no loader, porque cruza duas fontes (TSE e SAPL) que carregam em horas diferentes, e o
-     loader no modo padrão (só eleitos) nem lê a linha rebaixada (D251).
 
 Os seis reparos de uma vez só (D245). Nenhum entra na rotina: a regra de cada um está na carga, e o `check` (checks_identity e
 o invariante de presidente do D168) acusa se o defeito voltar. Os jobs continuam no cli para resposta a incidente.
@@ -195,7 +199,7 @@ def demote_tse_mandates(conn: psycopg.Connection, *, apply: bool, published_on: 
 # ---------- passo `historico` (BUG-053) ----------
 
 HISTORY_CAP = 200  # candidaturas por run; o resto fica para a próxima (run partial). Não é carga em massa.
-HISTORY_BUDGET_S = 30 * 60  # tempo de carga por run; o identity.repairs inteiro tem 2 h na agenda (schedule.py)
+HISTORY_BUDGET_S = 10 * 60  # tempo de carga por run; o identity.repairs inteiro tem 2 h na agenda (schedule.py)
 HISTORY_DATASET = "identity.repairs.historico"
 BUG_053 = "BUG-053"
 # situações que a carga padrão (só eleitos) também lê: entram sempre
@@ -234,9 +238,13 @@ def _source_paths_year(year: int):
 
 
 def _bens_paths_year(year: int):
+    """Bens do ano: cache do ETL; sem cache, baixa o bem_candidato (50–82 MB) pelo mesmo cliente HTTP. Falha propaga: o ano não
+    carrega (candidatura antiga nunca entra sem bens; o site leria a falta como "a fonte não publicou")."""
+    from ..http import fetch
     from .identity_bug041 import bens_paths
+    from .tse_candidatos import BASE, _extract
 
-    return bens_paths(year)  # só cache: sem o arquivo de bens, a candidatura entra sem bens (nota no run)
+    return bens_paths(year) or _extract(fetch(f"{BASE}/bem_candidato/bem_candidato_{year}.zip").path, year, None, "bem_candidato")
 
 
 def _title_source(paths, titles: set[str]) -> list[dict[str, Any]]:
@@ -268,8 +276,11 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
 
     from ..identity import PersonResolver
     from ..util import nz, parse_date, titlecase_pt
-    from .tse_candidatos import CARGO, muni_index, title_rows, tse_key
+    from datetime import date
 
+    from .tse_candidatos import CARGO, muni_index, term_dates, title_rows, tse_key
+
+    today = date.today()
     plan: dict[str, Any] = {"universo": Counter(), "fora": Counter(), "aceitas": [], "recusadas": [], "src": {}}
     by_year: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for u in universe(conn):
@@ -344,6 +355,10 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
                 if not place:
                     plan["recusadas"].append({**item, "why": "lugar sem correspondência no IBGE"})
                     continue
+                if (u["result"] or "") in ALWAYS_LOADED and term_dates(office, year)[1] > today:
+                    # o passo só cria mandato encerrado; mandato em curso ou a tomar posse é da carga normal do ano
+                    plan["recusadas"].append({**item, "why": "mandato não encerrado: fica para a carga normal"})
+                    continue
                 if (year, u["tse_sequencial"]) in taken:
                     plan["recusadas"].append({**item, "why": f"candidatura {year} SQ {u['tse_sequencial']} já está no banco (noutra pessoa); não mexe"})
                     continue
@@ -358,8 +373,14 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
                 elif m.person_id != u["person_id"]:
                     why = f"o resolve casa noutra pessoa ({m.person_id}, {m.method})" if m.person_id else "o resolve não casa em ninguém"
                 else:
-                    plan["aceitas"].append(item)
-                    continue
+                    pb = pr.info.get(u["person_id"], (None, None, None))[2]
+                    if birth and pb and abs((birth - pb).days) >= 365:
+                        # o título casou com nascimento a 1 ano ou mais: pai e filho homônimos sem sufixo (dívida do D240/BUG-044)
+                        # passam pelo resolve, e este passo carrega justamente linhas antigas de títulos repetidos. Fica de fora.
+                        why = f"nascimento da linha ({birth}) a 1 ano ou mais do da pessoa ({pb}): pode ser pai e filho homônimos"
+                    else:
+                        plan["aceitas"].append(item)
+                        continue
                 plan["recusadas"].append({**item, "why": why})
     finally:
         pr._pending_ext, pr._pending_queue = [], []  # classificação: nada do resolve é gravado
@@ -463,19 +484,24 @@ def apply_history(conn: psycopg.Connection, r: Any, plan: dict[str, Any], *, cap
             r.partial(f"historico: tempo de {budget_s:.0f}s esgotado; {left} aceita(s) de {year} para trás ficam para a próxima execução")
             break
         titles = {i["titulo"] for i in items}
-        rows = [x for x in plan["src"][year] if (x["NR_TITULO_ELEITORAL_CANDIDATO"] or "").strip() in titles]
+        # só eleição ordinária: a suplementar nunca entra, mesmo que um (UE, SQ) coincida (D241)
+        rows = [x for x in plan["src"][year] if (x["NR_TITULO_ELEITORAL_CANDIDATO"] or "").strip() in titles
+                and "ORDIN" in (x["NM_TIPO_ELEICAO"] or "").upper()]
         only = {(i["ue"], i["sq"]) for i in items}
         owners = {(i["ue"], i["sq"]): i["person_id"] for i in items}
         keys = [tse_key(year, i["sq"], i["ue"]) for i in items]
-        keys_before = {x["external_id"] for x in conn.execute(
-            "select external_id from person_external_ids where source_id = %s and external_id = any(%s)", (tse, keys))}
-        bp = list(bens(year) or [])
-        with tempfile.TemporaryDirectory() as d:
-            csv_path = Path(d) / f"historico_{year}.csv"
-            _write_history_csv(rows, csv_path)
-            try:
+        counters = (r.rows_upserted, r.rows_rejected)
+        try:
+            bp = list(bens(year) or [])
+            if not bp:
+                raise FileNotFoundError(f"bem_candidato_{year} sem arquivo")
+            with tempfile.TemporaryDirectory() as d:
+                csv_path = Path(d) / f"historico_{year}.csv"
+                _write_history_csv(rows, csv_path)
                 with conn.transaction():
-                    _load_year(conn, r, year, None, None, None, False, cand_paths=[csv_path], bens_paths=bp or None, only=only,
+                    keys_before = {x["external_id"] for x in conn.execute(
+                        "select external_id from person_external_ids where source_id = %s and external_id = any(%s)", (tse, keys))}
+                    _load_year(conn, r, year, None, None, None, False, cand_paths=[csv_path], bens_paths=bp, only=only,
                                bug=BUG_053, owners=owners)
                     got = {(str(c["person_id"]), c["tse_sequencial"]) for c in conn.execute(
                         """select c.person_id, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id
@@ -490,16 +516,26 @@ def apply_history(conn: psycopg.Connection, r: Any, plan: dict[str, Any], *, cap
                     if wrong or empty:
                         raise _HistoryMismatch(wrong, empty)
                     n = _log_created(conn, items, year, keys_before)
-            except _HistoryMismatch as e:
-                log.error("historico %d: a carga divergiu da classificação (%s); o ano voltou atrás", year, e)
-                r.partial(f"historico {year}: a carga divergiu da classificação ({e}); nada do ano entrou")
-                continue
+        except _HistoryMismatch as e:
+            r.rows_upserted, r.rows_rejected = counters  # o ano voltou atrás: não infla o run
+            log.error("historico %d: a carga divergiu da classificação (%s); o ano voltou atrás", year, e)
+            r.partial(f"historico {year}: a carga divergiu da classificação ({e}); nada do ano entrou")
+            continue
+        except Exception as e:  # noqa: BLE001 - um ano com problema (rede, CSV, banco) não derruba os outros nem o identity.repairs
+            r.rows_upserted, r.rows_rejected = counters
+            log.exception("historico %d: falhou; o ano voltou atrás", year)
+            r.partial(f"historico {year}: {type(e).__name__}: {e}"[:500] + "; nada do ano entrou")
+            continue
         if commit:
             conn.commit()
         loaded += n["candidacies"]
+        # grupo parcial: o loader pôs parte do grupo (pessoa, ano) e rejeitou outra linha (registro substituído, fila): explícito
+        for i in items:
+            if (i["person_id"], i["sq"]) not in got:
+                r.note(f"historico {year}: grupo parcial da pessoa {i['person_id']}: SQ {i['sq']} ({i['result']}) não entrou; "
+                       f"o loader rejeitou (motivo nas notas acima)")
         r.note(f"historico {year}: {n['candidacies']} candidatura(s), {n['mandates']} mandato(s), {n['asset_declarations']} declaração(ões) "
-               f"de bens e {n['person_external_ids']} chave(s) tse criadas (identity_split_log {BUG_053})"
-               + ("" if bp else "; bens do ano fora do cache: não carregados"))
+               f"de bens e {n['person_external_ids']} chave(s) tse criadas (identity_split_log {BUG_053})")
         log.info("historico %d: %s", year, n)
     if loaded:
         r.note(f"historico: votos e contas de campanha das {loaded} candidatura(s) carregadas não entram neste passo (tse.votos/tse.contas)")
@@ -530,7 +566,15 @@ def sync_history(conn: psycopg.Connection, *, apply: bool, paths: Callable[[int]
     o que carregar; `commit=False` (testes): sem run em ingest_runs, nada é confirmado."""
     from ..db import Run, run
 
-    plan = plan_history(conn, paths=paths, universe=universe)
+    try:
+        with conn.transaction():  # só leitura; savepoint: uma falha aqui não deixa a conexão abortada
+            plan = plan_history(conn, paths=paths, universe=universe)
+    except Exception as e:  # noqa: BLE001 - a classificação falhou: o reparo segue, o passo fica para a próxima execução
+        log.exception("historico: classificação falhou; nada carregado")
+        if apply and commit:
+            with run(conn, HISTORY_DATASET, "tse-titulo") as r:
+                r.partial(f"historico: classificação falhou ({type(e).__name__}: {e})"[:500])
+        return 0
     _log_plan(plan, cap)
     if not apply or not plan["aceitas"]:
         return len(_cap_groups(plan["aceitas"], cap)[0])
@@ -548,9 +592,23 @@ def sync_history(conn: psycopg.Connection, *, apply: bool, paths: Callable[[int]
 # ordem fixa da rotina: (nome, passo). Novo passo entra aqui, com a justificativa no docstring do módulo e uma decisão.
 STEPS: tuple[tuple[str, Callable[..., int]], ...] = (
     ("titulos", sync_titles),
-    ("historico", sync_history),
     ("mandatos_tse", demote_tse_mandates),
+    ("historico", sync_history),  # por último: carga pesada (rede, CSV) não pode adiar o BUG-049
 )
+
+
+def skipped_steps(env: Any = None) -> frozenset[str]:
+    """ETL_REPAIRS_SKIP="a,b": passos de STEPS que esta chamada não roda (desligar sem merge, ex.: `historico`). Nome
+    desconhecido é erro, não silêncio (como ETL_TASKS_EXCLUDE no schedule)."""
+    import os
+
+    env = os.environ if env is None else env
+    raw = (env.get("ETL_REPAIRS_SKIP") or "").strip()
+    names = frozenset(x.strip() for x in raw.split(",") if x.strip())
+    bad = sorted(names - {n for n, _ in STEPS})
+    if bad:
+        raise SystemExit(f"ETL_REPAIRS_SKIP: passo desconhecido {', '.join(bad)} (nomes em repairs.STEPS)")
+    return names
 
 
 def run_identity_repairs(conn: psycopg.Connection, *, apply: bool) -> dict[str, int]:
@@ -558,7 +616,11 @@ def run_identity_repairs(conn: psycopg.Connection, *, apply: bool) -> dict[str, 
     interrompe os seguintes (eles leem o resultado do anterior) e propaga a exceção; o que o passo já gravou fica (lotes com
     commit, cada um idempotente), e a próxima execução retoma."""
     out: dict[str, int] = {}
+    skip = skipped_steps()
     for name, step in STEPS:
+        if name in skip:
+            log.warning("identity.repairs: passo %s desligado por ETL_REPAIRS_SKIP", name)
+            continue
         try:
             out[name] = int(step(conn, apply=apply))
         except Exception:

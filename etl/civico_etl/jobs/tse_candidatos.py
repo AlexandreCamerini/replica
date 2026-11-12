@@ -347,7 +347,7 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | Non
         if m.why:
             r.notes.append(f"{civil} ({sq}): {m.why}")
         if m.method == "queued":
-            r.reject(1)
+            r.reject(1, f"histórico do título: {civil} ({sq}) foi para a fila de identidade" if owners is not None else None)
             continue
         if owners is not None:
             want = owners.get(((x["SG_UE"] or "").strip(), sq))
