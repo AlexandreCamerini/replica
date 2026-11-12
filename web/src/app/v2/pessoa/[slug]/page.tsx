@@ -581,6 +581,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         {trajetoria.length > 0 ? (
           <div className="sv-bloco">
             <LinhaDoTempo itens={trajetoria} />
+            {(!cands.ok || !mandatosR.ok) && <Lacuna motivo="Isso não quer dizer que não existam. Tente de novo mais tarde.">{`Não conseguimos ler ${!cands.ok ? "as candidaturas" : "os mandatos"} agora: a linha do tempo está incompleta.`}</Lacuna>}
             <Nota>Em ordem cronológica, do mais antigo para o mais recente. Candidatura com o ano da eleição.</Nota>
           </div>
         ) : !cands.ok || !mandatosR.ok ? (
