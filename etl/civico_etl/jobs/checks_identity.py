@@ -139,9 +139,11 @@ where (t.birth_date is not null and p.birth_date is not null and t.birth_date <>
 
 def bug044_offenders(conn: psycopg.Connection) -> list[dict]:
     """Candidaturas na pessoa errada pela regra do BUG-044 (identity.title_row_foreign e shared_title), a mesma do resolve:
-    (a) nascimento diferente e nome sem token em comum (D240) ou primeiro nome a mais de 2 edições; ou (b) o título está em
-    2 SQ da mesma eleição com nomes de pessoas diferentes e o nome da linha não é o da pessoa (primeiro nome). Contém o check
-    do D240: tudo o que ele acusa, este acusa."""
+    (a) nascimento diferente e a linha não prova a pessoa: nome civil vazio, nenhum token em comum (D240), primeiro nome que
+    não bate (`first_name_match`: igual com um token do resto em comum, ou grafia sem troca de gênero e com o resto igual) ou
+    sufixo de geração diferente a 14 anos ou mais (pai e filho); ou (b) o título está em 2 SQ da mesma eleição com nomes de
+    pessoas diferentes e o nome da linha não é o da pessoa. Contém o check do D240: tudo o que ele acusa, este acusa (o D240
+    é o ramo "nenhum token em comum" de (a), com a mesma seleção de linhas)."""
     from ..identity import first_name_match, names_differ, title_row_foreign
 
     out = []

@@ -1,9 +1,10 @@
 """BUG-044: título repetido pelo TSE na linha de outra pessoa com UM token de nome em comum ("Silva", "Maria", sobrenome de
 família ou de etnia) ainda casava pelo título. A regra do D240 só recusava com nascimento diferente E nenhum token em comum.
 
-Os nomes dos pares vêm do bug (dado público do TSE); só Genilde e Renata têm o nascimento do bug, os outros nascimentos
-são sintéticos (o ano do bug com dia 1º). Os casos de grafia usam nomes inventados. Todos os títulos são
-fictícios (prefixo 99990044). Os testes de banco criam tudo numa transação desfeita e não supõem banco vazio.
+Só o que está na entrada BUG-044 de replica/bugs.md (dado público do TSE): os nomes dos 4 pares, o nascimento de Genilde e
+Renata, os anos de Maria Isabel, Silvana, Daora e Kotsario (com dia 1º) e o trecho "AURI-WULANGE". Djalmiro e Sarah têm
+nascimento sintético (o bug não publica). Todo o resto (grafia, irmãos, pai e filho, D240) usa nomes e datas inventados.
+Todos os títulos são fictícios (prefixo 99990044); nenhum CPF. Os testes de banco criam tudo numa transação desfeita e não supõem banco vazio.
 Os símbolos novos são importados dentro dos testes: sem a correção, cada teste falha na asserção ou no import dele, não na
 coleta do arquivo."""
 
@@ -20,7 +21,7 @@ from civico_etl.identity import PersonResolver, names_compatible
 PARES = [
     (("GENILDE DOS SANTOS SILVA", date(1972, 10, 22)), ("Renata Emily da Silva Corrêa", date(1985, 6, 27))),  # Cruzeiro do Sul/AC: "silva"
     (("MARIA ISABEL DE SA MAMEDIR", date(1943, 1, 1)), ("Silvana Maria da Rocha Marques", date(1970, 1, 1))),  # Paty do Alferes/RJ: "maria"
-    (("SARAH MAGALHAES URBIETA", date(1984, 2, 1)), ("Djalmiro Alves Urbieta Filho", date(1980, 1, 1))),  # Itumbiara/GO: "urbieta"
+    (("SARAH MAGALHAES URBIETA", date(1950, 3, 3)), ("Djalmiro Alves Urbieta Filho", date(1940, 4, 4))),  # nascimentos sintéticos  # Itumbiara/GO: "urbieta"
     (("KOTSARIO PEDRO KANAMARI", date(1999, 1, 1)), ("Daora Kanamari", date(1982, 1, 1))),  # Itamarati/AM: "kanamari"
 ]
 TIT = "999900440001"
@@ -57,9 +58,9 @@ def test_os_4_pares_do_bug_sao_de_outra_pessoa(linha, pessoa):
 def test_dr_auri_continua_casando_com_o_hifen():
     from civico_etl.identity import first_name, title_row_foreign
 
-    # a linha traz "AURI-WULANGE" com o mês do nascimento trocado (datas sintéticas); a pessoa é "Auri Wulange ..." / "Dr Auri"
-    assert first_name("AURI-WULANGE RIBEIRO JORGE") == "auri"
-    assert not title_row_foreign("AURI-WULANGE RIBEIRO JORGE", date(1970, 6, 1), "Auri Wulange Ribeiro Jorge", "Dr Auri", date(1970, 7, 1))
+    # a linha traz "AURI-WULANGE" com o mês do nascimento trocado; sobrenomes e datas sintéticos
+    assert first_name("AURI-WULANGE TESTE SINTETICO") == "auri"
+    assert not title_row_foreign("AURI-WULANGE TESTE SINTETICO", date(1970, 6, 1), "Auri Wulange Teste Sintetico", "Dr Auri", date(1970, 7, 1))
 
 
 @pytest.mark.parametrize("linha,pessoa", [
@@ -78,32 +79,81 @@ def test_mesma_pessoa_com_grafia_variante_e_digito_errado_casa(linha, pessoa):
 
 
 @pytest.mark.parametrize("linha,pessoa", [
-    ("PAULO PEREIRA DA SILVA", "Paula Pereira da Silva"),  # troca a/o: irmão e irmã, não grafia
-    ("JOAO PEREIRA DA SILVA", "José Santos da Silva"),  # 2 edições no primeiro nome, resto diferente
-    ("ERIKA SANTOS LIMA", "Erivaldo Santos Lima"),  # primeiro nome a mais de 2 edições, mesmo sobrenome
+    # A1: só um dos dois primeiros nomes termina em "a" (irmão e irmã), com o sobrenome inteiro igual
+    ("CARLOS PEREIRA TESTE", "Carla Pereira Teste"), ("JOAO PEREIRA TESTE", "Joana Pereira Teste"),
+    ("GABRIEL PEREIRA TESTE", "Gabriela Pereira Teste"), ("DANIEL PEREIRA TESTE", "Daniela Pereira Teste"),
+    ("LUIZ PEREIRA TESTE", "Luiza Pereira Teste"), ("MARCOS PEREIRA TESTE", "Marcia Pereira Teste"),
+    ("LUCAS PEREIRA TESTE", "Lucia Pereira Teste"), ("MARCIO PEREIRA TESTE", "Marcia Pereira Teste"),
+    ("MARIO PEREIRA TESTE", "Maria Pereira Teste"), ("ADRIANO PEREIRA TESTE", "Adriana Pereira Teste"),
+    ("PAULO PEREIRA TESTE", "Paula Pereira Teste"),
+    # A1: 5 letras ou menos aceitam só 1 edição (José x João são 2)
+    ("JOAO PEREIRA DA SILVA", "José Pereira da Silva"),
+    # primeiro nome perto, resto diferente; e primeiro nome a mais de 2 edições com o mesmo sobrenome
+    ("JOAO PEREIRA DA SILVA", "José Santos da Silva"), ("ERIKA SANTOS LIMA", "Erivaldo Santos Lima"),
+    # A2: primeiro nome igual, nenhum token do resto em comum
+    ("MARIA APARECIDA SOUZA", "Maria José Oliveira"),
+    ("MARIA", "Maria José Oliveira"),  # A2: só o primeiro nome na linha, nada do resto para conferir
 ])
-def test_limite_primeiro_nome_perto_sem_o_resto_nao_casa(linha, pessoa):
-    """Limite documentado da regra nova: perto no primeiro nome sem o resto do nome igual, ou a troca a/o, não casa."""
+def test_nome_proximo_que_e_de_outra_pessoa_nao_casa(linha, pessoa):
+    """Nascimento diferente e nomes que o D240 casava (um token em comum): a regra nova recusa."""
     from civico_etl.identity import title_row_foreign
 
     assert names_compatible(linha, pessoa, None)  # o D240 casava
     assert title_row_foreign(linha, date(1970, 1, 1), pessoa, None, date(1980, 1, 1))
 
 
-def test_limite_irmaos_com_sobrenome_inteiro_igual_ainda_casam():
-    """Limite conhecido (documentado em first_name_match): José x João com o sobrenome inteiro igual e nascimento diferente
-    não se distingue de uma grafia. A regra nova não separa este caso; nada aqui fica pior que no D240."""
+@pytest.mark.parametrize("linha,pessoa", [
+    ("MARIA APARECIDA SOUSA", "Maria Aparecida Souza"),  # A2: 1 edição por token do resto (s/z)
+    ("MARIA APARECIDA SOUZA", "Maria Aparecida Oliveira Souza"),  # sobrenome a mais
+    ("ANA PAULA FELIPE", "Ana Paula Filipe"),  # i/e no sobrenome
+    ("EDERILDO BACHI", "Ederildo Teste Bacchi"),  # letra dobrada
+])
+def test_primeiro_nome_igual_com_um_token_do_resto_casa(linha, pessoa):
     from civico_etl.identity import title_row_foreign
 
-    assert not title_row_foreign("JOAO PEREIRA DA SILVA", date(1975, 1, 1), "José Pereira da Silva", None, date(1960, 1, 1))
+    assert not title_row_foreign(linha, date(1970, 1, 1), pessoa, None, date(1970, 1, 2))
+
+
+def test_pai_e_filho_homonimos_nao_casam_digitacao_casa():
+    """A3: sufixo de geração diferente e 14 anos ou mais de diferença: pai e filho. Com menos, é digitação."""
+    from civico_etl.identity import title_row_foreign
+
+    pai, filho = "José Teste da Silva", "JOSE TESTE DA SILVA FILHO"
+    assert title_row_foreign(filho, date(1990, 5, 1), pai, None, date(1960, 5, 1))
+    assert title_row_foreign("JOSE TESTE DA SILVA JUNIOR", date(1990, 5, 1), "José Teste da Silva Neto", None, date(1960, 5, 1))
+    assert title_row_foreign("JOSE TESTE DA SILVA", date(1960, 5, 1), "José Teste da Silva Filho", None, date(1976, 5, 1))
+    assert title_row_foreign("JOSE TESTE DA SILVA SOBRINHO", date(1995, 5, 1), "José Teste da Silva", None, date(1960, 5, 1))
+    assert title_row_foreign("JOSE TESTE DA SILVA SEGUNDO", date(1995, 5, 1), "José Teste da Silva", None, date(1981, 5, 1))  # 14 anos
+    assert not title_row_foreign("JOSE TESTE DA SILVA SEGUNDO", date(1995, 5, 1), "José Teste da Silva", None, date(1982, 5, 2))  # 13 anos
+    assert not title_row_foreign(filho, date(1961, 5, 1), pai, None, date(1960, 5, 1))  # 1 ano: digitação (sufixo esquecido)
+    assert not title_row_foreign("JOSE TESTE DA SILVA JR", date(1990, 5, 1), "José Teste da Silva Júnior", None, date(1960, 5, 1))  # mesmo sufixo
+    assert not title_row_foreign(filho, date(1990, 5, 1), "José Teste da Silva Filho", None, date(1960, 5, 1))  # mesmo sufixo
+
+
+def test_linha_sem_nome_civil_e_nascimento_diferente_nao_casa():
+    """A7: sem nome civil não há como conferir; com nascimento diferente, recusa. Com o mesmo nascimento, não é decidido aqui."""
+    from civico_etl.identity import title_row_foreign
+
+    assert title_row_foreign(None, date(1970, 1, 1), "Fulano Teste", None, date(1971, 1, 1))
+    assert title_row_foreign("  ", date(1970, 1, 1), "Fulano Teste", None, date(1971, 1, 1))
+    assert not title_row_foreign(None, date(1970, 1, 1), "Fulano Teste", None, date(1970, 1, 1))
+
+
+@pytest.mark.xfail(strict=True, reason="Dívida BUG-044: com o MESMO nascimento a regra do título não olha o nome. Gêmeos ou "
+                   "irmãos de mesmo nascimento com primeiros nomes a até 2 edições (Marcos x Márcio) e o título repetido "
+                   "casam. Não estendido de propósito: dividiria quem mudou de nome civil (nome social, casamento).")
+def test_divida_gemeos_com_mesmo_nascimento():
+    from civico_etl.identity import title_row_foreign
+
+    assert title_row_foreign("MARCOS PEREIRA TESTE", date(1990, 3, 3), "Marcio Pereira Teste", None, date(1990, 3, 3))
 
 
 def test_regra_nova_contem_a_do_d240():
-    """Tudo o que o D240 recusava, a regra nova recusa (Virginia x Willya, BUG-041; Manoel Juvenil x a pessoa do título, BUG-038)."""
+    """Tudo o que o D240 recusava (nenhum token em comum, como nos casos do BUG-041 e do BUG-038), a regra nova recusa."""
     from civico_etl.identity import title_row_foreign
 
-    for linha, nasc, pessoa, pnasc in [("VIRGINIA PEREIRA DE OLIVEIRA", date(1993, 8, 26), "Willya José da Silva", date(1972, 4, 20)),
-                                       ("MANOEL JUVENIL PEREIRA DE SOUSA", date(1983, 11, 30), "José Carlos Exemplo dos Santos", date(1974, 1, 1))]:
+    for linha, nasc, pessoa, pnasc in [("FULANA TEIXEIRA DE OLIVEIRA", date(1993, 3, 3), "Beltrano José Souza", date(1972, 4, 4)),
+                                       ("CICLANO JUVENTINO DE SOUSA", date(1983, 5, 5), "José Carlos Exemplo dos Santos", date(1974, 1, 1))]:
         assert not names_compatible(linha, pessoa, None) and title_row_foreign(linha, nasc, pessoa, None, pnasc)
     # nascimento igual: não é decidido por esta regra (a linha da mesma pessoa com nome social, D240)
     assert not title_row_foreign("ERIKA SANTOS TESTE", date(1992, 1, 1), "Erik Testeiro", None, date(1992, 1, 1))
@@ -136,11 +186,11 @@ def test_resolve_mesma_pessoa_com_grafia_e_digito_casa_pelo_titulo(conn):
     _ids(conn)
     with conn.transaction(force_rollback=True):
         pid = _person(conn, "teste-bug044-terezinha", "Terezinha Alves Teste", "Terezinha", date(1961, 11, 13), TIT)
-        auri = _person(conn, "teste-bug044-auri", "Auri Wulange Ribeiro Jorge", "Dr Auri", date(1970, 7, 1), "999900440002")
+        auri = _person(conn, "teste-bug044-auri", "Auri Wulange Teste Sintetico", "Dr Auri", date(1970, 7, 1), "999900440002")
         pr = PersonResolver(conn)
         m = pr.resolve(source="tse", external_id="2099:440002", titulo=TIT, civil_name="TERESINHA ALVES TESTE", birth_date=date(1961, 11, 12), uf="SP", year=2099)
         assert (m.person_id, m.method, m.title_foreign) == (pid, "exact_id", False)
-        m = pr.resolve(source="tse", external_id="2099:440003", titulo="999900440002", civil_name="AURI-WULANGE RIBEIRO JORGE",
+        m = pr.resolve(source="tse", external_id="2099:440003", titulo="999900440002", civil_name="AURI-WULANGE TESTE SINTETICO",
                        birth_date=date(1970, 6, 1), uf="SP", year=2099)
         assert (m.person_id, m.method, m.title_foreign) == (auri, "exact_id", False)
 
