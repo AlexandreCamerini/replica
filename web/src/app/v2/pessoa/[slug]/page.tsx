@@ -31,6 +31,8 @@ import {
   vmGastos,
   vmPatrimonio,
 } from "@/components/sv/pessoa/secoes";
+import { ESFERA } from "@/components/sv/pessoa/cargos";
+import { EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO } from "@/components/sv/pessoa/contexto";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
 
@@ -58,25 +60,8 @@ const ROLE: Record<OfficeSlug, string> = {
   vereador: "Vota as leis e o orçamento da cidade, e fiscaliza a prefeitura.",
 };
 
-// Esfera em palavra, sem estilo próprio: "Esfera: Federal · Câmara dos Deputados".
-const ESFERA: Record<OfficeSlug, string> = {
-  presidente: "Federal · Presidência da República",
-  vice_presidente: "Federal · Presidência da República",
-  senador: "Federal · Senado Federal",
-  deputado_federal: "Federal · Câmara dos Deputados",
-  governador: "Estadual · Governo do estado",
-  vice_governador: "Estadual · Governo do estado",
-  deputado_estadual: "Estadual · Assembleia Legislativa",
-  deputado_distrital: "Distrital · Câmara Legislativa",
-  prefeito: "Municipal · Prefeitura",
-  vice_prefeito: "Municipal · Prefeitura",
-  vereador: "Municipal · Câmara Municipal",
-};
-
-// Cargos do Executivo não votam em plenário nem têm cota de gabinete de casa legislativa: a lacuna diz isso, não "não gastou".
-const EXECUTIVO = new Set<OfficeSlug>(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
-const MOTIVO_PLENARIO = "Este cargo não vota em sessões de plenário.";
-const MOTIVO_COTA = "A cota de gabinete é verba de casa legislativa. Este cargo não a recebe.";
+// Esfera em palavra (cargos.ts). Cargos do Executivo não votam em plenário nem têm cota de gabinete de casa legislativa:
+// a lacuna diz isso, não "não gastou" (contexto.ts).
 
 const STATUS_LABEL: Record<string, string> = { eleito_aguardando_posse: "eleito, aguardando posse", licenciado: "licenciado", afastado: "afastado", encerrado: "mandato encerrado", renunciou: "renunciou", cassado: "cassado" };
 const FONTE_MANDATO: Record<string, string> = { tse: "TSE (Justiça Eleitoral)", camara: "Câmara dos Deputados", senado: "Senado Federal" };
