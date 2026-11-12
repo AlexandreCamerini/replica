@@ -666,7 +666,11 @@ export const pgSource: DataSource = {
     return rows.map(candidacyRow);
   },
   async getStats(personId, period) {
-    return (await statsForPeople([personId], period))[personId];
+    // o lote descarta id fora da regex de uuid; o contrato promete PeriodStats, então id inválido lança (como a main, em
+    // que o cast ::uuid falhava no banco) em vez de devolver undefined
+    const r = (await statsForPeople([personId], period))[personId];
+    if (!r) throw new Error(`getStats: id de pessoa inválido: ${JSON.stringify(personId.slice(0, 80))}`);
+    return r;
   },
   async getStatsForPeople(personIds, period) {
     return statsForPeople(personIds, period);
