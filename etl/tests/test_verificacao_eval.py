@@ -192,6 +192,14 @@ def test_teto_nao_finito_ou_fora_da_faixa_e_recusado(teto, monkeypatch, tmp_path
     assert not (tmp_path / "s").exists()
 
 
+@pytest.mark.parametrize("fases", ["injecao,armadilha", "", "segunda,real"])
+def test_fase_desconhecida_e_recusada(fases, monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.argv", ["verificacao_eval", "rodar", "--simulado", "--fases", fases, "--saida", str(tmp_path / "s")])
+    with pytest.raises(SystemExit) as x:
+        E.main()
+    assert x.value.code == 2 and not (tmp_path / "s").exists()
+
+
 @pytest.mark.parametrize("teto", [float("nan"), float("inf"), 0.0])
 def test_orcamento_recusa_teto_nao_finito(teto):
     with pytest.raises(ValueError):
@@ -225,7 +233,10 @@ def test_corte_por_max_tokens_deixa_a_barra_incompleta(tmp_path):
     assert nm["armadilhas_total"] == {"corte_max_tokens": ["escapa", "lei"]} and nm["leitor_leigo"] == {"corte_max_tokens": ["lei"]}
     assert m["barra"]["leitor_confunde_proposta_com_lei_0"]["estado"] == "incompleta"  # antes: nao_medida (n = 0) ou atingida
     assert m["barra"]["armadilhas_zero_escape_em_100"]["estado"] == "incompleta"  # o único escape foi o caso cortado
-    assert not any(r["id"] in ("escapa", "lei") for r in res if r["passada"] == 2)  # segunda passada só sobre caso medido
+    p2 = {r["id"]: r for r in res if r["passada"] == 2 and r["id"] in ("escapa", "lei")}  # sem primeira medida, não roda a segunda...
+    assert {k: (r["status"], r["categoria"]) for k, r in p2.items()} == {k: ("nao_medido", "primeira_nao_medida") for k in ("escapa", "lei")}
+    assert nm["autoconcordancia"] == {"primeira_nao_medida": ["escapa:p2", "lei:p2"]}  # ...mas também não some da conta
+    assert m["barra"]["autoconcordancia_95"]["estado"] == "incompleta"
     md = E.relatorio(m, {}, {"conjunto": "medida", "simulado": True})
     assert "armadilhas_total · corte_max_tokens: 2 (escapa, lei)" in md
 
@@ -508,7 +519,7 @@ def test_reserva_garante_a_segunda_passada(tmp_path):
                                      fases=["injecao", "armadilhas", "segunda"], limite=None, n_segunda=100,
                                      casos_extra=conjunto(), so_extra=True, reserva_segunda=0.5)
     p1 = {r["id"] for r in res if r["passada"] == 1}
-    p2 = {r["id"] for r in res if r["passada"] == 2}
+    p2 = {r["id"] for r in res if r["passada"] == 2 and r["status"] == "medido"}
     assert parcial and 0 < len(p1) < len(conjunto())  # a fase parou antes do fim
     assert p2 and p2 <= p1 and orc.gasto <= 0.8
     au = E.metricas(casos, res, orc=orc)["autoconcordancia"]

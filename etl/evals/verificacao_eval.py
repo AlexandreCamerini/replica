@@ -66,6 +66,7 @@ TETO_MAX_USD = 50.0  # o mesmo máximo do workflow (.github/workflows/verificaca
 # "atingida" se os controles limpos não publicarem: fração de controles publicados > COBERTURA_MIN_CONTROLES_PUBLICANDO (maioria)
 # E campo correto dos controles em nao_conferido < COBERTURA_MAX_CORRETO_NAO_CONFERIDO. Só controles: armadilha barrada no portão
 # do documento zera os seis campos e contaminaria o denominador.
+FASES = ("injecao", "armadilhas", "segunda", "reais")
 COBERTURA_MIN_CONTROLES_PUBLICANDO = 0.5
 COBERTURA_MAX_CORRETO_NAO_CONFERIDO = 0.25
 # Cliente real: sem retentativa automática do SDK (uma retentativa depois de timeout pode pagar a mesma resposta duas vezes sem
@@ -1168,8 +1169,13 @@ def executar(*, conjunto: str, cliente: Any, orc: Orcamento, saida: Path, fases:
         orc.teto_fase = orc.teto
         if "segunda" in fases:
             medidos = {r["id"] for r in resultados if r["passada"] == 1 and r["status"] == "medido"}
-            feitos = [c for c in inj + arm if c["id"] in medidos]  # segunda passada só sobre caso com a primeira medida
-            fase(feitos[: len([x for x in feitos if x["tipo"] in ("injecao", "controle_injecao")]) + n_segunda], 2)
+            tentados = {r["id"] for r in resultados if r["passada"] == 1}
+            feitos = [c for c in inj + arm if c["id"] in tentados]
+            sel = feitos[: len([x for x in feitos if x["tipo"] in ("injecao", "controle_injecao")]) + n_segunda]
+            for c in sel:  # caso selecionado cuja primeira passada não foi medida: a autoconcordância fica incompleta, não some
+                if c["id"] not in medidos:
+                    registrar(c, {**nao_medido(c, 2, "primeira passada não medida", "primeira_nao_medida"), "custo_usd": 0.0})
+            fase([c for c in sel if c["id"] in medidos], 2)
         if "reais" in fases and not so_extra:
             if isinstance(getattr(medidor, "inner", None), ClienteSimulado):
                 print("fase reais: pulada no modo simulado (o redator não é simulado)", file=sys.stderr)
@@ -1207,6 +1213,9 @@ def main() -> int:
     ap.add_argument("--paralelo", type=int, default=1, help="casos verificados ao mesmo tempo (o teto continua valendo: cada chamada reserva o pior caso)")
     a = ap.parse_args()
     fases = [f.strip() for f in a.fases.split(",") if f.strip()]
+    desconhecidas = sorted(set(fases) - set(FASES))
+    if desconhecidas or not fases:  # fase com erro de digitação daria um run "completo" sem medir nada
+        ap.error(f"--fases: desconhecidas {desconhecidas or '(vazio)'}; válidas: {','.join(FASES)}")
     if not math.isfinite(a.teto_usd) or a.teto_usd <= 0 or a.teto_usd > TETO_MAX_USD:  # nan passaria nas duas comparações
         ap.error(f"--teto-usd fora de (0, {TETO_MAX_USD:g}] ou não finito")
     if not 0 <= a.reserva_segunda < 1:
