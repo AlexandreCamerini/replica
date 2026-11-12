@@ -340,6 +340,9 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
   };
 }
 
+/** Dataset (job do ETL) que grava `salaries`: o único cujo carimbo diz quando o salário foi conferido. */
+const DATASET_SALARIOS = "seed";
+
 export const pgSource: DataSource = {
   isDemo: false,
   ...pgW4,
@@ -1438,11 +1441,12 @@ export const pgSource: DataSource = {
   },
   async getSalarySources(office) {
     // `at` (v1, "atualizado em"): com o upsert condicional do seed, max(updated_at) é quando o valor mudou, não quando foi
-    // conferido. `loaded`: carimbo da carga da mesma fonte em dataset_stamps; hoje o seed (etl/civico_etl/jobs/seed.py) não
-    // carimba, então vem null e a tela diz que a data não está registrada, em vez de inventar uma.
+    // conferido. `loaded`: carimbo do dataset que GRAVA os salários (o job `seed`, etl/civico_etl/jobs/seed.py), nunca o de
+    // outro dataset da mesma fonte; hoje o seed não carimba, então vem null e a tela diz que a data não está registrada,
+    // em vez de inventar uma.
     const rows = await sql`
       select so.name, so.url, max(s.updated_at) as at,
-             (select max(ds.refreshed_at) from dataset_stamps ds where ds.source_id = so.id) as loaded
+             (select max(ds.refreshed_at) from dataset_stamps ds where ds.source_id = so.id and ds.dataset = ${DATASET_SALARIOS}) as loaded
       from salaries s join offices o on o.id = s.office_id join sources so on so.id = s.source_id
       where o.slug = ${office} group by so.id, so.name, so.url order by min(s.valid_from)`;
     return rows.map((r) => ({ name: String(r.name), url: String(r.url), updatedAt: isoTs(r.at), loadedAt: r.loaded ? isoTs(r.loaded) : null }));
