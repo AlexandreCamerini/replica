@@ -198,6 +198,91 @@ def test_orcamento_recusa_teto_nao_finito(teto):
         E.Orcamento(teto=teto)
 
 
+class _CorteNoCaso(E.ClienteSimulado):
+    """Responde `max_tokens` na sustentação dos casos em `cortar`: o verificador levanta Transient("resposta cortada")."""
+
+    def __init__(self, cortar, roteiro=None):
+        super().__init__(roteiro)
+        self.cortar = cortar
+
+    def create(self, **kw):
+        r = super().create(**kw)
+        if self.caso_id in self.cortar and E.PAPEL_POR_SYSTEM[kw["system"][0]["text"]] == "sustentacao":
+            r.stop_reason = "max_tokens"
+        return r
+
+
+def test_corte_por_max_tokens_deixa_a_barra_incompleta(tmp_path):
+    """O caso que o agente não terminou some da conta; sem ele o verificador pareceria melhor. A barra tem de dizer 'incompleta'
+    e o relatório listar o caso por métrica e por motivo."""
+    cs = conjunto()
+    cli = _CorteNoCaso({"escapa", "lei"}, ROTEIRO)
+    orc = E.Orcamento(teto=100)
+    casos, res, _ = E.executar(conjunto="medida", cliente=cli, orc=orc, saida=tmp_path, fases=["injecao", "armadilhas", "segunda"],
+                               limite=None, n_segunda=10, casos_extra=cs, so_extra=True)
+    m = E.metricas(casos, res, orc=orc)
+    nm = m["nao_medidos_por_metrica"]
+    assert nm["armadilhas_total"] == {"corte_max_tokens": ["escapa", "lei"]} and nm["leitor_leigo"] == {"corte_max_tokens": ["lei"]}
+    assert m["barra"]["leitor_confunde_proposta_com_lei_0"]["estado"] == "incompleta"  # antes: nao_medida (n = 0) ou atingida
+    assert m["barra"]["armadilhas_zero_escape_em_100"]["estado"] == "incompleta"  # o único escape foi o caso cortado
+    assert not any(r["id"] in ("escapa", "lei") for r in res if r["passada"] == 2)  # segunda passada só sobre caso medido
+    md = E.relatorio(m, {}, {"conjunto": "medida", "simulado": True})
+    assert "armadilhas_total · corte_max_tokens: 2 (escapa, lei)" in md
+
+
+def test_interrompido_pelo_teto_entra_como_nao_medido(tmp_path):
+    orc = E.Orcamento(teto=0.05)
+    casos, res, parcial = E.executar(conjunto="medida", cliente=E.ClienteSimulado(), orc=orc, saida=tmp_path, fases=["armadilhas"],
+                                     limite=None, n_segunda=0, casos_extra=conjunto()[1:3], so_extra=True)
+    assert parcial and [r["categoria"] for r in res] == ["teto"]
+    m = E.metricas(casos, res, orc=orc)
+    assert m["barra"]["armadilhas_zero_escape_em_100"]["estado"] == "incompleta"
+    linhas = [json.loads(l) for l in (tmp_path / "casos.jsonl").read_text().splitlines()]
+    assert linhas[0]["status"] == "nao_medido" and linhas[0]["tipo"] == "armadilha" and linhas[0]["defeito"] == "sem_sustentacao"
+
+
+def test_real_nao_preparado_e_sem_rotulo_deixam_os_reais_incompletos(monkeypatch):
+    from civico_etl import drafting
+    from civico_etl.jobs import rascunho as R
+    caso = conjunto()[0]
+    pdf = P.montar(caso["pdf"]["paginas"])
+    ans, _ = P.rascunho_base("A")
+    monkeypatch.setattr(E, "obter_pdf", lambda fonte, pdfs: pdf)
+    fonte = {"camara_id": 1, "chave": "camara-pl-9001-2026", "url": "https://exemplo.invalido/x.pdf", "sha256": P.sha(pdf), "ementa": None}
+
+    def cortado(*a, **k):
+        raise R.DraftError("resposta cortada pelo limite de tokens")
+    monkeypatch.setattr(R, "draft_full", cortado)
+    orc = E.Orcamento(teto=100)
+    with pytest.raises(E.NaoPreparado) as x:
+        E.preparar_real(E.ClienteMedido(E.ClienteSimulado(), orc), orc, fonte, "medida")
+    assert x.value.categoria == "corte_max_tokens"
+
+    # rotulador cortado: não vira rótulo, vira não medido
+    monkeypatch.setattr(R, "draft_full", lambda *a, **k: (copy.deepcopy(ans), drafting.Usage(0, 0), "claude-sonnet-5-5"))
+
+    class CorteRotulo(E.ClienteSimulado):
+        def create(self, **kw):
+            r = super().create(**kw)
+            if E.PAPEL_POR_SYSTEM[kw["system"][0]["text"]] == "rotulador_b":
+                r.stop_reason = "max_tokens"
+            return r
+    with pytest.raises(E.NaoPreparado) as x:
+        E.preparar_real(E.ClienteMedido(CorteRotulo(), orc), orc, fonte, "medida")
+    assert x.value.categoria == "corte_max_tokens"
+
+    # árbitro que não decide: campo sem_rotulo fora da conta = não medido para os reais
+    roteiro = {"": {"rotulador_b": lambda o: {**o, "campos": [{**i, "rotulo": "sem_sustentacao" if i["campo"] == "quem_recebe" else i["rotulo"]} for i in o["campos"]]}}}
+    sim = E.ClienteSimulado(roteiro)
+    c = E.preparar_real(E.ClienteMedido(sim, orc), orc, fonte, "medida")
+    assert c["rotulos"]["quem_recebe"] == "sem_rotulo"
+    res = [E.verificar_caso(E.ClienteMedido(sim, orc), orc, c, pdf, 1)]
+    nao = {"id": "real-2", "tipo": "real", "defeito": None, "passada": 1, "status": "nao_medido", "motivo": "redator: cortada", "categoria": "corte_max_tokens"}
+    m = E.metricas({c["id"]: c}, res + [nao], orc=orc)
+    assert m["nao_medidos_por_metrica"]["reais"] == {"sem_rotulo": ["real-1:quem_recebe"], "corte_max_tokens": ["real-2"]}
+    assert m["barra"]["campos_reais_no_maximo_3_erros_em_300"]["estado"] == "incompleta"
+
+
 def test_kappa():
     assert E.kappa([("a", "a"), ("a", "b"), ("b", "b"), ("b", "b")]) == 0.5
     assert E.kappa([("a", "a"), ("b", "b")]) == 1.0
