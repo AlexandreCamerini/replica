@@ -54,6 +54,18 @@ SOURCE = [
 ]
 
 
+def _write_csv(rows: list[dict], path) -> None:
+    """CSV como o consulta_cand transcodificado pelo loader (UTF-8, ';', aspas). Local ao teste: não depende do código novo."""
+    import csv
+
+    cols = list(rows[0])
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, delimiter=";", quotechar='"')
+        w.writerow(cols)
+        for x in rows:
+            w.writerow(["" if x[c] is None else x[c] for c in cols])
+
+
 @pytest.fixture
 def fonte(tmp_path):
     by_year: dict[int, list[dict]] = {}
@@ -62,7 +74,7 @@ def fonte(tmp_path):
     files = {}
     for y, rows in by_year.items():
         p = tmp_path / f"consulta_cand_{y}_BRASIL.utf8.csv"
-        repairs._write_history_csv(rows, p)
+        _write_csv(rows, p)
         files[y] = [p]
     return lambda year: files.get(year, [])
 
@@ -158,10 +170,10 @@ def test_pessoa_nova_ganha_o_historico_do_proprio_titulo(conn, fonte, monkeypatc
 
         res = repairs.run_identity_repairs(conn, apply=True)
 
-        assert res.get("historico") == 5  # dudu 2012/2016/2020 + beto + caio (maria e ana recusadas)
         # zera para quem casou; as 2 linhas ELEITO recusadas (título de outra pessoa) seguem acusadas: decisão humana, não do reparo
         assert conn.execute(CHECK).fetchone()["count"] == base + 2
         assert conn.execute(CHECK + " and t.titulo = any(%s)", ([T_DUDU, *T_EXTRA],)).fetchone()["count"] == 0
+        assert res.get("historico") == 5  # dudu 2012/2016/2020 + beto + caio (maria e ana recusadas)
         assert _cands(conn, ids["dudu"]) == {2024: ("990530002024", "eleito"), 2020: ("990530000120", "suplente"),
                                              2016: ("990530000116", "eleito"), 2012: ("990530000112", "eleito_qp")}
         ms = {(r["started_on"], r["status"]) for r in conn.execute("select started_on, status from mandates where person_id = %s", (ids["dudu"],))}
