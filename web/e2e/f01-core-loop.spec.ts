@@ -112,10 +112,13 @@ test.describe("F01 eleitor descobre quem o representa", () => {
     const opt = page.getByRole("option", { name: /Campinas.*SP/ });
     // Campinas vem primeiro (ordem por relevância); não rolar: rolar a página fecha o popover (React Aria)
     await expect(opt).toBeVisible();
-    // em toque, a lista só recebe o toque ~0,5 s depois de aparecer (BUG-009, S4): espera o ponto ficar "tocável"
-    await expect
-      .poll(() => opt.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest("[role=option]") === el; }))
-      .toBe(true);
+    // BUG-009: o toque tem de acertar a opção desde o instante em que ela aparece (sem esperar). Medição única, sem poll:
+    // antes da correção o Popover ficava com clip/opacity até ~0,5 s e o ponto caía no conteúdo atrás da lista.
+    const tocavel = await opt.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest("[role=option]") === el;
+    });
+    expect(tocavel, "a opção recebe o toque assim que aparece").toBe(true);
     await opt.tap(); // celular: toque, não clique
     await expect(page).toHaveURL(/cidade=3509502/);
     const overflow = async () => page.evaluate(() => document.documentElement.scrollWidth - 390);
