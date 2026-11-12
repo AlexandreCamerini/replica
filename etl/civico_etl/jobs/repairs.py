@@ -283,10 +283,6 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
     if not by_year:
         return plan
 
-    years = sorted(by_year)
-    places = {r["ibge_code"]: str(r["id"]) for r in conn.execute("select ibge_code, id from places")}
-    by_uf = {r["uf"]: str(r["id"]) for r in conn.execute("select uf, id from places where kind = 'uf'")}
-    muni_lookup = muni_index(conn)
     # quem já tem histórico carregado (candidatura antes das 2 eleições ordinárias mais recentes) só ganha a linha eleita: o resto
     # do histórico dessas pessoas é o backlog do BUG-047 (2012 carregado antes de elas existirem), carga em massa e não reparo
     cutoff = history_cutoff(conn)
@@ -298,6 +294,23 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
              and not exists (select 1 from identity_split_log l where l.bug = %s and l.table_name = 'candidacies'
                              and l.row_key = c.id::text)""", (persons, cutoff, BUG_053))}
     plan["cutoff"] = cutoff
+    for y in list(by_year):
+        keep = []
+        for u in by_year[y]:
+            if (u["result"] or "") not in ALWAYS_LOADED and u["person_id"] in with_history:
+                plan["fora"][FORA_COM_HISTORICO] += 1
+            else:
+                keep.append(u)
+        by_year[y] = keep
+        if not keep:
+            del by_year[y]
+    if not by_year:
+        return plan
+
+    years = sorted(by_year)
+    places = {r["ibge_code"]: str(r["id"]) for r in conn.execute("select ibge_code, id from places")}
+    by_uf = {r["uf"]: str(r["id"]) for r in conn.execute("select uf, id from places where kind = 'uf'")}
+    muni_lookup = muni_index(conn)
     taken = {(r["year"], r["tse_sequencial"]) for r in conn.execute(
         "select e.year, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id where e.year = any(%s)", (years,))}
     pr = PersonResolver(conn)
@@ -328,9 +341,6 @@ def plan_history(conn: psycopg.Connection, *, paths: Callable[[int], Any] = _sou
                     place = muni_lookup((x["SG_UF"] or "").strip().upper(), x["NM_UE"])
                 civil, birth = titlecase_pt(x["NM_CANDIDATO"]), parse_date(x["DT_NASCIMENTO"])
                 item.update(civil=civil, birth=birth)
-                if (u["result"] or "") not in ALWAYS_LOADED and u["person_id"] in with_history:
-                    plan["fora"][FORA_COM_HISTORICO] += 1
-                    continue
                 if not place:
                     plan["recusadas"].append({**item, "why": "lugar sem correspondência no IBGE"})
                     continue
