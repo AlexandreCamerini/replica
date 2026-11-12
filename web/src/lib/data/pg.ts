@@ -1627,6 +1627,13 @@ export const pgSource: DataSource = {
           where a.proposal_id = ${prop.id}::uuid and a.role in ('principal', 'coautoria')
           order by (a.role = 'principal') desc, pe.display_name collate pt_br, pe.slug limit ${MAX_AUTORES}`
       : [];
+    // campo legado `authors` (v1 /proposta): a ordem e o corte da main (ordem de assinatura), sem mudar o que o v1 mostra
+    const authorsLegado = prop
+      ? await sql`
+          select pe.slug, pe.display_name, a.role from proposal_authors a join people pe on pe.id = a.person_id
+          where a.proposal_id = ${prop.id}::uuid and a.role in ('principal', 'coautoria')
+          order by (a.role = 'principal') desc, a.sign_order nulls last, pe.display_name collate pt_br limit 20`
+      : [];
     const votes = prop
       ? await sql`
           select id, occurred_at, description, result, yes_count, no_count, count(*) over () as total from voting_events
@@ -1674,7 +1681,7 @@ export const pgSource: DataSource = {
       readAt: readRow ? isoTs(readRow.read_at) : null,
       fichaUrl: (current[0]?.proposal_url as string | null) ?? (last.proposal_url as string | null) ?? (prop?.url as string | null) ?? null,
       presentedOn: prop?.presented_on ? iso(prop.presented_on) : null,
-      authors: autores.itens,
+      authors: authorsLegado.map((a) => ({ slug: String(a.slug), name: String(a.display_name), role: a.role as "principal" | "coautoria" })),
       votes: votacoes.itens,
       autores,
       votacoes,

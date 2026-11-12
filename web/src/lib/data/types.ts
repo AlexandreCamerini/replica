@@ -483,7 +483,10 @@ export type PautaProposal = {
   readAt: string | null;
   fichaUrl: string | null;
   presentedOn: string | null;
-  /** @deprecated o v1 (/proposta) ainda lê: mesmos itens de `autores.itens`, sem o total. */
+  /**
+   * @deprecated o v1 (/proposta) ainda lê: autoria principal primeiro, depois ordem de assinatura (sign_order), até 20,
+   * como na main. NÃO são os itens de `autores` (que seguem nome em ordem alfabética); sem o total.
+   */
   authors: PautaAuthor[];
   /** @deprecated o v1 (/proposta) ainda lê: mesmos itens de `votacoes.itens`, sem o total. */
   votes: PautaVote[];
