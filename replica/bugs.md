@@ -934,11 +934,11 @@ Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não conve
 - Severity: S2 (o site mostra gasto a mais: ~R$ 4,04 mi em 2025, 182 deputados; ~R$ 4,49 mi em 2026, 95 deputados)
 - Symptom: em 12/11/2026 o check `cota: amostra fixa…` falhou em 4 casos de 2025 (160541 +18,75%, 178975 +3,29%, 204534 +22,43%, 209787 +2,16% sobre a página da Câmara).
 - Cause: em 12/11/2026 a API `/deputados/{id}/despesas` passou a devolver valores com centavos e o `valorLiquido` negado fora do SIGEPA; o `Ano-AAAA.csv.zip` segue com 6 dígitos significativos. O casamento (documento, valor) do complemento D181 falhou e o `cotaapi` regravou linhas que o arquivo já tem (ex.: 11892.53 × 11892.5 no documento 7896551; parcela 2500/0/−311,55 × +311,55 no 8022455). "Passagem aérea - SIGEPA" é legítima e a página a soma.
-- Status: em correção (PR #35). Segunda passada por documento: 6 dígitos significativos e líquido negado. Os dados de produção se corrigem no próximo `camara.diario` (prune por prefixo `cotaapi`), sem DELETE manual.
+- Status: fixed (PR #35, merge bf95500; aplicado em 12/11/2026, run 43315021288, D308). Segunda passada por documento em duas etapas (valor próprio exato ou 6 dígitos; depois líquido negado) e terceira por soma do documento dividido. Produção: 440 (2025) e 324 (2026) lançamentos duplicados apagados pelo prune do job; amostra a até R$ 0,10 da página; check `ok`.
 
 ### BUG-055: check de carimbo vencido cobra 48 h de tarefas semanais
 
 - Severity: S4 (falso alarme; deixa o `etl.yml` vermelho)
 - Cause: `camara.equipe` e `parlamento.extras` são semanais (`schedule.TASKS`, `7 * D`), mas o check cobrava 48 h de toda família camara/senado.
-- Status: em correção (PR #35): régua = cadência da tarefa + 48 h para tarefas com cadência acima de 48 h; diárias seguem em 48 h.
+- Status: fixed (PR #35, merge bf95500): régua = cadência da tarefa + 48 h para tarefas com cadência acima de 48 h; diárias seguem em 48 h. Check `ok` em 12/11/2026.
 
