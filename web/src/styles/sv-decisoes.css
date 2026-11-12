@@ -1,0 +1,11 @@
+/* Segue o Voto, D2 · tela Decisões (/v2/decisoes). Importado pela própria página.
+   Só regras desta tela, sob .sv e com prefixo sv-. Os quadros de lista usam a "tira" de Temas (pergunta | conteúdo | prova).
+   Esta tela não usa --agora nem --vida: tudo em tinta. */
+
+.sv .sv-pis{display:flex;flex-direction:column;min-width:0}
+.sv .sv-pi{display:flex;flex-direction:column;gap:6px;min-width:0;padding:8px 0 10px;border-top:1.5px solid var(--tinta)}
+.sv .sv-pis>.sv-pi:first-child{border-top:0;padding-top:0}
+.sv .sv-pg--dcs .sv-quadro--dom .sv-a--dom{max-width:24ch}
+@media (min-width:900px){
+  .sv .sv-pg--dcs .sv-quadro--dom .sv-a--dom{font-size:clamp(40px,4.6vw,64px)}
+}
