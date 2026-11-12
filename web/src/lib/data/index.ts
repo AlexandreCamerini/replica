@@ -24,6 +24,12 @@ const source = () => (process.env.NODE_ENV === "production" ? (g.__dataSource ??
 // O TTL é a rede de segurança: se a revalidação falhar, o dado novo aparece em no máximo uma hora.
 // Os argumentos entram na chave do unstable_cache; os retornos são JSON puro (datas como string ISO).
 export const CACHE_TTL_S = 3600;
+/**
+ * Versão da FORMA dos retornos na chave do cache. O cache de dados sobrevive a deploy: quando um retorno ganha campo
+ * obrigatório (ex.: PautaProposal.votacoes, VotingEventDetail.porUf), um valor antigo em cache quebraria a tela por até
+ * uma hora. Troque esta versão sempre que a forma de um retorno mudar.
+ */
+const CONTRATO = "c4-placar-fonte";
 const PERSON_ARG: ReadonlySet<keyof DataSource> = new Set([
   "getMandates",
   "getCandidacies",
@@ -38,11 +44,23 @@ const PERSON_ARG: ReadonlySet<keyof DataSource> = new Set([
   "getContacts",
 ] as const);
 
+/** Lotes por lista de ids de pessoa: cada id vira tag `person:<id>`, como nas leituras de uma pessoa. */
+const PEOPLE_BATCH: ReadonlySet<keyof DataSource> = new Set([
+  "getPeopleCoverage",
+  "getMandatesForPeople",
+  "getCandidaciesForPeople",
+  "getLawsForPeople",
+  "getStatsForPeople",
+  "getAttendanceGridForPeople",
+  "getRecentLawVotesForPeople",
+  "getExpensesByCategoryForPeople",
+] as const);
+
 export function cacheTags(prop: keyof DataSource, args: unknown[]): string[] {
   const tags = ["data", `ds:${String(prop)}`];
   const a0 = args[0];
   if (PERSON_ARG.has(prop) && typeof a0 === "string") tags.push(`person:${a0}`);
-  if ((prop === "getAgreement" || prop === "getActivity") && Array.isArray(a0)) for (const id of a0) if (typeof id === "string") tags.push(`person:${id}`);
+  if ((prop === "getAgreement" || prop === "getActivity" || PEOPLE_BATCH.has(prop)) && Array.isArray(a0)) for (const id of a0) if (typeof id === "string") tags.push(`person:${id}`);
   if ((prop === "getRepresentatives" || prop === "getCoverage") && a0 && typeof a0 === "object") tags.push(`place:${(a0 as Place).ibge}`);
   if (prop === "getPlace" && typeof a0 === "string") tags.push(`place:${a0}`);
   return tags.filter((t) => t.length <= 256).slice(0, 64); // limites do Next por entrada
@@ -58,7 +76,7 @@ export const data: DataSource = new Proxy({} as DataSource, {
     };
     if (process.env.DATA_SOURCE !== "pg") return call;
     return (...args: unknown[]) =>
-      unstable_cache(call, ["data", String(prop)], { tags: cacheTags(prop, args), revalidate: CACHE_TTL_S })(...args);
+      unstable_cache(call, ["data", CONTRATO, String(prop)], { tags: cacheTags(prop, args), revalidate: CACHE_TTL_S })(...args);
   },
 });
 

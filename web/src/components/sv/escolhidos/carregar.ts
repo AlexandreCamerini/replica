@@ -1,5 +1,5 @@
 import "server-only";
-import type { ActivityItem, AssemblyDataset, AssemblyInfo, AttendanceGrid, CoverageStatus, OfficeSlug, VoteValue } from "@/lib/data";
+import type { ActivityItem, AssemblyInfo, AttendanceGrid, CoberturaConjunto, ConjuntoPessoa, CoverageStatus, OfficeSlug, Place, VoteValue } from "@/lib/data";
 import { data } from "@/lib/data";
 import { fmtDate } from "../fmt";
 import { lerOuFalhar } from "../simular";
@@ -36,8 +36,8 @@ export type Escolhido = {
   patrimonio: { ano: number; cents: number }[];
   /** `leis` null: sem leitura de leis (falhou, ou cargo fora de deputado federal e senador, que é onde lemos leis) */
   propostas: { principal: number | null; coautor: number | null; leis: number | null } | null;
-  /** status de cobertura por conjunto, só quando o contrato o entrega por pessoa (Assembleia) */
-  cob: Partial<Record<AssemblyDataset, Cobertura>>;
+  /** estado de cada conjunto (getPeopleCoverage); null = a leitura da cobertura falhou (a tela não afirma estado) */
+  cobertura: Partial<Record<ConjuntoPessoa, CoberturaConjunto>> | null;
 };
 
 export type Recente = { item: ActivityItem; esfera: string | null };
@@ -86,57 +86,67 @@ const stampDe = async (dataset: string, nome: string): Promise<Casa> => {
 export async function carregarEscolhidos(slugs: string[], sim: FalhaSimulada = {}): Promise<Carga> {
   const ano = anoAtual();
   const ler = <T>(f: () => Promise<T>) => lerOuFalhar(!!sim.dados, f);
-  const asmCache = new Map<string, Promise<AssemblyInfo | null>>();
-  const assembly = (uf: string) => {
-    let p = asmCache.get(uf);
-    if (!p) asmCache.set(uf, (p = data.getAssembly(uf).catch(() => null)));
-    return p;
-  };
   const [stCamara, stSenado, stTse] = await Promise.all([
     stampDe("camara", "Câmara dos Deputados"),
     stampDe("senado", "Senado Federal"),
     stampDe("tse.candidatos", "Justiça Eleitoral (TSE)"),
   ]);
 
-  // "falhou" (exceção) é diferente de "não existe mais" (null): só o segundo some sem aviso
-  const resolvidos = await Promise.all(
-    slugs.map(async (slug) => {
-      try {
-        let r = await lerOuFalhar(!!sim.pessoa, () => data.getPerson(slug));
-        if (r?.redirectTo) r = await data.getPerson(r.redirectTo);
-        return r?.person ?? null;
-      } catch {
-        return "falhou" as const;
-      }
-    }),
-  );
-  const falhas = resolvidos.filter((r) => r === "falhou").length;
-  const naoEncontradas = resolvidos.filter((r) => r === null).length;
+  // Uma leitura em lote por conjunto (número de consultas constante, não por pessoa). "falhou" (exceção) é diferente de
+  // "não existe mais" (naoEncontradas): só o segundo some sem aviso. Ids em ordem e sem repetição: a mesma chave de cache.
+  const pedidos = [...new Set(slugs)];
+  const achadas = await lerOuFalhar(!!sim.pessoa, () => data.getPeopleBySlugs(pedidos)).catch(() => null);
+  const falhas = achadas ? 0 : pedidos.length;
+  const naoEncontradas = achadas?.naoEncontradas.length ?? 0;
   const vistos = new Set<string>();
-  const pessoasBase = resolvidos.filter((p): p is Exclude<typeof p, null | "falhou"> => !!p && p !== "falhou" && !vistos.has(p.id) && !!vistos.add(p.id));
+  const pessoasBase = (achadas?.encontradas ?? []).map((x) => x.person).filter((p) => !vistos.has(p.id) && !!vistos.add(p.id));
+  const ids = pessoasBase.map((p) => p.id).sort();
 
-  const pessoas = await Promise.all(
-    pessoasBase.map(async (p): Promise<Escolhido> => {
-      // null = leitura falhou: lacuna "Não conseguimos ler…" só desta pessoa e deste conjunto
-      const [mandates, cands, laws, careerStats, yearStats, grid, votes, exp] = await Promise.all([
-        ler(() => data.getMandates(p.id)).catch(() => null),
-        ler(() => data.getCandidacies(p.id)).catch(() => null),
-        ler(() => data.getLaws(p.id)).catch(() => null),
-        ler(() => data.getStats(p.id, "career")).catch(() => null),
-        ler(() => data.getStats(p.id, String(ano) as `${number}`)).catch(() => null),
-        ler(() => data.getAttendanceGrid(p.id, ano)).catch(() => null),
-        ler(() => data.listVotes(p.id, { scope: "lei", limit: 3 })).catch(() => null),
-        ler(() => data.listExpenses(p.id, { year: ano, limit: 1 })).catch(() => null),
-      ]);
-      const main = mandatoPrincipal(mandates);
-      const place = main ? await data.getPlace(main.placeIbge).catch(() => null) : null;
+  // null = a leitura do conjunto falhou: lacuna "Não conseguimos ler…" desse conjunto, nunca "nenhum"
+  const vazio = Promise.resolve(null);
+  const [mandatesR, candsR, lawsR, careerR, yearR, gridR, votesR, expR, cobR] = ids.length
+    ? await Promise.all([
+        ler(() => data.getMandatesForPeople(ids)).catch(() => null),
+        ler(() => data.getCandidaciesForPeople(ids)).catch(() => null),
+        ler(() => data.getLawsForPeople(ids)).catch(() => null),
+        ler(() => data.getStatsForPeople(ids, "career")).catch(() => null),
+        ler(() => data.getStatsForPeople(ids, String(ano) as `${number}`)).catch(() => null),
+        ler(() => data.getAttendanceGridForPeople(ids, ano)).catch(() => null),
+        ler(() => data.getRecentLawVotesForPeople(ids, 3)).catch(() => null),
+        ler(() => data.getExpensesByCategoryForPeople(ids, ano)).catch(() => null),
+        ler(() => data.getPeopleCoverage(ids)).catch(() => null),
+      ])
+    : await Promise.all([vazio, vazio, vazio, vazio, vazio, vazio, vazio, vazio, vazio]);
+  const mains = new Map(pessoasBase.map((p) => [p.id, mandatoPrincipal(mandatesR?.[p.id] ?? null)]));
+  const places = await data
+    .getPlaces([...new Set([...mains.values()].flatMap((m) => (m ? [m.placeIbge] : [])))].sort())
+    .then((ps) => new Map(ps.map((p) => [p.ibge, p])))
+    .catch(() => new Map<string, Place>());
+  const ufsAsm = [...new Set(pessoasBase.flatMap((p) => {
+    const m = mains.get(p.id);
+    const uf = m ? places.get(m.placeIbge)?.uf : null;
+    return m && uf && (m.office === "deputado_estadual" || m.office === "deputado_distrital") ? [uf] : [];
+  }))];
+  // nome e data de leitura da Assembleia: uma leitura por UF distinta (não por pessoa)
+  const asms = new Map(await Promise.all(ufsAsm.map(async (uf) => [uf, await data.getAssembly(uf).catch((): AssemblyInfo | null => null)] as const)));
+  const cobDe = new Map((cobR ?? []).map((c) => [c.personId, Object.fromEntries(c.conjuntos.map((x) => [x.conjunto, x]))]));
+
+  const pessoas = pessoasBase.map((p): Escolhido => {
+      const mandates = mandatesR ? (mandatesR[p.id] ?? []) : null;
+      const cands = candsR ? (candsR[p.id] ?? []) : null;
+      const laws = lawsR ? (lawsR[p.id] ?? []) : null;
+      const careerStats = careerR?.[p.id] ?? null;
+      const yearStats = yearR?.[p.id] ?? null;
+      const grid = gridR?.[p.id] ?? null;
+      const votes = votesR ? (votesR[p.id] ?? { items: [], total: 0 }) : null;
+      const exp = expR ? { byCategory: expR[p.id] ?? [] } : null;
+      const main = mains.get(p.id) ?? null;
+      const place = main ? (places.get(main.placeIbge) ?? null) : null;
       const uf = place?.uf ?? null;
       const office = main?.office ?? null;
       const estadual = office === "deputado_estadual" || office === "deputado_distrital";
-      const asm = estadual && uf ? await assembly(uf) : null;
-
-      const cob: Escolhido["cob"] = {};
-      if (asm) for (const it of asm.items) cob[it.dataset] = { status: it.status, motivo: it.reason };
+      const asm = estadual && uf ? (asms.get(uf) ?? null) : null;
+      const cobertura = cobR ? (cobDe.get(p.id) ?? null) : null;
       const casa: Casa =
         office === "deputado_federal"
           ? stCamara
@@ -186,11 +196,11 @@ export async function carregarEscolhidos(slugs: string[], sim: FalhaSimulada = {
             },
         gastoCents: posse ? null : gastoCents,
         patrimonio,
-        propostas: pr && (pr.principal !== null || pr.coautor !== null) ? { ...pr, leis: laws && cobreLeis(office) ? laws.length : null } : null,
-        cob,
+        // leis: só com a leitura de leis feita para o cargo (cobertura `lido`); fora disso, sem frase sobre leis
+        propostas: pr && (pr.principal !== null || pr.coautor !== null) ? { ...pr, leis: laws && cobreLeis(office) && cobertura?.leis?.estado === "lido" ? laws.length : null } : null,
+        cobertura,
       };
-    }),
-  );
+    });
   pessoas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
   const esferaDe = new Map(pessoas.map((p) => [p.slug, p.esfera]));

@@ -16,6 +16,7 @@ import {
 } from "./reference";
 import type {
   AnswerClaim,
+  AssemblyInfo,
   PublishedAnswers,
   Agreement,
   Candidacy,
@@ -45,9 +46,13 @@ import type {
   VotingEventSummary,
   ActivityItem,
   PautaEntry,
+  PautaProposal,
   VerifiedBy,
 } from "./types";
 import { parseProposalKey, uniqueByKey } from "../pauta";
+import { placarPorUf } from "./cadeiras";
+import { lista } from "./lista";
+import { coberturaDe, type CarimboFonte, type EntradaCobertura } from "./cobertura";
 
 import { houseName } from "./assembleias";
 
@@ -543,6 +548,59 @@ function salaryFor(m: Mandate): { cents: number | null; ceiling: boolean } {
   return { cents: null, ceiling: false };
 }
 
+// ---------- cobertura por pessoa (demonstração) ----------
+// Só as famílias de carga que a demonstração simula têm carimbo: equipe, comissões e emendas não são inventadas, então
+// aparecem como "não carregado". Senador: o Senado não publica presença. Assembleias: não simuladas ("não conferido").
+const CARIMBOS_DEMO: Record<string, CarimboFonte> = Object.fromEntries(
+  [
+    ...["camara.presenca", "camara.votacoes", "camara.despesas", "camara.proposicoes"].map((f) => [f, { nome: SOURCES.camara.name, url: SOURCES.camara.url, em: "2026-11-01T06:10:00-03:00" }] as const),
+    ...["senado.votacoes", "senado.despesas", "senado.autorias"].map((f) => [f, { nome: SOURCES.senado.name, url: SOURCES.senado.url, em: "2026-11-01T06:10:00-03:00" }] as const),
+    ["tse.candidatos", { nome: SOURCES.tse.name, url: SOURCES.tse.url, em: "2026-10-31T05:40:00-03:00" }] as const,
+  ],
+);
+const asmDemo = (uf: string): AssemblyInfo => ({
+  uf,
+  houseName: houseName(uf),
+  read: false,
+  source: null,
+  items: (["presenca", "votos", "propostas", "gastos_gabinete"] as const).map((d) => ({
+    dataset: d,
+    label: { presenca: "Presença no plenário", votos: "Votos no plenário", propostas: "Propostas apresentadas", gastos_gabinete: "Verba de gabinete" }[d],
+    status: "desconhecido" as const,
+    reason: "dados de demonstração: Assembleias não são simuladas",
+    evidenceUrl: null,
+    checkedOn: null,
+    refreshedAt: null,
+    stampDataset: null,
+  })),
+});
+export const DEMO_SAPL_IBGE = "3550308";
+/** data_coverage do município na demo; a câmara "lida pelo SAPL" marca presença, votos e propostas como em carga, como o ETL do SAPL faz. */
+function coberturaVereadorDemo(ibge: string): EntradaCobertura["coberturaLugar"] {
+  const base = coverageFor(ibge).map((c) => ({ dataset: c.dataset as string, status: c.status, reason: c.reason, evidenceUrl: null as string | null }));
+  if (ibge !== DEMO_SAPL_IBGE) return base;
+  const sapl = ["presenca", "votos", "propostas"].map((dataset) => ({ dataset, status: "carregando" as const, reason: "Lida do SAPL da Câmara Municipal (demonstração).", evidenceUrl: null }));
+  return [...base.filter((x) => !sapl.some((s) => s.dataset === x.dataset)), ...sapl];
+}
+function entradaDemo(personId: string): EntradaCobertura {
+  const m = mainMandate(personId);
+  const place = m ? store().placeByIbge.get(m.placeIbge) : undefined;
+  const uf = place?.uf ?? null;
+  const estadual = m?.office === "deputado_estadual" || m?.office === "deputado_distrital";
+  return {
+    office: m?.office ?? null,
+    status: m?.status ?? null,
+    faltaFederal: m?.office === "senador" ? ["presenca"] : m?.office === "deputado_federal" ? [] : null,
+    coberturaLugar: m?.office === "vereador" ? coberturaVereadorDemo(m.placeIbge) : [],
+    carimbos: CARIMBOS_DEMO,
+    assembleia: estadual && uf ? asmDemo(uf) : null,
+    // vereadores da capital paulista: câmara "lida pelo SAPL", dado fora desta página (carregado_fora_da_pagina)
+    sapl: m?.office === "vereador" && m.placeIbge === DEMO_SAPL_IBGE ? { nome: "SAPL das Câmaras Municipais (demonstração)", url: null, em: "2026-11-01T06:10:00-03:00" } : null,
+    casa: m?.office === "vereador" && place ? `Câmara Municipal de ${place.name} (${uf})` : estadual && uf ? houseName(uf) : null,
+    temCandidatura: (store().candidaciesByPerson.get(personId)?.length ?? 0) > 0,
+  };
+}
+
 // ---------- implementação ----------
 export const fakeSource: DataSource = {
   isDemo: true,
@@ -622,18 +680,7 @@ export const fakeSource: DataSource = {
     // a demo não simula Assembleias: toda casa aparece como não lida, com o motivo (nunca número inventado)
     const u = uf.toUpperCase();
     if (!UF_ROWS.some((r) => r[1] === u)) return null;
-    const why = "dados de demonstração: Assembleias não são simuladas";
-    const items = (["presenca", "votos", "propostas", "gastos_gabinete"] as const).map((d) => ({
-      dataset: d,
-      label: { presenca: "Presença no plenário", votos: "Votos no plenário", propostas: "Propostas apresentadas", gastos_gabinete: "Verba de gabinete" }[d],
-      status: "desconhecido" as const,
-      reason: why,
-      evidenceUrl: null,
-      checkedOn: null,
-      refreshedAt: null,
-      stampDataset: null,
-    }));
-    return { uf: u, houseName: houseName(u), read: false, source: null, items };
+    return asmDemo(u);
   },
   async getCounters() {
     const byLevel: Record<Level, number> = { federal: 0, estadual: 0, municipal: 0 };
@@ -925,10 +972,11 @@ export const fakeSource: DataSource = {
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
     const all = f.scope === "lei" ? base.filter((e) => e.kind !== "requerimento" && e.kind !== "urgencia") : base;
     const years = [...new Set(events.map((e) => yearOf(e.occurredAt)))].filter((y) => y <= CURRENT_YEAR).sort((a, b) => b - a);
-    const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null });
+    const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null, placarFonte: { sim: e.yes, nao: e.no } });
     return { ...page(all.map(toSummary), f.cursor, Math.min(f.limit ?? 30, 100)), years, hidden: base.length - all.length };
   },
   async getVotingEvent(id) {
+    if (id === DEMO_VOTACAO_SEM_VOTOS) return demoVotacaoSemVotos();
     const body = id.startsWith("senado") ? "senado" : id.startsWith("camara") ? "camara" : null;
     if (!body) return null;
     const { events, byPerson } = votesOfBody(body);
@@ -943,7 +991,9 @@ export const fakeSource: DataSource = {
       const person = store().personById.get(pid)!;
       const party = partyById[v.partyId].acronym;
       counts[v.value]++;
-      votes.push({ slug: person.slug, name: person.displayName, party, uf: store().placeByIbge.get(mainMandate(pid)!.placeIbge)?.uf ?? null, value: v.value });
+      // demonstração: o mandato principal cobre todas as votações simuladas, então a UF na data é a atual
+      const uf = store().placeByIbge.get(mainMandate(pid)!.placeIbge)?.uf ?? null;
+      votes.push({ slug: person.slug, name: person.displayName, party, uf, ufAtual: uf, value: v.value });
       const p = parties.get(party) ?? { party, counts: {}, total: 0 };
       p.counts[v.value] = (p.counts[v.value] ?? 0) + 1;
       p.total++;
@@ -954,6 +1004,8 @@ export const fakeSource: DataSource = {
       ...ev,
       isNominal: true,
       proposal: null,
+      placarFonte: { sim: ev.yes, nao: ev.no },
+      porUf: placarPorUf(ev, votes),
       counts,
       orientations: PARTIES.map((p) => ({ label: p.acronym, kind: "partido" as const, value: (rng(`ori:${id}:${p.id}`)() < 0.6 ? "sim" : "nao") as "sim" | "nao" })),
       byParty: [...parties.values()].sort((a, b) => a.party.localeCompare(b.party, "pt-BR")),
@@ -989,7 +1041,8 @@ export const fakeSource: DataSource = {
     return { items: [], nextCursor: null, total: 0 };
   },
   async getSalarySources() {
-    return [{ name: "Decreto Legislativo nº 172/2022 (demonstração)", url: "https://www2.camara.leg.br/", updatedAt: "2026-11-01T06:10:00-03:00" }];
+    // como no banco real hoje: o seed das normas não carimba a carga (loadedAt null)
+    return [{ name: "Decreto Legislativo nº 172/2022 (demonstração)", url: "https://www2.camara.leg.br/", updatedAt: "2026-11-01T06:10:00-03:00", loadedAt: null }];
   },
   async listStampYears(prefix) {
     if (prefix.startsWith("transparencia") || prefix.startsWith("sancoes")) return []; // a demo não finge carga sem chave (D253)
@@ -1059,6 +1112,8 @@ export const fakeSource: DataSource = {
     const entry = [...demoPauta(), ...demoForaDaSemana()].find((e) => e.key === key);
     if (!entry) return null;
     const answers = entry.key === DEMO_ANSWERED_KEY ? demoAnswers() : entry.key in DEMO_QUEM_CONFERIU ? demoAnswers(DEMO_QUEM_CONFERIU[entry.key]) : null;
+    const vazia = lista([], 0);
+    const { autores, votacoes } = entry.key === DEMO_MUITAS_KEY ? demoMuitas() : { autores: vazia, votacoes: vazia };
     return {
       // como no pg.ts: com "o que propõe" conferido, a frase vira o título simples
       entry: answers?.fields.o_que_propoe.says
@@ -1069,13 +1124,64 @@ export const fakeSource: DataSource = {
       readAt: demoWeek().readAt,
       fichaUrl: null,
       presentedOn: null,
-      authors: [],
-      votes: [],
+      authors: autores.itens,
+      votes: votacoes.itens,
+      autores,
+      votacoes,
       answers,
     };
   },
   async listCorrections() {
     return [];
+  },
+
+  // ---------- cobertura por pessoa: a mesma regra do banco (cobertura.ts), com entradas da demonstração ----------
+  async getPeopleCoverage(personIds) {
+    return personIds.filter((id, i, a) => store().personById.has(id) && a.indexOf(id) === i).map((id) => ({ personId: id, conjuntos: coberturaDe(entradaDemo(id)) }));
+  },
+
+  // ---------- lotes: a demonstração é memória, então o lote é o laço sobre a leitura de uma pessoa ----------
+  async getPeopleBySlugs(slugs) {
+    const pedidos = [...new Set(slugs)];
+    const encontradas: { slug: string; person: Person }[] = [];
+    const naoEncontradas: string[] = [];
+    for (const slug of pedidos) {
+      const r = await fakeSource.getPerson(slug);
+      if (r) encontradas.push({ slug, person: r.person });
+      else naoEncontradas.push(slug);
+    }
+    return { encontradas, naoEncontradas };
+  },
+  async getMandatesForPeople(ids) {
+    return Object.fromEntries(await Promise.all(ids.filter((id) => store().personById.has(id)).map(async (id) => [id, await fakeSource.getMandates(id)] as const)));
+  },
+  async getCandidaciesForPeople(ids) {
+    return Object.fromEntries(await Promise.all(ids.filter((id) => store().personById.has(id)).map(async (id) => [id, await fakeSource.getCandidacies(id)] as const)));
+  },
+  async getLawsForPeople(ids) {
+    return Object.fromEntries(ids.map((id) => [id, []]));
+  },
+  async getStatsForPeople(ids, period) {
+    return Object.fromEntries(await Promise.all(ids.filter((id) => store().personById.has(id)).map(async (id) => [id, await fakeSource.getStats(id, period)] as const)));
+  },
+  async getAttendanceGridForPeople(ids, year) {
+    return Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await fakeSource.getAttendanceGrid(id, year)] as const)));
+  },
+  async getRecentLawVotesForPeople(ids, limit) {
+    return Object.fromEntries(
+      await Promise.all(
+        ids.map(async (id) => {
+          const p = await fakeSource.listVotes(id, { scope: "lei", limit });
+          return [id, { items: p.items, total: p.total }] as const;
+        }),
+      ),
+    );
+  },
+  async getExpensesByCategoryForPeople(ids, year) {
+    return Object.fromEntries(await Promise.all(ids.map(async (id) => [id, (await fakeSource.listExpenses(id, { year, limit: 1 })).byCategory] as const)));
+  },
+  async getPlaces(ibges) {
+    return [...new Set(ibges)].flatMap((c) => store().placeByIbge.get(c) ?? []);
   },
   async listPocketRules() {
     const terms = ["tributo", "imposto", "alíquota", "contribuição", "salário", "benefício", "aposentadoria", "pensão", "tarifa", "preço", "juros"];
@@ -1117,7 +1223,8 @@ export const DEMO_QUEM_CONFERIU: Record<string, VerifiedBy> = { "camara-pl-9998-
 
 function demoForaDaSemana(): PautaEntry[] {
   const { at } = demoWeek();
-  return [9998, 9997].map((number) => ({
+  // 9996 = DEMO_MUITAS_KEY (mais de 5 votações e de 20 autores), sem respostas publicadas
+  return [9998, 9997, 9996].map((number) => ({
     key: `camara-pl-${number}-2026`,
     body: "camara",
     type: "PL",
@@ -1201,4 +1308,51 @@ function demoPauta(): PautaEntry[] {
       reason: { theme: "Direito e Defesa do Consumidor", term: "tributo" },
     },
   ];
+}
+
+// ---------- casos de borda da demonstração (fora do sorteio do acervo; chaves exportadas para os testes) ----------
+
+/** Votação nominal da Câmara sem voto individual publicado: o placar e o placar por UF viram lacuna. */
+export const DEMO_VOTACAO_SEM_VOTOS = "camara-demo-sem-votos";
+function demoVotacaoSemVotos(): VotingEventDetail {
+  const ev = {
+    id: DEMO_VOTACAO_SEM_VOTOS,
+    body: "camara" as const,
+    kind: "texto" as const,
+    occurredAt: "2026-03-10T18:00:00-03:00",
+    description: "Exemplo ilustrativo da demonstração: votação nominal sem o voto de cada pessoa publicado",
+    topic: null,
+    result: "aprovado" as const,
+    yes: 0,
+    no: 0,
+    // a fonte não publicou nem o placar total
+    placarFonte: { sim: null, nao: null },
+    isNominal: true,
+    proposal: null,
+  };
+  return { ...ev, counts: { sim: 0, nao: 0, abstencao: 0, obstrucao: 0, art17: 0, nao_votou: 0 }, orientations: [], byParty: [], votes: [], porUf: placarPorUf(ev, []) };
+}
+
+/** Proposta sintética fora da pauta da semana com mais de 5 votações e mais de 20 autores: a tela diz "5 de 7" e "20 de 23". */
+export const DEMO_MUITAS_KEY = "camara-pl-9996-2026";
+export const DEMO_MUITAS = { votacoes: 7, autores: 23 } as const;
+function demoMuitas(): { autores: PautaProposal["autores"]; votacoes: PautaProposal["votacoes"] } {
+  const autores = current()
+    .filter((m) => m.office === "deputado_federal")
+    .map(holder)
+    .sort(byName)
+    .slice(0, DEMO_MUITAS.autores)
+    .map((h, i) => ({ slug: h.person.slug, name: h.person.displayName, role: (i === 0 ? "principal" : "coautoria") as "principal" | "coautoria" }))
+    .sort((a, b) => Number(b.role === "principal") - Number(a.role === "principal") || a.name.localeCompare(b.name, "pt-BR"));
+  const evs = votesOfBody("camara")
+    .events.filter((e) => e.occurredAt.slice(0, 10) <= TODAY && (e.yes || e.no))
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+    .slice(0, DEMO_MUITAS.votacoes - 1);
+  const votacoes = [...evs, demoVotacaoSemVotos()]
+    .map((e) => ({ id: e.id, occurredAt: e.occurredAt, description: e.description, result: e.result, yes: e.yes, no: e.no }))
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id));
+  return {
+    autores: lista(autores.slice(0, 20), autores.length),
+    votacoes: lista(votacoes.slice(0, 5), votacoes.length),
+  };
 }

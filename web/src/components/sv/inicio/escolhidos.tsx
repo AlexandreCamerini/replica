@@ -3,10 +3,10 @@ import { clip } from "@/components/sv/fmt";
 import { COOKIE_TEXTO } from "@/components/sv/prefs-shared";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { aguardaPosse, fraseDesde, mandatoPrincipal, motivoPosse } from "@/components/sv/mandato";
-import { FALHOU_LEITURA } from "@/components/sv/estados";
+import { ESTADO_COBERTURA, FALHOU_LEITURA, naoHaNaLeitura } from "@/components/sv/estados";
 import { lerOuFalhar } from "@/components/sv/simular";
-import { Cobertura, Lacuna, Nota, Quadro, VotoMarca } from "@/components/sv/ui";
-import { data, type AssemblyInfo, type MandateStatus, type OfficeSlug, type PersonVote } from "@/lib/data";
+import { Cobertura, Fonte, Lacuna, Nota, Quadro, VotoMarca } from "@/components/sv/ui";
+import { data, type CoberturaConjunto, type MandateStatus, type OfficeSlug, type PersonVote, type Place } from "@/lib/data";
 import { dayKey, fmtLong } from "./datas";
 
 // Esfera em palavra, derivada do cargo do mandato. Mesma forma para toda pessoa; sem estilo próprio por esfera.
@@ -49,66 +49,80 @@ type Escolhido = {
   votos: PersonVote[] | null;
   /** motivo de não haver votos: ainda não tomou posse */
   posse: string | null;
+  /** estado de cobertura dos votos; null = a leitura da cobertura falhou ou não veio */
+  cobVotos: CoberturaConjunto | null;
 };
 
 const FALHOU = FALHOU_LEITURA;
 
-/** `falhas`: quantas pessoas do cookie não puderam ser lidas (a leitura falhou). Slug que não existe mais é ignorado. */
+/**
+ * `falhas`: quantas pessoas do cookie não puderam ser lidas (a leitura falhou). Slug que não existe mais é ignorado.
+ * Leituras em lote (uma por conjunto, não por pessoa); cada conjunto que falha vira lacuna só dele.
+ */
 async function carregar(slugs: string[], falhar: boolean): Promise<{ lista: Escolhido[]; falhas: number }> {
-  let falhas = 0;
-  const rows = await Promise.all(
-    slugs.map(async (slug): Promise<Escolhido | null> => {
-      let r: Awaited<ReturnType<typeof data.getPerson>>;
-      try {
-        r = await lerOuFalhar(falhar, () => data.getPerson(slug));
-      } catch {
-        falhas += 1;
-        return null;
-      }
-      if (!r) return null;
-      const [mandates, votes] = await Promise.all([
-        data.getMandates(r.person.id).catch(() => null), // null = leitura falhou, diferente de "sem mandato"
-        data.listVotes(r.person.id, { scope: "lei", limit: 3 }).catch(() => null),
-      ]);
-      const m = mandatoPrincipal(mandates);
-      const place = m ? await data.getPlace(m.placeIbge).catch(() => null) : null;
-      const uf = place?.uf ?? null;
-      const fem = r.person.gender === "f" ? true : r.person.gender === "m" ? false : null;
-      const status = m ? (aguardaPosse(m) ? fraseDesde(m, fem) : STATUS[m.status]) : undefined;
-      const cargo = m
-        ? [m.officeName, uf ?? m.placeLabel, `${m.party.acronym} (${m.party.name})`, status].filter(Boolean).join(" · ")
-        : mandates === null
-          ? "Não conseguimos ler o mandato agora."
-          : "Sem mandato carregado";
-      const posse = m && aguardaPosse(m) ? motivoPosse(m) : null;
-      return { slug: r.person.slug, nome: r.person.displayName, esfera: m ? ESFERA[m.office] : null, cargo, office: m?.office ?? null, uf, votos: votes ? votes.items : null, posse };
-    }),
-  );
-  return { lista: rows.filter((x): x is Escolhido => x !== null).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), falhas };
+  const pedidos = [...new Set(slugs)];
+  const achadas = await lerOuFalhar(falhar, () => data.getPeopleBySlugs(pedidos)).catch(() => null);
+  if (!achadas) return { lista: [], falhas: pedidos.length };
+  const vistos = new Set<string>();
+  const pessoas = achadas.encontradas.map((x) => x.person).filter((p) => !vistos.has(p.id) && !!vistos.add(p.id));
+  const ids = pessoas.map((p) => p.id).sort();
+  if (!ids.length) return { lista: [], falhas: 0 };
+  const [mandR, votosR, cobR] = await Promise.all([
+    data.getMandatesForPeople(ids).catch(() => null), // null = leitura falhou, diferente de "sem mandato"
+    data.getRecentLawVotesForPeople(ids, 3).catch(() => null),
+    data.getPeopleCoverage(ids).catch(() => null),
+  ]);
+  const mains = new Map(pessoas.map((p) => [p.id, mandatoPrincipal(mandR?.[p.id] ?? null)]));
+  const places = await data
+    .getPlaces([...new Set([...mains.values()].flatMap((m) => (m ? [m.placeIbge] : [])))].sort())
+    .then((ps) => new Map(ps.map((p) => [p.ibge, p])))
+    .catch(() => new Map<string, Place>());
+  const cobDe = new Map((cobR ?? []).map((c) => [c.personId, c.conjuntos.find((x) => x.conjunto === "votos") ?? null]));
+  const rows = pessoas.map((person): Escolhido => {
+    const m = mains.get(person.id) ?? null;
+    const uf = m ? (places.get(m.placeIbge)?.uf ?? null) : null;
+    const fem = person.gender === "f" ? true : person.gender === "m" ? false : null;
+    const status = m ? (aguardaPosse(m) ? fraseDesde(m, fem) : STATUS[m.status]) : undefined;
+    const cargo = m
+      ? [m.officeName, uf ?? m.placeLabel, `${m.party.acronym} (${m.party.name})`, status].filter(Boolean).join(" · ")
+      : mandR === null
+        ? "Não conseguimos ler o mandato agora."
+        : "Sem mandato carregado";
+    const posse = m && aguardaPosse(m) ? motivoPosse(m) : null;
+    const votos = votosR ? (votosR[person.id]?.items ?? []) : null;
+    return { slug: person.slug, nome: person.displayName, esfera: m ? ESFERA[m.office] : null, cargo, office: m?.office ?? null, uf, votos, posse, cobVotos: cobR ? (cobDe.get(person.id) ?? null) : null };
+  });
+  return { lista: rows.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), falhas: 0 };
 }
 
-function SemVotos({ e, assembly }: { e: Escolhido; assembly: AssemblyInfo | null }) {
-  // Estadual: a cobertura de votos da Assembleia vem do contrato. Federal: sem status, "Ainda não temos esse dado." + fonte.
+function SemVotos({ e }: { e: Escolhido }) {
   if (e.office && EXECUTIVO.has(e.office)) return <Lacuna>Este cargo não vota em plenário. Não há voto nominal para mostrar.</Lacuna>;
   if (e.posse) return <Lacuna>{e.posse}</Lacuna>;
   const fonte = (e.office && FONTE_VOTOS[e.office]) ?? "casa legislativa do cargo";
-  if (e.votos === null)
+  if (e.votos === null) return <Lacuna motivo={`Fonte: ${fonte}.`}>{FALHOU}</Lacuna>;
+  // estado de cobertura dos votos (getPeopleCoverage): lido sem voto = "não há", com a data; outro estado = frase do estado
+  const c = e.cobVotos;
+  if (c?.estado === "lido")
     return (
-      <Lacuna motivo={`Fonte: ${fonte}.`}>{FALHOU}</Lacuna>
+      <Lacuna estado="lido" motivo={`Fonte: ${c.fonte?.nome ?? fonte}.`}>
+        {naoHaNaLeitura("voto nominal em lei", c.lidoEm)}
+      </Lacuna>
     );
-  const item = assembly?.items.find((i) => i.dataset === "votos");
-  if (item) {
-    if (item.status === "no_site") return <Lacuna>Nenhum voto nominal de lei na leitura da {assembly?.houseName}.</Lacuna>;
-    return <Cobertura status={item.status} motivo={item.reason} fonte={assembly?.source?.name ?? assembly?.houseName ?? "casa legislativa"} />;
-  }
+  if (c)
+    return (
+      <>
+        <Lacuna estado={c.estado} motivo={c.motivo}>
+          {ESTADO_COBERTURA[c.estado]}
+        </Lacuna>
+        <Fonte>Fonte: {c.fonte?.nome ?? fonte}.</Fonte>
+      </>
+    );
   return <Cobertura fonte={fonte} />;
 }
 
 /** "Em quem eu votei": as pessoas do cookie sv_sigo, em ordem alfabética, todas com a mesma estrutura. */
 export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slugs: string[]; ufSigla: string | null; /** só na demonstração */ simularFalha?: boolean }) {
   const { lista, falhas } = slugs.length ? await carregar(slugs, simularFalha) : { lista: [], falhas: 0 };
-  const ufs = [...new Set(lista.filter((e) => e.office === "deputado_estadual" || e.office === "deputado_distrital").map((e) => e.uf).filter((u): u is string => !!u))];
-  const assemblies = new Map(await Promise.all(ufs.map(async (u) => [u, await data.getAssembly(u).catch(() => null)] as const)));
 
   return (
     <Quadro
@@ -163,7 +177,7 @@ export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slu
                       })}
                     </ul>
                   ) : (
-                    <SemVotos e={e} assembly={e.uf && (e.office === "deputado_estadual" || e.office === "deputado_distrital") ? (assemblies.get(e.uf) ?? null) : null} />
+                    <SemVotos e={e} />
                   )}
                 </div>
                 <Link href={`/v2/pessoa/${e.slug}`}>

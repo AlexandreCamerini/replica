@@ -20,6 +20,7 @@ import type {
   Expense,
   Level,
   Mandate,
+  MandateStatus,
   MissingDataset,
   OfficeSlug,
   Officeholder,
@@ -68,6 +69,9 @@ import type {
 import { ANSWER_FIELDS, CAMPAIGN_ORIGINS } from "./types";
 import { label, parseProposalKey, proposalKey, termLabel, uniqueByKey } from "../pauta";
 import { pgW4 } from "./pg-w4";
+import { placarPorUf } from "./cadeiras";
+import { lista } from "./lista";
+import { FAMILIAS_CARIMBO, coberturaDe, type CarimboFonte } from "./cobertura";
 import { claimsFrom, plainOf } from "../answer-claims";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
@@ -217,6 +221,46 @@ function amendmentRow(r: Row): Amendment {
   };
 }
 
+function candidacyRow(r: Row) {
+  return {
+    year: Number(r.year),
+    office: r.office as OfficeSlug,
+    placeIbge: String(r.place_ibge),
+    partyId: String(r.party_id ?? ""),
+    result: (r.result as Candidacy["result"]) ?? null,
+    votes: num(r.votes),
+    raisedCents: num(r.raised_cents),
+    spentCents: num(r.spent_cents),
+    assetsCents: num(r.assets),
+    party: party(r),
+    officeName: officeName(r),
+    placeLabel: placeLabel(r),
+  };
+}
+const lawRow = (r: Row): LawItem => ({ number: String(r.number), sanctionedOn: iso(r.sanctioned_on), summary: String(r.summary), url: (r.url as string | null) ?? null, proposal: String(r.proposal), role: r.role === "principal" ? "autor" : "coautor" });
+function gridFrom(year: number, sessions: AttendanceGrid["sessions"]): AttendanceGrid {
+  const n = (st: AttendanceState) => sessions.filter((x) => x.state === st).length;
+  const present = n("presente"), absent = n("ausente"), justified = n("ausencia_justificada");
+  return { year, sessions, present, absent, justified, outside: n("fora_do_exercicio"), total: present + absent + justified };
+}
+function personVoteRow(r: Row): PersonVote {
+  return {
+    event: {
+      id: String(r.id),
+      body: r.body === "senado" ? "senado" : "camara",
+      kind: r.kind as VoteKind,
+      occurredAt: isoTs(r.occurred_at),
+      description: String(r.description),
+      topic: (r.topic as string | null) ?? null,
+      result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
+      yes: Number(r.yes_count ?? 0),
+      no: Number(r.no_count ?? 0),
+    },
+    value: r.value as VoteValue,
+    partyId: String(r.party_id ?? ""),
+  };
+}
+
 function officeName(r: Row) {
   return String(r.gender === "f" ? r.name_f : r.name_m);
 }
@@ -262,6 +306,17 @@ function page<T>(items: T[], total: number, offset: number, limit: number): Page
   return { items, nextCursor: offset + limit < total ? String(offset + limit) : null, total };
 }
 const off = (cursor?: string) => Math.max(0, Number(cursor) || 0);
+/** Página de uma proposta: até 5 votações e 20 autores, sempre com o total (Lista). */
+const MAX_VOTACOES = 5;
+const MAX_AUTORES = 20;
+/** ids de pessoa válidos, sem repetição (lotes): o que não é uuid nem chega ao banco. */
+const uuids = (ids: string[]) => [...new Set(ids.filter((id) => /^[0-9a-f-]{36}$/.test(id)))].slice(0, 200);
+/** Agrupa linhas por pessoa, garantindo uma entrada (vazia) para cada id pedido. */
+function porPessoa<T>(ids: string[], rows: Row[], f: (r: Row) => T): Record<string, T[]> {
+  const out: Record<string, T[]> = Object.fromEntries(ids.map((id) => [id, [] as T[]]));
+  for (const r of rows) out[String(r.person_id)]?.push(f(r));
+  return out;
+}
 /** U11: voting_events.kind que é procedimento, não texto de lei. Lista de bloqueio: kind novo ou "outro" continua aparecendo. */
 const PROCEDURAL_KINDS = ["requerimento", "urgencia"];
 
@@ -276,6 +331,7 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
     result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
     yes: Number(r.yes_count ?? 0),
     no: Number(r.no_count ?? 0),
+    placarFonte: { sim: r.yes_count == null ? null : Number(r.yes_count), nao: r.no_count == null ? null : Number(r.no_count) },
     isNominal: Boolean(r.is_nominal),
     // D55 trocada pela D123: secreta é o que a fonte marca; null (Câmara não informa) não vira rótulo nenhum
     isSecret: r.is_secret === true,
@@ -283,6 +339,9 @@ function summary(r: Row, body: "camara" | "senado"): VotingEventSummary {
     proposal: r.type ? { label: `${r.type} ${r.number}/${r.year}`, summary: String(r.summary_official ?? ""), url: (r.url as string | null) ?? null } : null,
   };
 }
+
+/** Dataset (job do ETL) que grava `salaries`: o único cujo carimbo diz quando o salário foi conferido. */
+const DATASET_SALARIOS = "seed";
 
 export const pgSource: DataSource = {
   isDemo: false,
@@ -604,76 +663,198 @@ export const pgSource: DataSource = {
       left join asset_declarations ad on ad.candidacy_id = c.id
       where c.person_id = ${personId}::uuid
       order by e.year desc, e.round desc`;
-    return rows.map((r) => ({
-      year: Number(r.year),
-      office: r.office as OfficeSlug,
-      placeIbge: String(r.place_ibge),
-      partyId: String(r.party_id ?? ""),
-      result: (r.result as Candidacy["result"]) ?? null,
-      votes: num(r.votes),
-      raisedCents: num(r.raised_cents),
-      spentCents: num(r.spent_cents),
-      assetsCents: num(r.assets),
-      party: party(r),
-      officeName: officeName(r),
-      placeLabel: placeLabel(r),
-    }));
+    return rows.map(candidacyRow);
   },
   async getStats(personId, period) {
-    const [s] = await sql`select * from person_period_stats where person_id = ${personId}::uuid and period = ${period}`;
-    const [m] = await sql`
-      select o.slug as office, o.level, m.place_id, pl.kind as place_kind, pl.parent_id, m.started_on, sa.amount_cents, sa.is_ceiling
-      from mandates m join offices o on o.id = m.office_id join places pl on pl.id = m.place_id
-      left join lateral (select amount_cents, is_ceiling from salaries s where s.office_id = m.office_id and (s.place_id = m.place_id or s.place_id is null) and s.valid_from <= current_date order by s.place_id nulls last, s.valid_from desc limit 1) sa on true
-      where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
-      order by case m.status when 'em_exercicio' then 0 else 1 end, m.started_on desc limit 1`;
-    const missing: MissingDataset[] = [];
-    const executive = !!m && EXECUTIVE.has(m.office as OfficeSlug);
-    if (m && m.level === "federal" && !executive) {
-      // o que o ETL federal ainda não carrega para esta casa (ex.: proposições e CEAPS do Senado): vem do derive.stats
-      const FEDERAL_REASON: Record<string, string> = {
-        propostas: "a carga das matérias de autoria no Senado entra na próxima fase",
-        gastos_gabinete: "a carga da CEAPS (cota do Senado) entra na próxima fase",
-        presenca: "o Senado não publica a lista de presença por senador",
-        votos: "ainda não carregado para esta casa",
-      };
-      for (const d of (s?.missing_datasets as string[] | undefined) ?? [])
-        missing.push({ dataset: toDataset(d), label: DATASET_LABEL[d] ?? d, status: "carregando", reason: FEDERAL_REASON[d] ?? "carga pendente" });
-    }
-    if (m && m.level !== "federal") {
-      // cobertura do lugar (UF ou município), filtrada pelo que ESTE cargo tem: Executivo não tem presença, votos,
-      // propostas nem cota de gabinete; cada cargo só vê a pendência do próprio salário (D04 da auditoria de dados)
-      const cov = await sql`select dataset, status, reason from data_coverage where place_id = ${m.place_id as string}::uuid and status <> 'no_site' order by dataset`;
-      const own = OWN_DATASETS[m.office as OfficeSlug] ?? [];
-      missing.push(
-        ...cov
-          .filter((c) => own.includes(String(c.dataset)))
-          .map((c) => ({ dataset: toDataset(String(c.dataset)), label: DATASET_LABEL[String(c.dataset)] ?? String(c.dataset), status: c.status as MissingDataset["status"], reason: String(c.reason) })),
-      );
-      if ((m.office === "governador" || m.office === "vice_governador") && m.amount_cents == null)
-        missing.push({ dataset: "salario", label: "Salário", status: "desconhecido", reason: "fixado por lei de cada estado; ainda não conferimos a lei deste estado" });
-    }
-    // dado que consta como faltando nunca aparece como número (0 de "não carregado" vira "—")
-    const gone = new Set(missing.map((x) => x.dataset));
-    const keep = (d: MissingDataset["dataset"], v: number | null) => (gone.has(d) ? null : v);
-    // teto (is_ceiling) e "não conferido" nunca juntos: com valor de salário (pago ou teto) na tela, a pendência de salário sai da lista
-    if (m?.amount_cents != null) for (let i = missing.length - 1; i >= 0; i--) if (missing[i].dataset === "salario") missing.splice(i, 1);
-    const topics = (s?.top_topics as { topic_slug: string; proposals: number }[] | undefined) ?? [];
+    // o lote descarta id fora da regex de uuid; o contrato promete PeriodStats, então id inválido lança (como a main, em
+    // que o cast ::uuid falhava no banco) em vez de devolver undefined
+    const r = (await statsForPeople([personId], period))[personId];
+    if (!r) throw new Error(`getStats: id de pessoa inválido: ${JSON.stringify(personId.slice(0, 80))}`);
+    return r;
+  },
+  async getStatsForPeople(personIds, period) {
+    return statsForPeople(personIds, period);
+  },
+
+  // ---------- lotes (Escolhidos): uma consulta por conjunto, qualquer que seja o número de pessoas ----------
+  async getPeopleBySlugs(slugs) {
+    const pedidos = [...new Set(slugs.filter((s) => /^[a-z0-9-]{1,120}$/.test(s)))].slice(0, 200);
+    if (!pedidos.length) return { encontradas: [], naoEncontradas: [] };
+    const rows = await sql`
+      select q.slug as asked, p.id, p.slug, p.display_name, p.civil_name, p.gender, p.birth_date, p.education, b.ibge_code as birthplace_ibge
+      from unnest(${pedidos}::text[]) q(slug)
+      join lateral (
+        select p.* from people p where p.slug = q.slug
+        union all
+        select p.* from person_slug_redirects s join people p on p.id = s.person_id where s.old_slug = q.slug and not exists (select 1 from people x where x.slug = q.slug)
+        limit 1) p on true
+      left join places b on b.id = p.birthplace_place_id`;
+    const by = new Map(rows.map((r) => [String(r.asked), person(r)]));
     return {
-      period,
-      presencePresent: keep("presenca", num(s?.presence_present)),
-      presenceTotal: keep("presenca", num(s?.presence_total)),
-      proposalsPrincipal: keep("propostas", num(s?.proposals_principal)),
-      proposalsCosigned: keep("propostas", num(s?.proposals_cosigned)),
-      votesRegistered: keep("votos", num(s?.votes_registered)),
-      expensesCents: keep("gastos_gabinete", num(s?.expenses_cents)),
-      salaryMonthlyCents: num(m?.amount_cents),
-      salaryIsCeiling: Boolean(m?.is_ceiling),
-      topTopics: topics.map((t) => ({ topic: t.topic_slug, count: Number(t.proposals) })),
-      partyAligned: num(s?.party_aligned),
-      partyAlignmentTotal: num(s?.party_alignment_total),
-      missing,
-    } satisfies PeriodStats;
+      encontradas: pedidos.flatMap((s) => (by.has(s) ? [{ slug: s, person: by.get(s)! }] : [])),
+      naoEncontradas: pedidos.filter((s) => !by.has(s)),
+    };
+  },
+  async getMandatesForPeople(personIds) {
+    const ids = uuids(personIds);
+    if (!ids.length) return {};
+    const rows = await sql`${HOLDER_SELECT} where p.id = any(${ids}::uuid[])
+      order by p.id, case m.status when 'em_exercicio' then 0 when 'eleito_aguardando_posse' then 1 when 'licenciado' then 2 when 'afastado' then 2 else 3 end, m.started_on desc`;
+    return porPessoa(ids, rows.map((r) => ({ ...r, person_id: r.id })), (r) => ({ ...mandate(r), party: party(r), officeName: officeName(r), placeLabel: placeLabel(r) }));
+  },
+  async getCandidaciesForPeople(personIds) {
+    const ids = uuids(personIds);
+    if (!ids.length) return {};
+    const rows = await sql`
+      select c.person_id, e.year, o.slug as office, p.gender, o.name_m, o.name_f, pl.ibge_code as place_ibge, pl.name as place_name, pl.kind as place_kind, pl.uf as place_uf,
+             c.party_id, pa.acronym as party_acronym, pa.name as party_name, c.result, c.votes, c.raised_cents, c.spent_cents, ad.total_cents as assets
+      from candidacies c
+      join people p on p.id = c.person_id
+      join contests ct on ct.id = c.contest_id
+      join elections e on e.id = c.election_id
+      join offices o on o.id = ct.office_id
+      join places pl on pl.id = ct.place_id
+      left join parties pa on pa.id = c.party_id
+      left join asset_declarations ad on ad.candidacy_id = c.id
+      where c.person_id = any(${ids}::uuid[])
+      order by c.person_id, e.year desc, e.round desc`;
+    return porPessoa(ids, rows, candidacyRow);
+  },
+  async getLawsForPeople(personIds) {
+    const ids = uuids(personIds);
+    if (!ids.length) return {};
+    const rows = await sql`
+      select pa.person_id, l.number, l.sanctioned_on, l.summary, l.url, pr.type || ' ' || pr.number || '/' || pr.year as proposal, pa.role
+      from proposal_authors pa join proposals pr on pr.id = pa.proposal_id join laws l on l.id = pr.became_law_id
+      where pa.person_id = any(${ids}::uuid[]) and pa.role in ('principal','coautoria')
+      order by pa.person_id, l.sanctioned_on desc`;
+    return porPessoa(ids, rows, lawRow);
+  },
+  async getAttendanceGridForPeople(personIds, year) {
+    const ids = uuids(personIds);
+    if (!ids.length) return {};
+    const rows = await sql`
+      select a.person_id, (s.starts_at at time zone 'America/Sao_Paulo')::date as d, a.status
+      from attendance a join sessions s on s.id = a.session_id
+      where a.person_id = any(${ids}::uuid[]) and s.is_deliberative
+        and s.starts_at >= make_timestamptz(${year}, 1, 1, 0, 0, 0, 'America/Sao_Paulo') and s.starts_at < make_timestamptz(${year + 1}, 1, 1, 0, 0, 0, 'America/Sao_Paulo')
+      order by a.person_id, s.starts_at, s.id`;
+    const sessoes = porPessoa(ids, rows, (r) => ({ date: iso(r.d), state: String(r.status) as AttendanceState }));
+    return Object.fromEntries(ids.map((id) => [id, gridFrom(year, sessoes[id])]));
+  },
+  async getRecentLawVotesForPeople(personIds, limit) {
+    const ids = uuids(personIds);
+    if (!ids.length) return {};
+    const n = Math.max(1, Math.min(limit, 20));
+    // mesmo recorte de listVotes(scope "lei"): nominal, sem requerimento e urgência; total e página por pessoa numa consulta
+    const rows = await sql`
+      with base as (
+        select v.person_id, v.value, v.party_id, e.id, e.kind, e.occurred_at, e.result, e.yes_count, e.no_count, e.description, e.proposal_id, e.body_id,
+               row_number() over (partition by v.person_id order by e.occurred_at desc, e.id) as rn,
+               count(*) over (partition by v.person_id) as total
+        from votes v join voting_events e on e.id = v.voting_event_id
+        where v.person_id = any(${ids}::uuid[]) and e.is_nominal and e.kind <> all(${PROCEDURAL_KINDS}::text[])
+      )
+      select x.person_id, x.total, x.id, x.kind, b.kind as body, x.occurred_at, x.result, x.yes_count, x.no_count, x.value, x.party_id,
+             case when pr.id is not null then pr.type || ' ' || pr.number || '/' || pr.year || ' — ' || left(pr.summary_official, 220) || ' · ' || x.description else x.description end as description,
+             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = x.proposal_id order by t.slug limit 1) as topic
+      from base x join legislative_bodies b on b.id = x.body_id left join proposals pr on pr.id = x.proposal_id
+      where x.rn <= ${n}
+      order by x.person_id, x.rn`;
+    const itens = porPessoa(ids, rows, personVoteRow);
+    const total = new Map(rows.map((r) => [String(r.person_id), Number(r.total)]));
+    return Object.fromEntries(ids.map((id) => [id, { items: itens[id], total: total.get(id) ?? 0 }]));
+  },
+  async getExpensesByCategoryForPeople(personIds, year) {
+    const ids = uuids(personIds);
+    if (!ids.length) return {};
+    const rows = await sql`
+      select person_id, category as label, sum(amount_cents)::bigint as cents from expenses
+      where person_id = any(${ids}::uuid[]) and occurred_on >= make_date(${year}, 1, 1) and occurred_on < make_date(${year + 1}, 1, 1)
+      group by 1, 2 order by 1, 3 desc`;
+    return porPessoa(ids, rows, (r) => ({ label: String(r.label), cents: Number(r.cents) }));
+  },
+  async getPlaces(ibges) {
+    const cod = [...new Set(ibges.filter((c) => /^[0-9A-Z]{1,7}$/.test(c)))].slice(0, 200);
+    if (!cod.length) return [];
+    return (await sql`select ibge_code, kind, name, slug, uf, null as region, population from places where ibge_code = any(${cod}::text[]) order by ibge_code`).map(place);
+  },
+
+  // ---------- cobertura por pessoa (regra em cobertura.ts) ----------
+  async getPeopleCoverage(personIds) {
+    const ids = uuids(personIds);
+    if (!ids.length) return [];
+    const [mands, faltas, carimbos, sapl, emendasCasadas, comCandidatura] = await Promise.all([
+      // mandato principal: a mesma ordem de getMandates + mandatoPrincipal (em exercício, aguardando posse, o resto)
+      sql`
+        select distinct on (m.person_id) m.person_id, o.slug as office, m.status, m.place_id, pl.kind as place_kind, pl.uf, pl.name as place_name
+        from mandates m join offices o on o.id = m.office_id join places pl on pl.id = m.place_id
+        where m.person_id = any(${ids}::uuid[])
+        order by m.person_id, case m.status when 'em_exercicio' then 0 when 'eleito_aguardando_posse' then 1 when 'licenciado' then 2 when 'afastado' then 2 else 3 end, m.started_on desc`,
+      sql`select person_id, missing_datasets from person_period_stats where person_id = any(${ids}::uuid[]) and period = 'career'`,
+      // carimbo mais novo de cada família: dataset igual ao prefixo ou começando por "prefixo." (nunca o fallback por fonte de getStamp)
+      sql`
+        select f.prefix, max(ds.refreshed_at) as at,
+               (array_agg(s.name order by ds.refreshed_at desc))[1] as name, (array_agg(s.url order by ds.refreshed_at desc))[1] as url
+        from unnest(${FAMILIAS_CARIMBO}::text[]) f(prefix)
+        join dataset_stamps ds on ds.dataset = f.prefix or ds.dataset like f.prefix || '.%'
+        join sources s on s.id = ds.source_id
+        group by f.prefix`,
+      sql`
+        select distinct on (sp.person_id) sp.person_id, h.loaded_at, h.base_url, src.name as source_name
+        from sapl_parlamentares sp join sapl_houses h on h.id = sp.house_id
+        left join sources src on src.slug = 'sapl'
+        where sp.person_id = any(${ids}::uuid[]) and sp.match_status = 'casado' and h.status = 'ok' and h.loaded_at is not null
+        order by sp.person_id, h.loaded_at desc`,
+      // emendas casadas POR PESSOA: uma emenda casada no banco não diz nada de quem não casou; sem linha ligada a ela,
+      // a carga existe, mas lista vazia não quer dizer "não há"
+      sql`select distinct person_id from amendments where person_id = any(${ids}::uuid[])`,
+      // candidatura do TSE ligada à pessoa: sem ela, o carimbo de tse.candidatos não sustenta "nenhum bem declarado"
+      sql`select distinct person_id from candidacies where person_id = any(${ids}::uuid[])`,
+    ]);
+    const emendaOf = new Set(emendasCasadas.map((r) => String(r.person_id)));
+    const candOf = new Set(comCandidatura.map((r) => String(r.person_id)));
+    const SEM_VINCULO_EMENDAS = { emendas: "As emendas do Portal da Transparência foram carregadas, mas nenhuma está ligada a esta pessoa como autora." };
+    const lugares = [...new Set(mands.filter((m) => m.office === "vereador").map((m) => String(m.place_id)))];
+    const ufsAsm = [...new Set(mands.filter((m) => m.office === "deputado_estadual" || m.office === "deputado_distrital").map((m) => String(m.uf ?? "")).filter(Boolean))];
+    const [cov, asms] = await Promise.all([
+      lugares.length ? sql`select place_id, dataset, status, reason, evidence_url from data_coverage where place_id = any(${lugares}::uuid[])` : Promise.resolve([] as Row[]),
+      // Assembleia: uma leitura por UF distinta (no máximo 27), não por pessoa
+      // falha de leitura lança (o chamador tem o .catch e não afirma estado), em vez de virar "não conferido" no cache
+      Promise.all(ufsAsm.map(async (uf) => [uf, await pgSource.getAssembly(uf)] as const)),
+    ]);
+    const asmOf = new Map(asms);
+    const carimbo: Record<string, CarimboFonte | null> = Object.fromEntries(
+      carimbos.map((r) => [String(r.prefix), { nome: String(r.name), url: (r.url as string | null) ?? null, em: isoTs(r.at) }]),
+    );
+    const mOf = new Map(mands.map((m) => [String(m.person_id), m]));
+    const fOf = new Map(faltas.map((f) => [String(f.person_id), (f.missing_datasets as string[] | null) ?? []]));
+    const sOf = new Map(sapl.map((s) => [String(s.person_id), s]));
+    return ids.map((id) => {
+      const m = mOf.get(id);
+      const office = (m?.office as OfficeSlug | undefined) ?? null;
+      const s = sOf.get(id);
+      const casa = !m ? null : office === "vereador" ? `Câmara Municipal de ${m.place_name} (${m.uf})` : office === "deputado_estadual" || office === "deputado_distrital" ? houseName(String(m.uf)) : null;
+      return {
+        personId: id,
+        conjuntos: coberturaDe({
+          office,
+          status: (m?.status as MandateStatus | undefined) ?? null,
+          faltaFederal: fOf.get(id) ?? null,
+          coberturaLugar: m
+            ? cov
+                .filter((c) => String(c.place_id) === String(m.place_id))
+                .map((c) => ({ dataset: String(c.dataset), status: c.status as CoverageStatus, reason: String(c.reason), evidenceUrl: (c.evidence_url as string | null) ?? null }))
+            : [],
+          carimbos: carimbo,
+          assembleia: m && (office === "deputado_estadual" || office === "deputado_distrital") ? (asmOf.get(String(m.uf)) ?? null) : null,
+          sapl: s ? { nome: String(s.source_name ?? "SAPL da Câmara Municipal"), url: (s.base_url as string | null) ?? null, em: isoTs(s.loaded_at) } : null,
+          casa,
+          semVinculo: emendaOf.has(id) ? undefined : SEM_VINCULO_EMENDAS,
+          temCandidatura: candOf.has(id),
+        }),
+      };
+    });
   },
   async getYearlyStats(personId) {
     const rows = await sql`select period::int as y, s.* from person_period_stats s where person_id = ${personId}::uuid and period <> 'career' order by 1`;
@@ -706,10 +887,7 @@ export const pgSource: DataSource = {
       where a.person_id = ${personId}::uuid and s.is_deliberative
         and s.starts_at >= make_timestamptz(${year}, 1, 1, 0, 0, 0, 'America/Sao_Paulo') and s.starts_at < make_timestamptz(${year + 1}, 1, 1, 0, 0, 0, 'America/Sao_Paulo')
       order by s.starts_at, s.id`;
-    const sessions = rows.map((r) => ({ date: iso(r.d), state: String(r.status) as AttendanceState }));
-    const n = (st: AttendanceState) => sessions.filter((x) => x.state === st).length;
-    const present = n("presente"), absent = n("ausente"), justified = n("ausencia_justificada");
-    return { year, sessions, present, absent, justified, outside: n("fora_do_exercicio"), total: present + absent + justified } satisfies AttendanceGrid;
+    return gridFrom(year, rows.map((r) => ({ date: iso(r.d), state: String(r.status) as AttendanceState })));
   },
   async getChamberTransition(body) {
     const kind = body === "senado" ? "senado" : "camara_deputados";
@@ -908,21 +1086,7 @@ export const pgSource: DataSource = {
       order by e.occurred_at desc limit ${limit} offset ${offset}`;
     return {
       ...page(
-        rows.map<PersonVote>((r) => ({
-          event: {
-            id: String(r.id),
-            body: r.body === "senado" ? "senado" : "camara",
-            kind: r.kind as VoteKind,
-            occurredAt: isoTs(r.occurred_at),
-            description: String(r.description),
-            topic: (r.topic as string | null) ?? null,
-            result: (r.result as "aprovado" | "rejeitado" | null) ?? null,
-            yes: Number(r.yes_count ?? 0),
-            no: Number(r.no_count ?? 0),
-          },
-          value: r.value as VoteValue,
-          partyId: String(r.party_id ?? ""),
-        })),
+        rows.map(personVoteRow),
         Number(n),
         offset,
         limit,
@@ -1064,17 +1228,32 @@ export const pgSource: DataSource = {
     if (!/^[0-9a-f-]{36}$/.test(id)) return null;
     const [r] = await sql`
       select e.id, e.kind, e.occurred_at, e.description, e.result, e.yes_count, e.no_count, e.is_nominal, e.is_secret, b.kind as body,
+             e.body_id, ((e.occurred_at at time zone 'America/Sao_Paulo')::date)::text as occurred_on,
              exists (select 1 from votes v where v.voting_event_id = e.id) as has_votes,
              pr.type, pr.number, pr.year, pr.summary_official, pr.url,
              (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
       from voting_events e join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id
       where e.id = ${id}::uuid`;
     if (!r) return null;
+    // uf = a do mandato da pessoa NESTA casa que COBRE a data da votação (placar por UF). Sem esse mandato: null ("sem
+    // estado identificado"), nunca a UF de um mandato que não cobre a data nem a de outro cargo.
+    // "Nesta casa" = body_id da casa ou, com body_id nulo (lacuna do ETL: no banco local, os mandatos federais de 2015 e
+    // 2019 vieram sem body_id), o cargo da casa (deputado federal = Câmara, senador = Senado). Conferido no banco local: em
+    // nenhum voto as duas regras dão UFs diferentes. O mandato com body_id tem preferência.
+    // uf_atual = a do mandato mais recente de qualquer cargo (sigla de identificação do v1, como na main); não vai ao placar.
+    const cargoDaCasa = r.body === "senado" ? "senador" : "deputado_federal";
     const votes = await sql`
-      select p.slug, p.display_name, coalesce(pa.acronym, '—') as party, pl.uf, v.value
+      select p.slug, p.display_name, coalesce(pa.acronym, '—') as party, pl.uf, ua.uf as uf_atual, v.value
       from votes v join people p on p.id = v.person_id
       left join parties pa on pa.id = v.party_id
-      left join lateral (select pl.uf from mandates m join places pl on pl.id = m.place_id where m.person_id = p.id order by m.started_on desc limit 1) pl on true
+      left join lateral (
+        select pl.uf from mandates m join places pl on pl.id = m.place_id
+        where m.person_id = p.id
+          and (m.body_id = ${r.body_id as string}::uuid or (m.body_id is null and m.office_id = (select id from offices where slug = ${cargoDaCasa})))
+          and m.started_on <= ${r.occurred_on as string}::date and (m.ends_on is null or m.ends_on > ${r.occurred_on as string}::date)
+        order by (m.body_id is not null) desc, m.started_on desc limit 1) pl on true
+      left join lateral (
+        select pl2.uf from mandates m2 join places pl2 on pl2.id = m2.place_id where m2.person_id = p.id order by m2.started_on desc limit 1) ua on true
       where v.voting_event_id = ${id}::uuid
       order by p.display_name collate pt_br`;
     const orientations = await sql`
@@ -1091,13 +1270,15 @@ export const pgSource: DataSource = {
       p.total++;
       parties.set(String(v.party), p);
     }
+    const sum = summary(r, r.body === "senado" ? "senado" : "camara");
     return {
-      ...summary(r, r.body === "senado" ? "senado" : "camara"),
+      ...sum,
+      porUf: placarPorUf(sum, votes.map((v) => ({ uf: (v.uf as string | null) ?? null, value: v.value as VoteValue, name: String(v.display_name) }))),
       counts,
       orientations: orientations.map((o) => ({ label: String(o.label), kind: o.kind as VotingEventDetail["orientations"][number]["kind"], value: o.orientation as VotingEventDetail["orientations"][number]["value"] })),
       // partidos em ordem alfabética: nunca por tamanho nem por "fidelidade"
       byParty: [...parties.values()].sort((a, b) => a.party.localeCompare(b.party, "pt-BR")),
-      votes: votes.map((v) => ({ slug: String(v.slug), name: String(v.display_name), party: String(v.party), uf: (v.uf as string | null) ?? null, value: v.value as VoteValue })),
+      votes: votes.map((v) => ({ slug: String(v.slug), name: String(v.display_name), party: String(v.party), uf: (v.uf as string | null) ?? null, ufAtual: (v.uf_atual as string | null) ?? null, value: v.value as VoteValue })),
     } satisfies VotingEventDetail;
   },
   async getActivity(personIds, limit = 60) {
@@ -1138,7 +1319,7 @@ export const pgSource: DataSource = {
       from proposal_authors pa join proposals pr on pr.id = pa.proposal_id join laws l on l.id = pr.became_law_id
       where pa.person_id = ${personId}::uuid and pa.role in ('principal','coautoria')
       order by l.sanctioned_on desc`;
-    return rows.map<LawItem>((r) => ({ number: String(r.number), sanctionedOn: iso(r.sanctioned_on), summary: String(r.summary), url: (r.url as string | null) ?? null, proposal: String(r.proposal), role: r.role === "principal" ? "autor" : "coautor" }));
+    return rows.map(lawRow);
   },
   async getAgenda(f) {
     const limit = Math.min(f.limit ?? 10, 50);
@@ -1268,11 +1449,16 @@ export const pgSource: DataSource = {
     return { dataset: String(r.dataset), source: String(r.name), sourceUrl: String(r.url), refreshedAt: isoTs(r.refreshed_at) };
   },
   async getSalarySources(office) {
+    // `at` (v1, "atualizado em"): com o upsert condicional do seed, max(updated_at) é quando o valor mudou, não quando foi
+    // conferido. `loaded`: carimbo do dataset que GRAVA os salários (o job `seed`, etl/civico_etl/jobs/seed.py), nunca o de
+    // outro dataset da mesma fonte; hoje o seed não carimba, então vem null e a tela diz que a data não está registrada,
+    // em vez de inventar uma.
     const rows = await sql`
-      select so.name, so.url, max(s.updated_at) as at
+      select so.name, so.url, max(s.updated_at) as at,
+             (select max(ds.refreshed_at) from dataset_stamps ds where ds.source_id = so.id and ds.dataset = ${DATASET_SALARIOS}) as loaded
       from salaries s join offices o on o.id = s.office_id join sources so on so.id = s.source_id
-      where o.slug = ${office} group by 1, 2 order by min(s.valid_from)`;
-    return rows.map((r) => ({ name: String(r.name), url: String(r.url), updatedAt: isoTs(r.at) }));
+      where o.slug = ${office} group by so.id, so.name, so.url order by min(s.valid_from)`;
+    return rows.map((r) => ({ name: String(r.name), url: String(r.url), updatedAt: isoTs(r.at), loadedAt: r.loaded ? isoTs(r.loaded) : null }));
   },
   async listStampYears(prefix) {
     const rows = await sql`select distinct right(dataset, 4)::int as y from dataset_stamps where dataset like ${prefix + ".%"} and right(dataset, 4) ~ '^[0-9]{4}$' order by 1`;
@@ -1447,7 +1633,16 @@ export const pgSource: DataSource = {
     const [prop] = await sql`
       select p.id, p.presented_on, p.url from proposals p join legislative_bodies b on b.id = p.body_id
       where b.kind = ${kind} and p.type = ${k.type} and p.number = ${k.number} and p.year = ${k.year}`;
+    // página + total na mesma consulta (count(*) over ()): sem N+1. Autoria principal primeiro (o papel é dito na tela),
+    // depois nome em ordem alfabética; votações da mais recente para a mais antiga, id como desempate estável.
     const authors = prop
+      ? await sql`
+          select pe.slug, pe.display_name, a.role, count(*) over () as total from proposal_authors a join people pe on pe.id = a.person_id
+          where a.proposal_id = ${prop.id}::uuid and a.role in ('principal', 'coautoria')
+          order by (a.role = 'principal') desc, pe.display_name collate pt_br, pe.slug limit ${MAX_AUTORES}`
+      : [];
+    // campo legado `authors` (v1 /proposta): a ordem e o corte da main (ordem de assinatura), sem mudar o que o v1 mostra
+    const authorsLegado = prop
       ? await sql`
           select pe.slug, pe.display_name, a.role from proposal_authors a join people pe on pe.id = a.person_id
           where a.proposal_id = ${prop.id}::uuid and a.role in ('principal', 'coautoria')
@@ -1455,9 +1650,24 @@ export const pgSource: DataSource = {
       : [];
     const votes = prop
       ? await sql`
-          select id, occurred_at, description, result, yes_count, no_count from voting_events
-          where proposal_id = ${prop.id}::uuid order by occurred_at desc limit 5`
+          select id, occurred_at, description, result, yes_count, no_count, count(*) over () as total from voting_events
+          where proposal_id = ${prop.id}::uuid order by occurred_at desc, id limit ${MAX_VOTACOES}`
       : [];
+    const autores = lista(
+      authors.map((a) => ({ slug: String(a.slug), name: String(a.display_name), role: a.role as "principal" | "coautoria" })),
+      Number(authors[0]?.total ?? 0),
+    );
+    const votacoes = lista(
+      votes.map((v) => ({
+        id: String(v.id),
+        occurredAt: isoTs(v.occurred_at),
+        description: String(v.description),
+        result: (v.result as string | null) ?? null,
+        yes: v.yes_count as number | null,
+        no: v.no_count as number | null,
+      })),
+      Number(votes[0]?.total ?? 0),
+    );
     const [pubRow] = await sql`
       select a.id, a.answers, a.reviewed_at, a.source_url, a.correction_note, prev.answers as prev_answers
       from answer_drafts a join legislative_bodies b on b.id = a.body_id
@@ -1485,15 +1695,10 @@ export const pgSource: DataSource = {
       readAt: readRow ? isoTs(readRow.read_at) : null,
       fichaUrl: (current[0]?.proposal_url as string | null) ?? (last.proposal_url as string | null) ?? (prop?.url as string | null) ?? null,
       presentedOn: prop?.presented_on ? iso(prop.presented_on) : null,
-      authors: authors.map((a) => ({ slug: String(a.slug), name: String(a.display_name), role: a.role as "principal" | "coautoria" })),
-      votes: votes.map((v) => ({
-        id: String(v.id),
-        occurredAt: isoTs(v.occurred_at),
-        description: String(v.description),
-        result: (v.result as string | null) ?? null,
-        yes: v.yes_count as number | null,
-        no: v.no_count as number | null,
-      })),
+      authors: authorsLegado.map((a) => ({ slug: String(a.slug), name: String(a.display_name), role: a.role as "principal" | "coautoria" })),
+      votes: votacoes.itens,
+      autores,
+      votacoes,
     } satisfies PautaProposal;
   },
 
@@ -1528,6 +1733,85 @@ export const pgSource: DataSource = {
     }));
   },
 };
+
+/**
+ * Estatísticas de várias pessoas num período, em três consultas fixas (person_period_stats, mandato com salário vigente,
+ * data_coverage dos lugares fora do federal). Mesma regra que getStats sempre teve; `getStats` é o lote de uma pessoa só.
+ */
+async function statsForPeople(personIds: string[], period: PeriodStats["period"]): Promise<Record<string, PeriodStats>> {
+  const ids = uuids(personIds);
+  if (!ids.length) return {};
+  const [stats, mands] = await Promise.all([
+    sql`select * from person_period_stats where person_id = any(${ids}::uuid[]) and period = ${period}`,
+    sql`
+      select distinct on (m.person_id) m.person_id, o.slug as office, o.level, m.place_id, pl.kind as place_kind, pl.parent_id, m.started_on, sa.amount_cents, sa.is_ceiling
+      from mandates m join offices o on o.id = m.office_id join places pl on pl.id = m.place_id
+      left join lateral (select amount_cents, is_ceiling from salaries s where s.office_id = m.office_id and (s.place_id = m.place_id or s.place_id is null) and s.valid_from <= current_date order by s.place_id nulls last, s.valid_from desc limit 1) sa on true
+      where m.person_id = any(${ids}::uuid[]) and m.status <> 'eleito_aguardando_posse'
+      order by m.person_id, case m.status when 'em_exercicio' then 0 else 1 end, m.started_on desc`,
+  ]);
+  const placeIds = [...new Set(mands.filter((m) => m.level !== "federal").map((m) => String(m.place_id)))];
+  const covs = placeIds.length
+    ? await sql`select place_id, dataset, status, reason from data_coverage where place_id = any(${placeIds}::uuid[]) and status <> 'no_site' order by dataset`
+    : [];
+  const sOf = new Map(stats.map((s) => [String(s.person_id), s]));
+  const mOf = new Map(mands.map((m) => [String(m.person_id), m]));
+  const out: Record<string, PeriodStats> = {};
+  for (const id of ids) {
+    const m = mOf.get(id);
+    out[id] = statsFrom(period, sOf.get(id), m, m ? covs.filter((c) => String(c.place_id) === String(m.place_id)) : []);
+  }
+  return out;
+}
+
+function statsFrom(period: PeriodStats["period"], s: Row | undefined, m: Row | undefined, cov: Row[]): PeriodStats {
+    const missing: MissingDataset[] = [];
+    const executive = !!m && EXECUTIVE.has(m.office as OfficeSlug);
+    if (m && m.level === "federal" && !executive) {
+      // o que o ETL federal ainda não carrega para esta casa (ex.: proposições e CEAPS do Senado): vem do derive.stats
+      const FEDERAL_REASON: Record<string, string> = {
+        propostas: "a carga das matérias de autoria no Senado entra na próxima fase",
+        gastos_gabinete: "a carga da CEAPS (cota do Senado) entra na próxima fase",
+        presenca: "o Senado não publica a lista de presença por senador",
+        votos: "ainda não carregado para esta casa",
+      };
+      for (const d of (s?.missing_datasets as string[] | undefined) ?? [])
+        missing.push({ dataset: toDataset(d), label: DATASET_LABEL[d] ?? d, status: "carregando", reason: FEDERAL_REASON[d] ?? "carga pendente" });
+    }
+    if (m && m.level !== "federal") {
+      // cobertura do lugar (UF ou município), filtrada pelo que ESTE cargo tem: Executivo não tem presença, votos,
+      // propostas nem cota de gabinete; cada cargo só vê a pendência do próprio salário (D04 da auditoria de dados)
+      const own = OWN_DATASETS[m.office as OfficeSlug] ?? [];
+      missing.push(
+        ...cov
+          .filter((c) => own.includes(String(c.dataset)))
+          .map((c) => ({ dataset: toDataset(String(c.dataset)), label: DATASET_LABEL[String(c.dataset)] ?? String(c.dataset), status: c.status as MissingDataset["status"], reason: String(c.reason) })),
+      );
+      if ((m.office === "governador" || m.office === "vice_governador") && m.amount_cents == null)
+        missing.push({ dataset: "salario", label: "Salário", status: "desconhecido", reason: "fixado por lei de cada estado; ainda não conferimos a lei deste estado" });
+    }
+    // dado que consta como faltando nunca aparece como número (0 de "não carregado" vira "—")
+    const gone = new Set(missing.map((x) => x.dataset));
+    const keep = (d: MissingDataset["dataset"], v: number | null) => (gone.has(d) ? null : v);
+    // teto (is_ceiling) e "não conferido" nunca juntos: com valor de salário (pago ou teto) na tela, a pendência de salário sai da lista
+    if (m?.amount_cents != null) for (let i = missing.length - 1; i >= 0; i--) if (missing[i].dataset === "salario") missing.splice(i, 1);
+    const topics = (s?.top_topics as { topic_slug: string; proposals: number }[] | undefined) ?? [];
+    return {
+      period,
+      presencePresent: keep("presenca", num(s?.presence_present)),
+      presenceTotal: keep("presenca", num(s?.presence_total)),
+      proposalsPrincipal: keep("propostas", num(s?.proposals_principal)),
+      proposalsCosigned: keep("propostas", num(s?.proposals_cosigned)),
+      votesRegistered: keep("votos", num(s?.votes_registered)),
+      expensesCents: keep("gastos_gabinete", num(s?.expenses_cents)),
+      salaryMonthlyCents: num(m?.amount_cents),
+      salaryIsCeiling: Boolean(m?.is_ceiling),
+      topTopics: topics.map((t) => ({ topic: t.topic_slug, count: Number(t.proposals) })),
+      partyAligned: num(s?.party_aligned),
+      partyAlignmentTotal: num(s?.party_alignment_total),
+      missing,
+    } satisfies PeriodStats;
+}
 
 async function ruleTerms(): Promise<string[]> {
   const [r] = await sql`select terms from pocket_rules order by version desc limit 1`;

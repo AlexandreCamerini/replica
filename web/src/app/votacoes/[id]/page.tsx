@@ -207,7 +207,7 @@ export default async function Page({ params, searchParams }: Props) {
                   </Link>{" "}
                   <span className="text-xs text-muted">
                     {v.party}
-                    {v.uf ? ` · ${v.uf}` : ""}
+                    {v.ufAtual ? ` · ${v.ufAtual}` : ""}
                   </span>
                 </span>
                 <VoteBadge value={v.value} />

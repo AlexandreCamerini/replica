@@ -176,20 +176,20 @@ export default async function Decisao({ params, searchParams }: { params: Promis
   const provaTexto = (c: AnswerClaim | undefined) =>
     !a ? `Texto oficial, ${BODY_NAME[e.body]}. Ainda sem resposta conferida.` : c?.state === "diz" ? `Texto oficial, ${BODY_NAME[e.body]}. ${conferidoEm(a.reviewedAt, a.verifiedBy)}.` : `Texto oficial, ${BODY_NAME[e.body]}.`;
   const casaDoEvento = (v: { id: string }, ev: VotingEventDetail | null) => ev?.body ?? (v.id.startsWith("senado") ? "senado" : "camara");
-  const MAX_VOTACOES = 5; // pg.ts lê no máximo 5 votações por proposta
-  const MAX_AUTORES = 20; // e no máximo 20 autores
 
   const semConta = !temResposta(campos?.quem_paga) && !temResposta(campos?.dinheiro) && !temResposta(campos?.estimativa_impacto) && p.authors.length === 0;
   const dir = campos?.dinheiro.state === "diz" ? campos.dinheiro.direction : undefined;
   const casasVotos = [...new Set(eventos.map(({ v, ev }) => casaDoEvento(v, ev)))] as Body[];
+  // o contrato traz a página e o total (Lista): truncado diz "N de M", nunca "as N mais recentes" sem o total
+  const vt = p.votacoes;
   const totalVotacoes =
-    p.votes.length === 0
+    vt.total === 0
       ? `Não lemos nenhuma votação desta proposta na ${BODY_NAME[e.body]}.`
-      : p.votes.length >= MAX_VOTACOES
-        ? `As ${p.votes.length} votações mais recentes que lemos desta proposta.`
-        : p.votes.length === 1
+      : vt.truncado
+        ? `Mostrando as ${vt.itens.length} mais recentes de ${vt.total} votações que lemos desta proposta.`
+        : vt.total === 1
           ? "Lemos 1 votação desta proposta."
-          : `Lemos ${p.votes.length} votações desta proposta.`;
+          : `Lemos ${vt.total} votações desta proposta.`;
 
   return (
     <div className="sv-pg sv-pg--decisao">
@@ -295,7 +295,11 @@ export default async function Decisao({ params, searchParams }: { params: Promis
                 ))}
               </ul>
             )}
-            {p.authors.length >= MAX_AUTORES && <Nota>Os {p.authors.length} primeiros autores que lemos.</Nota>}
+            {p.autores.truncado && (
+              <Nota>
+                Mostrando {p.autores.itens.length} de {p.autores.total} autores que lemos: autoria principal primeiro, depois em ordem alfabética.
+              </Nota>
+            )}
           </div>
           <Fonte>Fonte: {BODY_NAME[e.body]}, ficha da proposta.</Fonte>
         </div>

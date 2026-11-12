@@ -246,9 +246,9 @@ export function Etiqueta({ children }: { children: ReactNode }) {
 }
 
 /** Lacuna nomeada: contorno tracejado, fundo liso. Nunca "0". `motivo` vai em linha menor abaixo. */
-export function Lacuna({ children, motivo }: { children?: ReactNode; motivo?: ReactNode }) {
+export function Lacuna({ children, motivo, estado }: { children?: ReactNode; motivo?: ReactNode; /** estado de cobertura (lib/data/cobertura.ts), exposto em `data-cobertura` */ estado?: string }) {
   return (
-    <p className="sv-lac">
+    <p className="sv-lac" data-cobertura={estado}>
       <span className="sv-lac__liso">
         {children ?? fraseCobertura(null)}
         {motivo && <span className="sv-sm">{motivo}</span>}

@@ -48,6 +48,27 @@ function Names({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
   );
 }
 
+/** Placar da UF: contagem por voto, como a fonte publicou, ao lado das cadeiras da UF fixadas em lei. Nunca "ausentes". */
+function PlacarDaUf({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
+  const p = ev.porUf;
+  if (p.kind !== "placar") return null;
+  const row = p.ufs.find((x) => x.uf === uf);
+  if (!row) return null;
+  const partes = ORDER.filter((v) => row.contagem[v] > 0).map((v) => `${HEAD[v]}: ${row.contagem[v]}`);
+  return (
+    <div className="sv-mt-3" data-placar-uf={uf}>
+      <p className="sv-meta">
+        {uf}: {row.registros} {row.registros === 1 ? "registro" : "registros"} nesta votação, de {row.cadeiras} cadeiras de {uf} {ev.body === "camara" ? "na Câmara" : "no Senado"}.
+        {partes.length > 0 ? ` ${partes.join(". ")}.` : ""}
+      </p>
+      <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
+        Cadeiras: {p.fonteCadeiras}. Menos registros que cadeiras não quer dizer ausência: a fonte publica só quem teve registro.
+        {p.semUf > 0 ? ` ${p.semUf} ${p.semUf === 1 ? "registro sem estado identificado" : "registros sem estado identificado"} (${p.motivoSemUf}).` : ""}
+      </p>
+    </div>
+  );
+}
+
 export default async function Votacao({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ uf?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const ev = await load(id);
@@ -56,6 +77,9 @@ export default async function Votacao({ params, searchParams }: { params: Promis
   const c = ev.counts;
   const total = ORDER.reduce((s, k) => s + (c[k] ?? 0), 0);
   const others = (c.obstrucao ?? 0) + (c.art17 ?? 0) + (c.nao_votou ?? 0);
+  // sem voto individual carregado (secreta, aberta sem voto publicado ou nenhum registro): o placar por UF já é lacuna.
+  // Lacuna `semMandatos` é outra coisa: há voto individual, só não há UF na data para a maioria (o placar geral fica).
+  const semIndividual = (ev.porUf.kind === "lacuna" && !ev.porUf.semMandatos) || total === 0;
   const ufs = [...new Set(ev.votes.map((v) => v.uf).filter((u): u is string => !!u))].sort();
   const ufRaw = typeof sp.uf === "string" ? sp.uf.toUpperCase() : null; // `?uf=SP&uf=RJ` chega como array: ignorado
   const uf = ufRaw && ufs.includes(ufRaw) ? ufRaw : null;
@@ -73,25 +97,42 @@ export default async function Votacao({ params, searchParams }: { params: Promis
           </h1>
           <p className="sv-meta sv-mt-2">
             {ev.proposal?.label ? `${ev.proposal.label}. ` : ""}
-            {total} registros nesta votação.
+            {semIndividual ? "" : `${total} registros nesta votação.`}
             {ev.result ? ` Resultado: ${ev.result}.` : ""}
           </p>
           {ev.proposal?.summary && ev.description !== ev.proposal.summary && <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>O que foi votado: {clip(ev.description, 260)}</p>}
 
-          <div className="sv-mt-3" role="img" aria-label={`Sim ${c.sim ?? 0}, Não ${c.nao ?? 0}, Abstenção ${c.abstencao ?? 0}, outros registros ${others}`}>
-            <Bar label="Sim" kind="is-sim" weight={600} n={c.sim ?? 0} total={total} />
-            <Bar label="Não" kind="is-nao" weight={600} n={c.nao ?? 0} total={total} />
-            <Bar label="Abstenção" kind="is-abs" weight={600} n={c.abstencao ?? 0} total={total} />
-            <Bar label="Outros" weight={200} n={others} total={total} />
-          </div>
-          <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
-            Outros soma obstrução ({c.obstrucao ?? 0}), quem presidia ({c.art17 ?? 0}) e quem não registrou voto ({c.nao_votou ?? 0}). Não é voto contra. A fonte publica só quem teve registro: ausência não aparece.
-          </p>
+          {semIndividual ? (
+            // sem voto individual: lacuna nomeada, nunca barras de zeros; o placar total só se a fonte o publicou
+            <div className="sv-mt-3" data-sem-voto-individual>
+              <Gap>{ev.porUf.kind === "lacuna" ? ev.porUf.motivo : "A fonte não publicou o voto de cada pessoa nesta votação."}</Gap>
+              {/* nulo = a fonte não publicou; zero publicado é dado e aparece */}
+              {ev.placarFonte.sim !== null && ev.placarFonte.nao !== null && (
+                <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
+                  Placar total publicado pela fonte: {ev.placarFonte.sim} sim e {ev.placarFonte.nao} não.
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="sv-mt-3" role="img" aria-label={`Sim ${c.sim ?? 0}, Não ${c.nao ?? 0}, Abstenção ${c.abstencao ?? 0}, outros registros ${others}`}>
+                <Bar label="Sim" kind="is-sim" weight={600} n={c.sim ?? 0} total={total} />
+                <Bar label="Não" kind="is-nao" weight={600} n={c.nao ?? 0} total={total} />
+                <Bar label="Abstenção" kind="is-abs" weight={600} n={c.abstencao ?? 0} total={total} />
+                <Bar label="Outros" weight={200} n={others} total={total} />
+              </div>
+              <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
+                Outros soma obstrução ({c.obstrucao ?? 0}), quem presidia ({c.art17 ?? 0}) e quem não registrou voto ({c.nao_votou ?? 0}). Não é voto contra. A fonte publica só quem teve registro: ausência não aparece.
+              </p>
+            </>
+          )}
         </div>
 
         <div>
           <Label>{uf ? `Parlamentares de ${uf}` : "Ver por estado"}</Label>
-          {ufs.length === 0 ? (
+          {ev.porUf.kind === "lacuna" ? (
+            <Gap>{ev.porUf.motivo}</Gap>
+          ) : ufs.length === 0 ? (
             <Gap>A fonte não publicou o voto de cada pessoa nesta votação.</Gap>
           ) : (
             <p style={{ display: "flex", flexWrap: "wrap", gap: "2px 4px", marginTop: 6 }}>
@@ -102,7 +143,17 @@ export default async function Votacao({ params, searchParams }: { params: Promis
               ))}
             </p>
           )}
+          {uf && <PlacarDaUf ev={ev} uf={uf} />}
           {uf && <Names ev={ev} uf={uf} />}
+          {ev.porUf.kind === "placar" && ev.porUf.semUf > 0 && (
+            // quem ficou fora do placar por UF, nominalmente e em ordem alfabética: a lacuna tem nome
+            <div className="sv-mt-3" data-sem-uf>
+              <Label>Sem estado identificado ({ev.porUf.semUf})</Label>
+              <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }}>
+                Fora do placar por estado: {ev.porUf.motivoSemUf}. {ev.porUf.semUfNomes.join(", ")}.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
