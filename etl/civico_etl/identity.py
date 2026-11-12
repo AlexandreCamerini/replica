@@ -71,7 +71,7 @@ def first_name(name: str | None) -> str | None:
 
 
 GEN_SUFFIX = {"filho": "filho", "filha": "filho", "junior": "junior", "jr": "junior", "neto": "neto", "neta": "neto",
-              "sobrinho": "sobrinho", "segundo": "segundo", "terceiro": "terceiro"}
+              "netto": "neto", "netta": "neto", "sobrinho": "sobrinho", "segundo": "segundo", "terceiro": "terceiro"}
 
 
 def generation(name: str | None) -> frozenset[str]:
@@ -119,7 +119,10 @@ def first_name_match(civil_name: str | None, person_civil: str | None, person_di
     - ou primeiro nome que pode ser grafia do civil (`_first_names_spelling`) com o resto do nome quase igual (Jaccard >= 0,5).
     O nome de exibição só vale com o primeiro nome igual: "Dr Auri", "Zé", "Di" são curtos demais para distância de edição.
     Não pega outra pessoa com o mesmo sobrenome: Genilde x Renata Silva, Djalmiro x Sarah Urbieta, Daora x Kotsario
-    Kanamari, Maria Isabel x Silvana Maria."""
+    Kanamari, Maria Isabel x Silvana Maria.
+    Limite conhecido (dívida, xfail em test_identity_bug044): irmãos com o sobrenome inteiro igual, nascimentos diferentes e
+    primeiros nomes que passam por grafia um do outro (José x Josué, Marcos x Márcio, Kássio x Kassâmio) ainda casam pelo
+    título repetido. A regra não distingue isso de erro de digitação; a main casava igual."""
     f = first_name(civil_name)
     if not f:
         return False

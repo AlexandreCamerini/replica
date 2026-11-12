@@ -148,6 +148,26 @@ def test_divida_gemeos_com_mesmo_nascimento():
     assert title_row_foreign("MARCOS PEREIRA TESTE", date(1990, 3, 3), "Marcio Pereira Teste", None, date(1990, 3, 3))
 
 
+@pytest.mark.xfail(strict=True, raises=AssertionError,
+                   reason="Dívida BUG-044: irmãos com o sobrenome inteiro igual, nascimentos diferentes e primeiros nomes que "
+                   "passam por grafia um do outro ainda casam pelo título repetido. A regra não distingue de digitação.")
+@pytest.mark.parametrize("linha,pessoa", [("JOSE PEREIRA TESTE DA SILVA", "Josué Pereira Teste da Silva"),
+                                          ("MARCOS PEREIRA TESTE DA SILVA", "Márcio Pereira Teste da Silva"),
+                                          ("KASSIO PEREIRA TESTE DA SILVA", "Kassâmio Pereira Teste da Silva")])
+def test_divida_irmaos_com_primeiro_nome_de_grafia(linha, pessoa):
+    from civico_etl.identity import title_row_foreign
+
+    assert title_row_foreign(linha, date(1980, 2, 2), pessoa, None, date(1984, 6, 6))
+
+
+def test_sufixo_netto_conta_como_geracao():
+    from civico_etl.identity import generation, title_row_foreign
+
+    assert generation("JOAO FICTICIO TESTE NETTO") == generation("João Fictício Teste Neto") == frozenset({"neto"})
+    # avô e neto homônimos, 30 anos de diferença: recusa (A3)
+    assert title_row_foreign("JOAO FICTICIO TESTE NETTO", date(1990, 1, 1), "João Fictício Teste", None, date(1960, 1, 1))
+
+
 def test_regra_nova_contem_a_do_d240():
     """Tudo o que o D240 recusava (nenhum token em comum, como nos casos do BUG-041 e do BUG-038), a regra nova recusa."""
     from civico_etl.identity import title_row_foreign
