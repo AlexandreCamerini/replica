@@ -197,8 +197,12 @@ function umConjunto(c: ConjuntoPessoa, e: EntradaCobertura): CoberturaConjunto {
     if (it.status === "no_site") return item(c, "nao_carregado", it.reason || MOTIVO.semCarimbo, { nome: a.houseName, url: it.evidenceUrl });
     return item(c, DE_COBERTURA[it.status], it.reason, { nome: a.houseName, url: it.evidenceUrl });
   }
+  const linha = e.coberturaLugar.find((x) => x.dataset === chave);
   // vereador casado no SAPL: o dado está nas tabelas do SAPL, que presença, votos e propostas desta leitura ainda não
-  // usam; dizer "lido" faria lista vazia virar "não há". Gastos vêm da cobertura do município.
-  if (office === "vereador" && e.sapl && c !== "gastos") return item(c, "carregado_fora_da_pagina", MOTIVO.saplFora, { nome: e.sapl.nome, url: e.sapl.url });
-  return deLinha(c, e.coberturaLugar.find((x) => x.dataset === chave), null, e.casa);
+  // usam; dizer "lido" faria lista vazia virar "não há". Como no ramo da Assembleia, só para o conjunto que data_coverage
+  // diz estar na carga (carregando/no_site): o SAPL casado vale para a casa, não para cada conjunto (ex.: presença
+  // `desconhecido` segue não conferida). Gastos vêm da cobertura do município.
+  if (office === "vereador" && e.sapl && c !== "gastos" && (linha?.status === "carregando" || linha?.status === "no_site"))
+    return item(c, "carregado_fora_da_pagina", MOTIVO.saplFora, { nome: e.sapl.nome, url: e.sapl.url });
+  return deLinha(c, linha, null, e.casa);
 }

@@ -575,6 +575,13 @@ const asmDemo = (uf: string): AssemblyInfo => ({
   })),
 });
 export const DEMO_SAPL_IBGE = "3550308";
+/** data_coverage do município na demo; a câmara "lida pelo SAPL" marca presença, votos e propostas como em carga, como o ETL do SAPL faz. */
+function coberturaVereadorDemo(ibge: string): EntradaCobertura["coberturaLugar"] {
+  const base = coverageFor(ibge).map((c) => ({ dataset: c.dataset as string, status: c.status, reason: c.reason, evidenceUrl: null as string | null }));
+  if (ibge !== DEMO_SAPL_IBGE) return base;
+  const sapl = ["presenca", "votos", "propostas"].map((dataset) => ({ dataset, status: "carregando" as const, reason: "Lida do SAPL da Câmara Municipal (demonstração).", evidenceUrl: null }));
+  return [...base.filter((x) => !sapl.some((s) => s.dataset === x.dataset)), ...sapl];
+}
 function entradaDemo(personId: string): EntradaCobertura {
   const m = mainMandate(personId);
   const place = m ? store().placeByIbge.get(m.placeIbge) : undefined;
@@ -584,7 +591,7 @@ function entradaDemo(personId: string): EntradaCobertura {
     office: m?.office ?? null,
     status: m?.status ?? null,
     faltaFederal: m?.office === "senador" ? ["presenca"] : m?.office === "deputado_federal" ? [] : null,
-    coberturaLugar: m?.office === "vereador" ? coverageFor(m.placeIbge).map((c) => ({ dataset: c.dataset, status: c.status, reason: c.reason, evidenceUrl: null })) : [],
+    coberturaLugar: m?.office === "vereador" ? coberturaVereadorDemo(m.placeIbge) : [],
     carimbos: CARIMBOS_DEMO,
     assembleia: estadual && uf ? asmDemo(uf) : null,
     // vereadores da capital paulista: câmara "lida pelo SAPL", dado fora desta página (carregado_fora_da_pagina)

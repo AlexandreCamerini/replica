@@ -118,9 +118,21 @@ test("Assembleia e Câmara Municipal: data_coverage vira estado; `no_site` sem c
   assert.equal(estado(ver, "votos"), "nao_carregado"); // no_site sem carimbo
   assert.equal(estado(ver, "propostas"), "nao_conferido"); // sem linha
   // SAPL casado: o dado está nas tabelas do SAPL, fora das leituras da página; não vira "lido" (lista vazia não é "não há")
-  const sapl = coberturaDe({ ...base, office: "vereador", status: "em_exercicio", sapl: k("SAPL"), coberturaLugar: [] });
+  const sapl = coberturaDe({
+    ...base,
+    office: "vereador",
+    status: "em_exercicio",
+    sapl: k("SAPL"),
+    coberturaLugar: [
+      { dataset: "propostas", status: "carregando", reason: "lida do SAPL", evidenceUrl: null },
+      { dataset: "presenca", status: "desconhecido", reason: "não lida", evidenceUrl: null },
+    ],
+  });
   assert.equal(estado(sapl, "propostas"), "carregado_fora_da_pagina");
   assert.equal(sapl.find((x) => x.conjunto === "propostas")!.fonte?.nome, "SAPL");
+  // N1: como na Assembleia, o SAPL casado não vale para conjunto que data_coverage não diz estar na carga
+  assert.equal(estado(sapl, "presenca"), "nao_conferido");
+  assert.equal(estado(sapl, "votos"), "nao_conferido"); // sem linha
   assert.equal(estado(sapl, "gastos"), "nao_conferido");
 });
 
@@ -132,7 +144,7 @@ test("os casos acima emitem todos os estados do contrato", () => {
     { ...base, office: "prefeito", status: "em_exercicio" },
     { ...base, office: "deputado_federal", status: "eleito_aguardando_posse" },
     { ...base, office: "vereador", status: "em_exercicio", coberturaLugar: [{ dataset: "votos", status: "so_portal", reason: "x", evidenceUrl: null }] },
-    { ...base, office: "vereador", status: "em_exercicio", sapl: k("SAPL") },
+    { ...base, office: "vereador", status: "em_exercicio", sapl: k("SAPL"), coberturaLugar: [{ dataset: "votos", status: "carregando", reason: "SAPL", evidenceUrl: null }] },
   ];
   for (const e of casos) for (const x of coberturaDe(e)) vistos.add(x.estado);
   assert.deepEqual([...vistos].sort(), [...ESTADOS_COBERTURA].sort());
