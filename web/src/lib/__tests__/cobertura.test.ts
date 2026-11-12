@@ -5,7 +5,7 @@ import { CONJUNTOS_PESSOA, ESTADOS_COBERTURA, type AssemblyInfo, type CoberturaC
 
 const k = (nome: string) => ({ nome, url: "https://exemplo.gov.br", em: "2026-11-10T20:00:00Z" });
 const todos = Object.fromEntries(FAMILIAS_CARIMBO.map((f) => [f, k(f)]));
-const base: EntradaCobertura = { office: null, status: null, faltaFederal: null, coberturaLugar: [], carimbos: {}, assembleia: null, sapl: null, casa: null };
+const base: EntradaCobertura = { office: null, status: null, faltaFederal: null, coberturaLugar: [], carimbos: {}, assembleia: null, sapl: null, casa: null, temCandidatura: true };
 const estado = (cs: CoberturaConjunto[], c: string) => cs.find((x) => x.conjunto === c)!.estado;
 
 test("um item por conjunto, na ordem fixa; data só em `lido`", () => {
@@ -158,4 +158,24 @@ test("C1: com dado na tela, a fonte cita o carimbo da leitura qualquer que seja 
   assert.deepEqual(fonteDoConjunto(sen, null, false), { tipo: "lacuna", nome: "Senado Federal" });
   // cobertura não lida: o carimbo da leitura
   assert.deepEqual(fonteDoConjunto(null, s, true), { tipo: "carimbo", s });
+});
+
+test("C3: patrimônio só é lido com candidatura ligada à pessoa; sem vínculo, nao_carregado com motivo de vínculo", () => {
+  const sem = coberturaDe({ ...base, office: "deputado_federal", status: "em_exercicio", faltaFederal: [], carimbos: todos, temCandidatura: false });
+  const p = sem.find((x) => x.conjunto === "patrimonio")!;
+  assert.equal(p.estado, "nao_carregado");
+  assert.match(p.motivo, /nenhuma está ligada a esta pessoa/);
+  assert.equal(p.lidoEm, null);
+  // sem carga do TSE, o motivo continua sendo a carga
+  const semTse = coberturaDe({ ...base, office: "deputado_federal", status: "em_exercicio", faltaFederal: [], carimbos: {}, temCandidatura: false });
+  assert.match(semTse.find((x) => x.conjunto === "patrimonio")!.motivo, /ainda não foram carregadas/);
+});
+
+test("C3: emendas sem vínculo por pessoa não viram lido (lista vazia não é 'não há')", () => {
+  const ligada = coberturaDe({ ...base, office: "deputado_federal", status: "em_exercicio", faltaFederal: [], carimbos: todos });
+  assert.equal(ligada.find((x) => x.conjunto === "emendas")!.estado, "lido");
+  const semLigacao = coberturaDe({ ...base, office: "deputado_federal", status: "em_exercicio", faltaFederal: [], carimbos: todos, semVinculo: { emendas: "nenhuma ligada" } });
+  const e = semLigacao.find((x) => x.conjunto === "emendas")!;
+  assert.equal(e.estado, "nao_carregado");
+  assert.equal(e.motivo, "nenhuma ligada");
 });

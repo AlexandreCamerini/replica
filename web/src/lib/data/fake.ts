@@ -590,6 +590,7 @@ function entradaDemo(personId: string): EntradaCobertura {
     // vereadores da capital paulista: câmara "lida pelo SAPL", dado fora desta página (carregado_fora_da_pagina)
     sapl: m?.office === "vereador" && m.placeIbge === DEMO_SAPL_IBGE ? { nome: "SAPL das Câmaras Municipais (demonstração)", url: null, em: "2026-11-01T06:10:00-03:00" } : null,
     casa: m?.office === "vereador" && place ? `Câmara Municipal de ${place.name} (${uf})` : estadual && uf ? houseName(uf) : null,
+    temCandidatura: (store().candidaciesByPerson.get(personId)?.length ?? 0) > 0,
   };
 }
 

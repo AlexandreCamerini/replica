@@ -27,6 +27,11 @@ export type EntradaCobertura = {
    * lista vazia não quer dizer "não há". Valor = motivo. Ausente = nada a dizer.
    */
   semVinculo?: Partial<Record<ConjuntoPessoa, string>>;
+  /**
+   * A pessoa tem ao menos uma candidatura do TSE ligada a ela (candidacies.person_id). Sem isso, o carimbo de
+   * tse.candidatos não sustenta "nenhum bem declarado": é falta de vínculo, não ausência de bens.
+   */
+  temCandidatura: boolean;
 };
 
 /** Famílias de carimbo (dataset_stamps) de cada conjunto no Congresso. null = o ETL não lê esse conjunto para a casa. */
@@ -83,6 +88,7 @@ const MOTIVO = {
   semAssembleia: "Ainda não conferimos o que a Assembleia publica.",
   semLinha: "Ainda não conferimos se a casa publica este dado.",
   semTse: "As candidaturas do TSE ainda não foram carregadas.",
+  semCandidatura: "As candidaturas do TSE foram carregadas, mas nenhuma está ligada a esta pessoa: sem esse vínculo não sabemos os bens declarados.",
   saplFora: "Lido no SAPL da Câmara Municipal; o dado do SAPL ainda não entra nesta página.",
   saplAssembleia: "Lido no SAPL da Assembleia; o dado do SAPL ainda não entra nesta página.",
   foraExercicio: {
@@ -120,7 +126,10 @@ function deLinha(c: ConjuntoPessoa, linha: EntradaCobertura["coberturaLugar"][nu
 
 function patrimonio(e: EntradaCobertura): CoberturaConjunto {
   const k = e.carimbos["tse.candidatos"] ?? null;
-  return k ? lido("patrimonio", k, "Bens declarados à Justiça Eleitoral nas candidaturas.") : item("patrimonio", "nao_carregado", MOTIVO.semTse);
+  if (!k) return item("patrimonio", "nao_carregado", MOTIVO.semTse);
+  // carimbo é fato global da carga; "lido" para esta pessoa exige candidatura ligada a ela
+  if (!e.temCandidatura) return item("patrimonio", "nao_carregado", MOTIVO.semCandidatura, { nome: k.nome, url: k.url });
+  return lido("patrimonio", k, "Bens declarados à Justiça Eleitoral nas candidaturas.");
 }
 
 /**

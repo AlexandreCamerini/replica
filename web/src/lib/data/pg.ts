@@ -776,7 +776,7 @@ export const pgSource: DataSource = {
   async getPeopleCoverage(personIds) {
     const ids = uuids(personIds);
     if (!ids.length) return [];
-    const [mands, faltas, carimbos, sapl, [emendas]] = await Promise.all([
+    const [mands, faltas, carimbos, sapl, emendasCasadas, comCandidatura] = await Promise.all([
       // mandato principal: a mesma ordem de getMandates + mandatoPrincipal (em exercício, aguardando posse, o resto)
       sql`
         select distinct on (m.person_id) m.person_id, o.slug as office, m.status, m.place_id, pl.kind as place_kind, pl.uf, pl.name as place_name
@@ -798,10 +798,15 @@ export const pgSource: DataSource = {
         left join sources src on src.slug = 'sapl'
         where sp.person_id = any(${ids}::uuid[]) and sp.match_status = 'casado' and h.status = 'ok' and h.loaded_at is not null
         order by sp.person_id, h.loaded_at desc`,
-      // emendas sem nenhum autor casado com pessoa: a carga existe, mas lista vazia não quer dizer "não há"
-      sql`select exists (select 1 from amendments where person_id is not null) as casadas`,
+      // emendas casadas POR PESSOA: uma emenda casada no banco não diz nada de quem não casou; sem linha ligada a ela,
+      // a carga existe, mas lista vazia não quer dizer "não há"
+      sql`select distinct person_id from amendments where person_id = any(${ids}::uuid[])`,
+      // candidatura do TSE ligada à pessoa: sem ela, o carimbo de tse.candidatos não sustenta "nenhum bem declarado"
+      sql`select distinct person_id from candidacies where person_id = any(${ids}::uuid[])`,
     ]);
-    const semVinculo = emendas?.casadas ? undefined : { emendas: "As emendas do Portal da Transparência foram carregadas, mas ainda sem ligação com o autor." };
+    const emendaOf = new Set(emendasCasadas.map((r) => String(r.person_id)));
+    const candOf = new Set(comCandidatura.map((r) => String(r.person_id)));
+    const SEM_VINCULO_EMENDAS = { emendas: "As emendas do Portal da Transparência foram carregadas, mas nenhuma está ligada a esta pessoa como autora." };
     const lugares = [...new Set(mands.filter((m) => m.office === "vereador").map((m) => String(m.place_id)))];
     const ufsAsm = [...new Set(mands.filter((m) => m.office === "deputado_estadual" || m.office === "deputado_distrital").map((m) => String(m.uf ?? "")).filter(Boolean))];
     const [cov, asms] = await Promise.all([
@@ -837,7 +842,8 @@ export const pgSource: DataSource = {
           assembleia: m && (office === "deputado_estadual" || office === "deputado_distrital") ? (asmOf.get(String(m.uf)) ?? null) : null,
           sapl: s ? { nome: String(s.source_name ?? "SAPL da Câmara Municipal"), url: (s.base_url as string | null) ?? null, em: isoTs(s.loaded_at) } : null,
           casa,
-          semVinculo,
+          semVinculo: emendaOf.has(id) ? undefined : SEM_VINCULO_EMENDAS,
+          temCandidatura: candOf.has(id),
         }),
       };
     });
