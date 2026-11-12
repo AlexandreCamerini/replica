@@ -21,9 +21,9 @@ Ordem (fixa; um passo só lê o que os anteriores deixaram):
      2º TURNO sempre (é o que o check do BUG-039 cobra); as outras (suplente, não eleito, #NULO#, INAPTO) só para quem não tem
      candidatura nenhuma antes da mais antiga das 2 eleições ordinárias mais recentes (`history_cutoff`: em 2026, 2024), isto
      é, quem entrou pela carga do ciclo em curso e ainda não tem histórico. Quem já tem histórico e não tem a não eleita de um
-     ano é o backlog do BUG-047 (2012 carregado em ordem crescente, antes de a pessoa existir): ~1.800 linhas no banco local,
-     carga em massa, decisão do dono, não deste reparo. Fora: eleição suplementar (a carga dela encerra e apaga mandatos da cadeira; D241) e cargo sem mandato próprio (suplente
-     de senador). Teto de HISTORY_CAP candidaturas e HISTORY_BUDGET_S segundos por run, por grupo (pessoa, ano): o resto fica
+     ano é o backlog do BUG-047 (2012 carregado em ordem crescente, antes de a pessoa existir): 3.439 linhas no banco local,
+     carga em massa, decisão do dono, não deste reparo. Fora: eleição suplementar (a carga dela encerra e apaga mandatos da
+     cadeira; D241) e cargo sem mandato próprio (suplente de senador). Teto de HISTORY_CAP candidaturas e HISTORY_BUDGET_S segundos por run, por grupo (pessoa, ano): o resto fica
      para a próxima e o run `identity.repairs.historico` fecha `partial`. Cada candidatura, mandato, bem e chave criados vão
      para identity_split_log (bug BUG-053, ação 'criado'), que é o roteiro da reversão. Votos e contas desses anos não entram.
   3. `mandatos_tse`: mandato de vereador, prefeito ou vice cuja única fonte é a candidatura do TSE (`status_source = 'tse'`)
