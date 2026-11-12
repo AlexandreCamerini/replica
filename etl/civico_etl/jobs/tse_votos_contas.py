@@ -37,7 +37,92 @@ def _known(conn: psycopg.Connection, year: int) -> set[str]:
         "select c.tse_sequencial from candidacies c join elections e on e.id = c.election_id where e.year = %s", (year,))}
 
 
-def _apply(conn: psycopg.Connection, year: int, col: str, values: dict[str, int], by_round: bool) -> int:
+# BUG-048: nos anos de SQ_COM_UE (2012) o SQ se repete entre a ordinária de um município e a suplementar de outro (BUG-035,
+# D224). Lá a candidatura da votação e das contas é (SG_UE, SQ), e a UE de uma candidatura do banco é a da chave tse
+# ANO:UE:SQ da própria pessoa (uma por candidatura: 19.883 de 19.883 em 2012 no banco local, 2026-11-11). Nos outros anos a
+# chave continua sendo o SQ, e as estruturas, os SQL e os source_key ficam como eram.
+CAND_UE_SQL = """
+select c.id::text id, c.tse_sequencial sq, e.round, split_part(x.external_id, ':', 2) ue
+from candidacies c join elections e on e.id = c.election_id
+join person_external_ids x on x.person_id = c.person_id
+  and split_part(x.external_id, ':', 1) = e.year::text and split_part(x.external_id, ':', 3) = c.tse_sequencial
+  and x.external_id ~ '^[0-9]{4}:[0-9A-Z]+:[0-9]+$'
+join sources s on s.id = x.source_id and s.slug = 'tse'
+where e.year = %s
+"""
+
+
+def _with_ue(year: int) -> bool:
+    from .tse_candidatos import SQ_COM_UE
+
+    return int(year) in SQ_COM_UE
+
+
+def _skey(k) -> str:
+    """Parte da candidatura no source_key: o SQ (como sempre foi); em SQ_COM_UE, 'UE:SQ', para as duas UEs não colidirem."""
+    return k if isinstance(k, str) else f"{k[0]}:{k[1]}"
+
+
+def _cand_by_ue(conn: psycopg.Connection, year: int, r=None) -> dict[tuple[tuple[str, str], int], str]:
+    """((UE, SQ), turno) -> candidatura, nos anos de SQ_COM_UE. Candidatura sem a chave tse ANO:UE:SQ, ou com mais de uma UE
+    (não deveria existir: check "mesma pessoa com o mesmo SQ em municípios diferentes"), fica de fora: não chuta. Com `r`, a
+    contagem das que ficaram de fora vai para as notas do run, uma vez por run."""
+    rows_ = conn.execute(CAND_UE_SQL, (year,)).fetchall()
+    ues: dict[str, set[str]] = defaultdict(set)
+    for row in rows_:
+        ues[row["id"]].add(row["ue"])
+    if r is not None:
+        total = conn.execute("select count(*) n from candidacies c join elections e on e.id = c.election_id where e.year = %s",
+                             (year,)).fetchone()["n"]
+        sem, duas = total - len(ues), sum(1 for u in ues.values() if len(u) > 1)
+        note = (f"{sem} candidaturas de {year} sem chave tse {year}:UE:SQ e {duas} com 2+ UEs: fora da votação e das contas "
+                f"(SQ repete entre UEs, BUG-048)")
+        if (sem or duas) and note not in r.notes:
+            r.notes.append(note)
+            log.warning("tse %d: %s", year, note)
+    return {((row["ue"], row["sq"]), row["round"]): row["id"] for row in rows_ if len(ues[row["id"]]) == 1}
+
+
+def _note_sem_ue(r, year: int, keys: set, what: str) -> None:
+    """Em SQ_COM_UE, linha da fonte sem SG_UE não tem candidatura certa: não grava nada e fica a nota (layout não conferido)."""
+    n = sum(1 for k in keys if not isinstance(k, str) and not k[0])
+    if n:
+        r.notes.append(f"{n} candidaturas da {what} de {year} sem SG_UE na fonte: não gravadas (SQ repete entre UEs, BUG-048)")
+        log.warning("tse %d: %d candidaturas da %s sem SG_UE: não gravadas", year, n, what)
+
+
+def _apply_ue(conn: psycopg.Connection, year: int, col: str, values: dict, by_round: bool, r=None) -> int:
+    """_apply nos anos de SQ_COM_UE: casa (UE, SQ) pela chave da pessoa, uma candidatura por chave (`_cand_by_ue`). Linha sem
+    SG_UE na fonte não grava nada."""
+    cand = _cand_by_ue(conn, year, r)
+    by_key: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for (k, _), cid in cand.items():
+        by_key[k].append(cid)
+    upd: list[tuple[str, int]] = []
+    for key, v in values.items():
+        k, turno = key if by_round else (key, 0)
+        if turno:
+            cid = cand.get((k, turno))
+            if cid:
+                upd.append((cid, v))
+        else:  # receita/despesa: toda candidatura (1º e 2º turno) da UE e SQ, como o SQL dos outros anos
+            upd.extend((cid, v) for cid in by_key.get(k, ()))
+    if not upd:
+        return 0
+    cur = conn.cursor()
+    cur.execute("create temp table tmp_vu (id uuid, v bigint) on commit drop")
+    with cur.copy("copy tmp_vu (id, v) from stdin") as cp:
+        for row in upd:
+            cp.write_row(row)
+    cur.execute(f"update candidacies c set {col} = t.v, updated_at = now() from tmp_vu t where c.id = t.id and c.{col} is distinct from t.v")
+    n = cur.rowcount
+    cur.execute("drop table tmp_vu")
+    return n
+
+
+def _apply(conn: psycopg.Connection, year: int, col: str, values: dict[str, int], by_round: bool, r=None) -> int:
+    if _with_ue(year):
+        return _apply_ue(conn, year, col, values, by_round, r)
     cur = conn.cursor()
     cur.execute("create temp table tmp_v (sq text, turno int, v bigint) on commit drop")
     with cur.copy("copy tmp_v (sq, turno, v) from stdin") as cp:
@@ -78,7 +163,7 @@ def _place_votes(conn: psycopg.Connection, r, year: int, by_place: dict) -> int:
     if not by_place:
         return 0
     look = _muni_map(conn)
-    cid = {(row["tse_sequencial"], row["round"]): str(row["id"]) for row in conn.execute(
+    cid = _cand_by_ue(conn, year) if _with_ue(year) else {(row["tse_sequencial"], row["round"]): str(row["id"]) for row in conn.execute(
         "select c.id, c.tse_sequencial, e.round from candidacies c join elections e on e.id = c.election_id where e.year = %s", (year,))}
     out: dict[tuple[str, str], int] = defaultdict(int)
     miss: set[tuple[str, str]] = set()
@@ -110,23 +195,31 @@ def _is_cassado_definitivo(situacao: str) -> bool:
 def _mark_cassados(conn: psycopg.Connection, year: int, sqs: set[str]) -> None:
     """D06/D90: eleito com cassação definitiva publicada na votação vira 'cassado'. Idempotente nos dois sentidos:
     mandato que esta regra marcou e cuja candidatura deixou de constar como cassada (p.ex. regra antiga que aceitava
-    "com recurso", ou recurso provido) volta a 'em_exercicio' se o período ainda está correndo."""
+    "com recurso", ou recurso provido) volta a 'em_exercicio' se o período ainda está correndo.
+    Em SQ_COM_UE, `sqs` são chaves (UE, SQ) e o casamento é pela candidatura daquela UE (BUG-048)."""
+    match, arg = "c.tse_sequencial = any(%s)", list(sqs)
+    scope, scope_arg = "", ()
+    if _with_ue(year):
+        cand = _cand_by_ue(conn, year)
+        match, arg = "c.id = any(%s::uuid[])", [cid for (k, _), cid in cand.items() if k in sqs]
+        # só reverte quem está no mapa (UE, SQ): candidatura fora dele não teve a votação lida, e a cassação dela fica (BUG-048)
+        scope, scope_arg = " and c.id = any(%s::uuid[])", (list(cand.values()),)
     cur = conn.execute(
-        """update mandates m set status = case when m.ends_on <= current_date then 'encerrado' else 'em_exercicio' end, updated_at = now()
+        f"""update mandates m set status = case when m.ends_on <= current_date then 'encerrado' else 'em_exercicio' end, updated_at = now()
            from candidacies c join elections e on e.id = c.election_id
-           where m.candidacy_id = c.id and e.year = %s and not (c.tse_sequencial = any(%s))
+           where m.candidacy_id = c.id and e.year = %s and not ({match}){scope}
              and m.status = 'cassado' and m.status_source = 'tse' and m.started_on <= current_date""",
-        (year, list(sqs)),
+        (year, arg, *scope_arg),
     )
     if cur.rowcount:
         log.info("tse %d: %d mandatos deixaram de constar como cassados (situação sem fato consumado)", year, cur.rowcount)
     if not sqs:
         return
     cur = conn.execute(
-        """update mandates m set status = 'cassado', updated_at = now()
+        f"""update mandates m set status = 'cassado', updated_at = now()
            from candidacies c join elections e on e.id = c.election_id
-           where m.candidacy_id = c.id and e.year = %s and c.tse_sequencial = any(%s) and m.status = 'em_exercicio' and m.status_source = 'tse'""",
-        (year, list(sqs)),
+           where m.candidacy_id = c.id and e.year = %s and {match} and m.status = 'em_exercicio' and m.status_source = 'tse'""",
+        (year, arg),
     )
     if cur.rowcount:
         log.info("tse %d: %d mandatos marcados como cassados", year, cur.rowcount)
@@ -142,12 +235,14 @@ class VotesAgg:
     rejected: int = 0
 
 
-def aggregate_votes(z, members, want: set[str], log_prefix: str = "tse votos") -> VotesAgg:
-    """Soma a votação dos CSVs `members` (já escolhidos por pick_members: nunca BRASIL + BR juntos, BUG-019)."""
+def aggregate_votes(z, members, want: set[str], log_prefix: str = "tse votos", year: int | None = None) -> VotesAgg:
+    """Soma a votação dos CSVs `members` (já escolhidos por pick_members: nunca BRASIL + BR juntos, BUG-019).
+    Com `year` em SQ_COM_UE, a chave da candidatura é (SG_UE, SQ) em vez do SQ (BUG-048)."""
     out = VotesAgg()
+    by_ue = year is not None and _with_ue(year)
     for m in members:
         log.info("%s: lendo %s (%.0f MB comprimidos)", log_prefix, m.filename, m.compress_size / 1e6)
-        for sq, turno, valid, nominal, uf, mun, cargo, cass in rows(z, m, ["SQ_CANDIDATO", "NR_TURNO", "QT_VOTOS_NOMINAIS_VALIDOS", "QT_VOTOS_NOMINAIS", "SG_UF", "NM_MUNICIPIO", "CD_CARGO", "DS_SITUACAO_CASSACAO"]):
+        for sq, turno, valid, nominal, uf, mun, cargo, cass, ue in rows(z, m, ["SQ_CANDIDATO", "NR_TURNO", "QT_VOTOS_NOMINAIS_VALIDOS", "QT_VOTOS_NOMINAIS", "SG_UF", "NM_MUNICIPIO", "CD_CARGO", "DS_SITUACAO_CASSACAO", "SG_UE"]):
             out.lines += 1
             if sq not in want:
                 continue
@@ -158,6 +253,8 @@ def aggregate_votes(z, members, want: set[str], log_prefix: str = "tse votos") -
                 out.rejected += 1
                 continue
             t = int(turno or 1)
+            if by_ue:
+                sq = (ue.strip(), sq)
             out.agg[(sq, t)] += v
             if cargo.strip() not in MUNICIPAL_CARGOS and uf not in ("ZZ", "BR", "VT"):
                 out.by_place[(sq, t, uf, mun)] += v
@@ -226,18 +323,22 @@ class FinanceAgg:
     donor_label: dict[tuple[str, str, str, str, str | None], str] = field(default_factory=dict)  # chave sem caixa/acento -> nome como a fonte escreveu
 
 
-def aggregate_finance(z, rec, des, want: set[str], log_prefix: str = "tse contas") -> FinanceAgg:
+def aggregate_finance(z, rec, des, want: set[str], log_prefix: str = "tse contas", year: int | None = None) -> FinanceAgg:
     """Receita e despesa paga por candidatura (rec/des já escolhidos por pick_members, BUG-019).
     D07: origem do dinheiro e destino da despesa agregados por categoria oficial do TSE; nunca grava fornecedor nem doador pessoa física.
-    Catálogo D11 (08/11): além disso, receita por tipo de fonte e doador nomeado só se for partido ou pessoa jurídica (`donor_of`)."""
+    Catálogo D11 (08/11): além disso, receita por tipo de fonte e doador nomeado só se for partido ou pessoa jurídica (`donor_of`).
+    Com `year` em SQ_COM_UE, a chave da candidatura é (SG_UE, SQ) em vez do SQ; a despesa segue a receita pelo prestador (BUG-048)."""
     out = FinanceAgg()
+    by_ue = year is not None and _with_ue(year)
     prestador: dict[str, str] = {}
     for m in rec:
         log.info("%s: lendo %s (%.0f MB)", log_prefix, m.filename, m.compress_size / 1e6)
-        for sq, sp, v, origem, fonte, doc, nome, rfb, sigla in rows(z, m, ["SQ_CANDIDATO", "SQ_PRESTADOR_CONTAS", "VR_RECEITA", "DS_ORIGEM_RECEITA", "DS_FONTE_RECEITA",
-                                                               "NR_CPF_CNPJ_DOADOR", "NM_DOADOR", "NM_DOADOR_RFB", "SG_PARTIDO_DOADOR"]):
+        for sq, sp, v, origem, fonte, doc, nome, rfb, sigla, ue in rows(z, m, ["SQ_CANDIDATO", "SQ_PRESTADOR_CONTAS", "VR_RECEITA", "DS_ORIGEM_RECEITA", "DS_FONTE_RECEITA",
+                                                                   "NR_CPF_CNPJ_DOADOR", "NM_DOADOR", "NM_DOADOR_RFB", "SG_PARTIDO_DOADOR", "SG_UE"]):
             if sq not in want:
                 continue
+            if by_ue:
+                sq = (ue.strip(), sq)
             prestador[sp] = sq
             c = cents(v)
             if c is not None:
@@ -275,11 +376,12 @@ def run_votes(conn: psycopg.Connection, years: list[int], force: bool) -> None:
             with run(conn, f"tse.votos.{year}", "tse", input_checksum=checksum(members), force=force) as r:
                 want = _known(conn, year)
                 t0 = time.monotonic()
-                va = aggregate_votes(z, members, want, log_prefix=f"tse votos {year}")
+                va = aggregate_votes(z, members, want, log_prefix=f"tse votos {year}", year=year)
                 r.reject(va.rejected)
+                _note_sem_ue(r, year, {k for k, _ in va.agg}, "votação")
                 agg, by_place, cassados, com_recurso, n = va.agg, va.by_place, va.cassados, va.com_recurso, va.lines
                 log.info("tse votos %d: %d linhas em %.0fs, %d candidaturas com voto", year, n, time.monotonic() - t0, len(agg))
-                r.add(_apply(conn, year, "votes", agg, by_round=True))
+                r.add(_apply(conn, year, "votes", agg, by_round=True, r=r))
                 r.add(_place_votes(conn, r, year, by_place))
                 r.notes.append(f"{len(cassados)} candidaturas com cassação definitiva e {len(com_recurso - cassados)} com recurso (não cassa) na votação (DS_SITUACAO_CASSACAO)")
                 _mark_cassados(conn, year, cassados)
@@ -287,11 +389,22 @@ def run_votes(conn: psycopg.Connection, years: list[int], force: bool) -> None:
             continue
 
 
-def _finance_entries(conn: psycopg.Connection, year: int, by_cat: dict) -> int:
-    cid = {row["tse_sequencial"]: str(row["id"]) for row in conn.execute(
+def _cand_first_round(conn: psycopg.Connection, year: int) -> dict:
+    """Chave da candidatura -> candidatura do 1º turno, onde as contas ficam. Em SQ_COM_UE a chave é (UE, SQ) (BUG-048)."""
+    if _with_ue(year):
+        out: dict[tuple[str, str], tuple[int, str]] = {}
+        for (k, rnd), cid in _cand_by_ue(conn, year).items():
+            if k not in out or rnd < out[k][0]:
+                out[k] = (rnd, cid)
+        return {k: cid for k, (_, cid) in out.items()}
+    return {row["tse_sequencial"]: str(row["id"]) for row in conn.execute(
         """select distinct on (c.tse_sequencial) c.id, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id
            where e.year = %s order by c.tse_sequencial, e.round""", (year,))}
-    rows_ = [(cid[sq], d, cat[:200], None, None, v, "BRL", None, f"tse:{year}:{sq}:{d}:{cat[:120]}") for (sq, d, cat), v in by_cat.items() if sq in cid]
+
+
+def _finance_entries(conn: psycopg.Connection, year: int, by_cat: dict) -> int:
+    cid = _cand_first_round(conn, year)
+    rows_ = [(cid[sq], d, cat[:200], None, None, v, "BRL", None, f"tse:{year}:{_skey(sq)}:{d}:{cat[:120]}") for (sq, d, cat), v in by_cat.items() if sq in cid]
     return len(upsert(conn, "campaign_finance_entries", ["candidacy_id", "direction", "category", "counterpart_name", "counterpart_doc", "amount_cents", "currency", "occurred_on", "source_key"],
                       rows_, ["source_key"], update=["candidacy_id", "amount_cents"], returning=["id"]))
 
@@ -306,10 +419,8 @@ def _origin_entries(conn: psycopg.Connection, year: int, fa: FinanceAgg, r) -> i
         got = sums.get(sq, 0)
         if got != total:
             raise RuntimeError(f"origens somam {got} e o total arrecadado é {total} para {sq} ({year})")
-    cid = {row["tse_sequencial"]: str(row["id"]) for row in conn.execute(
-        """select distinct on (c.tse_sequencial) c.id, c.tse_sequencial from candidacies c join elections e on e.id = c.election_id
-           where e.year = %s order by c.tse_sequencial, e.round""", (year,))}
-    o_rows = [(cid[sq], o, v, fa.origin_lines[(sq, o)], f"tse:{year}:{sq}:{o}") for (sq, o), v in fa.by_origin.items() if sq in cid]
+    cid = _cand_first_round(conn, year)
+    o_rows = [(cid[sq], o, v, fa.origin_lines[(sq, o)], f"tse:{year}:{_skey(sq)}:{o}") for (sq, o), v in fa.by_origin.items() if sq in cid]
     # doador = documento (CNPJ) quando houver, senão nome: o mesmo CNPJ com razões sociais diferentes (NM_DOADOR_RFB vs NM_DOADOR, caixa) é uma linha só;
     # sem isso as duas dividiriam o source_key e o upsert descartaria uma em silêncio. Rótulo = o da maior parcela (empate: ordem alfabética).
     grouped: dict[tuple[str, str, str, str], list] = {}
@@ -319,7 +430,7 @@ def _origin_entries(conn: psycopg.Connection, year: int, fa: FinanceAgg, r) -> i
         g = grouped.setdefault((sq, o, k, doc or n), [0, doc, []])
         g[0] += v
         g[2].append((-v, fa.donor_label[(sq, o, k, n, doc)]))
-    d_rows = [(cid[sq], o, k, min(g[2])[1], g[1], g[0], f"tse:{year}:{sq}:{o}:{k}:{ident}") for (sq, o, k, ident), g in grouped.items()]
+    d_rows = [(cid[sq], o, k, min(g[2])[1], g[1], g[0], f"tse:{year}:{_skey(sq)}:{o}:{k}:{ident}") for (sq, o, k, ident), g in grouped.items()]
     n = len(upsert(conn, "campaign_finance_by_origin", ["candidacy_id", "origin", "amount_cents", "lines", "source_key"], o_rows, ["source_key"], returning=["id"]))
     n += len(upsert(conn, "campaign_finance_donors", ["candidacy_id", "origin", "donor_kind", "donor_name", "donor_doc", "amount_cents", "source_key"], d_rows,
                     ["source_key"], returning=["id"]))
@@ -344,11 +455,12 @@ def run_finance(conn: psycopg.Connection, years: list[int], force: bool) -> None
             # sufixo = versão da classificação por origem (catálogo D11): o zip não mudou, mas as tabelas novas precisam ser preenchidas uma vez
             with run(conn, f"tse.contas.{year}", "tse", input_checksum=checksum(rec + des) + ":origem1", force=force) as r:
                 want = _known(conn, year)
-                fa = aggregate_finance(z, rec, des, want, log_prefix=f"tse contas {year}")
+                fa = aggregate_finance(z, rec, des, want, log_prefix=f"tse contas {year}", year=year)
+                _note_sem_ue(r, year, set(fa.raised), "receita")
                 raised, spent, by_cat = fa.raised, fa.spent, fa.by_cat
                 log.info("tse contas %d: %d candidaturas com receita, %d com despesa paga", year, len(raised), len(spent))
-                r.add(_apply(conn, year, "raised_cents", raised, by_round=False))
-                r.add(_apply(conn, year, "spent_cents", spent, by_round=False))
+                r.add(_apply(conn, year, "raised_cents", raised, by_round=False, r=r))
+                r.add(_apply(conn, year, "spent_cents", spent, by_round=False, r=r))
                 r.add(_finance_entries(conn, year, by_cat))
                 r.add(_origin_entries(conn, year, fa, r))
         except SkipUnchanged:
