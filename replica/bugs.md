@@ -132,7 +132,9 @@ Expected: nenhum erro de console.
 Actual: em 2 das 7 rodadas, `pageerror: Minified React error #418` numa carga do crachá; 4 cargas isoladas seguidas não reproduzem.
 Evidence: `.local/e2e-run7.log` (F03-H1, F03-E4 flaky).
 Suspected cause: diferença entre servidor e cliente em algo dependente de tempo ou de ambiente no crachá (formatação de data/moeda entre Node e Chromium, ou interação do teste antes da hidratação). Não isolado.
-Status: open. Próximo passo: rodar o build de teste sem minificação (`next build` com `productionBrowserSourceMaps`) para ler o diff da hidratação; ou gravar `trace: on` e comparar o HTML do servidor com o da primeira renderização.
+Cause (12/11/2026): o Next 15.5.28 vendoriza react-dom 19.2.0-canary-0bdb9206-20250818, que perde o cursor de hidratação quando um elemento HTML suspende durante a hidratação e é reexecutado (compatível com facebook/react#35494, corrigido no React 19.3.0; sem a correção no vendorizado). O perfil é longo (~330 KB); quando a hidratação começa antes do fim do HTML (JS em cache, HTML lento), dá #418, o React recria o documento e o `data-theme` some.
+Evidência: build de produção, JS em cache, HTML a 200 KB/s, n=100: 29 #418 na main b095ba9; 0 com a correção; interatividade mediana 416 × 419 ms.
+Status: fixed no perfil (PR #30, merge 150ac3b). `AguardaDocumento` (`app/p/[slug]/aguarda-documento.tsx`) faz a raiz hidratar só depois do `DOMContentLoaded`; o HTML do servidor fica na tela, e header e seletor de tema também só respondem depois que o documento termina de chegar (trade-off aceito). E2E de regressão `e2e/bug008-hidratacao-rede-lenta.spec.ts` (30 cargas, sem retry; falha em 9 de 10 execuções sem a correção). Pendências: retirar o contorno quando o Next vendorizar React >= 19.3.0; outras páginas longas do v1 não receberam o contorno (`/representantes?cidade=` deu 0 em 230 cargas em build de produção; a observação antiga era do dev server); se o e2e novo ficar intermitente no CI, investigar, não ignorar.
 
 ### BUG-009: em toque, a lista de lugares ignora toques nos primeiros ~0,5 s
 
