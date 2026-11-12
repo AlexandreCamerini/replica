@@ -188,6 +188,32 @@ def test_estorno_e_valor_diferente_continuam_complemento():
     assert cota_api_extra([("7896551", 1189250)], [sigepa]) == [sigepa]
 
 
+def test_resultado_nao_depende_da_ordem_da_api():
+    # revisão A: a linha negada de outro valor não pode consumir a linha do arquivo antes da linha de valor próprio
+    negada = {"codDocumento": "D", "valorDocumento": 20000.0, "valorGlosa": 0.0, "valorLiquido": -11892.53}
+    propria = {"codDocumento": "D", "valorDocumento": 11892.53, "valorGlosa": 0.0, "valorLiquido": 11892.53}
+    arquivo = [("D", 1189250)]
+    assert cota_api_extra(arquivo, [negada, propria]) == [negada]
+    assert cota_api_extra(arquivo, [propria, negada]) == [negada]
+
+
+def test_documento_dividido_em_duas_linhas_na_api_casa_pela_soma():
+    # Lafayette de Andrada (98057) 01/2025, documento 7877201: arquivo 6805.82 / 528.49 / 5748.84 (D230: vale 6805.82);
+    # a API de 12/11/2026 traz duas linhas, -6277.33 (D200 -> +6277.33) e +528.49. Página 2025: 523.494,83.
+    api = [{"codDocumento": "7877201", "valorDocumento": 6805.82, "valorGlosa": 528.49, "valorLiquido": -6277.33},
+           {"codDocumento": "7877201", "valorDocumento": 6805.82, "valorGlosa": 528.49, "valorLiquido": 528.49}]
+    assert cota_api_amounts(api) == [627733, 52849]
+    assert cota_api_extra([("7877201", 680582)], api) == []
+    # soma diferente: as duas continuam complemento
+    assert cota_api_extra([("7877201", 680583)], api) == api
+
+
+def test_liquido_negado_sem_par_no_arquivo_continua_complemento():
+    so_api = {"codDocumento": "8099999", "valorDocumento": 2500.0, "valorGlosa": 0.0, "valorLiquido": -311.55}
+    assert cota_api_extra([("8022455", 31155)], [so_api]) == [so_api]
+    assert cota_api_extra([], [so_api]) == [so_api]
+
+
 def test_seis_digitos_tem_a_unidade_certa():
     assert cota_seis_digitos(1189253, 1189250)          # 11892.53 -> 11892.5
     assert cota_seis_digitos(1384835, 1384840)          # 13848.35 -> 13848.4 (meia unidade, inclusivo)

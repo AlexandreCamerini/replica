@@ -764,7 +764,9 @@ def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> li
     `valorLiquido` negado nas linhas fora do SIGEPA (11892.53 / -11892.53; a regra D200 de `cota_liquido` já desfaz o caso
     líquido = -documento, mas não a parcela, 2500 / 0 / -311.55 contra +311.55 no arquivo): o valor da API com documento
     positivo e líquido negativo casa com a linha do arquivo de valor oposto. Estorno de verdade (documento negativo) não
-    troca de sinal. Sem as duas passadas, a linha que o arquivo já tem entra de novo como complemento (cota em dobro)."""
+    troca de sinal. Sem as duas passadas, a linha que o arquivo já tem entra de novo como complemento (cota em dobro).
+    A passada (1) roda inteira antes da (2), para o resultado não depender da ordem da API; depois, (3) o documento que a
+    API divide em várias linhas casa pela soma."""
     left: dict[tuple[str, int], int] = defaultdict(int)
     for doc, amount in file_rows:
         left[(_cota_doc(doc), amount)] += 1
@@ -778,20 +780,39 @@ def cota_api_extra(file_rows: list[tuple[str, int]], api_rows: list[dict]) -> li
     by_doc: dict[str, list[int]] = defaultdict(list)
     for (doc, amount), n in left.items():
         by_doc[doc] += [amount] * n
-    extra = []
-    for x, amount in pending:
-        doc = _cota_doc(x.get("codDocumento"))
-        cands = by_doc.get(doc, [])
-        doc_value = cents(x.get("valorDocumento"))
-        targets = [amount]
-        if amount < 0 and doc_value is not None and doc_value > 0:
-            targets.append(-amount)  # (2) líquido negado pela API
-        hit = next((f for t in targets for f in cands if f == t or cota_seis_digitos(t, f)), None)
+    def take(t: int, cands: list[int]) -> bool:
+        hit = next((f for f in cands if f == t or cota_seis_digitos(t, f)), None)
         if hit is None:
-            extra.append(x)
-        else:
-            cands.remove(hit)
-    return extra
+            return False
+        cands.remove(hit)
+        return True
+
+    # 2a: todas as pendentes, só com o próprio valor (6 dígitos). Antes da negação, para a ordem da API não decidir quem casa.
+    rest = [(x, a) for x, a in pending if not take(a, by_doc.get(_cota_doc(x.get("codDocumento")), []))]
+    # 2b: o que sobrou, com o líquido negado pela API (documento > 0 e líquido < 0)
+    rest2 = []
+    for x, amount in rest:
+        doc_value = cents(x.get("valorDocumento"))
+        negado = amount < 0 and doc_value is not None and doc_value > 0
+        if not (negado and take(-amount, by_doc.get(_cota_doc(x.get("codDocumento")), []))):
+            rest2.append((x, amount))
+    # 3: documento que a API divide em outras linhas (D230 em duas: 98057/7877201, arquivo 6805.82/528.49/5748.84 vale o
+    # documento; a API traz -6277.33 e +528.49). Se a soma das pendentes da API no documento é a soma das linhas que sobraram
+    # do arquivo nele (exata ou pelos 6 dígitos), o documento está coberto. Documento vazio fica de fora.
+    by_api: dict[str, list[tuple[dict, int]]] = defaultdict(list)
+    for x, amount in rest2:
+        by_api[_cota_doc(x.get("codDocumento"))].append((x, amount))
+    extra = []
+    for doc, items in by_api.items():
+        cands = by_doc.get(doc, [])
+        if doc and cands:
+            s_api, s_file = sum(a for _, a in items), sum(cands)
+            if s_api == s_file or cota_seis_digitos(s_api, s_file):
+                cands.clear()
+                continue
+        extra += [x for x, _ in items]
+    order = {id(x): i for i, x in enumerate(api_rows)}
+    return sorted(extra, key=lambda x: order[id(x)])
 
 
 EXP_COLS = ["person_id", "body_id", "occurred_on", "category", "supplier_name", "supplier_doc", "amount_cents", "currency", "receipt_url", "source_key"]
