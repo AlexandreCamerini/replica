@@ -762,7 +762,7 @@ export const pgSource: DataSource = {
     if (!ids.length) return {};
     const rows = await sql`
       select person_id, category as label, sum(amount_cents)::bigint as cents from expenses
-      where person_id = any(${ids}::uuid[]) and extract(year from occurred_on) = ${year}
+      where person_id = any(${ids}::uuid[]) and occurred_on >= make_date(${year}, 1, 1) and occurred_on < make_date(${year + 1}, 1, 1)
       group by 1, 2 order by 1, 3 desc`;
     return porPessoa(ids, rows, (r) => ({ label: String(r.label), cents: Number(r.cents) }));
   },
