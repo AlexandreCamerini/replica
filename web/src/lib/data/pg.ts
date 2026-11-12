@@ -1237,16 +1237,21 @@ export const pgSource: DataSource = {
     if (!r) return null;
     // uf = a do mandato da pessoa NESTA casa que COBRE a data da votação (placar por UF). Sem esse mandato: null ("sem
     // estado identificado"), nunca a UF de um mandato que não cobre a data nem a de outro cargo.
+    // "Nesta casa" = body_id da casa ou, com body_id nulo (lacuna do ETL: no banco local, os mandatos federais de 2015 e
+    // 2019 vieram sem body_id), o cargo da casa (deputado federal = Câmara, senador = Senado). Conferido no banco local: em
+    // nenhum voto as duas regras dão UFs diferentes. O mandato com body_id tem preferência.
     // uf_atual = a do mandato mais recente de qualquer cargo (sigla de identificação do v1, como na main); não vai ao placar.
+    const cargoDaCasa = r.body === "senado" ? "senador" : "deputado_federal";
     const votes = await sql`
       select p.slug, p.display_name, coalesce(pa.acronym, '—') as party, pl.uf, ua.uf as uf_atual, v.value
       from votes v join people p on p.id = v.person_id
       left join parties pa on pa.id = v.party_id
       left join lateral (
         select pl.uf from mandates m join places pl on pl.id = m.place_id
-        where m.person_id = p.id and m.body_id = ${r.body_id as string}::uuid
+        where m.person_id = p.id
+          and (m.body_id = ${r.body_id as string}::uuid or (m.body_id is null and m.office_id = (select id from offices where slug = ${cargoDaCasa})))
           and m.started_on <= ${r.occurred_on as string}::date and (m.ends_on is null or m.ends_on > ${r.occurred_on as string}::date)
-        order by m.started_on desc limit 1) pl on true
+        order by (m.body_id is not null) desc, m.started_on desc limit 1) pl on true
       left join lateral (
         select pl2.uf from mandates m2 join places pl2 on pl2.id = m2.place_id where m2.person_id = p.id order by m2.started_on desc limit 1) ua on true
       where v.voting_event_id = ${id}::uuid

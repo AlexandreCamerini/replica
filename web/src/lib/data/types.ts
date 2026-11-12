@@ -280,7 +280,8 @@ export type VotingEventDetail = VotingEventSummary & {
   byParty: { party: string; counts: Partial<Record<VoteValue, number>>; total: number }[];
   /**
    * `uf`: UF do mandato da pessoa NESTA casa que COBRE a data da votação (null = sem esse mandato carregado; nunca a UF de
-   * outro mandato ou cargo). É a UF do placar por UF.
+   * outro mandato ou cargo). "Nesta casa" = body_id da casa, ou o cargo da casa quando o body_id veio nulo do ETL. É a UF
+   * do placar por UF.
    * `ufAtual`: UF do mandato mais recente da pessoa, de qualquer cargo (a sigla de identificação da lista do v1). Não é a
    * UF na data e não entra no placar.
    */

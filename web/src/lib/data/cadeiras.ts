@@ -36,12 +36,14 @@ export const PORUF_MOTIVO = {
 /** Por que um registro fica sem UF no placar: a UF só vale se o mandato da pessoa nesta casa cobre a data da votação. */
 export const MOTIVO_SEM_UF = "sem mandato desta casa carregado para a data da votação";
 /**
- * Acima desta fração de registros sem UF, o placar por UF não sustenta leitura (ex.: votações de 2019–2022 com a 56ª
- * legislatura não carregada): vira lacuna nomeada inteira, nunca um placar quase vazio.
+ * Acima desta fração de registros sem UF, o placar por UF não sustenta leitura (mandatos da legislatura da votação fora do
+ * banco): vira lacuna nomeada inteira, nunca um placar quase vazio.
  */
 export const LIMITE_SEM_UF = 0.1;
+// Não diz "legislatura não carregada": no banco local, o resíduo é sobretudo de suplentes cujo período de exercício na data
+// não foi carregado (o mandato carregado começa depois da votação), não de uma legislatura inteira.
 export const motivoSemMandatos = (semUf: number, total: number) =>
-  `Não temos os mandatos dessa legislatura carregados: ${semUf} de ${total} registros desta votação ficariam sem estado identificado, então não há placar por estado.`;
+  `Não temos carregado o mandato nesta casa, na data da votação, de ${semUf} dos ${total} registros (mais de um em cada dez), então não há placar por estado.`;
 
 const zero = (): Record<VoteValue, number> => ({ sim: 0, nao: 0, abstencao: 0, obstrucao: 0, art17: 0, nao_votou: 0 });
 

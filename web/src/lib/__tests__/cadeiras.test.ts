@@ -66,7 +66,7 @@ test("C2: acima de LIMITE_SEM_UF registros sem UF na data, o placar por UF vira 
   const votos = [...Array.from({ length: 17 }, () => ({ uf: "SP", value: "sim" as VoteValue })), ...Array.from({ length: 3 }, () => ({ uf: null, value: "nao" as VoteValue }))];
   const p = placarPorUf({ body: "camara" }, votos);
   assert.deepEqual(p, { kind: "lacuna", motivo: motivoSemMandatos(3, 20), semMandatos: true });
-  assert.match(motivoSemMandatos(3, 20), /Não temos os mandatos dessa legislatura carregados/);
+  assert.match(motivoSemMandatos(3, 20), /^Não temos carregado o mandato nesta casa, na data da votação, de 3 dos 20 registros/);
   // todos sem UF (ex.: votação de 2021 com a 56ª legislatura fora do banco)
   const todos = placarPorUf({ body: "camara" }, Array.from({ length: 291 }, () => ({ uf: null, value: "sim" as VoteValue })));
   assert.equal(todos.kind === "lacuna" && todos.semMandatos, true);
