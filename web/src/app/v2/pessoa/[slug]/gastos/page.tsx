@@ -75,6 +75,8 @@ export default async function GastosPessoa({ params, searchParams }: Props) {
   const mes = soMes(itens.map((e) => e.occurredOn));
   const forma = ctx.main ? ESFERA[ctx.main.office] : null;
   const base = `/v2/pessoa/${ctx.person.slug}/gastos`;
+  // nota sem carimbo da casa do mandato (fora da esfera federal e cobertura não lida): a origem não é afirmada
+  const semOrigem = temDado && !sGastos && ctx.cob("gastos")?.estado !== "lido";
 
   return (
     <div className="sv-pg sv-pg--pessoa">
@@ -168,6 +170,7 @@ export default async function GastosPessoa({ params, searchParams }: Props) {
                   ordem="da mais recente para a mais antiga"
                 />
                 {mes && <Nota>A fonte lança cada gasto no primeiro dia do mês: só o mês é informado.</Nota>}
+                {semOrigem && <Nota>Estas notas estão ligadas a esta pessoa, mas a leitura não registra de que casa vieram: podem ser de outro mandato.</Nota>}
                 <Nota>Fornecedor como a fonte publica. O link leva ao documento oficial quando a fonte o publica.</Nota>
               </>
             ) : (

@@ -34,7 +34,7 @@ import {
   vmPatrimonio,
 } from "@/components/sv/pessoa/secoes";
 import { ESFERA } from "@/components/sv/pessoa/cargos";
-import { EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO } from "@/components/sv/pessoa/contexto";
+import { EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO, SEM_ORIGEM } from "@/components/sv/pessoa/contexto";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
 
@@ -309,7 +309,14 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
       </Linha>
 
       {/* 2 */}
-      <Linha id="p2" numero={2} dom ancora="gastos" pergunta="Quanto gastou o gabinete?" fonte={Fc("gastos", rotGastos, sGastos, !!vmG)}>
+      <Linha
+        id="p2"
+        numero={2}
+        dom
+        ancora="gastos"
+        pergunta="Quanto gastou o gabinete?"
+        fonte={vmG && !sGastos && cob("gastos") && cob("gastos")?.estado !== "lido" ? `Fonte: ${SEM_ORIGEM(rotGastos)}.` : Fc("gastos", rotGastos, sGastos, !!vmG)}
+      >
         {vmG ? (
           <>
             <div className="sv-bloco">

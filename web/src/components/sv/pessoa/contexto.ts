@@ -13,6 +13,9 @@ export const EXECUTIVO = new Set<OfficeSlug>(["presidente", "vice_presidente", "
 export const MOTIVO_PLENARIO = "Este cargo não vota em sessões de plenário.";
 export const MOTIVO_COTA = "A cota de gabinete é verba de casa legislativa. Este cargo não a recebe.";
 
+/** Dado presente sem carimbo de leitura: a origem não é afirmada. */
+export const SEM_ORIGEM = (rotulo: string) => `${rotulo}, sem registro de qual casa publicou nem da data da leitura`;
+
 export const carregarPessoa = cache((slug: string) => (SLUG.test(slug) ? data.getPerson(slug) : Promise.resolve(null)));
 
 type Mandatos = Awaited<ReturnType<typeof data.getMandates>>;
@@ -57,9 +60,13 @@ export async function contextoPessoa(person: ContextoPessoa["person"]): Promise<
   const partido = main ? (main.party.name && main.party.name !== main.party.acronym ? `${main.party.acronym} (${main.party.name})` : main.party.acronym) : null;
   const cargoLinha = main ? [main.officeName, ufSigla ?? main.placeLabel, partido].filter(Boolean).join(" · ") : null;
   const stampDe = (ds: string | null): Promise<Stamp | null> => (ds ? data.getStamp(ds).catch(() => null) : Promise.resolve(null));
+  // Com dado e sem carimbo, a casa do mandato atual NÃO é citada: a linha pode ser de outro mandato (ex.: notas da cota
+  // da Câmara de quem hoje é vereador). Diz que a leitura não registra a origem.
   const fonteConjunto = (c: ConjuntoPessoa, rotulo: string, s: Stamp | null, temDado: boolean) => {
     const f = fonteDoConjunto(cob(c), s, temDado);
-    return f.tipo === "lacuna" ? `Fonte: ${f.nome}, ${rotulo}.` : `Fonte: ${fonteTexto(rotulo, f.s, temDado ? casa : null)}.`;
+    if (f.tipo === "lacuna") return `Fonte: ${f.nome}, ${rotulo}.`;
+    if (!f.s && temDado) return `Fonte: ${SEM_ORIGEM(rotulo)}.`;
+    return `Fonte: ${fonteTexto(rotulo, f.s, null)}.`;
   };
   return {
     person,
