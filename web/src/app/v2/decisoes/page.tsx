@@ -66,7 +66,14 @@ async function Pauta({ falhar, camaraNaoLida }: { falhar: boolean; camaraNaoLida
   const soSenado = !o.reads.camara.readAt && !!o.reads.senado.readAt;
   const falhas = o.reads.camara.failed + o.reads.senado.failed;
   const reunioes = o.reads.camara.total + o.reads.senado.total;
-  const prova = `Fonte: ${FONTE_PAUTA}${readAt ? `, lida em ${fmtDateTime(readAt)}` : ", ainda não lida"}.`;
+  // prova e selo dizem a MESMA data: com as duas Casas lidas, a mais antiga; com uma só, a prova nomeia a Casa e o selo fica sem data
+  const umaCasa = soCamara || soSenado;
+  const dataLeitura = lidaMaisAntiga ?? readAt;
+  const prova = !dataLeitura
+    ? `Fonte: ${FONTE_PAUTA}, ainda não lida.`
+    : umaCasa
+      ? `Fonte: ${FONTE_PAUTA}; só a pauta ${soCamara ? "da Câmara dos Deputados" : "do Senado Federal"} foi lida, em ${fmtDateTime(dataLeitura)}.`
+      : `Fonte: ${FONTE_PAUTA}, lida em ${fmtDateTime(dataLeitura)}.`;
   const plenario = [...o.plenary].sort(byDate);
   const comissoes = [...o.committees].sort(byDate);
   // weekEnds é exclusivo: o último dia é o anterior. Semana ausente ("" no pg): null, e a tela omite o "até …"
@@ -146,7 +153,7 @@ async function Pauta({ falhar, camaraNaoLida }: { falhar: boolean; camaraNaoLida
         </Quadro>
       )}
 
-      <Selo id="dc-selo" numero={n++} lidoEm={lidaMaisAntiga} className="sv-c7" />
+      <Selo id="dc-selo" numero={n++} lidoEm={umaCasa ? null : dataLeitura} className="sv-c7" />
     </>
   );
 }

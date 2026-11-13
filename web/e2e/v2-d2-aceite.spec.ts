@@ -1345,12 +1345,16 @@ test.describe("estados das sete telas", () => {
     await expect(respondida.first()).not.toContainText("Aguardando conferência");
   });
 
-  test("Decisões: com só uma Casa lida, a tela diz qual não foi lida e o selo usa a leitura mais antiga", async ({ page }) => {
+  test("Decisões: com só uma Casa lida, a prova nomeia a Casa e o selo fica sem data; com as duas, prova e selo dizem a mesma data", async ({ page }) => {
     await abrir(page, "/v2/decisoes?simular=camara_nao_lida");
     await expect(page.locator('[aria-labelledby="dc-1"]')).toContainText("A pauta da Câmara dos Deputados ainda não foi lida.");
+    await expect(page.locator('[aria-labelledby="dc-1"]')).toContainText(/só a pauta do Senado Federal foi lida, em \d{2}\/\d{2}\/\d{4}/);
+    await expect(page.locator('[aria-labelledby="dc-selo"]')).not.toContainText("Leitura das fontes");
     await abrir(page, "/v2/decisoes");
     await expect(page.locator('[aria-labelledby="dc-1"]')).not.toContainText(/ainda não foi lida/);
-    await expect(page.locator('[aria-labelledby="dc-selo"]')).toContainText(/Leitura das fontes: \d{2}\/\d{2}\/\d{4}/);
+    const selo = /Leitura das fontes: (\d{2}\/\d{2}\/\d{4}[^.]*)\./.exec(await page.locator('[aria-labelledby="dc-selo"]').innerText());
+    expect(selo, "selo com data").not.toBeNull();
+    await expect(page.locator('[aria-labelledby="dc-1"]')).toContainText(`lida em ${selo![1]}`);
   });
 
   test("Pessoas: página truncada dita; Tema diz a janela de leitura", async ({ page }) => {
