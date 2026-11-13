@@ -14,6 +14,13 @@ const KEY_RESPONDIDA = "camara-pl-9999-2026";
 
 /** `status`: o esperado da resposta (padrão 200). Só o 404 do /v2 muda. */
 type Rota = { nome: string; url: string; status?: number };
+// Rotas da Pessoa (gastos, equipe, votos): bloco da PR "gastos, equipe e votos da Pessoa no /v2". Entram em todas as baterias.
+const ROTAS_PESSOA_SUB: Rota[] = [
+  { nome: "pessoa-gastos", url: "/v2/pessoa/helena-siqueira/gastos" },
+  { nome: "pessoa-gastos-vereador", url: "/v2/pessoa/alvaro-coutinho-sp/gastos" },
+  { nome: "pessoa-equipe", url: "/v2/pessoa/helena-siqueira/equipe" },
+  { nome: "pessoa-votos", url: "/v2/pessoa/helena-siqueira/votos" },
+];
 const ROTAS: Rota[] = [
   { nome: "inicio", url: "/v2" },
   { nome: "acompanhando", url: "/v2/acompanhando" },
@@ -26,6 +33,7 @@ const ROTAS: Rota[] = [
   { nome: "decisao-sem-resposta", url: `/v2/decisao/${KEY_SEM_RESPOSTA}` },
   { nome: "decisao-respondida", url: `/v2/decisao/${KEY_RESPONDIDA}` },
   { nome: "pessoa", url: "/v2/pessoa/helena-siqueira" },
+  ...ROTAS_PESSOA_SUB,
   { nome: "tema", url: "/v2/tema/agro" },
   { nome: "votacao", url: "/v2/votacao/camara-v2026-15" },
   { nome: "votacao-uf", url: "/v2/votacao/camara-v2026-15?uf=SP" },
@@ -473,7 +481,7 @@ const GEOMETRIA = new Set(["width", "height", "inline-size", "block-size", "pers
 type Snap = { chave: string; props: Record<string, string> }[];
 
 test.describe("neutralidade", () => {
-  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro"].includes(r.nome));
+  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r));
   for (const r of ROTAS_PESSOAS) {
     test(`trocar nomes e siglas: 0 diferenças de estilo, pseudo-elementos e ordem: ${r.nome} [leitor]`, async ({ page, context }, info) => {
       await cookiesDoLeitor(context, "leitor");
@@ -554,7 +562,7 @@ test.describe("neutralidade", () => {
       );
       nota(info, "trocas", JSON.stringify({ nomes: trocados.nomes, partidos: trocados.partidos, encontrados: trocados.nomesEncontrados.slice(0, 6) }));
       // o teste só vale se houve o que trocar (rotas com pessoa)
-      if (["acompanhando", "pessoa", "pessoas", "votacao-uf", "pessoas-grupo", "pessoas-filtro"].includes(r.nome)) expect(trocados.nomes, "sem nome para trocar: o teste não provaria nada").toBeGreaterThan(0);
+      if (["acompanhando", "pessoa", "pessoas", "votacao-uf", "pessoas-grupo", "pessoas-filtro"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r)) expect(trocados.nomes, "sem nome para trocar: o teste não provaria nada").toBeGreaterThan(0);
 
       const depois = await snapshot();
       const dif: string[] = [];
@@ -1376,5 +1384,139 @@ test.describe("estados das sete telas", () => {
     await expect(page).toHaveURL(/\/v2\/votacoes$/);
     // regra que só existe em sv-votacoes.css (importado pela página, não pelo layout)
     await expect(page.locator(".sv-pg--vts > .sv-abas")).toHaveCSS("margin-top", "2px");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Rotas da Pessoa: gastos, equipe e votos (bloco próprio da PR "gastos, equipe e votos da Pessoa no /v2")
+// ---------------------------------------------------------------------------------------------------------------------
+const dataBR = (t: string) => {
+  const m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(t);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+};
+
+test.describe("rotas da Pessoa", () => {
+  test("nenhum link do /v2 da Pessoa vai para o perfil v1 (/p/)", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    for (const url of ["/v2/pessoa/helena-siqueira", "/v2/pessoa/alvaro-aguiar-sp", "/v2/pessoa/alvaro-coutinho-sp", ...ROTAS_PESSOA_SUB.map((r) => r.url)]) {
+      await abrir(page, url);
+      const v1 = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]")).filter((a) => new URL(a.href, location.href).pathname.startsWith("/p/")).map((a) => a.getAttribute("href")));
+      expect(v1, url).toEqual([]);
+    }
+    // os três links da Pessoa levam às rotas novas
+    await abrir(page, "/v2/pessoa/helena-siqueira");
+    await expect(page.getByRole("link", { name: "Ver nota por nota" })).toHaveAttribute("href", "/v2/pessoa/helena-siqueira/gastos");
+    await expect(page.getByRole("link", { name: "Ver todos os votos" })).toHaveAttribute("href", "/v2/pessoa/helena-siqueira/votos");
+  });
+
+  test("gastos: notas da mais recente para a mais antiga, categorias A–Z, nunca por valor", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/helena-siqueira/gastos");
+    const datas = (await page.locator(".sv-notas .sv-notas__d").allInnerTexts()).map(dataBR);
+    expect(datas.length).toBeGreaterThan(5);
+    expect(datas.every(Boolean), "toda nota tem data").toBe(true);
+    expect(datas, "ordem cronológica, mais recente primeiro").toEqual([...datas].sort().reverse());
+    const opcoes = (await page.locator("#g-cat option").allInnerTexts()).slice(1);
+    expect(opcoes.length).toBeGreaterThan(1);
+    expect(opcoes, "categorias do filtro em ordem alfabética").toEqual([...opcoes].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    const linhas = await page.locator("table.sv-g tbody th").allInnerTexts();
+    expect(linhas, "tabela por categoria em ordem alfabética").toEqual([...linhas].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    await expect(page.locator(".sv-main")).toContainText(/Fonte: .*lida em \d{2}\/\d{2}\/\d{4}/);
+    await expect(page.locator(".sv-main")).toContainText(/(Mostrando 1 a 50 de \d+|\d+) notas, da mais recente para a mais antiga\./);
+  });
+
+  test("gastos: filtro por ano e categoria e paginação funcionam sem JavaScript", async ({ browser }, info) => {
+    const context = await semJs(browser, info, "anon");
+    const page = await context.newPage();
+    await page.goto("/v2/pessoa/helena-siqueira/gastos?ano=2024"); // ano da demo com mais de 50 notas
+    await expect(page.locator(".sv-main")).toContainText(/Mostrando 1 a 50 de \d+ notas/);
+    const ultimaP1 = dataBR(await page.locator(".sv-notas .sv-notas__d").last().innerText());
+    await page.getByRole("link", { name: /Próxima página/ }).click();
+    await page.waitForURL(/pagina=2/);
+    const primeiraP2 = dataBR(await page.locator(".sv-notas .sv-notas__d").first().innerText());
+    expect(primeiraP2! <= ultimaP1!, "a página 2 continua a ordem").toBe(true);
+    // filtro: ano anterior e uma categoria
+    const anos = await page.locator("#g-ano option").allInnerTexts();
+    const cat = (await page.locator("#g-cat option").allInnerTexts())[1];
+    await page.locator("#g-ano").selectOption(anos[1]);
+    await page.locator("#g-cat").selectOption(cat);
+    await page.getByRole("button", { name: "Filtrar" }).click();
+    await page.waitForURL(/categoria=/);
+    const notas = await page.locator(".sv-notas .sv-notas__d").allInnerTexts();
+    expect(notas.length).toBeGreaterThan(0);
+    for (const n of notas) expect(n).toContain(`/${anos[1]} · ${cat}`);
+    await context.close();
+  });
+
+  test("gastos: vereador sem cota lida tem lacuna nomeada, nunca zero; parâmetros inválidos caem no padrão", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/alvaro-coutinho-sp/gastos");
+    await expect(page.locator(".sv-main .sv-lac").first()).toBeVisible();
+    await expect(page.locator(".sv-notas")).toHaveCount(0);
+    await expect(page.locator(".sv-main")).not.toContainText(/R\$\s*0(,00)?(?![\d,.])/);
+    const res = await page.goto("/v2/pessoa/helena-siqueira/gastos?ano=abc&categoria=%3Cscript%3E&pagina=-1");
+    expect(res?.status()).toBe(200);
+    await expect(page.locator(".sv-notas li").first()).toBeVisible();
+    // página acima do teto de 4 dígitos cai na primeira (o offset gigante não chega ao banco)
+    for (const url of ["/v2/pessoa/helena-siqueira/gastos?ano=2024&pagina=99999", "/v2/pessoa/helena-siqueira/votos?pagina=99999"]) {
+      const r = await page.goto(url);
+      expect(r?.status(), url).toBe(200);
+      await expect(page.locator(".sv-main"), url).toContainText(/Mostrando 1 a 50 de \d+/);
+    }
+  });
+
+  test("equipe: só agregado, sem nome de assessor, e lacuna nomeada quando não lida", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/helena-siqueira/equipe");
+    await expect(page.locator(".sv-main")).toContainText("nunca o nome de cada um");
+    await expect(page.locator(".sv-main .sv-lac[data-cobertura]").first()).toBeVisible();
+    await expect(page.locator(".sv-main")).not.toContainText(/R\$\s*0(,00)?(?![\d,.])/);
+    await abrir(page, "/v2/pessoa/helena-siqueira");
+    await expect(page.locator(".sv-main")).not.toContainText("Ver nomes e salários");
+  });
+
+  test("votos: só o que muda lei por padrão, tudo sem JavaScript, voto em forma e palavra, link para a votação no /v2", async ({ browser }, info) => {
+    const context = await semJs(browser, info, "anon");
+    const page = await context.newPage();
+    await page.goto("/v2/pessoa/helena-siqueira/votos");
+    await expect(page.getByRole("link", { name: "Só o que muda lei" })).toHaveAttribute("aria-current", "page");
+    await expect(page.locator(".sv-main")).toContainText(/votaç(ão|ões) de procedimento (está|estão) escondidas?/);
+    const itens = page.locator(".sv-votos > li");
+    expect(await itens.count()).toBe(50);
+    for (const li of (await itens.all()).slice(0, 10)) {
+      await expect(li.locator(".sv-voto .sv-m")).toHaveCount(1);
+      await expect(li.locator(".sv-voto")).toHaveText(/^(Sim|Não|Abstenção|Sem voto|Obstrução|Presidia)$/);
+      await expect(li.locator('a[href^="/v2/votacao/"]')).toHaveCount(1);
+    }
+    const datas = (await page.locator(".sv-votos .sv-votos__q").allInnerTexts()).map(dataBR);
+    expect(datas, "mais recente primeiro").toEqual([...datas].sort().reverse());
+    const leiTotal = Number(/de (\d+) votos/.exec(await page.locator(".sv-main").innerText())![1]);
+    await page.getByRole("link", { name: "Tudo", exact: true }).click();
+    await page.waitForURL(/tipo=tudo/);
+    await expect(page.getByRole("link", { name: "Tudo", exact: true })).toHaveAttribute("aria-current", "page");
+    const tudoTotal = Number(/de (\d+) votos/.exec(await page.locator(".sv-main").innerText())![1]);
+    expect(tudoTotal, "tudo inclui o procedimento").toBeGreaterThan(leiTotal);
+    await expect(page.locator(".sv-votos")).toContainText("votação de procedimento");
+    await context.close();
+  });
+
+  test("votos: cargo do Executivo é lacuna nomeada, não lista vazia", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/carlos-machado-sp/votos");
+    await expect(page.locator('.sv-main .sv-lac[data-cobertura="nao_se_aplica"]')).toBeVisible();
+    await expect(page.locator(".sv-votos")).toHaveCount(0);
+  });
+
+  test("Pessoa: resumo do ano em frases (sem média) e trajetória em ordem cronológica", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/alvaro-aguiar-sp");
+    const ano = page.locator("section#ano");
+    await expect(ano.getByRole("heading", { name: /^Como foi \d{4}\?$/ })).toBeVisible();
+    await expect(ano).toContainText(/Esteve em \d+ das \d+ sessões de votação de \d{4}\./);
+    await expect(ano).not.toContainText(/média dos|ranking|acima da|abaixo da/i);
+    await abrir(page, "/v2/pessoa/alvaro-coutinho-sp");
+    // conjunto não lido: lacuna nomeada com o rótulo do conjunto, nunca zero
+    await expect(page.locator("section#ano")).toContainText(/Presença em \d{4}: /);
+    const traj = page.locator("section#trajetoria .sv-trj > li");
+    expect(await traj.count()).toBeGreaterThan(1);
+    const anos = (await page.locator("section#trajetoria .sv-trj__a").allInnerTexts()).map(Number);
+    expect(anos, "ordem cronológica").toEqual([...anos].sort((a, b) => a - b));
+    await expect(page.locator("section#trajetoria")).toContainText(/Candidatura a .*: eleit[oa]\./);
+    await expect(page.locator("section#trajetoria")).not.toContainText(/trocou|infiel|traidor|vira-casaca/i);
   });
 });

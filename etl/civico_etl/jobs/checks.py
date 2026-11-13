@@ -10,6 +10,7 @@ import logging
 
 import psycopg
 
+from .. import schedule  # BUG-055: a régua do carimbo vem da cadência de cada tarefa
 from .checks_identity import run_identity_checks  # BUG-032 (D212)
 from .derive_stats import party_obs_tiebreak  # D201: mesmo desempate do PARTY_SQL
 
@@ -129,6 +130,21 @@ COTA_REFERENCIA: dict[tuple[str, int], int] = {
     # Enio Verri 2020 (132504) fica fora: a página dá 423.942,17 e a linha 6550/4431.33/-1762.66 não tem regra que a
     # explique (D230); o banco mantém o valor da fonte, 416.179,51.
 }
+def stamp_regua_h(tasks=None) -> dict[str, int]:
+    """BUG-055: prefixo de dataset -> horas até o carimbo vencer, para as tarefas com cadência maior que 48 h (cadência +
+    STAMP_FOLGA_H). Só prefixos fixos (as famílias por ano do TSE têm a régua própria de 60 dias). O resto fica em 48 h."""
+    out: dict[str, int] = {}
+    for t in schedule.TASKS if tasks is None else tasks:
+        if t.every_h > STAMP_DIARIO_H and not callable(t.prefixes):
+            for p in t.prefixes:
+                out[p] = max(out.get(p, 0), t.every_h + STAMP_FOLGA_H)
+    return out
+
+
+STAMP_DIARIO_H = 48  # régua das famílias diárias (votações, deputados, presença, despesas): não muda
+STAMP_FOLGA_H = 48  # folga sobre a cadência da tarefa: uma falha, a nova tentativa (retry de 24 h) e a próxima chamada
+_STAMP_REGUA_VALUES = ", ".join(f"('{p}', {h})" for p, h in sorted(stamp_regua_h().items())) or "(null, null)"
+
 _COTA_VALUES = ", ".join(f"('{d}', {y}, {c})" for (d, y), c in sorted(COTA_REFERENCIA.items())) or "(null, null, null)"
 
 _PREFEITOS_POR_MUNICIPIO = f"""
@@ -442,15 +458,19 @@ CHECKS: list[tuple[str, str]] = [
         # D291: por família de dataset (sufixo de ano, mês ou período tirado). Ano/mês passado não é relido por desenho
         # (camara.votacoes.2019, agenda.senado.202501); cada um sozinho dava "vencido" para sempre (73 em 09/11/2026).
         # A família vence quando nem o carimbo mais novo dela está no prazo.
+        # BUG-055: família de tarefa com cadência maior que 48 h (camara.equipe e parlamento.extras, semanais) vence na
+        # cadência da própria tarefa + STAMP_FOLGA_H, tirada de schedule.TASKS (fonte única). As diárias seguem em 48 h.
         "stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias (carimbo mais novo de cada família de dataset)",
-        """select count(*) from (
-             select s.slug, regexp_replace(ds.dataset, '\\.[0-9]{4,8}(-[0-9]{8})?$', '') as familia, max(ds.refreshed_at) as ultimo
+        f"""select count(*) from (
+             select s.slug, regexp_replace(ds.dataset, '\\.[0-9]{{4,8}}(-[0-9]{{8}})?$', '') as familia, max(ds.refreshed_at) as ultimo
                from dataset_stamps ds join sources s on s.id = ds.source_id
               where s.slug in ('camara', 'senado', 'tse')
                 and ds.dataset not like '%.noturna%'  -- 2ª leitura só ter–sáb (D06): segunda de manhã já passa de 48 h
                 and ds.dataset not like 'tse.fix%'    -- reparos pontuais, não são carga periódica
               group by 1, 2) f
-           where (f.slug in ('camara','senado') and f.ultimo < now() - interval '48 hours')
+           where (f.slug in ('camara','senado') and f.ultimo < now() - make_interval(hours => coalesce(
+                    (select max(r.horas) from (values {_STAMP_REGUA_VALUES}) r(prefixo, horas)
+                      where r.prefixo is not null and f.familia like r.prefixo || '%'), 48)))
               or (f.slug = 'tse' and f.ultimo < now() - interval '60 days')""",
     ),
     (

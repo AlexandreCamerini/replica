@@ -223,9 +223,11 @@ def run_tse(conn: psycopg.Connection, *, years: list[int], ufs: list[str] | None
 
 def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | None, bens_zip: Path | None, ufs: list[str] | None, only_elected: bool,
                *, cand_paths: list[Path] | None = None, bens_paths: list[Path] | None = None, only: set[tuple[str, str]] | None = None,
-               bug: str = "BUG-039") -> None:
+               bug: str = "BUG-039", owners: dict[tuple[str, str], str] | None = None) -> None:
     """Carga de um ano. `cand_paths`/`bens_paths`: CSVs já extraídos (reparos, sem rede). `only`: só as linhas (SG_UE, SQ)
-    pedidas, com todas as situações (reparos BUG-042/BUG-043, identity.fix041). `bug`: rótulo do registro substituído no log."""
+    pedidas, com todas as situações (reparos BUG-042/BUG-043, identity.fix041). `bug`: rótulo do registro substituído no log.
+    `owners` (passo `historico` do identity.repairs, BUG-053): (SG_UE, SQ) -> pessoa esperada. A linha só entra se o resolve,
+    com todas as travas, casar nessa pessoa e não der o título como de outra; senão é rejeitada com nota. Nunca cria pessoa."""
     where = ""
     if only_elected and only is None:
         where = "where DS_SIT_TOT_TURNO in ('ELEITO','ELEITO POR QP','ELEITO POR MÉDIA') or (NR_TURNO = '1' and DS_SIT_TOT_TURNO = '2º TURNO')"
@@ -345,8 +347,14 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | Non
         if m.why:
             r.notes.append(f"{civil} ({sq}): {m.why}")
         if m.method == "queued":
-            r.reject(1)
+            r.reject(1, f"histórico do título: {civil} ({sq}) foi para a fila de identidade" if owners is not None else None)
             continue
+        if owners is not None:
+            want = owners.get(((x["SG_UE"] or "").strip(), sq))
+            if m.title_foreign or m.person_id is None or m.person_id != want:
+                r.reject(1, f"histórico do título recusado: {civil} {birth} ({sq}) não casa na pessoa do título "
+                            f"({'título de outra pessoa' if m.title_foreign else m.method})")
+                continue
         if m.title_foreign:
             # BUG-041 (D240): o título é de outra pessoa do diretório; esta linha só entra como pessoa nova e sem o título
             titulo = None
