@@ -59,7 +59,7 @@ test.describe("F05–F08 a partir do crachá e telas provisórias", () => {
     await axe();
   });
 
-  test("stubs aposentados (D304) respondem 404 e ninguém aponta para eles", async ({ page, request }) => {
+  test("stubs aposentados (D304) respondem 404 e a capa não aponta para eles", async ({ page, request }) => {
     for (const path of ["/stf", "/mais-vistos"]) expect((await request.get(path)).status(), path).toBe(404);
     await page.goto("/");
     await expect(page.locator('a[href="/stf"], a[href="/mais-vistos"]')).toHaveCount(0);
@@ -67,7 +67,7 @@ test.describe("F05–F08 a partir do crachá e telas provisórias", () => {
 
   test("rodapé não promete revisão por pessoa: diz a regra de conferência e leva à explicação", async ({ page }) => {
     await page.goto("/");
-    const rodape = page.locator("footer").last();
+    const rodape = page.getByRole("contentinfo").filter({ hasText: "Segue o Voto" }).last();
     await expect(rodape).not.toContainText("aguardando revisão por pessoa");
     await expect(rodape).toContainText("só aparece depois de conferida com o texto oficial");
     await rodape.getByRole("link", { name: "Como conferimos" }).click();
