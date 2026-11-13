@@ -3,9 +3,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { clip, fmtDate, fmtInt } from "@/components/sv/fmt";
-import { fraseCobertura, SEM_DADO } from "@/components/sv/estados";
+import { ESTADO_COBERTURA, fraseCobertura, naoHaNaLeitura, SEM_DADO } from "@/components/sv/estados";
 import { Fonte, Lacuna, Pergunta, Resposta, VotoMarca } from "@/components/sv/ui";
-import { CAMPAIGN_ORIGINS, type Amendment, type CampaignFinance, type Candidacy, type CommitteeItem, type CoverageStatus, type PersonVote } from "@/lib/data";
+import { CAMPAIGN_ORIGINS, type Amendment, type CampaignFinance, type Candidacy, type CoberturaConjunto, type CommitteeItem, type CoverageStatus, type PersonVote } from "@/lib/data";
 import { brl, brlCurto, listaE, MESES } from "./format";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
@@ -30,6 +30,28 @@ export function Sem({ status, motivo }: { status?: CoverageStatus | null; motivo
   return (
     <div className="sv-bloco">
       <Lacuna motivo={motivo}>{(status && fraseCobertura(status)) || SEM_DADO}</Lacuna>
+    </div>
+  );
+}
+
+/**
+ * Lacuna pelo estado de cobertura da pessoa (getPeopleCoverage). `lido`: o conjunto foi lido e não há registro ("não há",
+ * com a data da leitura). Outro estado: a frase do estado e o motivo. Sem cobertura (a leitura dela falhou): cai em `Sem`
+ * com o status antigo, sem afirmar estado.
+ */
+export function SemCobertura({ cob, oQue, status, motivo }: { cob: CoberturaConjunto | null | undefined; oQue: string; status?: CoverageStatus | null; motivo?: ReactNode }) {
+  if (!cob) return <Sem status={status} motivo={motivo} />;
+  if (cob.estado === "lido")
+    return (
+      <div className="sv-bloco">
+        <Lacuna estado="lido">{naoHaNaLeitura(oQue, cob.lidoEm)}</Lacuna>
+      </div>
+    );
+  return (
+    <div className="sv-bloco">
+      <Lacuna estado={cob.estado} motivo={cob.motivo}>
+        {ESTADO_COBERTURA[cob.estado]}
+      </Lacuna>
     </div>
   );
 }
@@ -152,21 +174,30 @@ export function Declaracoes({ vm }: { vm: VmPatrimonio }) {
 
 /* ---------- 4. votos ---------- */
 
-export function ListaVotos({ itens }: { itens: PersonVote[] }) {
+const PROCEDIMENTO: Partial<Record<NonNullable<PersonVote["event"]["kind"]>, string>> = { requerimento: "requerimento", urgencia: "urgência" };
+
+/** `marcarProcedimento`: no recorte "tudo", diz em palavra quando a votação é de procedimento (D265). */
+export function ListaVotos({ itens, marcarProcedimento }: { itens: PersonVote[]; marcarProcedimento?: boolean }) {
   return (
     <ul className="sv-votos">
-      {itens.map((v) => (
-        <li key={v.event.id}>
-          <p className="sv-votos__v">
-            <VotoMarca voto={v.value} />
-          </p>
-          <p className="sv-t">
-            {v.value === "nao_votou" && <b>Não é voto contra. </b>}
-            <Link href={`/v2/votacao/${v.event.id}`}>{clip(v.event.description, 110)}</Link>
-          </p>
-          <p className="sv-votos__q">{fmtDate(v.event.occurredAt)}</p>
-        </li>
-      ))}
+      {itens.map((v) => {
+        const proc = marcarProcedimento && v.event.kind ? PROCEDIMENTO[v.event.kind] : undefined;
+        return (
+          <li key={v.event.id}>
+            <p className="sv-votos__v">
+              <VotoMarca voto={v.value} />
+            </p>
+            <p className="sv-t">
+              {v.value === "nao_votou" && <b>Não é voto contra. </b>}
+              <Link href={`/v2/votacao/${v.event.id}`}>{clip(v.event.description, 110)}</Link>
+            </p>
+            <p className="sv-votos__q">
+              {fmtDate(v.event.occurredAt)}
+              {proc ? ` · votação de procedimento (${proc})` : ""}
+            </p>
+          </li>
+        );
+      })}
     </ul>
   );
 }

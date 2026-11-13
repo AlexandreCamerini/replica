@@ -53,6 +53,31 @@
 .sv .sv-votos .sv-t a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
 .sv .sv-voltas li{padding:6px 0;border-top:1.5px solid var(--tinta);font-size:16px;line-height:1.45}
 
+/* rotas da Pessoa (gastos, equipe, votos): volta pelo nome, filtro sem JS, lista empilhada, paginação */
+.sv .sv-vt--sub{display:flex;flex-wrap:wrap;align-items:center;font-weight:700;font-size:15px}
+.sv .sv-filtro{max-width:32rem;padding-bottom:6px}
+.sv .sv-filtro .sv-sub{min-height:44px;display:flex;align-items:flex-end}
+.sv .sv-notas{border-bottom:1.5px solid var(--tinta)}
+.sv .sv-notas li{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:2px;padding:7px 0;border-top:1.5px solid var(--tinta)}
+.sv .sv-notas__d{grid-column:1 / -1;font-size:14px;line-height:1.4;font-weight:600;font-stretch:88%;color:var(--tinta2);overflow-wrap:anywhere}
+.sv .sv-notas__f{font-size:16px;line-height:1.4;overflow-wrap:anywhere;min-width:0}
+.sv .sv-notas__v{font-size:16px;line-height:1.4;font-weight:800;white-space:nowrap;text-align:right}
+.sv .sv-notas__v .sv-sm{white-space:normal}
+.sv .sv-notas__l{grid-column:1 / -1}
+.sv .sv-notas__l a{display:inline-flex;align-items:center;min-height:44px;min-width:44px;font-weight:700}
+.sv .sv-pag{align-items:center}
+.sv .sv-pag__n{font-size:14px;color:var(--tinta2);min-height:44px;display:flex;align-items:center}
+.sv .sv-escopo{display:flex;flex-wrap:wrap;gap:8px}
+.sv .sv-escopo a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:2px solid var(--tinta);font-weight:700;text-decoration:none}
+.sv .sv-escopo a[aria-current="page"]{background:var(--tinta);color:var(--papel)}
+.sv .sv-trj{border-top:3px solid var(--tinta);border-bottom:3px solid var(--tinta)}
+.sv .sv-trj li{display:grid;grid-template-columns:64px minmax(0,1fr);column-gap:10px;padding:6px 0;border-top:1.5px solid var(--tinta)}
+.sv .sv-trj li:first-child{border-top:0}
+.sv .sv-trj__a{font-size:16px;line-height:1.4;font-weight:800;white-space:nowrap}
+.sv .sv-trj__t{font-size:16px;line-height:1.4;overflow-wrap:anywhere}
+.sv .sv-ano li{padding:5px 0;border-top:1.5px solid var(--tinta);font-size:16px;line-height:1.45}
+.sv .sv-ano li:first-child{border-top:0}
+
 @media (min-width:900px){
   .sv .sv-pg--pessoa{grid-template-columns:minmax(0,1fr);gap:0}
   .sv .sv-cab{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:16px;border-top:3px solid var(--tinta);padding:10px 0 12px}

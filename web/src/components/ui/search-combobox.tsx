@@ -115,9 +115,19 @@ export function PlaceCombobox({
       <span aria-live="polite" className="sr-only">
         {status === "ready" ? `${items.length} resultado${items.length === 1 ? "" : "s"}` : ""}
       </span>
+      {/*
+        BUG-009: em toque, o Popover do React Aria só "revela" a lista depois que o teclado virtual termina de abrir
+        (Popover.mjs: runAfterKeyboard -> useEnterAnimation), até ~0,6 s. Nesse intervalo ele aplica no próprio elemento
+        opacity:0, clip, clip-path e mask-image, e o toque cai no conteúdo atrás. A posição já foi calculada
+        (data-placement presente) e o campo já está focado, então anulamos só esse ocultamento, com !important
+        (o estilo do React Aria é inline). Sem data-placement (posição ainda não calculada) a lista segue oculta.
+      */}
       <Popover
         offset={6}
-        className="z-50 w-(--trigger-width) overflow-auto rounded-md border border-border bg-surface p-1 shadow-pop"
+        className={clsx(
+          "z-50 w-(--trigger-width) overflow-auto rounded-md border border-border bg-surface p-1 shadow-pop",
+          "data-[placement]:opacity-100! data-[placement]:[clip:auto]! data-[placement]:[clip-path:none]! data-[placement]:[mask-image:none]!",
+        )}
       >
         <ListBox
           className="max-h-80 outline-none"

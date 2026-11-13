@@ -12,7 +12,15 @@ const SIGO = ["helena-siqueira", "alvaro-teixeira-sp", "bruno-sampaio"]; // Sena
 const KEY_SEM_RESPOSTA = "camara-pl-79-2020";
 const KEY_RESPONDIDA = "camara-pl-9999-2026";
 
-type Rota = { nome: string; url: string };
+/** `status`: o esperado da resposta (padrão 200). Só o 404 do /v2 muda. */
+type Rota = { nome: string; url: string; status?: number };
+// Rotas da Pessoa (gastos, equipe, votos): bloco da PR "gastos, equipe e votos da Pessoa no /v2". Entram em todas as baterias.
+const ROTAS_PESSOA_SUB: Rota[] = [
+  { nome: "pessoa-gastos", url: "/v2/pessoa/helena-siqueira/gastos" },
+  { nome: "pessoa-gastos-vereador", url: "/v2/pessoa/alvaro-coutinho-sp/gastos" },
+  { nome: "pessoa-equipe", url: "/v2/pessoa/helena-siqueira/equipe" },
+  { nome: "pessoa-votos", url: "/v2/pessoa/helena-siqueira/votos" },
+];
 const ROTAS: Rota[] = [
   { nome: "inicio", url: "/v2" },
   { nome: "acompanhando", url: "/v2/acompanhando" },
@@ -25,10 +33,19 @@ const ROTAS: Rota[] = [
   { nome: "decisao-sem-resposta", url: `/v2/decisao/${KEY_SEM_RESPOSTA}` },
   { nome: "decisao-respondida", url: `/v2/decisao/${KEY_RESPONDIDA}` },
   { nome: "pessoa", url: "/v2/pessoa/helena-siqueira" },
+  ...ROTAS_PESSOA_SUB,
   { nome: "tema", url: "/v2/tema/agro" },
   { nome: "votacao", url: "/v2/votacao/camara-v2026-15" },
   { nome: "votacao-uf", url: "/v2/votacao/camara-v2026-15?uf=SP" },
+  // recortes das sete telas redesenhadas depois da PR #22, e o 404 do /v2 (notFound() de uma tela)
+  { nome: "votacoes-senado-tudo", url: "/v2/votacoes?casa=senado&tudo=1" },
+  { nome: "votacao-sem-votos", url: "/v2/votacao/camara-demo-sem-votos?uf=SP" },
+  { nome: "decisoes-leis", url: "/v2/decisoes?aba=leis" },
+  { nome: "pessoas-grupo", url: "/v2/pessoas?cidade=3509502&grupo=vereadores" },
+  { nome: "pessoas-filtro", url: "/v2/pessoas?cargo=senador&uf=SP" },
+  { nome: "404-decisao", url: "/v2/decisao/nao-existe", status: 404 },
 ];
+const STATUS = new Map(ROTAS.map((r) => [r.url, r.status ?? 200]));
 type Leitor = "anon" | "leitor";
 const LEITORES: Leitor[] = ["anon", "leitor"];
 
@@ -42,7 +59,7 @@ async function cookiesDoLeitor(context: BrowserContext, leitor: Leitor) {
 
 async function abrir(page: Page, url: string) {
   const res = await page.goto(url, { waitUntil: "load" });
-  expect(res?.status(), url).toBe(200);
+  expect(res?.status(), url).toBe(STATUS.get(url) ?? 200);
   await expect(page.locator(".sv h1").first()).toBeVisible();
 }
 
@@ -239,7 +256,18 @@ test.describe("sem JavaScript", () => {
       const context = await semJs(browser, info, "leitor");
       const page = await context.newPage();
       const res = await page.goto(r.url);
-      expect(res?.status()).toBe(200);
+      expect(res?.status()).toBe(r.status ?? 200);
+      if (r.status === 404) {
+        // DÍVIDA registrada (todo notFound() do site, v1 inclusive): no Next 15.5 o 404 sai como documento de erro
+        // (<html id="__next_error__">) com o corpo vazio, e o 404 da D2 só aparece com JavaScript. Este teste afirma a dívida
+        // exata: fica VERMELHO quando o Next (ou uma correção na raiz) passar a entregar o 404 no HTML. Aí, troque-o pelo
+        // ramo normal abaixo.
+        await expect(page.locator("html#__next_error__")).toHaveCount(1);
+        await expect(page.locator(".sv h1")).toHaveCount(0);
+        expect((await page.locator("body").innerText()).trim(), "corpo sem conteúdo sem JavaScript").toBe("");
+        await context.close();
+        return;
+      }
       await expect(page.locator(".sv h1")).toHaveCount(1);
       await expect(page.locator(".sv h1")).toBeVisible();
       expect((await page.locator(".sv-main").innerText()).length, "conteúdo do main").toBeGreaterThan(200);
@@ -453,7 +481,7 @@ const GEOMETRIA = new Set(["width", "height", "inline-size", "block-size", "pers
 type Snap = { chave: string; props: Record<string, string> }[];
 
 test.describe("neutralidade", () => {
-  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema"].includes(r.nome));
+  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r));
   for (const r of ROTAS_PESSOAS) {
     test(`trocar nomes e siglas: 0 diferenças de estilo, pseudo-elementos e ordem: ${r.nome} [leitor]`, async ({ page, context }, info) => {
       await cookiesDoLeitor(context, "leitor");
@@ -534,7 +562,7 @@ test.describe("neutralidade", () => {
       );
       nota(info, "trocas", JSON.stringify({ nomes: trocados.nomes, partidos: trocados.partidos, encontrados: trocados.nomesEncontrados.slice(0, 6) }));
       // o teste só vale se houve o que trocar (rotas com pessoa)
-      if (["acompanhando", "pessoa", "pessoas", "votacao-uf"].includes(r.nome)) expect(trocados.nomes, "sem nome para trocar: o teste não provaria nada").toBeGreaterThan(0);
+      if (["acompanhando", "pessoa", "pessoas", "votacao-uf", "pessoas-grupo", "pessoas-filtro"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r)) expect(trocados.nomes, "sem nome para trocar: o teste não provaria nada").toBeGreaterThan(0);
 
       const depois = await snapshot();
       const dif: string[] = [];
@@ -709,7 +737,7 @@ test.describe("conteúdo", () => {
   test("'Exemplo ilustrativo' presente no modo demo nas telas com dado fictício", async ({ page, context }) => {
     await cookiesDoLeitor(context, "leitor");
     const falhas: string[] = [];
-    const comDado = ROTAS.filter((r) => !["como-funciona", "ajustes"].includes(r.nome));
+    const comDado = ROTAS.filter((r) => !["como-funciona", "ajustes", "404-decisao"].includes(r.nome));
     for (const r of comDado) {
       await abrir(page, r.url);
       const t = await page.locator(".sv").innerText();
@@ -1060,6 +1088,13 @@ test.describe("capturas", () => {
     ["decisao", `/v2/decisao/${KEY_RESPONDIDA}`],
     ["temas", "/v2/temas"],
     ["ajustes", "/v2/ajustes"],
+    ["votacoes", "/v2/votacoes"],
+    ["votacao-uf", "/v2/votacao/camara-v2026-15?uf=SP"],
+    ["decisoes", "/v2/decisoes"],
+    ["pessoas", "/v2/pessoas"],
+    ["tema", "/v2/tema/agro"],
+    ["como-funciona", "/v2/como-funciona"],
+    ["404", "/v2/decisao/nao-existe"],
   ];
   for (const [nome, url] of alvos)
     for (const width of [390, 1280]) {
@@ -1097,4 +1132,395 @@ test.describe("celular @mobile", () => {
       expect(res.sobra).toBeLessThanOrEqual(0);
     });
   }
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Contrato de cobertura, cadeiras por UF e listas sem truncar (fonte demo: casos fixos de fake.ts)
+// ---------------------------------------------------------------------------------------------------------------------
+test.describe("cobertura por pessoa", () => {
+  // um caso da demonstração por estado de lacuna; `lido` aparece como fonte com a data da carga
+  const CASOS: { slug: string; quem: string; estados: string[] }[] = [
+    { slug: "alvaro-teixeira-sp", quem: "deputado estadual (Assembleia não simulada)", estados: ["nao_conferido", "nao_carregado"] },
+    { slug: "carlos-machado-sp", quem: "governador (Executivo)", estados: ["nao_se_aplica"] },
+    { slug: "alvaro-cardoso-rj", quem: "eleito aguardando posse", estados: ["fora_do_mandato"] },
+    { slug: "alvaro-coutinho-sp", quem: "vereador", estados: ["sem_fonte", "fonte_sem_adaptador"] },
+    // vereador da capital paulista: a demo marca a câmara como lida pelo SAPL (DEMO_SAPL_IBGE)
+    { slug: "alvaro-teixeira-sp-2", quem: "vereador com câmara lida pelo SAPL", estados: ["carregado_fora_da_pagina"] },
+  ];
+  for (const c of CASOS)
+    test(`Pessoa: ${c.quem} mostra ${c.estados.join(", ")} com frase e motivo, nunca zero`, async ({ page }) => {
+      await abrir(page, `/v2/pessoa/${c.slug}`);
+      for (const e of c.estados) {
+        const lac = page.locator(`.sv-lac[data-cobertura="${e}"]`);
+        await expect(lac.first(), e).toBeVisible();
+        // toda lacuna de cobertura traz um motivo legível
+        for (const l of await lac.all()) await expect(l.locator(".sv-sm"), e).not.toBeEmpty();
+      }
+      const lacunas = await page.locator(".sv-lac[data-cobertura]").allInnerTexts();
+      for (const t of lacunas) expect(t, "lacuna não vira número").not.toMatch(/^\s*0\b/);
+    });
+
+  test("Pessoa: os estados de cobertura têm frases distintas (não carregamos x a fonte não publica x não se aplica…)", async ({ page }) => {
+    const frases = new Map<string, string>();
+    for (const c of CASOS) {
+      await abrir(page, `/v2/pessoa/${c.slug}`);
+      for (const l of await page.locator(".sv-lac[data-cobertura]").all()) {
+        const e = (await l.getAttribute("data-cobertura"))!;
+        const t = (await l.locator(".sv-lac__liso").evaluate((n) => n.firstChild?.textContent ?? "")).trim();
+        if (!frases.has(e)) frases.set(e, t);
+        else expect(t, e).toBe(frases.get(e));
+      }
+    }
+    expect([...frases.keys()].sort()).toEqual(["carregado_fora_da_pagina", "fonte_sem_adaptador", "fora_do_mandato", "nao_carregado", "nao_conferido", "nao_se_aplica", "sem_fonte"]);
+    expect(new Set(frases.values()).size, "uma frase por estado").toBe(frases.size);
+  });
+
+  test("Pessoa: conjunto lido cita a fonte com a data da carga; conjunto não carregado não ganha data", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/alvaro-aguiar-sp"); // deputado federal
+    const sec = page.locator("section", { has: page.getByRole("heading", { name: "Foi trabalhar?" }) });
+    await expect(sec.locator(".sv-fonte")).toContainText(/Câmara dos Deputados.*lida em \d{2}\/\d{2}\/\d{4}/);
+    // equipe e comissões não são simuladas: "não carregamos", e a fonte não ganha data
+    for (const q of ["Quem trabalha no gabinete?", "Em que comissões está?"]) {
+      const s = page.locator("section", { has: page.getByRole("heading", { name: q }) });
+      await expect(s.locator('.sv-lac[data-cobertura="nao_carregado"]'), q).toBeVisible();
+      await expect(s.locator(".sv-fonte"), q).not.toContainText(/lida em/);
+    }
+  });
+
+  test("Escolhidos: o estado de cada conjunto vem do contrato; leitura que falha não afirma estado", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    await abrir(page, "/v2/acompanhando");
+    const est = page.locator(".sv-esc__pessoas > section", { hasText: "Esfera: Estadual" });
+    await expect(est.locator('.sv-lac[data-cobertura="nao_conferido"]').first()).toBeVisible();
+    await abrir(page, "/v2/acompanhando?simular=erro_dados");
+    await expect(page.locator(".sv-lac[data-cobertura]")).toHaveCount(0);
+  });
+
+  test("Pessoa: salário sem carimbo de carga diz que a data não está registrada (não inventa 'lida em')", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/alvaro-aguiar-sp");
+    const sec = page.locator("section", { has: page.getByRole("heading", { name: "Quanto recebe?" }) });
+    await expect(sec.locator(".sv-fonte")).toContainText("Data da carga não registrada.");
+    await expect(sec.locator(".sv-fonte")).not.toContainText(/lida em/);
+  });
+});
+
+test.describe("placar por UF na votação", () => {
+  test("UF escolhida: contagem por voto ao lado das cadeiras legais da UF (SP = 70)", async ({ page }) => {
+    await abrir(page, "/v2/votacao/camara-v2026-15?uf=SP");
+    const p = page.locator('[data-placar-uf="SP"]');
+    await expect(p).toContainText(/SP: \d+ registros? nesta votação, de 70 cadeiras de SP na Câmara\./);
+    await expect(p).toContainText("Lei Complementar 78/1993");
+    await expect(p).toContainText("não quer dizer ausência");
+    // a soma das contagens mostradas fecha com os registros da UF
+    const t = (await p.locator("p").first().innerText()).replace(/\s+/g, " ");
+    const reg = Number(/SP: (\d+) registro/.exec(t)![1]);
+    const soma = [...t.matchAll(/[a-zãíç ]: (\d+)\./gi)].map((m) => Number(m[1])).reduce((s, n) => s + n, 0);
+    expect(soma).toBe(reg);
+  });
+
+  test("votação sem voto individual: placar por UF é lacuna com motivo, nunca tabela de zeros", async ({ page }) => {
+    await abrir(page, "/v2/votacao/camara-demo-sem-votos?uf=SP");
+    await expect(page.locator("body")).toContainText("não há placar por estado");
+    await expect(page.locator("[data-placar-uf]")).toHaveCount(0);
+    // nem o placar geral vira barras de zeros: lacuna nomeada no lugar
+    await expect(page.locator("[data-sem-voto-individual]")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("0 registros nesta votação");
+    await expect(page.locator('[role="img"][aria-label^="Sim 0"]')).toHaveCount(0);
+    // a demo não publicou o placar total (nulo): nada de "0 sim e 0 não" inventado
+    await expect(page.locator("body")).not.toContainText("Placar total publicado pela fonte");
+  });
+});
+
+test.describe("listas sem truncar em silêncio", () => {
+  test("Decisão: '5 de 7' votações e '20 de 23' autores", async ({ page }) => {
+    await abrir(page, "/v2/decisao/camara-pl-9996-2026");
+    const q = page.locator('[aria-labelledby="sv-d8"]');
+    await expect(q).toContainText("Mostrando as 5 mais recentes de 7 votações que lemos desta proposta.");
+    await expect(q.locator(".sv-vt")).toHaveCount(5);
+    const aut = page.locator(".sv-aut > li");
+    await expect(aut).toHaveCount(20);
+    await expect(page.locator("body")).toContainText("Mostrando 20 de 23 autores que lemos");
+    // autoria principal primeiro, depois ordem alfabética
+    await expect(aut.first()).toContainText("autoria principal");
+    const resto = (await aut.allInnerTexts()).slice(1).map((t) => t.replace(/\s*coautoria\s*$/, "").trim());
+    expect(resto).toEqual([...resto].sort((a, b) => a.localeCompare(b, "pt-BR")));
+  });
+
+  test("Decisão: lista que cabe inteira não diz 'mostrando'", async ({ page }) => {
+    await abrir(page, `/v2/decisao/${KEY_RESPONDIDA}`);
+    await expect(page.locator("body")).not.toContainText(/Mostrando \d+ (de|as)/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 404 do /v2: endereço inexistente e notFound() de uma tela caem no mesmo 404, dentro do casco novo, sem afirmar que o registro não existe
+// ---------------------------------------------------------------------------------------------------------------------
+test.describe("404 do /v2", () => {
+  for (const url of ["/v2/decisao/nao-existe", "/v2/votacao/nao-existe", "/v2/tema/nao-existe"])
+    test(`404 no casco D2: ${url}`, async ({ page }) => {
+      const res = await page.goto(url);
+      expect(res?.status(), url).toBe(404);
+      await expect(page.locator(".sv h1")).toHaveText("Não consta");
+      await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
+      await expect(page.locator("header.sticky")).toHaveCount(0);
+      const q = page.locator('[aria-labelledby="nf-1"]');
+      await expect(q).toContainText("Não encontramos esta página.");
+      await expect(q).toContainText("não quer dizer que a pessoa, a proposta ou a votação não existam");
+      await expect(page.locator('[aria-labelledby="nf-2"] a[href="/v2"]')).toBeVisible();
+    });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Estados das sete telas redesenhadas depois da PR #22 (fonte demo): truncado dito, janela dita, leitura que falha
+// ---------------------------------------------------------------------------------------------------------------------
+test.describe("estados das sete telas", () => {
+  test("endereço inexistente sob /v2: 404 legível sem JavaScript (404 padrão do Next, sem coringa no /v2)", async ({ browser }, info) => {
+    const context = await semJs(browser, info, "anon");
+    const page = await context.newPage();
+    const res = await page.goto("/v2/nao-existe");
+    expect(res?.status()).toBe(404);
+    expect((await page.locator("body").innerText()).trim().length, "corpo legível sem JavaScript").toBeGreaterThan(20);
+    await context.close();
+  });
+
+  test("Votações: lista truncada dita como truncada e teto de 200 dito", async ({ page }) => {
+    await abrir(page, "/v2/votacoes");
+    const lista = page.locator('[aria-labelledby="vts-2"]');
+    await expect(lista).toContainText(/Mostrando 30 de \d+\./);
+    await expect(lista.getByRole("link", { name: /^Mostrar mais \d+$/ })).toBeVisible();
+    await expect(lista.locator(".sv-vl")).toHaveCount(30);
+    // pedido acima do teto: o teto dito é o número de itens DEVOLVIDOS pela fonte, e não há "Mostrar mais" que nada acrescenta
+    await abrir(page, "/v2/votacoes?n=200");
+    const q2 = page.locator('[aria-labelledby="vts-2"]');
+    const teto = /Esta lista vai até (\d+): as mais antigas ficam fora desta página\./.exec(await q2.innerText())?.[1];
+    expect(teto, "frase do teto").toBeTruthy();
+    await expect(q2.locator(".sv-vl")).toHaveCount(Number(teto));
+    expect(Number(teto)).toBeLessThanOrEqual(100);
+    await expect(page.locator('[aria-labelledby="vts-2"]').getByRole("link", { name: /^Mostrar mais/ })).toHaveCount(0);
+  });
+
+  test("Votações: placar total que a fonte não publicou vira lacuna, nunca 'Sim: 0'", async ({ page }) => {
+    await abrir(page, "/v2/votacoes");
+    const lista = page.locator('[aria-labelledby="vts-2"]');
+    // a 2ª votação da Câmara na demo sai com placarFonte nulo (fake.ts)
+    const item = lista.locator(".sv-vl").nth(1);
+    await expect(item.locator(".sv-lac")).toContainText("A fonte não publicou o placar total desta votação.");
+    await expect(item.locator(".sv-pl")).toHaveCount(0);
+    await expect(item).not.toContainText(/Sim: 0|Não: 0/);
+  });
+
+  test("leitura que falha vira lacuna nomeada (Votações, Decisões nas duas abas, Pessoas)", async ({ page }) => {
+    for (const url of ["/v2/votacoes?simular=erro", "/v2/decisoes?simular=erro", "/v2/decisoes?aba=leis&simular=erro", "/v2/pessoas?simular=erro"]) {
+      await abrir(page, url);
+      const main = page.locator(".sv-main");
+      await expect(main, url).toContainText(FALHOU);
+      await expect(main, url).not.toContainText(/Nenhuma votação|Nada do que acompanhamos|Nenhuma pessoa encontrada|Ainda não temos esse dado/);
+    }
+    // Votação e Tema: a leitura principal falha -> lacuna nomeada na tela (200), nunca erro 500 nem 404
+    for (const url of ["/v2/votacao/camara-v2026-15?simular=erro", "/v2/tema/agro?simular=erro"]) {
+      await abrir(page, url);
+      await expect(page.locator('[aria-labelledby="falha-1"]'), url).toContainText(FALHOU);
+      await expect(page.locator(".sv-main"), url).toContainText("Isso não quer dizer que o registro não existe");
+    }
+    await abrir(page, "/v2/pessoas?cidade=3509502&grupo=vereadores&simular=erro");
+    await expect(page.locator('[aria-labelledby="pp-lugar"]')).toContainText(FALHOU);
+    await expect(page.locator(".sv h1")).toHaveText("Quem está no cargo?");
+  });
+
+  test("Decisões: o último dia da semana é o anterior a weekEnds; 'Aguardando conferência' só sem resposta publicada", async ({ page }) => {
+    await abrir(page, "/v2/decisoes");
+    const titulo = await page.locator('[aria-labelledby="dc-plen"] h2').innerText();
+    const resposta = await page.locator('[aria-labelledby="dc-1"] .sv-a').innerText();
+    // esperado a partir do fixture: a semana da demo (fake.ts demoWeek) vai de segunda 00:00 em Brasília (03:00Z) a
+    // weekEnds = segunda seguinte (exclusivo). O último dia é o domingo, weekEnds menos um dia.
+    const agora = new Date();
+    const dow = (agora.getUTCDay() + 6) % 7;
+    const weekEnds = Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate() - dow, 3) + 7 * 86400e3;
+    const esperado = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(weekEnds - 86400e3));
+    expect(titulo).toContain(`até ${esperado}?`);
+    expect(resposta).toContain(`até ${esperado}.`);
+    const semResposta = page.locator(".sv-pi", { has: page.locator(`a[href="/v2/decisao/${KEY_SEM_RESPOSTA}"]`) });
+    await expect(semResposta.first()).toContainText("Aguardando conferência");
+    const respondida = page.locator(".sv-pi", { has: page.locator(`a[href="/v2/decisao/${KEY_RESPONDIDA}"]`) });
+    await expect(respondida.first()).not.toContainText("Aguardando conferência");
+  });
+
+  test("Decisões: com só uma Casa lida, a prova nomeia a Casa e o selo fica sem data; com as duas, prova e selo dizem a mesma data", async ({ page }) => {
+    await abrir(page, "/v2/decisoes?simular=camara_nao_lida");
+    await expect(page.locator('[aria-labelledby="dc-1"]')).toContainText("A pauta da Câmara dos Deputados ainda não foi lida.");
+    await expect(page.locator('[aria-labelledby="dc-1"]')).toContainText(/só a pauta do Senado Federal foi lida, em \d{2}\/\d{2}\/\d{4}/);
+    await expect(page.locator('[aria-labelledby="dc-selo"]')).not.toContainText("Leitura das fontes");
+    await abrir(page, "/v2/decisoes");
+    await expect(page.locator('[aria-labelledby="dc-1"]')).not.toContainText(/ainda não foi lida/);
+    const selo = /Leitura das fontes: (\d{2}\/\d{2}\/\d{4}[^.]*)\./.exec(await page.locator('[aria-labelledby="dc-selo"]').innerText());
+    expect(selo, "selo com data").not.toBeNull();
+    await expect(page.locator('[aria-labelledby="dc-1"]')).toContainText(`lida em ${selo![1]}`);
+  });
+
+  test("Pessoas: página truncada dita; Tema diz a janela de leitura", async ({ page }) => {
+    await abrir(page, "/v2/pessoas");
+    await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText(/Esta página mostra 60 de [\d.]+\./);
+    await expect(page.locator(".sv-pp > li")).toHaveCount(60);
+    await abrir(page, "/v2/tema/agro");
+    await expect(page.locator('[aria-labelledby="tm1-1"]')).toContainText(/Contamos entre as [\d.]+ votações mais recentes que lemos das duas Casas, de um total de [\d.]+\./);
+  });
+
+  test("Pessoas: página inválida é entrada inválida, não falha da fonte", async ({ page }) => {
+    for (const p of ["Infinity", "1e308", "1.5", "-3", "abc", "1234567"]) {
+      await abrir(page, `/v2/pessoas?pagina=${encodeURIComponent(p)}`);
+      const q = page.locator('[aria-labelledby="pp-2"]');
+      await expect(q, p).not.toContainText(FALHOU);
+      await expect(q, p).toContainText("O endereço pedia uma página que não existe. Mostramos o começo da lista.");
+      await expect(page.locator(".sv-pp > li"), p).toHaveCount(60);
+    }
+    await abrir(page, "/v2/pessoas?pagina=999999");
+    await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText("Esta página fica depois do fim da lista.");
+  });
+
+  test("Como funciona: as âncoras que outras telas usam existem", async ({ page }) => {
+    await abrir(page, "/v2/como-funciona");
+    for (const id of ["verificacao", "fontes", "regras", "correcoes"]) await expect(page.locator(`#${id}`), id).toHaveCount(1);
+  });
+
+  test("CSS da tela chega também por navegação do cliente (rodapé → Votações)", async ({ page }) => {
+    await abrir(page, "/v2");
+    await page.locator("footer.sv-rod").getByRole("link", { name: "Votações" }).click();
+    await expect(page).toHaveURL(/\/v2\/votacoes$/);
+    // regra que só existe em sv-votacoes.css (importado pela página, não pelo layout)
+    await expect(page.locator(".sv-pg--vts > .sv-abas")).toHaveCSS("margin-top", "2px");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Rotas da Pessoa: gastos, equipe e votos (bloco próprio da PR "gastos, equipe e votos da Pessoa no /v2")
+// ---------------------------------------------------------------------------------------------------------------------
+const dataBR = (t: string) => {
+  const m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(t);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+};
+
+test.describe("rotas da Pessoa", () => {
+  test("nenhum link do /v2 da Pessoa vai para o perfil v1 (/p/)", async ({ page, context }) => {
+    await cookiesDoLeitor(context, "leitor");
+    for (const url of ["/v2/pessoa/helena-siqueira", "/v2/pessoa/alvaro-aguiar-sp", "/v2/pessoa/alvaro-coutinho-sp", ...ROTAS_PESSOA_SUB.map((r) => r.url)]) {
+      await abrir(page, url);
+      const v1 = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]")).filter((a) => new URL(a.href, location.href).pathname.startsWith("/p/")).map((a) => a.getAttribute("href")));
+      expect(v1, url).toEqual([]);
+    }
+    // os três links da Pessoa levam às rotas novas
+    await abrir(page, "/v2/pessoa/helena-siqueira");
+    await expect(page.getByRole("link", { name: "Ver nota por nota" })).toHaveAttribute("href", "/v2/pessoa/helena-siqueira/gastos");
+    await expect(page.getByRole("link", { name: "Ver todos os votos" })).toHaveAttribute("href", "/v2/pessoa/helena-siqueira/votos");
+  });
+
+  test("gastos: notas da mais recente para a mais antiga, categorias A–Z, nunca por valor", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/helena-siqueira/gastos");
+    const datas = (await page.locator(".sv-notas .sv-notas__d").allInnerTexts()).map(dataBR);
+    expect(datas.length).toBeGreaterThan(5);
+    expect(datas.every(Boolean), "toda nota tem data").toBe(true);
+    expect(datas, "ordem cronológica, mais recente primeiro").toEqual([...datas].sort().reverse());
+    const opcoes = (await page.locator("#g-cat option").allInnerTexts()).slice(1);
+    expect(opcoes.length).toBeGreaterThan(1);
+    expect(opcoes, "categorias do filtro em ordem alfabética").toEqual([...opcoes].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    const linhas = await page.locator("table.sv-g tbody th").allInnerTexts();
+    expect(linhas, "tabela por categoria em ordem alfabética").toEqual([...linhas].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    await expect(page.locator(".sv-main")).toContainText(/Fonte: .*lida em \d{2}\/\d{2}\/\d{4}/);
+    await expect(page.locator(".sv-main")).toContainText(/(Mostrando 1 a 50 de \d+|\d+) notas, da mais recente para a mais antiga\./);
+  });
+
+  test("gastos: filtro por ano e categoria e paginação funcionam sem JavaScript", async ({ browser }, info) => {
+    const context = await semJs(browser, info, "anon");
+    const page = await context.newPage();
+    await page.goto("/v2/pessoa/helena-siqueira/gastos?ano=2024"); // ano da demo com mais de 50 notas
+    await expect(page.locator(".sv-main")).toContainText(/Mostrando 1 a 50 de \d+ notas/);
+    const ultimaP1 = dataBR(await page.locator(".sv-notas .sv-notas__d").last().innerText());
+    await page.getByRole("link", { name: /Próxima página/ }).click();
+    await page.waitForURL(/pagina=2/);
+    const primeiraP2 = dataBR(await page.locator(".sv-notas .sv-notas__d").first().innerText());
+    expect(primeiraP2! <= ultimaP1!, "a página 2 continua a ordem").toBe(true);
+    // filtro: ano anterior e uma categoria
+    const anos = await page.locator("#g-ano option").allInnerTexts();
+    const cat = (await page.locator("#g-cat option").allInnerTexts())[1];
+    await page.locator("#g-ano").selectOption(anos[1]);
+    await page.locator("#g-cat").selectOption(cat);
+    await page.getByRole("button", { name: "Filtrar" }).click();
+    await page.waitForURL(/categoria=/);
+    const notas = await page.locator(".sv-notas .sv-notas__d").allInnerTexts();
+    expect(notas.length).toBeGreaterThan(0);
+    for (const n of notas) expect(n).toContain(`/${anos[1]} · ${cat}`);
+    await context.close();
+  });
+
+  test("gastos: vereador sem cota lida tem lacuna nomeada, nunca zero; parâmetros inválidos caem no padrão", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/alvaro-coutinho-sp/gastos");
+    await expect(page.locator(".sv-main .sv-lac").first()).toBeVisible();
+    await expect(page.locator(".sv-notas")).toHaveCount(0);
+    await expect(page.locator(".sv-main")).not.toContainText(/R\$\s*0(,00)?(?![\d,.])/);
+    const res = await page.goto("/v2/pessoa/helena-siqueira/gastos?ano=abc&categoria=%3Cscript%3E&pagina=-1");
+    expect(res?.status()).toBe(200);
+    await expect(page.locator(".sv-notas li").first()).toBeVisible();
+    // página acima do teto de 4 dígitos cai na primeira (o offset gigante não chega ao banco)
+    for (const url of ["/v2/pessoa/helena-siqueira/gastos?ano=2024&pagina=99999", "/v2/pessoa/helena-siqueira/votos?pagina=99999"]) {
+      const r = await page.goto(url);
+      expect(r?.status(), url).toBe(200);
+      await expect(page.locator(".sv-main"), url).toContainText(/Mostrando 1 a 50 de \d+/);
+    }
+  });
+
+  test("equipe: só agregado, sem nome de assessor, e lacuna nomeada quando não lida", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/helena-siqueira/equipe");
+    await expect(page.locator(".sv-main")).toContainText("nunca o nome de cada um");
+    await expect(page.locator(".sv-main .sv-lac[data-cobertura]").first()).toBeVisible();
+    await expect(page.locator(".sv-main")).not.toContainText(/R\$\s*0(,00)?(?![\d,.])/);
+    await abrir(page, "/v2/pessoa/helena-siqueira");
+    await expect(page.locator(".sv-main")).not.toContainText("Ver nomes e salários");
+  });
+
+  test("votos: só o que muda lei por padrão, tudo sem JavaScript, voto em forma e palavra, link para a votação no /v2", async ({ browser }, info) => {
+    const context = await semJs(browser, info, "anon");
+    const page = await context.newPage();
+    await page.goto("/v2/pessoa/helena-siqueira/votos");
+    await expect(page.getByRole("link", { name: "Só o que muda lei" })).toHaveAttribute("aria-current", "page");
+    await expect(page.locator(".sv-main")).toContainText(/votaç(ão|ões) de procedimento (está|estão) escondidas?/);
+    const itens = page.locator(".sv-votos > li");
+    expect(await itens.count()).toBe(50);
+    for (const li of (await itens.all()).slice(0, 10)) {
+      await expect(li.locator(".sv-voto .sv-m")).toHaveCount(1);
+      await expect(li.locator(".sv-voto")).toHaveText(/^(Sim|Não|Abstenção|Sem voto|Obstrução|Presidia)$/);
+      await expect(li.locator('a[href^="/v2/votacao/"]')).toHaveCount(1);
+    }
+    const datas = (await page.locator(".sv-votos .sv-votos__q").allInnerTexts()).map(dataBR);
+    expect(datas, "mais recente primeiro").toEqual([...datas].sort().reverse());
+    const leiTotal = Number(/de (\d+) votos/.exec(await page.locator(".sv-main").innerText())![1]);
+    await page.getByRole("link", { name: "Tudo", exact: true }).click();
+    await page.waitForURL(/tipo=tudo/);
+    await expect(page.getByRole("link", { name: "Tudo", exact: true })).toHaveAttribute("aria-current", "page");
+    const tudoTotal = Number(/de (\d+) votos/.exec(await page.locator(".sv-main").innerText())![1]);
+    expect(tudoTotal, "tudo inclui o procedimento").toBeGreaterThan(leiTotal);
+    await expect(page.locator(".sv-votos")).toContainText("votação de procedimento");
+    await context.close();
+  });
+
+  test("votos: cargo do Executivo é lacuna nomeada, não lista vazia", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/carlos-machado-sp/votos");
+    await expect(page.locator('.sv-main .sv-lac[data-cobertura="nao_se_aplica"]')).toBeVisible();
+    await expect(page.locator(".sv-votos")).toHaveCount(0);
+  });
+
+  test("Pessoa: resumo do ano em frases (sem média) e trajetória em ordem cronológica", async ({ page }) => {
+    await abrir(page, "/v2/pessoa/alvaro-aguiar-sp");
+    const ano = page.locator("section#ano");
+    await expect(ano.getByRole("heading", { name: /^Como foi \d{4}\?$/ })).toBeVisible();
+    await expect(ano).toContainText(/Esteve em \d+ das \d+ sessões de votação de \d{4}\./);
+    await expect(ano).not.toContainText(/média dos|ranking|acima da|abaixo da/i);
+    await abrir(page, "/v2/pessoa/alvaro-coutinho-sp");
+    // conjunto não lido: lacuna nomeada com o rótulo do conjunto, nunca zero
+    await expect(page.locator("section#ano")).toContainText(/Presença em \d{4}: /);
+    const traj = page.locator("section#trajetoria .sv-trj > li");
+    expect(await traj.count()).toBeGreaterThan(1);
+    const anos = (await page.locator("section#trajetoria .sv-trj__a").allInnerTexts()).map(Number);
+    expect(anos, "ordem cronológica").toEqual([...anos].sort((a, b) => a - b));
+    await expect(page.locator("section#trajetoria")).toContainText(/Candidatura a .*: eleit[oa]\./);
+    await expect(page.locator("section#trajetoria")).not.toContainText(/trocou|infiel|traidor|vira-casaca/i);
+  });
 });

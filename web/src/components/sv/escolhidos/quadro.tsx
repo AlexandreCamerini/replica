@@ -1,12 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { FALHOU_LEITURA, fraseCobertura } from "../estados";
+import { ESTADO_COBERTURA, FALHOU_LEITURA, naoHaNaLeitura } from "../estados";
 import { clip, fmtDate } from "../fmt";
 import { Cobertura, Fonte, Lacuna, Nota, Quadro, Resposta, VotoMarca, VotoQuadrado, type VotoForma } from "../ui";
+import type { CoberturaConjunto } from "@/lib/data";
 import type { Casa, Escolhido, Recente } from "./carregar";
 
 const brl = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(cents / 100);
 const fonteDe = (c: Casa, o: string) => `${c.nome}, ${o}${c.lidaEm ? `, lida em ${c.lidaEm}` : ""}`;
+/** Fonte de uma linha com dado: com o conjunto lido, a fonte e a data da carga da família dele (não o carimbo mais novo da casa). */
+const fonteCob = (c: Casa, o: string, cob: CoberturaConjunto | null | undefined) =>
+  cob?.estado === "lido" && cob.lidoEm ? `${cob.fonte?.nome ?? c.nome}, ${o}, lida em ${fmtDate(cob.lidoEm)}` : fonteDe(c, o);
 
 /** Linha tripla com dado: pergunta | resposta | fonte. */
 function Linha({ id, pergunta, fonte, children }: { id: string; pergunta: string; fonte: string; children: ReactNode }) {
@@ -24,23 +28,26 @@ function Linha({ id, pergunta, fonte, children }: { id: string; pergunta: string
 }
 
 /**
- * Linha tripla sem dado: status do contrato (só da Assembleia) ou "Ainda não temos esse dado." + fonte nomeada.
- * `motivo` (ex.: ainda não tomou posse) e `falhou` (leitura que falhou) têm precedência e nunca viram "nenhum".
+ * Linha tripla sem dado. Precedência: `motivo` (ex.: ainda não tomou posse) e `falhou` (leitura que falhou), que nunca viram
+ * "nenhum"; depois o estado de cobertura da pessoa (getPeopleCoverage): `lido` = não há registro na leitura (com a data),
+ * outro estado = a frase do estado e o motivo; sem cobertura lida, "Ainda não temos esse dado." + fonte nomeada.
  */
 function LinhaLacuna({
   pergunta,
   fonte,
   cob,
+  oQue,
   motivo,
   falhou,
 }: {
   pergunta: string;
   fonte: string;
-  cob?: { status: Parameters<typeof fraseCobertura>[0]; motivo: string } | null;
+  cob?: CoberturaConjunto | null;
+  /** o que falta, para a frase de "não há" ("presença registrada", "voto nominal de lei"…) */
+  oQue: string;
   motivo?: string | null;
   falhou?: boolean;
 }) {
-  const status = cob && fraseCobertura(cob.status) !== null ? cob.status : undefined;
   return (
     <div className="sv-r3l">
       <h3 className="sv-r3l__q">{pergunta}</h3>
@@ -54,8 +61,20 @@ function LinhaLacuna({
           <Lacuna>{FALHOU_LEITURA}</Lacuna>
           <Fonte>Fonte: {fonte}.</Fonte>
         </>
+      ) : cob?.estado === "lido" ? (
+        <>
+          <Lacuna estado="lido">{naoHaNaLeitura(oQue, cob.lidoEm)}</Lacuna>
+          <Fonte>Fonte: {cob.fonte?.nome ?? fonte}.</Fonte>
+        </>
+      ) : cob ? (
+        <>
+          <Lacuna motivo={cob.motivo} estado={cob.estado}>
+            {ESTADO_COBERTURA[cob.estado]}
+          </Lacuna>
+          <Fonte>Fonte: {cob.fonte?.nome ?? fonte}.</Fonte>
+        </>
       ) : (
-        <Cobertura status={status} motivo={status ? cob?.motivo || undefined : undefined} fonte={fonte} />
+        <Cobertura fonte={fonte} />
       )}
     </div>
   );
@@ -66,8 +85,8 @@ const Ap = ({ children }: { children: ReactNode }) => <span className="sv-t sv-e
 function Presenca({ p }: { p: Escolhido }) {
   const g = p.presenca;
   const q = "Foi trabalhar?";
-  const fonte = fonteDe(p.casa, "presença");
-  if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.presenca} motivo={p.posse} falhou={p.falhou.presenca} />;
+  const fonte = fonteCob(p.casa, "presença", p.cobertura?.presenca);
+  if (g.total <= 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.presenca} oQue={`presença em sessão de votação em ${p.ano}`} motivo={p.posse} falhou={p.falhou.presenca} />;
   const faltas = g.absent + g.justified;
   return (
     <Linha id={`${p.slug}-q1`} pergunta={q} fonte={fonte}>
@@ -79,8 +98,8 @@ function Presenca({ p }: { p: Escolhido }) {
 
 function Votos({ p }: { p: Escolhido }) {
   const q = "Como votou?";
-  const fonte = fonteDe(p.casa, "votações nominais");
-  if (p.votos.total <= 0 || p.votos.items.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.votos} motivo={p.posse} falhou={p.falhou.votos} />;
+  const fonte = fonteCob(p.casa, "votações nominais", p.cobertura?.votos);
+  if (p.votos.total <= 0 || p.votos.items.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.votos} oQue="voto nominal em lei" motivo={p.posse} falhou={p.falhou.votos} />;
   return (
     <Linha id={`${p.slug}-q2`} pergunta={q} fonte={fonte}>
       <ul className="sv-esc__vv">
@@ -102,8 +121,8 @@ function Votos({ p }: { p: Escolhido }) {
 
 function Gastos({ p }: { p: Escolhido }) {
   const q = "Quanto gastou o gabinete?";
-  const fonte = fonteDe(p.casa, "cota para o exercício do mandato");
-  if (p.gastoCents === null) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.gastos_gabinete} motivo={p.posse} falhou={p.falhou.gastos} />;
+  const fonte = fonteCob(p.casa, "cota para o exercício do mandato", p.cobertura?.gastos);
+  if (p.gastoCents === null) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.gastos} oQue={`gasto de gabinete em ${p.ano}`} motivo={p.posse} falhou={p.falhou.gastos} />;
   return (
     <Linha id={`${p.slug}-q3`} pergunta={q} fonte={fonte}>
       {brl(p.gastoCents)} em {p.ano}, até a última leitura.
@@ -114,9 +133,9 @@ function Gastos({ p }: { p: Escolhido }) {
 
 function Patrimonio({ p }: { p: Escolhido }) {
   const q = "O patrimônio declarado mudou?";
-  const fonte = fonteDe(p.tse, "bens declarados nas candidaturas");
+  const fonte = fonteCob(p.tse, "bens declarados nas candidaturas", p.cobertura?.patrimonio);
   const v = p.patrimonio;
-  if (v.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} falhou={p.falhou.patrimonio} />;
+  if (v.length === 0) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.patrimonio} oQue="bens declarados nas candidaturas" falhou={p.falhou.patrimonio} />;
   const lista = v.map((x) => `${brl(x.cents)} em ${x.ano}`).join(", ");
   const abertura = v.length === 1 ? "Só um valor declarado: não dá para dizer se mudou." : v.every((x) => x.cents === v[0].cents) ? "Não mudou entre as declarações." : "Mudou.";
   return (
@@ -128,9 +147,9 @@ function Patrimonio({ p }: { p: Escolhido }) {
 
 function Propostas({ p }: { p: Escolhido }) {
   const q = "O que propôs?";
-  const fonte = fonteDe(p.casa, "propostas");
+  const fonte = fonteCob(p.casa, "propostas", p.cobertura?.propostas);
   const pr = p.propostas;
-  if (!pr) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cob.propostas} falhou={p.falhou.propostas} />;
+  if (!pr) return <LinhaLacuna pergunta={q} fonte={fonte} cob={p.cobertura?.propostas} oQue="proposta apresentada" falhou={p.falhou.propostas} />;
   const partes = [pr.principal !== null && `${pr.principal} como autoria principal`, pr.coautor !== null && `${pr.coautor} em coautoria`].filter(Boolean).join(" e ");
   return (
     <Linha id={`${p.slug}-q5`} pergunta={q} fonte={fonte}>

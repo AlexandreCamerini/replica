@@ -8,7 +8,8 @@ import { COOKIE_TEXTO } from "@/components/sv/prefs-shared";
 import { simulacao } from "@/components/sv/simular";
 import { Nota, Proxima, Selo } from "@/components/sv/ui";
 
-export const metadata: Metadata = { title: "O que meus escolhidos estão fazendo?" };
+// página pessoal (cookie de escolhidos): fora de busca mesmo quando o /v2 deixar de ser noindex
+export const metadata: Metadata = { title: "O que meus escolhidos estão fazendo?", robots: { index: false, follow: false } };
 
 export default async function Acompanhando({ searchParams }: { searchParams: Promise<{ simular?: string | string[] }> }) {
   const slugs = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);

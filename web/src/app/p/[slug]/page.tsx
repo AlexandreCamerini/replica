@@ -21,6 +21,7 @@ import { ListenButton } from "@/components/ui/misc";
 import { data, type MandateStatus, type PeriodStats, type YearStats } from "@/lib/data";
 import { age, count, date, money } from "@/lib/format";
 import { campaignTotals, joinYears } from "@/lib/campaign";
+import { AguardaDocumento } from "./aguarda-documento";
 import { Assembly, stampOf } from "./assembleia";
 import { CityCouncil } from "./camara-municipal";
 
@@ -189,7 +190,9 @@ export default async function Page({ params, searchParams }: Props) {
   const user = await currentUser();
   const following = user ? await isFollowing(user.id, person.id).catch(() => false) : false;
 
+  // BUG-008: hidrata o corpo só com o documento inteiro recebido (ver aguarda-documento.tsx)
   return (
+    <AguardaDocumento>
     <Container>
       {/* cabeçalho: o nome é o título da página; cargo e lugar vêm antes, como contexto */}
       <header className="rounded-lg border border-border bg-surface p-5 md:p-8">
@@ -531,6 +534,7 @@ export default async function Page({ params, searchParams }: Props) {
         </Link>
       </footer>
     </Container>
+    </AguardaDocumento>
   );
 }
 

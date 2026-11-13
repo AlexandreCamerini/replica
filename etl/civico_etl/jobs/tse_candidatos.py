@@ -223,18 +223,24 @@ def run_tse(conn: psycopg.Connection, *, years: list[int], ufs: list[str] | None
 
 def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | None, bens_zip: Path | None, ufs: list[str] | None, only_elected: bool,
                *, cand_paths: list[Path] | None = None, bens_paths: list[Path] | None = None, only: set[tuple[str, str]] | None = None,
-               bug: str = "BUG-039") -> None:
+               bug: str = "BUG-039", owners: dict[tuple[str, str], str] | None = None) -> None:
     """Carga de um ano. `cand_paths`/`bens_paths`: CSVs já extraídos (reparos, sem rede). `only`: só as linhas (SG_UE, SQ)
-    pedidas, com todas as situações (reparos BUG-042/BUG-043, identity.fix041). `bug`: rótulo do registro substituído no log."""
+    pedidas, com todas as situações (reparos BUG-042/BUG-043, identity.fix041). `bug`: rótulo do registro substituído no log.
+    `owners` (passo `historico` do identity.repairs, BUG-053): (SG_UE, SQ) -> pessoa esperada. A linha só entra se o resolve,
+    com todas as travas, casar nessa pessoa e não der o título como de outra; senão é rejeitada com nota. Nunca cria pessoa."""
     where = ""
     if only_elected and only is None:
         where = "where DS_SIT_TOT_TURNO in ('ELEITO','ELEITO POR QP','ELEITO POR MÉDIA') or (NR_TURNO = '1' and DS_SIT_TOT_TURNO = '2º TURNO')"
-    rows = _read(cand_paths or _extract(cand_zip, year, ufs, "consulta_cand"), COLS, where)
+    paths = cand_paths or _extract(cand_zip, year, ufs, "consulta_cand")
+    rows = _read(paths, COLS, where)
+    shared_src = title_source_rows(paths, where, rows)
     if only is not None:
         rows = [x for x in rows if ((x["SG_UE"] or "").strip(), (x["SQ_CANDIDATO"] or "").strip()) in only]
     log.info("tse %d: %d candidaturas lidas (%s)", year, len(rows), "eleitos" if only_elected and only is None else "todas" if only is None else "pedidas")
 
     people = PersonResolver(conn)
+    # BUG-044: títulos em 2 SQ da mesma eleição; a carga traz o ano antes de o passo `titulos` gravá-lo em tse_titulo_candidatura
+    people.note_title_rows(title_rows(shared_src, None))
     parties = PartyResolver(conn)
     offices = {o["slug"]: str(o["id"]) for o in conn.execute("select slug, id from offices")}
     places = {row["ibge_code"]: str(row["id"]) for row in conn.execute("select ibge_code, id from places")}
@@ -341,8 +347,14 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | Non
         if m.why:
             r.notes.append(f"{civil} ({sq}): {m.why}")
         if m.method == "queued":
-            r.reject(1)
+            r.reject(1, f"histórico do título: {civil} ({sq}) foi para a fila de identidade" if owners is not None else None)
             continue
+        if owners is not None:
+            want = owners.get(((x["SG_UE"] or "").strip(), sq))
+            if m.title_foreign or m.person_id is None or m.person_id != want:
+                r.reject(1, f"histórico do título recusado: {civil} {birth} ({sq}) não casa na pessoa do título "
+                            f"({'título de outra pessoa' if m.title_foreign else m.method})")
+                continue
         if m.title_foreign:
             # BUG-041 (D240): o título é de outra pessoa do diretório; esta linha só entra como pessoa nova e sem o título
             titulo = None
@@ -476,6 +488,16 @@ def _load_year(conn: psycopg.Connection, r: Run, year: int, cand_zip: Path | Non
     log.info("tse %d: %d pessoas no resolver, %d candidaturas, %d mandatos", year, len(people.slugs), len(cand_rows), len(mandate_rows))
 
 
+def title_source_rows(paths: list[Path], where: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Todas as linhas do arquivo com os títulos das linhas carregadas (BUG-044). O mesmo título em 2 SQ da mesma eleição com
+    nomes diferentes não prova nenhuma das linhas; a carga padrão só lê eleitos, e o 2º SQ (não eleito) ficaria invisível.
+    Sem filtro (`--all` ou reparo), as linhas carregadas já são todas. A busca é dentro dos arquivos da carga: numa carga
+    `--uf`, o 2º SQ de outra UF só é visto se já estiver em tse_titulo_candidatura; senão vale `title_row_foreign`."""
+    if not where:
+        return rows
+    return _read(paths, COLS, f"where NR_TITULO_ELEITORAL_CANDIDATO in (select NR_TITULO_ELEITORAL_CANDIDATO from t {where})")
+
+
 def title_rows(rows: list[dict[str, Any]], known: set[str] | None) -> list[tuple]:
     """Linhas de tse_titulo_candidatura (migração 0065) dos títulos em `known` (None: todos). 2º turno é a mesma linha."""
     out = {}
@@ -524,6 +546,25 @@ def _drop_superseded(conn: psycopg.Connection, r: Run, olds: list[dict[str, Any]
         log.info("tse %d: registro substituído %s (%s) saiu para o deferido/eleito da mesma disputa", year, c["tse_sequencial"], c["result"])
 
 
+def _load_votes_ue(conn: psycopg.Connection, con, paths: list[Path], year: int, r) -> int:
+    """Votos por (SG_UE, SQ, turno) nos anos de SQ_COM_UE (BUG-048), com a mesma regra de tse_votos_contas: a candidatura é a
+    da chave tse ANO:UE:SQ da própria pessoa (D224), uma por chave (`_cand_by_ue`: sem chave ou com 2 UEs fica de fora, com
+    nota). Linha sem SG_UE (ou arquivo sem a coluna) não grava, e a contagem vai para as notas do run."""
+    from .tse_votos_contas import _apply_ue, _note_sem_ue
+
+    agg: dict[tuple[tuple[str, str], int], int] = defaultdict(int)
+    for p in paths:
+        rel = con.read_csv(str(p), delimiter=";", header=True, quotechar='"', all_varchar=True)
+        con.register("t", rel)
+        ue = "SG_UE" if "SG_UE" in rel.columns else "NULL"
+        for u, sq, turno, qt in con.execute(
+                f"select {ue}, SQ_CANDIDATO, NR_TURNO, sum(try_cast(QT_VOTOS_NOMINAIS as bigint)) from t group by 1, 2, 3").fetchall():
+            agg[(((u or "").strip(), sq), int(turno))] += int(qt or 0)
+        con.unregister("t")
+    _note_sem_ue(r, year, {k for k, _ in agg}, "votação")
+    return _apply_ue(conn, year, "votes", {key: v for key, v in agg.items() if key[0][0]}, by_round=True, r=r)
+
+
 def _load_votes(conn: psycopg.Connection, year: int, ufs: list[str] | None, force: bool) -> None:
     try:
         f = fetch(f"{BASE}/votacao_candidato_munzona/votacao_candidato_munzona_{year}.zip")
@@ -535,6 +576,10 @@ def _load_votes(conn: psycopg.Connection, year: int, ufs: list[str] | None, forc
         with run(conn, f"tse.votos.{year}", "tse", input_checksum=f"{f.checksum}:{scope}", force=force) as r:
             paths = _extract(f.path, year, ufs, "votacao_candidato_munzona")
             con = duckdb.connect()
+            if int(year) in SQ_COM_UE:
+                # BUG-048: o SQ se repete entre UEs (BUG-035); soma por (UE, SQ) e casa pela chave ANO:UE:SQ da pessoa
+                r.add(_load_votes_ue(conn, con, paths, year, r))
+                return
             agg: dict[tuple[str, int], int] = defaultdict(int)
             for p in paths:
                 rel = con.read_csv(str(p), delimiter=";", header=True, quotechar='"', all_varchar=True)
