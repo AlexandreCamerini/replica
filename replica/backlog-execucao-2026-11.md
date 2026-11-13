@@ -124,7 +124,7 @@ Regras de série: P06, P09, P10 e P11 não rodam juntas com outra PR que toque `
 
 ## 5. Andamento
 
-Atualizado em 11/11/2026, fim da onda 0 (Fase 1) e começo da onda 1.
+Atualizado em 13/11/2026, fim da execução (ondas 0 a 5).
 
 | Item | PR | Estado | Evidência |
 | --- | --- | --- | --- |
@@ -142,9 +142,15 @@ Atualizado em 11/11/2026, fim da onda 0 (Fase 1) e começo da onda 1.
 | A10 identidade BUG-044/048 | #27 | feito (merge `99c5a19`) | duas revisões (opus): mergear com dívida; correções A1–A7 e B1–B5 aplicadas em `faf8630`; simulação no banco local: 1.680 linhas com nascimento diferente, 2 recusas antes e depois, 0 mudam; CI verde; delta em re-revisão |
 | A9 contrato de dados | #28 | feito (merge `e189d78`) | CI verde; contagens reais do banco local na descrição; revisão independente em curso |
 | A15 avaliação da verificação | #29 | feito (merge `1e825ff`); calibração disparada (run 43281434026, teto US$ 5) | harness, conjunto (117 armadilhas, 20 PDFs de injeção) e workflow manual; revisão: mergear com dívida, 6 correções em curso; NENHUMA chamada real à API; barra da §10 não medida |
-| BUG-053 histórico de quem entra no diretório | P-053 | em execução | causa confirmada (D303); #27 já na main |
+| BUG-053 histórico de quem entra no diretório | #32 | feito (merge `680ae3d`) | aplicado em produção (D306): 39 candidaturas, 8 mandatos encerrados, 24 bens; check 8 → 0 |
 | A11 BUG-009 | #31 | feito (merge `f79294b`) | revisão: mergear com dívida; antes ~460 ms, depois 0–1 ms em 20/20; dívida: `person-picker.tsx` com o mesmo atraso |
-| ETL depois do BUG-050 | — | vermelho por BUG-053 | runs agendados de 11/11 16:04 e 17:08 e 12/11 00:43 UTC com exit 2 por 1 invariante (8 linhas); tarefas sem falha; vigia `ok:true` |
+| ETL depois do BUG-050 | #32, #35 | verde | ficou vermelho por BUG-053 (11–12/11) e por BUG-054/055 (12/11); corrigidos em produção (D306, D308). Último run conferido: 43315021288 (12/11 18:55 BRT), `success`, 3 tarefas, 0 falhas, nenhuma invariante quebrada |
+| BUG-054 cota em dobro e BUG-055 carimbo semanal | #35 | feito (merge `bf95500`) | revisão dupla; em produção o prune apagou 440 (2025) e 324 (2026) lançamentos duplicados; amostra × página da Câmara dentro de R$ 0,10 (D308) |
+| A15 barra da §10 medida | #29 | medido; **barra não atingida** | D305: 0 de 9 controles limpos publicados; 27 de 28 armadilhas pegas, 1 escape; US$ 3,71. Publicação por agentes segue desligada |
+| A16 "Talvez" e stubs | — | decidido (D304) | U04 e U18 feitos na #34; `/mais-vistos` e `/stf` aposentados na #36; U07 aposentado; U19 bloqueado; demais adiados |
+| A14 rotas da Pessoa no /v2 (U04, U18) | #34 | feito (merge `1ec95b2`) | revisão independente + correções B1, C1–C3, N2/N6/N9; e2e local 448 de 448; CI verde; nenhum link do /v2 para `/p/`; equipe só em agregado |
+| A12 e A13 sete telas do /v2 | #33 | feito (merge `0f237b2`) | revisão independente (A–F e notas) e rechecagem (datas de Decisões, `dd1bccf`); e2e local 597 de 597; CI verde |
+| A17 promover a Direção 2 | #36 | **parcial** (D309; merge `909df11`) | nenhuma rota do v1 tem paridade comprovada no /v2: sem 308 e `/v2` segue `noindex`. Entregue: stubs aposentados, rodapé e legenda coerentes com a D293, `noindex` próprio nas páginas pessoais; e2e inteiro local 721 passaram, 74 pulados |
 
 ### Dívidas registradas nas revisões
 
@@ -153,7 +159,7 @@ Atualizado em 11/11/2026, fim da onda 0 (Fase 1) e começo da onda 1.
 | #22 | N+1 dos escolhidos (até ~130 consultas por request com 12 pessoas) | P06 |
 | #22 | `sv_sigo` (voto declarado) gravado por script; falta server action com `httpOnly`; quem não clicar de novo fica com o cookie antigo em `path=/` | PR própria de privacidade, depois da P11 |
 | #22 | `prefs.ufFalhou` e o erro de Ajustes com banco fora sem e2e; Temas ainda mostra "Escolha seu estado" quando a leitura das UFs falha; pessoa marcada que a fonte não encontra some sem aviso no Início | P10 |
-| #22 | rodapé do v1 diz "Temas lidos por IA, aguardando revisão por pessoa" | P14 (texto coerente com D293) |
+| #22 | rodapé do v1 dizia "Temas lidos por IA, aguardando revisão por pessoa" | corrigido na #36 (D309) |
 | #20 | `where="true"` também no upsert dos tetos estaduais; teste de `party_memberships` com fixture própria | P06 troca o rótulo por carimbo; o teste entra na próxima PR de ETL |
 | #23 | tempestade de alertas de hora em hora; ponta a ponta com Keychain real não cobre "item ausente" | adiado |
 | #24 | run de `verificar` abortado fecha como `succeeded` e carimba o dataset; `streak` só zera em sucesso; `reviewer` não identifica a execução; banco aceita `barrado` sem relatório | pré-requisito de ligar a publicação (D300) |
