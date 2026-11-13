@@ -19,7 +19,7 @@ const CHANGES: Record<number, string> = {
 const FORBIDDEN = ["defendeu", "condenou", "traiu", "cumpriu", "pior", "beneficia", "prejudica", "polêmica", "ataque", "conquista", "retrocesso", "avanço", "bom", "ruim"];
 
 const STAMPS: [string, string][] = [
-  ["Aguardando revisão", "A IA leu o texto; nenhuma pessoa conferiu ainda. A página mostra só o resumo e o texto oficial."],
+  ["Aguardando revisão", "Ainda não há resposta conferida. A página mostra só o resumo e o texto oficial."],
   ["Revisado por pessoa em dd/mm/aaaa", "Uma pessoa conferiu frase por frase, com o trecho do texto oficial ao lado."],
   ["Conferido com o texto oficial por agentes de IA em dd/mm/aaaa", "Agentes de IA conferiram frase por frase contra o trecho do texto oficial. Nenhuma pessoa revisou."],
   ["Conferido com o texto oficial em dd/mm/aaaa", "A frase foi conferida contra o trecho do texto oficial. O registro não diz se por pessoa ou por agentes de IA."],

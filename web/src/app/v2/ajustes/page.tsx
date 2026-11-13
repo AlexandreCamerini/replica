@@ -7,7 +7,8 @@ import { data } from "@/lib/data";
 import type { Place } from "@/lib/data";
 import { salvarEsferas, salvarUf } from "./actions";
 
-export const metadata: Metadata = { title: "Ajustes" };
+// página pessoal (preferências em cookie): fora de busca mesmo quando o /v2 deixar de ser noindex
+export const metadata: Metadata = { title: "Ajustes", robots: { index: false, follow: false } };
 
 const VOLTAR = "/v2/ajustes";
 const FORM_ESFERAS = "aj-esferas";
