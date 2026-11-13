@@ -144,14 +144,14 @@ Atualizado em 13/11/2026, fim da execução (ondas 0 a 5).
 | A15 avaliação da verificação | #29 | feito (merge `1e825ff`); calibração disparada (run 43281434026, teto US$ 5) | harness, conjunto (117 armadilhas, 20 PDFs de injeção) e workflow manual; revisão: mergear com dívida, 6 correções em curso; NENHUMA chamada real à API; barra da §10 não medida |
 | BUG-053 histórico de quem entra no diretório | #32 | feito (merge `680ae3d`) | aplicado em produção (D306): 39 candidaturas, 8 mandatos encerrados, 24 bens; check 8 → 0 |
 | A11 BUG-009 | #31 | feito (merge `f79294b`) | revisão: mergear com dívida; antes ~460 ms, depois 0–1 ms em 20/20; dívida: `person-picker.tsx` com o mesmo atraso |
-| ETL depois do BUG-050 | #32, #35 | verde | ficou vermelho por BUG-053 (11–12/11) e por BUG-054/055 (12/11); corrigidos em produção (D306, D308). Último run conferido: 43315021288 (12/11 18:55 BRT), `success`, 3 tarefas, 0 falhas, nenhuma invariante quebrada |
+| ETL depois do BUG-050 | #32, #35 | invariantes verdes em 12/11; **agenda vermelha** (D312) | ficou vermelho por BUG-053 (11–12/11) e por BUG-054/055 (12/11); corrigidos em produção (D306, D308). Último run conferido: 43315021288 (12/11 18:55 BRT), `success`, 3 tarefas, 0 falhas, nenhuma invariante quebrada |
 | BUG-054 cota em dobro e BUG-055 carimbo semanal | #35 | feito (merge `bf95500`) | revisão dupla; em produção o prune apagou 440 (2025) e 324 (2026) lançamentos duplicados; amostra × página da Câmara dentro de R$ 0,10 (D308) |
 | A15 barra da §10 medida | #29 | medido; **barra não atingida** | D305: 0 de 9 controles limpos publicados; 27 de 28 armadilhas pegas, 1 escape; US$ 3,71. Publicação por agentes segue desligada |
 | A16 "Talvez" e stubs | — | decidido (D304) | U04 e U18 feitos na #34; `/mais-vistos` e `/stf` aposentados na #36; U07 aposentado; U19 bloqueado; demais adiados |
 | A14 rotas da Pessoa no /v2 (U04, U18) | #34 | feito (merge `1ec95b2`) | revisão independente + correções B1, C1–C3, N2/N6/N9; e2e local 448 de 448; CI verde; nenhum link do /v2 para `/p/`; equipe só em agregado |
 | A12 e A13 sete telas do /v2 | #33 | feito (merge `0f237b2`) | revisão independente (A–F e notas) e rechecagem (datas de Decisões, `dd1bccf`); e2e local 597 de 597; CI verde |
 | A17 promover a Direção 2 | #36 | **parcial** (D309; merge `909df11`) | nenhuma rota do v1 tem paridade comprovada no /v2: sem 308 e `/v2` segue `noindex`. Entregue: stubs aposentados, rodapé e legenda coerentes com a D293, `noindex` próprio nas páginas pessoais; e2e inteiro local 721 passaram, 74 pulados |
-| CI e agenda do ETL em 13/11 | — | **bloqueado, depende do dono** (D312) | GitHub Actions não inicia jobs por cobrança; ETL com "JANELA PERDIDA" nas duas janelas noturnas; produção e saúde das fontes conferidas `ok` |
+| CI e ETL em 13/11 | — | **bloqueado, depende do dono** (D312) | GitHub Actions recusa todo job por cobrança (CI da main, PR #37 e ETL manual); runs agendados vermelhos por "JANELA PERDIDA" das leituras noturnas de 12 e 13/11; produção e saúde das fontes conferidas `ok` em 13/11 13:03Z |
 
 ### Dívidas registradas nas revisões
 
