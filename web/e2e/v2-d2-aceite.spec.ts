@@ -245,13 +245,21 @@ async function semJs(browser: Browser, info: TestInfo, leitor: Leitor) {
 test.describe("sem JavaScript", () => {
   for (const r of ROTAS) {
     test(`mostra o conteúdo: ${r.nome}`, async ({ browser }, info) => {
-      // Dívida conhecida, de todo o site (v1 inclusive): no Next 15.5, notFound() responde 404 com o documento de erro
-      // (<html id="__next_error__">, corpo vazio) e o 404 só aparece com JavaScript. Fica vermelho-esperado até ser corrigido.
-      test.fail(r.status === 404, "404 sem JavaScript: o Next entrega o documento de erro de corpo vazio (dívida registrada na PR)");
       const context = await semJs(browser, info, "leitor");
       const page = await context.newPage();
       const res = await page.goto(r.url);
       expect(res?.status()).toBe(r.status ?? 200);
+      if (r.status === 404) {
+        // DÍVIDA registrada (todo notFound() do site, v1 inclusive): no Next 15.5 o 404 sai como documento de erro
+        // (<html id="__next_error__">) com o corpo vazio, e o 404 da D2 só aparece com JavaScript. Este teste afirma a dívida
+        // exata: fica VERMELHO quando o Next (ou uma correção na raiz) passar a entregar o 404 no HTML. Aí, troque-o pelo
+        // ramo normal abaixo.
+        await expect(page.locator("html#__next_error__")).toHaveCount(1);
+        await expect(page.locator(".sv h1")).toHaveCount(0);
+        expect((await page.locator("body").innerText()).trim(), "corpo sem conteúdo sem JavaScript").toBe("");
+        await context.close();
+        return;
+      }
       await expect(page.locator(".sv h1")).toHaveCount(1);
       await expect(page.locator(".sv h1")).toBeVisible();
       expect((await page.locator(".sv-main").innerText()).length, "conteúdo do main").toBeGreaterThan(200);
@@ -1283,6 +1291,16 @@ test.describe("estados das sete telas", () => {
     await expect(page.locator('[aria-labelledby="vts-2"]').getByRole("link", { name: /^Mostrar mais/ })).toHaveCount(0);
   });
 
+  test("Votações: placar total que a fonte não publicou vira lacuna, nunca 'Sim: 0'", async ({ page }) => {
+    await abrir(page, "/v2/votacoes");
+    const lista = page.locator('[aria-labelledby="vts-2"]');
+    // a 2ª votação da Câmara na demo sai com placarFonte nulo (fake.ts)
+    const item = lista.locator(".sv-vl").nth(1);
+    await expect(item.locator(".sv-lac")).toContainText("A fonte não publicou o placar total desta votação.");
+    await expect(item.locator(".sv-pl")).toHaveCount(0);
+    await expect(item).not.toContainText(/Sim: 0|Não: 0/);
+  });
+
   test("leitura que falha vira lacuna nomeada (Votações, Decisões nas duas abas, Pessoas)", async ({ page }) => {
     for (const url of ["/v2/votacoes?simular=erro", "/v2/decisoes?simular=erro", "/v2/decisoes?aba=leis&simular=erro", "/v2/pessoas?simular=erro"]) {
       await abrir(page, url);
@@ -1305,9 +1323,14 @@ test.describe("estados das sete telas", () => {
     await abrir(page, "/v2/decisoes");
     const titulo = await page.locator('[aria-labelledby="dc-plen"] h2').innerText();
     const resposta = await page.locator('[aria-labelledby="dc-1"] .sv-a').innerText();
-    const dia = /até (\d{2}\/\d{2}\/\d{4})/.exec(titulo)?.[1];
-    expect(dia, "a pergunta do plenário traz a data").toBeTruthy();
-    expect(resposta).toContain(`até ${dia}.`);
+    // esperado a partir do fixture: a semana da demo (fake.ts demoWeek) vai de segunda 00:00 em Brasília (03:00Z) a
+    // weekEnds = segunda seguinte (exclusivo). O último dia é o domingo, weekEnds menos um dia.
+    const agora = new Date();
+    const dow = (agora.getUTCDay() + 6) % 7;
+    const weekEnds = Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate() - dow, 3) + 7 * 86400e3;
+    const esperado = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(weekEnds - 86400e3));
+    expect(titulo).toContain(`até ${esperado}?`);
+    expect(resposta).toContain(`até ${esperado}.`);
     const semResposta = page.locator(".sv-pi", { has: page.locator(`a[href="/v2/decisao/${KEY_SEM_RESPOSTA}"]`) });
     await expect(semResposta.first()).toContainText("Aguardando conferência");
     const respondida = page.locator(".sv-pi", { has: page.locator(`a[href="/v2/decisao/${KEY_RESPONDIDA}"]`) });

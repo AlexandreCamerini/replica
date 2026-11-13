@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Proxima, Quadro, Resposta } from "@/components/sv/ui";
 
-// 404 do /v2 (Direção 2). Vale para notFound() de qualquer tela do /v2 e para endereço inexistente sob /v2 ([...resto]).
+// 404 do /v2 (Direção 2). Vale para notFound() de qualquer tela do /v2. Endereço inexistente sob /v2 (sem rota) cai no
+// 404 padrão do Next, que é legível sem JavaScript; este, como todo notFound() no Next 15.5, só aparece com JavaScript.
 // Não afirma que o registro não existe: só que esta página não foi encontrada aqui.
 
 const SEGUIR = [

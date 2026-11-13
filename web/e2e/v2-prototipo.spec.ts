@@ -93,6 +93,11 @@ test("v2: voto é forma mais palavra, nunca cor", async ({ page }) => {
   // toda marca vem com a palavra ao lado
   const words = await marks.evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim()));
   expect(words.every((w) => w.length > 0)).toBe(true);
+  // a comparação só prova algo com Sim e Não na tela: as duas formas têm de estar presentes
+  await expect(page.locator(".sv-vt-grupo .sv-m.sv-m--sim").first()).toBeVisible();
+  await expect(page.locator(".sv-vt-grupo .sv-m.sv-m--nao").first()).toBeVisible();
+  // a palavra de cada marca é a do voto do grupo, nunca vazia
+  expect(words).toEqual(expect.arrayContaining(["Sim", "Não"]));
   // a tinta de Sim e de Não é a mesma: só a forma muda
   const inks = await page.locator(".sv-vt-grupo .sv-m").evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).borderTopColor))]);
   expect(inks).toHaveLength(1);

@@ -972,7 +972,10 @@ export const fakeSource: DataSource = {
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
     const all = f.scope === "lei" ? base.filter((e) => e.kind !== "requerimento" && e.kind !== "urgencia") : base;
     const years = [...new Set(events.map((e) => yearOf(e.occurredAt)))].filter((y) => y <= CURRENT_YEAR).sort((a, b) => b - a);
-    const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null, placarFonte: { sim: e.yes, nao: e.no } });
+    // demonstração: a 2ª votação da Câmara na lista sai SEM placar total da fonte (yes_count/no_count nulos no pg), para o
+    // ramo "a fonte não publicou o placar total" rodar. Só muda `placarFonte` do resumo: contagens e totais ficam iguais.
+    const semPlacar = f.body === "camara" ? all[1]?.id : undefined;
+    const toSummary = (e: VotingEvent): VotingEventSummary => ({ ...e, isNominal: true, proposal: null, placarFonte: e.id === semPlacar ? { sim: null, nao: null } : { sim: e.yes, nao: e.no } });
     return { ...page(all.map(toSummary), f.cursor, Math.min(f.limit ?? 30, 100)), years, hidden: base.length - all.length };
   },
   async getVotingEvent(id) {
