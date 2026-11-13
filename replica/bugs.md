@@ -132,7 +132,9 @@ Expected: nenhum erro de console.
 Actual: em 2 das 7 rodadas, `pageerror: Minified React error #418` numa carga do crachá; 4 cargas isoladas seguidas não reproduzem.
 Evidence: `.local/e2e-run7.log` (F03-H1, F03-E4 flaky).
 Suspected cause: diferença entre servidor e cliente em algo dependente de tempo ou de ambiente no crachá (formatação de data/moeda entre Node e Chromium, ou interação do teste antes da hidratação). Não isolado.
-Status: open. Próximo passo: rodar o build de teste sem minificação (`next build` com `productionBrowserSourceMaps`) para ler o diff da hidratação; ou gravar `trace: on` e comparar o HTML do servidor com o da primeira renderização.
+Cause (12/11/2026): o Next 15.5.28 vendoriza react-dom 19.2.0-canary-0bdb9206-20250818, que perde o cursor de hidratação quando um elemento HTML suspende durante a hidratação e é reexecutado (compatível com facebook/react#35494, corrigido no React 19.3.0; sem a correção no vendorizado). O perfil é longo (~330 KB); quando a hidratação começa antes do fim do HTML (JS em cache, HTML lento), dá #418, o React recria o documento e o `data-theme` some.
+Evidência: build de produção, JS em cache, HTML a 200 KB/s, n=100: 29 #418 na main b095ba9; 0 com a correção; interatividade mediana 416 × 419 ms.
+Status: fixed no perfil (PR #30, merge 150ac3b). `AguardaDocumento` (`app/p/[slug]/aguarda-documento.tsx`) faz a raiz hidratar só depois do `DOMContentLoaded`; o HTML do servidor fica na tela, e header e seletor de tema também só respondem depois que o documento termina de chegar (trade-off aceito). E2E de regressão `e2e/bug008-hidratacao-rede-lenta.spec.ts` (30 cargas, sem retry; falha em 9 de 10 execuções sem a correção). Pendências: retirar o contorno quando o Next vendorizar React >= 19.3.0; outras páginas longas do v1 não receberam o contorno (`/representantes?cidade=` deu 0 em 230 cargas em build de produção; a observação antiga era do dev server); se o e2e novo ficar intermitente no CI, investigar, não ignorar.
 
 ### BUG-009: em toque, a lista de lugares ignora toques nos primeiros ~0,5 s
 
@@ -149,7 +151,8 @@ Expected: o toque abre Campinas.
 Actual: o toque cai no conteúdo atrás da lista até ~400–650 ms depois de ela aparecer; `elementFromPoint` no centro da opção devolve o contêiner da página nesse intervalo (sonda: hit=false até 325 ms, true a partir de 652 ms). Sem emulação de toque, hit=true desde 0 ms.
 Evidence: `.local/e2e-run9.log` (F01-E6 mobile); sonda de 25 amostras a cada 80 ms.
 Suspected cause: comportamento do Popover do React Aria em dispositivos de toque (posicionamento/visibilidade ajustados ao viewport visual depois de abrir). Não isolado no código da biblioteca.
-Status: open (S4). O teste espera a opção ficar tocável antes de tocar e documenta o atraso. Reavaliar ao atualizar `react-aria-components`.
+Cause: `react-aria-components` 1.22.1. O Popover adia a revelação até o teclado virtual abrir (`Popover.mjs`: `runAfterKeyboard` → `setIsOpen`, até 600 ms) e, enquanto isso, `useEnterAnimation` (`react-aria/dist/private/utils/animation.mjs:31`) grava inline `opacity:0`, `clip`, `clip-path:inset(50%)` e `mask-image`; `clip-path`/`mask-image` tiram o elemento do hit-testing. Sem toque, `runAfterKeyboard` executa na hora (por isso não reproduzia).
+Status: fixed (PR #31, 12/11/2026). `search-combobox.tsx` anula o ocultamento com classes `!important` quando `data-placement` existe. Antes, 1º toque válido em ~460 ms (n=3); depois, 0–1 ms em 20 de 20. F01-E6 mobile toca sem espera e falha contra a main (5/5). Pendências: o mesmo atraso existe em `person-picker.tsx:69` (/comparar, ~635 ms, medido na revisão); em tela de 320 px a lista agora aparece abaixo do campo e pula para cima quando o teclado abre (~0,3 s), a conferir em aparelho real; o `!important` anula qualquer animação futura de entrada no Popover.
 
 ### BUG-010: presença derivada de voto mostrada como presença oficial
 
@@ -893,3 +896,49 @@ Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não conve
 - Steps: o TSE republica o `consulta_cand_2024` (04/11/2026) com a retotalização de Tapauá (UE 02798). A recarga `--all` cria os mandatos dos 3 eleitos novos e grava NÃO ELEITO em epaminondas, izaque-martins e nilson-am, mas os mandatos deles seguem `em_exercicio` (o TSE só promove `eleito_aguardando_posse`). O `check` deu 40/40, porque não havia invariante de cadeiras.
 - Expected: os rebaixados saem do exercício, com motivo e sem apagar; Tapauá com 11.
 - Status: fixed (D251). Passo `mandatos_tse` do `identity.repairs` (3 → 0) e check "vereador em exercício ≤ cadeiras da CF art. 29, IV" (falhava com 1, agora passa). Tapauá 11. Testes em `test_identity_repairs.py`.
+
+## Execução de novembro (2026-11-11)
+
+### BUG-050: suplente que saiu do exercício segue em exercício; Câmara com 514
+
+- Severity: S2 (cadeira a mais na Câmara; invariantes "câmara: exatamente 513 em exercício" e "assembleia: titulares eleitos… CF art. 27" vermelhas, `etl.yml` com exit 2 em todo ciclo desde 09/11)
+- Flow / case: agenda `camara.deputados` · leonardo-gadelha (PB, id Câmara 122195)
+- Steps: o suplente assume em 2026-07-09 e o run grava `suplente_em_exercicio`/`em_exercicio` até 2027-02-01. Em 2026-11-06 o titular volta: a Câmara lista o suplente na legislatura 57 com `condicaoEleitoral` "Suplente", `situacao` "Suplência", `data` 2026-11-06. `_deputies` fazia `continue` nesse ramo e o upsert não toca `ends_on`: o mandato ficava em exercício para sempre.
+- Expected: o mandato do suplente fecha na data da fonte, sem apagar a linha; Câmara com 513.
+- Status: fixed (PR #25, D301). `close_suplentes`, em savepoint: suplente listado fora do exercício → status do mapa STATUS, `ends_on` = `ultimoStatus.data` (teto hoje); ausente da listagem, data anterior ao início e mandato de hoje só anotam; teto de 5 encerramentos por run (acima: nenhum, run parcial); falha → run parcial com o upsert preservado; encerrados em `log.warning` e no topo das notas. Testes em `test_camara_suplente_saiu.py` (21). Conferido em produção em 11/11/2026: 1 mandato encerrado (2026-07-09 → 2026-11-06), 513 em exercício, PB com 12, check sem falha.
+
+### BUG-051: suplente que entrou no 1º dia da legislatura é tratado como titular
+
+- Severity: S4 latente (achado nas revisões da PR #25; anterior a ela)
+- Onde: `camara_diario._deputies`, `titular = condicao == "Titular" or any(s == start ...)`. Quando esse suplente sai, a linha vira `titular`/`encerrado` com `ends_on` no fim da legislatura e escapa do `close_suplentes`.
+- Status: open.
+
+### BUG-052: suplente efetivado como "Titular" pode derrubar o run da Câmara
+
+- Severity: S3 latente (achado nas revisões da PR #25; anterior a ela)
+- Onde: o ramo do titular insere `(início da legislatura, fim)` por cima do mandato de suplente aberto da mesma pessoa; a exclusão `no_overlapping_mandate` (por pessoa e cargo) estoura fora do savepoint e desfaz a carga de deputados do ciclo. O mesmo vale para mandato da mesma pessoa em outra UF (`known` é por UF, a exclusão é por cargo).
+- Status: open. Em produção, 11/11/2026: nenhuma pessoa com titular do 1º dia e suplente aberto na legislatura (consulta de leitura).
+
+### BUG-053: pessoa criada por carga recente fica sem as candidaturas de eleições antigas do próprio título
+
+- Severity: S3 (crachá incompleto, sem fato errado; o check do BUG-039 acusa e o `etl.yml` fecha com exit 2 a cada ciclo)
+- Flow / case: agenda `tse.candidatos.recentes` (2024, 2026) + `identity.repairs` · Build: main b095ba9
+- Steps: em 11/11/2026 a retotalização de 2024 cria 10 vereadores novos no diretório (D07: só eleito com mandato atual cria pessoa, `tse_candidatos.py:336`). O passo `titulos` do reparo (`repairs.py:8-11`) grava as linhas 2012–2020 dos títulos deles, mas nenhum passo carrega essas candidaturas (`schedule.py:179` só recarrega 2024 e 2026). O check "título com linha ELEITO na fonte e pessoa sem candidatura eleita nesse ano" (`checks_identity.py:85`) dá 8: cosme-do-leite 2016; dudu-mg-vereador e lilo-da-bititinga 2012, 2016 e 2020; professor-moises-se 2020.
+- Expected: o histórico do título (todas as situações) no crachá na mesma rodada.
+- Actual: faltam 12 candidaturas de 5 pessoas (as 8 eleitas, 3 não eleitas dos mesmos 4 e 1 de nilson-chaves, 2016). No cache da fonte, todas têm o mesmo nascimento e a mesma UE da linha de 2024; uma tem o nome a 1 edição. É dado faltando, não fusão.
+- Fix sugerido: passo `historico` em `repairs.STEPS`, depois de `titulos`: para título do diretório com linha de um ano sem candidatura da pessoa naquele ano, `_load_year(only={(UE, SQ)})` a partir do cache (mecanismo do `identity.fix041`). Paliativo manual, só pelo dono (escrita em produção fora da agenda): `civico-etl tse.candidatos --all --force --year 2020 --year 2016 --year 2012 --uf MG --uf BA --uf AL --uf SE`, depois `identity.repairs --apply` e `check`.
+- Status: fixed (PR #32, merge 680ae3d; aplicado em produção em 12/11/2026, run 43310865469, D306). Passo `historico` do `identity.repairs` (o último): só entra linha que casa na pessoa do título com todas as travas de identidade, nascimento a menos de 1 ano e mandato já encerrado; não eleitas só de quem ainda não tem histórico; só eleição ordinária; bens por cache ou download (sem bens o ano não entra); teto de 200 candidaturas e 10 min por run; `ETL_REPAIRS_SKIP=historico` desliga. Em produção: universo 3.604, 39 candidaturas, 8 mandatos (todos encerrados), 24 declarações de bens, 0 recusas; check 8 → 0. Fica de fora o backlog do BUG-047: 3.439 não eleitas de quem já tem histórico (carga em massa, decisão do dono).
+
+### BUG-054: cota de 2025–2026 em dobro pelo complemento da API
+
+- Severity: S2 (o site mostra gasto a mais: ~R$ 4,04 mi em 2025, 182 deputados; ~R$ 4,49 mi em 2026, 95 deputados)
+- Symptom: em 12/11/2026 o check `cota: amostra fixa…` falhou em 4 casos de 2025 (160541 +18,75%, 178975 +3,29%, 204534 +22,43%, 209787 +2,16% sobre a página da Câmara).
+- Cause: em 12/11/2026 a API `/deputados/{id}/despesas` passou a devolver valores com centavos e o `valorLiquido` negado fora do SIGEPA; o `Ano-AAAA.csv.zip` segue com 6 dígitos significativos. O casamento (documento, valor) do complemento D181 falhou e o `cotaapi` regravou linhas que o arquivo já tem (ex.: 11892.53 × 11892.5 no documento 7896551; parcela 2500/0/−311,55 × +311,55 no 8022455). "Passagem aérea - SIGEPA" é legítima e a página a soma.
+- Status: fixed (PR #35, merge bf95500; aplicado em 12/11/2026, run 43315021288, D308). Segunda passada por documento em duas etapas (valor próprio exato ou 6 dígitos; depois líquido negado) e terceira por soma do documento dividido. Produção: 440 (2025) e 324 (2026) lançamentos duplicados apagados pelo prune do job; amostra a até R$ 0,10 da página; check `ok`.
+
+### BUG-055: check de carimbo vencido cobra 48 h de tarefas semanais
+
+- Severity: S4 (falso alarme; deixa o `etl.yml` vermelho)
+- Cause: `camara.equipe` e `parlamento.extras` são semanais (`schedule.TASKS`, `7 * D`), mas o check cobrava 48 h de toda família camara/senado.
+- Status: fixed (PR #35, merge bf95500): régua = cadência da tarefa + 48 h para tarefas com cadência acima de 48 h; diárias seguem em 48 h. Check `ok` em 12/11/2026.
+
