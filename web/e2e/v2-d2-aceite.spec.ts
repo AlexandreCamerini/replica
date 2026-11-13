@@ -1308,6 +1308,14 @@ test.describe("estados das sete telas", () => {
     await expect(respondida.first()).not.toContainText("Aguardando conferência");
   });
 
+  test("Decisões: com só uma Casa lida, a tela diz qual não foi lida e o selo usa a leitura mais antiga", async ({ page }) => {
+    await abrir(page, "/v2/decisoes?simular=camara_nao_lida");
+    await expect(page.locator('[aria-labelledby="dc-1"]')).toContainText("A pauta da Câmara dos Deputados ainda não foi lida.");
+    await abrir(page, "/v2/decisoes");
+    await expect(page.locator('[aria-labelledby="dc-1"]')).not.toContainText(/ainda não foi lida/);
+    await expect(page.locator('[aria-labelledby="dc-selo"]')).toContainText(/Leitura das fontes: \d{2}\/\d{2}\/\d{4}/);
+  });
+
   test("Pessoas: página truncada dita; Tema diz a janela de leitura", async ({ page }) => {
     await abrir(page, "/v2/pessoas");
     await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText(/Esta página mostra 60 de [\d.]+\./);

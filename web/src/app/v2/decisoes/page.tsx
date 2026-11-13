@@ -22,7 +22,8 @@ export default async function Decisoes({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const tab = sp.aba === "leis" ? "leis" : "pauta";
   // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
-  const falhar = simulacao(sp.simular) === "erro";
+  const sim = simulacao(sp.simular);
+  const falhar = sim === "erro";
 
   return (
     <div className="sv-pg sv-pg--dcs">
@@ -38,14 +39,15 @@ export default async function Decisoes({ searchParams }: { searchParams: Promise
           Viraram lei
         </Link>
       </nav>
-      {tab === "pauta" ? <Pauta falhar={falhar} /> : <Leis falhar={falhar} />}
+      {tab === "pauta" ? <Pauta falhar={falhar} camaraNaoLida={sim === "camara_nao_lida"} /> : <Leis falhar={falhar} />}
       <Proxima href="/v2/temas" pergunta="O que está em jogo no Congresso?" className="sv-c5" />
     </div>
   );
 }
 
-async function Pauta({ falhar }: { falhar: boolean }) {
-  const o: PautaOverview | null = await lerOuFalhar(falhar, () => data.getPautaOverview()).catch(() => null);
+async function Pauta({ falhar, camaraNaoLida }: { falhar: boolean; camaraNaoLida: boolean }) {
+  // a opção só existe na demonstração; sem simulação, a chamada é a de sempre (sem argumento)
+  const o: PautaOverview | null = await lerOuFalhar(falhar, () => (camaraNaoLida ? data.getPautaOverview({ simulate: "camara_nao_lida" }) : data.getPautaOverview())).catch(() => null);
   if (!o) {
     return (
       <>
@@ -58,6 +60,10 @@ async function Pauta({ falhar }: { falhar: boolean }) {
     );
   }
   const readAt = o.week.readAt ?? ([o.reads.camara.readAt, o.reads.senado.readAt].filter(Boolean).sort().at(-1) as string | undefined) ?? null;
+  // selo: a leitura MAIS ANTIGA das duas Casas (como o Tema), para não datar a página pela Casa lida por último
+  const lidaMaisAntiga = ([o.reads.camara.readAt, o.reads.senado.readAt].filter(Boolean) as string[]).sort()[0] ?? null;
+  const soCamara = !!o.reads.camara.readAt && !o.reads.senado.readAt;
+  const soSenado = !o.reads.camara.readAt && !!o.reads.senado.readAt;
   const falhas = o.reads.camara.failed + o.reads.senado.failed;
   const reunioes = o.reads.camara.total + o.reads.senado.total;
   const prova = `Fonte: ${FONTE_PAUTA}${readAt ? `, lida em ${fmtDateTime(readAt)}` : ", ainda não lida"}.`;
@@ -88,6 +94,8 @@ async function Pauta({ falhar }: { falhar: boolean }) {
           </p>
         )}
         {(!readAt || plenario.length === 0) && <p className="sv-t">Isso não quer dizer que nada vai acontecer. Só lemos o que a Câmara e o Senado publicaram.</p>}
+        {soCamara && <p className="sv-t">A pauta do Senado Federal ainda não foi lida.</p>}
+        {soSenado && <p className="sv-t">A pauta da Câmara dos Deputados ainda não foi lida.</p>}
         <NotaRegra />
       </Quadro>
 
@@ -136,7 +144,7 @@ async function Pauta({ falhar }: { falhar: boolean }) {
         </Quadro>
       )}
 
-      <Selo id="dc-selo" numero={n++} lidoEm={readAt} className="sv-c7" />
+      <Selo id="dc-selo" numero={n++} lidoEm={lidaMaisAntiga} className="sv-c7" />
     </>
   );
 }
