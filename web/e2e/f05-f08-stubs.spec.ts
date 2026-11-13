@@ -51,11 +51,27 @@ test.describe("F05–F08 a partir do crachá e telas provisórias", () => {
 
   test("stubs de release posterior dizem o release", async ({ page, axe }) => {
     // S22, S23 e S24 saíram de stub no build 5 (têm spec própria em w1a-*); aqui ficam as que ainda são stub
-    for (const [path, sid] of [["/stf", "S15"], ["/propostas", "S13"]]) {
+    for (const [path, sid] of [["/propostas", "S13"]]) {
       await page.goto(path);
       await expect(page.getByText(new RegExp(`${sid} · entra no R\\d`))).toBeVisible();
       await expect(page.getByRole("link", { name: /quem representa a sua cidade/ })).toBeVisible();
     }
     await axe();
+  });
+
+  test("stubs aposentados (D304) respondem 404 e ninguém aponta para eles", async ({ page, request }) => {
+    for (const path of ["/stf", "/mais-vistos"]) expect((await request.get(path)).status(), path).toBe(404);
+    await page.goto("/");
+    await expect(page.locator('a[href="/stf"], a[href="/mais-vistos"]')).toHaveCount(0);
+  });
+
+  test("rodapé não promete revisão por pessoa: diz a regra de conferência e leva à explicação", async ({ page }) => {
+    await page.goto("/");
+    const rodape = page.locator("footer").last();
+    await expect(rodape).not.toContainText("aguardando revisão por pessoa");
+    await expect(rodape).toContainText("só aparece depois de conferida com o texto oficial");
+    await rodape.getByRole("link", { name: "Como conferimos" }).click();
+    await expect(page).toHaveURL(/\/como-escolhemos#revisao$/);
+    await expect(page.locator("#revisao")).toContainText("por pessoa ou por agentes de IA");
   });
 });

@@ -13,7 +13,12 @@ export function AppFooter() {
             ou ruim.
           </p>
           <p className="lbl">Fonte: Câmara dos Deputados, Senado Federal · cadeiras: TSE · malhas: IBGE</p>
-          <p className="lbl">Temas lidos por IA, aguardando revisão por pessoa</p>
+          <p className="lbl">
+            Resposta escrita por IA só aparece depois de conferida com o texto oficial.{" "}
+            <Link href="/como-escolhemos#revisao" className="underline underline-offset-2">
+              Como conferimos
+            </Link>
+          </p>
           <div className="md:hidden">
             <ThemeToggle />
           </div>
