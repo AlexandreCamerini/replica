@@ -152,6 +152,7 @@ Atualizado em 13/11/2026, fim da execução (ondas 0 a 5).
 | A12 e A13 sete telas do /v2 | #33 | feito (merge `0f237b2`) | revisão independente (A–F e notas) e rechecagem (datas de Decisões, `dd1bccf`); e2e local 597 de 597; CI verde |
 | A17 promover a Direção 2 | #36 | **parcial** (D309; merge `909df11`) | nenhuma rota do v1 tem paridade comprovada no /v2: sem 308 e `/v2` segue `noindex`. Entregue: stubs aposentados, rodapé e legenda coerentes com a D293, `noindex` próprio nas páginas pessoais; e2e inteiro local 721 passaram, 74 pulados |
 | CI e ETL em 13/11 | — | **bloqueado, depende do dono** (D312) | GitHub Actions recusa todo job por cobrança (CI da main, PR #37 e ETL manual); runs agendados vermelhos por "JANELA PERDIDA" das leituras noturnas de 12 e 13/11; produção e saúde das fontes conferidas `ok` em 13/11 13:03Z |
+| CI e ETL em 13/11, tarde | — | **resolvido** (D313) | Actions voltou a aceitar jobs às 17:38Z; leituras noturnas repostas (`43474640993`, `43475524412`); agenda inteira verde (`43477425230`); CI da main e da PR #37 verdes; causa dos crons noturnos sem disparo segue em aberto |
 
 ### Dívidas registradas nas revisões
 
