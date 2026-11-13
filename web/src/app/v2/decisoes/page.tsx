@@ -5,11 +5,11 @@ import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA, SEM_DADO } from "@/components/sv/estados";
 import { clip, fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
 import { NotaRegra } from "@/components/sv/inicio/semana";
+import { ultimoDiaDaSemana } from "@/components/sv/fim-da-semana";
 import { PautaItem } from "@/components/sv/pauta-item";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type PautaEntry, type PautaOverview } from "@/lib/data";
-import { weekLastDay } from "@/lib/pauta";
 
 export const metadata: Metadata = { title: "O que mexe comigo?" };
 
@@ -69,7 +69,9 @@ async function Pauta({ falhar, camaraNaoLida }: { falhar: boolean; camaraNaoLida
   const prova = `Fonte: ${FONTE_PAUTA}${readAt ? `, lida em ${fmtDateTime(readAt)}` : ", ainda não lida"}.`;
   const plenario = [...o.plenary].sort(byDate);
   const comissoes = [...o.committees].sort(byDate);
-  const ateQuando = fmtDate(weekLastDay(o.week.weekEnds)); // weekEnds é exclusivo: o último dia é o anterior
+  // weekEnds é exclusivo: o último dia é o anterior. Semana ausente ("" no pg): null, e a tela omite o "até …"
+  const ateQuando = ultimoDiaDaSemana(o.week.weekEnds);
+  const ate = ateQuando ? ` até ${ateQuando}` : " nesta semana";
   let legendaFeita = false;
   const legenda = () => {
     const l = !legendaFeita;
@@ -80,7 +82,7 @@ async function Pauta({ falhar, camaraNaoLida }: { falhar: boolean; camaraNaoLida
   let resposta: string;
   if (!readAt) resposta = "A pauta desta semana ainda não foi lida.";
   else if (plenario.length === 0) resposta = "Nada do que acompanhamos está marcado no plenário nesta semana.";
-  else resposta = `${plural(plenario.length, "proposta que acompanhamos está marcada", "propostas que acompanhamos estão marcadas")} no plenário até ${ateQuando}.`;
+  else resposta = `${plural(plenario.length, "proposta que acompanhamos está marcada", "propostas que acompanhamos estão marcadas")} no plenário${ate}.`;
 
   let n = 1;
   return (
@@ -103,7 +105,7 @@ async function Pauta({ falhar, camaraNaoLida }: { falhar: boolean; camaraNaoLida
         id="dc-plen"
         variante={plenario.length ? "padrao" : "lacuna"}
         numero={n++}
-        pergunta={`O que vai ao plenário até ${ateQuando}?`}
+        pergunta={`O que vai ao plenário${ate}?`}
         className="sv-tira"
         prova={
           <>
