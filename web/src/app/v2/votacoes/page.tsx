@@ -13,7 +13,7 @@ import { data, type Body } from "@/lib/data";
 export const metadata: Metadata = { title: "Como votaram no Congresso?" };
 
 const PASSO = 30;
-const TETO = 200; // a lista não passa disso: o que fica de fora é dito, não escondido
+const TETO = 100; // a fonte devolve no máximo 100 (pg.ts e fake.ts): o que fica de fora é dito, não escondido
 const DA_CASA = { camara: "da Câmara", senado: "do Senado" } as const;
 
 export default async function Votacoes({ searchParams }: { searchParams: Promise<{ casa?: string | string[]; tudo?: string | string[]; n?: string | string[]; simular?: string | string[] }> }) {
@@ -42,7 +42,8 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
 
   const n = page?.items.length ?? 0;
   const truncada = !!page && n < page.total;
-  const noTeto = truncada && pedido >= TETO;
+  // pelo número DEVOLVIDO: se a fonte devolveu menos que o pedido (ou chegou ao teto), pedir mais não acrescenta nada
+  const noTeto = truncada && (n >= TETO || n < pedido);
   const oQue = tudo ? "votações nominais" : "votações que mudam o texto de uma proposta";
 
   let resposta: string;
@@ -121,9 +122,9 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
               <p className="sv-t">
                 Mostrando {fmtInt(n)} de {fmtInt(page.total)}.{" "}
                 {noTeto ? (
-                  <>Esta lista vai até {TETO}: as mais antigas ficam fora desta página.</>
+                  <>Esta lista vai até {fmtInt(n)}: as mais antigas ficam fora desta página.</>
                 ) : (
-                  <Link className="sv-lk" href={qs({ n: Math.min(TETO, pedido + PASSO) })}>
+                  <Link className="sv-lk" href={qs({ n: Math.min(TETO, n + PASSO) })}>
                     Mostrar mais {Math.min(PASSO, page.total - n, TETO - n)}
                   </Link>
                 )}

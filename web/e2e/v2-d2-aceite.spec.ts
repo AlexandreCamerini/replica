@@ -1273,8 +1273,13 @@ test.describe("estados das sete telas", () => {
     await expect(lista).toContainText(/Mostrando 30 de \d+\./);
     await expect(lista.getByRole("link", { name: /^Mostrar mais \d+$/ })).toBeVisible();
     await expect(lista.locator(".sv-vl")).toHaveCount(30);
+    // pedido acima do teto: o teto dito é o número de itens DEVOLVIDOS pela fonte, e não há "Mostrar mais" que nada acrescenta
     await abrir(page, "/v2/votacoes?n=200");
-    await expect(page.locator('[aria-labelledby="vts-2"]')).toContainText("Esta lista vai até 200: as mais antigas ficam fora desta página.");
+    const q2 = page.locator('[aria-labelledby="vts-2"]');
+    const teto = /Esta lista vai até (\d+): as mais antigas ficam fora desta página\./.exec(await q2.innerText())?.[1];
+    expect(teto, "frase do teto").toBeTruthy();
+    await expect(q2.locator(".sv-vl")).toHaveCount(Number(teto));
+    expect(Number(teto)).toBeLessThanOrEqual(100);
     await expect(page.locator('[aria-labelledby="vts-2"]').getByRole("link", { name: /^Mostrar mais/ })).toHaveCount(0);
   });
 
