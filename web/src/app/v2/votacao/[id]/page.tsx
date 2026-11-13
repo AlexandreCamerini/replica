@@ -5,7 +5,9 @@ import "@/styles/sv-votacao.css";
 import { lidoEm } from "@/components/sv/carimbo";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { BODY_NAME, clip, fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
+import { FalhaDeLeitura } from "@/components/sv/falha-leitura";
 import { placarDe } from "@/components/sv/placar";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Placar, Proxima, Quadro, Resposta, Selo, VotoMarca } from "@/components/sv/ui";
 import { data, type VoteValue, type VotingEventDetail } from "@/lib/data";
 
@@ -77,10 +79,12 @@ function Nomes({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
   );
 }
 
-export default async function Votacao({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ uf?: string | string[] }> }) {
+export default async function Votacao({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ uf?: string | string[]; simular?: string | string[] }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const ev = await load(id);
-  if (!ev) notFound();
+  // null = não existe (404); undefined = a leitura falhou (lacuna, nunca 500). `?simular=erro` só vale na demonstração.
+  const ev = await lerOuFalhar(simulacao(sp.simular) === "erro", () => load(id)).catch(() => undefined);
+  if (ev === null) notFound();
+  if (ev === undefined) return <FalhaDeLeitura titulo="Como foi esta votação?" pergunta="O que foi votado?" oQue="esta votação" proxima={{ href: "/v2/votacoes", pergunta: "Que outras votações houve?" }} />;
   const stamp = await data.getStamp(`${ev.body}.votacoes`).catch(() => null);
 
   const placar = placarDe(ev);

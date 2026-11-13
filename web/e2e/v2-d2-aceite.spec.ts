@@ -1290,6 +1290,12 @@ test.describe("estados das sete telas", () => {
       await expect(main, url).toContainText(FALHOU);
       await expect(main, url).not.toContainText(/Nenhuma votação|Nada do que acompanhamos|Nenhuma pessoa encontrada|Ainda não temos esse dado/);
     }
+    // Votação e Tema: a leitura principal falha -> lacuna nomeada na tela (200), nunca erro 500 nem 404
+    for (const url of ["/v2/votacao/camara-v2026-15?simular=erro", "/v2/tema/agro?simular=erro"]) {
+      await abrir(page, url);
+      await expect(page.locator('[aria-labelledby="falha-1"]'), url).toContainText(FALHOU);
+      await expect(page.locator(".sv-main"), url).toContainText("Isso não quer dizer que o registro não existe");
+    }
     await abrir(page, "/v2/pessoas?cidade=3509502&grupo=vereadores&simular=erro");
     await expect(page.locator('[aria-labelledby="pp-lugar"]')).toContainText(FALHOU);
     await expect(page.locator(".sv h1")).toHaveText("Quem está no cargo?");
