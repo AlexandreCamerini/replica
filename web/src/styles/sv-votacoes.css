@@ -1,0 +1,9 @@
+/* Segue o Voto, D2 · tela Votações (/v2/votacoes). Importado pela própria página.
+   Só regras desta tela, sob .sv e com prefixo sv-. Peças compartilhadas (abas, item de votação, placar da fonte) em sv.css §13.
+   Esta tela não usa --agora nem --vida: tudo em tinta. */
+
+.sv .sv-pg--vts>.sv-abas{margin-top:2px}
+.sv .sv-pg--vts .sv-quadro--dom .sv-a--dom{max-width:22ch}
+@media (min-width:900px){
+  .sv .sv-pg--vts .sv-quadro--dom .sv-a--dom{font-size:clamp(40px,4.6vw,64px)}
+}

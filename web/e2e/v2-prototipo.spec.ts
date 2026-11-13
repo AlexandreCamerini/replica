@@ -81,20 +81,25 @@ test("v2: a UF se escolhe por formulário em Ajustes (sem busca por cidade) e ap
 test("v2: pessoas de um grupo aparecem em ordem alfabética", async ({ page }) => {
   await page.goto("/v2/pessoas?cidade=3509502&grupo=vereadores");
   await expect(page.locator(".sv h1")).toHaveText("Vereadores");
-  const names = await page.locator(".sv-item > div").evaluateAll((els) => els.map((e) => (e.firstChild?.textContent ?? "").trim()));
+  const names = await page.locator(".sv-pp > li > a").evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim()));
   expect(names.length).toBeGreaterThan(1);
   expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, "pt-BR")));
 });
 
 test("v2: voto é forma mais palavra, nunca cor", async ({ page }) => {
   await page.goto("/v2/votacao/camara-v2026-15?uf=SP");
-  const marks = page.locator(".sv-voterow .sv-vote");
+  const marks = page.locator(".sv-vt-grupo .sv-voto");
   await expect(marks.first()).toBeVisible();
   // toda marca vem com a palavra ao lado
   const words = await marks.evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim()));
   expect(words.every((w) => w.length > 0)).toBe(true);
+  // a comparação só prova algo com Sim e Não na tela: as duas formas têm de estar presentes
+  await expect(page.locator(".sv-vt-grupo .sv-m.sv-m--sim").first()).toBeVisible();
+  await expect(page.locator(".sv-vt-grupo .sv-m.sv-m--nao").first()).toBeVisible();
+  // a palavra de cada marca é a do voto do grupo, nunca vazia
+  expect(words).toEqual(expect.arrayContaining(["Sim", "Não"]));
   // a tinta de Sim e de Não é a mesma: só a forma muda
-  const inks = await page.locator(".sv-voterow .sv-mark").evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).borderTopColor))]);
+  const inks = await page.locator(".sv-vt-grupo .sv-m").evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).borderTopColor))]);
   expect(inks).toHaveLength(1);
   // e a tinta é a da página (tinta), não uma cor de destaque
   expect(inks[0]).toBe("rgb(20, 20, 20)");
@@ -149,8 +154,8 @@ test("páginas atuais continuam com o shell atual", async ({ page }) => {
 
 test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async ({ page }) => {
   await page.goto("/v2/pessoas?cargo=senador&uf=SP");
-  const first = page.locator(".sv-item").first();
-  const name = ((await first.locator("div").first().evaluate((e) => e.firstChild?.textContent)) ?? "").trim();
+  const first = page.locator(".sv-pp > li > a").first();
+  const name = ((await first.textContent()) ?? "").trim();
   await first.click();
   await page.getByRole("button", { name: /Votei nesta pessoa/ }).click();
   await expect(page.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
@@ -164,7 +169,7 @@ test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async 
   await expect(page.locator(".sv-main").getByText(name).first()).toBeVisible();
   // desmarcar: volta ao estado vazio, com convite
   await page.goto("/v2/pessoas?cargo=senador&uf=SP");
-  await page.locator(".sv-item").first().click();
+  await page.locator(".sv-pp > li > a").first().click();
   await page.getByRole("button", { name: "Você acompanha" }).click();
   await page.goto("/v2/acompanhando");
   await expect(page.getByRole("heading", { name: "Você ainda não marcou ninguém." })).toBeVisible();
@@ -209,5 +214,5 @@ test("v2: a visão por temas leva às votações de cada tema", async ({ page })
   await expect(tema).toBeVisible();
   await tema.click();
   await expect(page).toHaveURL(/\/v2\/tema\//);
-  await expect(page.locator('a.sv-item[href^="/v2/votacao/"]').first()).toBeVisible();
+  await expect(page.locator('.sv-vls .sv-vl a[href^="/v2/votacao/"]').first()).toBeVisible();
 });
