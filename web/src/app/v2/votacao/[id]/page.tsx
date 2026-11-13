@@ -59,7 +59,10 @@ function Nomes({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
         return (
           <div key={val} className="sv-vt-grupo">
             <h3>
-              <VotoMarca voto={val} />
+              {/* a palavra do voto já está no texto do título ("Votaram sim: n"): a marca é só visual */}
+              <span aria-hidden="true">
+                <VotoMarca voto={val} />
+              </span>
               <span>
                 {HEAD[val]}: {group.length}
               </span>

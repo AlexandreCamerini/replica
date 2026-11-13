@@ -72,7 +72,7 @@ export default async function Tema({ params, searchParams }: { params: Promise<{
             Sem resultado publicado pela fonte: {fmtInt(semResultado)}
           </li>
         </ul>
-        <Nota>Aprovar ou rejeitar um texto não diz se a decisão foi boa. Abra cada votação para ver o que foi decidido e quem votou.</Nota>
+        <Nota>Entre as {fmtInt(p.loaded)} votações mais recentes que lemos, não em toda a história. Aprovar ou rejeitar um texto não diz se a decisão foi boa. Abra cada votação para ver o que foi decidido e quem votou.</Nota>
       </Quadro>
 
       <Quadro
