@@ -1330,6 +1330,18 @@ test.describe("estados das sete telas", () => {
     await expect(page.locator('[aria-labelledby="tm1-1"]')).toContainText(/Contamos entre as [\d.]+ votações mais recentes que lemos das duas Casas, de um total de [\d.]+\./);
   });
 
+  test("Pessoas: página inválida é entrada inválida, não falha da fonte", async ({ page }) => {
+    for (const p of ["Infinity", "1e308", "1.5", "-3", "abc", "1234567"]) {
+      await abrir(page, `/v2/pessoas?pagina=${encodeURIComponent(p)}`);
+      const q = page.locator('[aria-labelledby="pp-2"]');
+      await expect(q, p).not.toContainText(FALHOU);
+      await expect(q, p).toContainText("O endereço pedia uma página que não existe. Mostramos o começo da lista.");
+      await expect(page.locator(".sv-pp > li"), p).toHaveCount(60);
+    }
+    await abrir(page, "/v2/pessoas?pagina=999999");
+    await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText("Esta página fica depois do fim da lista.");
+  });
+
   test("Como funciona: as âncoras que outras telas usam existem", async ({ page }) => {
     await abrir(page, "/v2/como-funciona");
     for (const id of ["verificacao", "fontes", "regras", "correcoes"]) await expect(page.locator(`#${id}`), id).toHaveCount(1);

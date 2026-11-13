@@ -43,6 +43,10 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
   // parâmetro repetido chega como array: só string vale, o resto é ignorado (nunca erro 500)
   const so = (v: unknown) => (typeof v === "string" ? v : undefined);
   const sp = { nome: so(raw.nome), cargo: so(raw.cargo), uf: so(raw.uf), cidade: so(raw.cidade), grupo: so(raw.grupo), pagina: so(raw.pagina) };
+  // `pagina` é o deslocamento da lista: só inteiro de até 6 dígitos chega à consulta. O resto (Infinity, 1e308, fração,
+  // texto) é entrada inválida, dita como tal, e não "falha da fonte".
+  const pagina = sp.pagina && /^\d{1,6}$/.test(sp.pagina) ? sp.pagina : undefined;
+  const paginaInvalida = !!sp.pagina && !pagina;
   const q = (sp.nome ?? "").trim().slice(0, 80);
   const office = isOffice(sp.cargo) ? sp.cargo : undefined;
   const uf = sp.uf && /^[A-Za-z]{2}$/.test(sp.uf) ? sp.uf.toUpperCase() : undefined;
@@ -114,7 +118,7 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
   const [offices, ufs, page] = await Promise.all([
     data.listOffices().catch(() => null),
     data.listUfs().catch(() => null),
-    lerOuFalhar(falhar, () => data.listPeople({ q: q || undefined, office, uf, cursor: sp.pagina, limit: POR_PAGINA })).catch(() => null),
+    lerOuFalhar(falhar, () => data.listPeople({ q: q || undefined, office, uf, cursor: pagina, limit: POR_PAGINA })).catch(() => null),
   ]);
   const next = new URLSearchParams();
   if (q) next.set("nome", q);
@@ -188,10 +192,13 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
       >
         {!page ? (
           <Lacuna motivo="A lista de pessoas não pôde ser lida. Tente de novo em alguns minutos.">{FALHOU_LEITURA}</Lacuna>
+        ) : n === 0 && pagina && page.total > 0 ? (
+          <Lacuna motivo={`A lista tem ${fmtInt(page.total)} pessoas.`}>Esta página fica depois do fim da lista.</Lacuna>
         ) : n === 0 ? (
           <Lacuna>{filtrou ? "Nenhuma pessoa encontrada com esses filtros." : "Ninguém carregado ainda."}</Lacuna>
         ) : (
           <>
+            {paginaInvalida && <p className="sv-t">O endereço pedia uma página que não existe. Mostramos o começo da lista.</p>}
             <Resposta tamanho="m">
               {page.total === 1 ? "1 pessoa" : `${fmtInt(page.total)} pessoas`}
               {filtrou ? " com esses filtros" : " no cargo hoje"}, em ordem alfabética.
