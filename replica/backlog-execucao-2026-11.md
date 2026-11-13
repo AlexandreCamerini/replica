@@ -151,6 +151,7 @@ Atualizado em 13/11/2026, fim da execução (ondas 0 a 5).
 | A14 rotas da Pessoa no /v2 (U04, U18) | #34 | feito (merge `1ec95b2`) | revisão independente + correções B1, C1–C3, N2/N6/N9; e2e local 448 de 448; CI verde; nenhum link do /v2 para `/p/`; equipe só em agregado |
 | A12 e A13 sete telas do /v2 | #33 | feito (merge `0f237b2`) | revisão independente (A–F e notas) e rechecagem (datas de Decisões, `dd1bccf`); e2e local 597 de 597; CI verde |
 | A17 promover a Direção 2 | #36 | **parcial** (D309; merge `909df11`) | nenhuma rota do v1 tem paridade comprovada no /v2: sem 308 e `/v2` segue `noindex`. Entregue: stubs aposentados, rodapé e legenda coerentes com a D293, `noindex` próprio nas páginas pessoais; e2e inteiro local 721 passaram, 74 pulados |
+| CI e agenda do ETL em 13/11 | — | **bloqueado, depende do dono** (D312) | GitHub Actions não inicia jobs por cobrança; ETL com "JANELA PERDIDA" nas duas janelas noturnas; produção e saúde das fontes conferidas `ok` |
 
 ### Dívidas registradas nas revisões
 
