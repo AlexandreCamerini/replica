@@ -174,21 +174,30 @@ export function Declaracoes({ vm }: { vm: VmPatrimonio }) {
 
 /* ---------- 4. votos ---------- */
 
-export function ListaVotos({ itens }: { itens: PersonVote[] }) {
+const PROCEDIMENTO: Partial<Record<NonNullable<PersonVote["event"]["kind"]>, string>> = { requerimento: "requerimento", urgencia: "urgência" };
+
+/** `marcarProcedimento`: no recorte "tudo", diz em palavra quando a votação é de procedimento (D265). */
+export function ListaVotos({ itens, marcarProcedimento }: { itens: PersonVote[]; marcarProcedimento?: boolean }) {
   return (
     <ul className="sv-votos">
-      {itens.map((v) => (
-        <li key={v.event.id}>
-          <p className="sv-votos__v">
-            <VotoMarca voto={v.value} />
-          </p>
-          <p className="sv-t">
-            {v.value === "nao_votou" && <b>Não é voto contra. </b>}
-            <Link href={`/v2/votacao/${v.event.id}`}>{clip(v.event.description, 110)}</Link>
-          </p>
-          <p className="sv-votos__q">{fmtDate(v.event.occurredAt)}</p>
-        </li>
-      ))}
+      {itens.map((v) => {
+        const proc = marcarProcedimento && v.event.kind ? PROCEDIMENTO[v.event.kind] : undefined;
+        return (
+          <li key={v.event.id}>
+            <p className="sv-votos__v">
+              <VotoMarca voto={v.value} />
+            </p>
+            <p className="sv-t">
+              {v.value === "nao_votou" && <b>Não é voto contra. </b>}
+              <Link href={`/v2/votacao/${v.event.id}`}>{clip(v.event.description, 110)}</Link>
+            </p>
+            <p className="sv-votos__q">
+              {fmtDate(v.event.occurredAt)}
+              {proc ? ` · votação de procedimento (${proc})` : ""}
+            </p>
+          </li>
+        );
+      })}
     </ul>
   );
 }

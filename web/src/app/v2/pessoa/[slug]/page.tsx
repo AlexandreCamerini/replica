@@ -13,6 +13,8 @@ import { COOKIE_TEXTO } from "@/components/sv/prefs-shared";
 import { aguardaPosse, casaDoMandato, cobreLeis, fraseDesde, mandatoPrincipal, motivoPosse, rotuloGastos } from "@/components/sv/mandato";
 import { brl, brlCurto, fonteTexto, hojeBR, ler, listaE, mesAno, statusLacuna } from "@/components/sv/pessoa/format";
 import { GradePresenca } from "@/components/sv/pessoa/presenca";
+import { frasesDoAno, ResumoDoAno } from "@/components/sv/pessoa/resumo";
+import { itensTrajetoria, LinhaDoTempo } from "@/components/sv/pessoa/trajetoria";
 import {
   Declaracoes,
   Falha,
@@ -31,6 +33,8 @@ import {
   vmGastos,
   vmPatrimonio,
 } from "@/components/sv/pessoa/secoes";
+import { ESFERA } from "@/components/sv/pessoa/cargos";
+import { EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO, SEM_ORIGEM } from "@/components/sv/pessoa/contexto";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
 
@@ -58,25 +62,8 @@ const ROLE: Record<OfficeSlug, string> = {
   vereador: "Vota as leis e o orçamento da cidade, e fiscaliza a prefeitura.",
 };
 
-// Esfera em palavra, sem estilo próprio: "Esfera: Federal · Câmara dos Deputados".
-const ESFERA: Record<OfficeSlug, string> = {
-  presidente: "Federal · Presidência da República",
-  vice_presidente: "Federal · Presidência da República",
-  senador: "Federal · Senado Federal",
-  deputado_federal: "Federal · Câmara dos Deputados",
-  governador: "Estadual · Governo do estado",
-  vice_governador: "Estadual · Governo do estado",
-  deputado_estadual: "Estadual · Assembleia Legislativa",
-  deputado_distrital: "Distrital · Câmara Legislativa",
-  prefeito: "Municipal · Prefeitura",
-  vice_prefeito: "Municipal · Prefeitura",
-  vereador: "Municipal · Câmara Municipal",
-};
-
-// Cargos do Executivo não votam em plenário nem têm cota de gabinete de casa legislativa: a lacuna diz isso, não "não gastou".
-const EXECUTIVO = new Set<OfficeSlug>(["presidente", "vice_presidente", "governador", "vice_governador", "prefeito", "vice_prefeito"]);
-const MOTIVO_PLENARIO = "Este cargo não vota em sessões de plenário.";
-const MOTIVO_COTA = "A cota de gabinete é verba de casa legislativa. Este cargo não a recebe.";
+// Esfera em palavra (cargos.ts). Cargos do Executivo não votam em plenário nem têm cota de gabinete de casa legislativa:
+// a lacuna diz isso, não "não gastou" (contexto.ts).
 
 const STATUS_LABEL: Record<string, string> = { eleito_aguardando_posse: "eleito, aguardando posse", licenciado: "licenciado", afastado: "afastado", encerrado: "mandato encerrado", renunciou: "renunciou", cassado: "cassado" };
 const FONTE_MANDATO: Record<string, string> = { tse: "TSE (Justiça Eleitoral)", camara: "Câmara dos Deputados", senado: "Senado Federal" };
@@ -148,6 +135,9 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
   ]);
   // estado de cada conjunto (lido, não carregado, a fonte não publica…); null = a leitura da cobertura falhou: nada se afirma
   const cob = (c: ConjuntoPessoa): CoberturaConjunto | null => (coberturaR.ok ? (coberturaR.v[0]?.conjuntos.find((x) => x.conjunto === c) ?? null) : null);
+  // U04: o ano do resumo é o da grade de presença (que cai para o anterior se o corrente está vazio); sem grade, o corrente
+  const anoResumo = !posse && gradeR && gradeR.ok && gradeR.v.sessions.length > 0 ? gradeR.v.year : hoje.ano;
+  const [statsAno, provR] = await Promise.all([ler(data.getStats(id, String(anoResumo) as `${number}`)), ler(data.getPartyProvenance(id))]);
 
   const missing = stats.ok ? stats.v.missing : [];
   const lugar = place && place.ok ? place.v : null;
@@ -226,6 +216,22 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
   // ---------- 12. mês do mandato ----------
   const mes = main && main.status === "em_exercicio" ? mesDoMandato(main.startedOn, main.endsOn, hoje) : null;
 
+  // ---------- U04: o ano em frases ----------
+  const frasesAno = frasesDoAno({
+    ano: anoResumo,
+    fem,
+    motivoPresenca: posse ?? (!legis ? MOTIVO_PLENARIO : null),
+    grade: g,
+    presencaFalhou: !!gradeR && !gradeR.ok,
+    cobPresenca: cob("presenca"),
+    propostas: statsAno.ok ? statsAno.v.proposalsPrincipal : undefined,
+    cobPropostas: cob("propostas"),
+    leis: laws.ok && cobreLeis(office) && cob("leis")?.estado === "lido" ? laws.v : null,
+    cobLeis: cob("leis"),
+  });
+  // ---------- U18: trajetória ----------
+  const trajetoria = itensTrajetoria(cands.ok ? cands.v : [], mandates, provR.ok && main ? { prov: provR.v, party: main.party } : null, fem, hojeIso);
+
   const lidoEm = refresh.ok ? refresh.v : null;
   const outras = outros
     .flatMap((o) => (o.ok && o.v && !o.v.redirectTo ? [o.v.person] : []))
@@ -264,6 +270,19 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
         </p>
       </div>
 
+      {/* U04: o ano em frases, só com dado lido */}
+      <Linha
+        id="p0"
+        ancora="ano"
+        pergunta={`Como foi ${anoResumo}?`}
+        fonte={`${Fc("presenca", body === "senado" ? "votações nominais" : "presença em sessões de votação", sPres, !!g)} ${Fc("propostas", "propostas apresentadas", sProp, statsAno.ok && (statsAno.v.proposalsPrincipal ?? 0) > 0)}${cobreLeis(office) ? ` ${Fc("leis", "leis sancionadas", null, false)}` : ""}`}
+      >
+        <div className="sv-bloco">
+          <ResumoDoAno frases={frasesAno} />
+          <Nota>Só o que lemos desta pessoa, sem média nem comparação com outras pessoas. Proposta de {anoResumo} é a que tem {anoResumo} na numeração (PL 123/{anoResumo}), de qualquer tipo, emendas inclusive.</Nota>
+        </div>
+      </Linha>
+
       {/* 1 */}
       <Linha id="p1" numero={1} dom ancora="trabalho" pergunta="Foi trabalhar?" fonte={Fc("presenca", body === "senado" ? "votações nominais" : "presença em sessões de votação", sPres, !!g)}>
         {g ? (
@@ -290,7 +309,14 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
       </Linha>
 
       {/* 2 */}
-      <Linha id="p2" numero={2} dom ancora="gastos" pergunta="Quanto gastou o gabinete?" fonte={Fc("gastos", rotGastos, sGastos, !!vmG)}>
+      <Linha
+        id="p2"
+        numero={2}
+        dom
+        ancora="gastos"
+        pergunta="Quanto gastou o gabinete?"
+        fonte={vmG && !sGastos && cob("gastos") && cob("gastos")?.estado !== "lido" ? `Fonte: ${SEM_ORIGEM(rotGastos)}.` : Fc("gastos", rotGastos, sGastos, !!vmG)}
+      >
         {vmG ? (
           <>
             <div className="sv-bloco">
@@ -299,7 +325,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
               </Resposta>
               <p className="sv-t">É verba pública para as despesas do mandato.</p>
               <p className="sv-selo__l">
-                <Link href={`/p/${person.slug}#gastos`}>Ver nota por nota</Link>
+                <Link href={`/v2/pessoa/${person.slug}/gastos`}>Ver nota por nota</Link>
               </p>
             </div>
             <div className="sv-bloco">
@@ -357,7 +383,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
               Mostrando {votes.v.items.length} de {fmtInt(votes.v.total)} {votes.v.total === 1 ? "voto" : "votos"} em leis, do mais recente para o mais antigo.
             </p>
             <p className="sv-selo__l">
-              <Link href={`/p/${person.slug}#votos`}>Ver todos os votos</Link>
+              <Link href={`/v2/pessoa/${person.slug}/votos`}>Ver todos os votos</Link>
             </p>
           </div>
         ) : posse ? (
@@ -416,7 +442,7 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
               {fmtInt(nEquipe)} {nEquipe === 1 ? "pessoa" : "pessoas"}.
             </Resposta>
             <p className="sv-selo__l">
-              <Link href={`/p/${person.slug}#equipe`}>Ver nomes e salários</Link>
+              <Link href={`/v2/pessoa/${person.slug}/equipe`}>Ver por função e quanto custa</Link>
             </p>
           </div>
         ) : !staff.ok ? (
@@ -554,6 +580,21 @@ export default async function Pessoa({ params }: { params: Promise<{ slug: strin
           <div className="sv-bloco">
             <Lacuna motivo={posse ?? "O mandato não está em exercício, ou as datas não constam na fonte."}>Sem conta do tempo de mandato.</Lacuna>
           </div>
+        )}
+      </Linha>
+
+      {/* U18: trajetória */}
+      <Linha id="p16" numero={13} ancora="trajetoria" pergunta="Que cargos ocupou e a que disputou?" fonte="Fonte de cada linha ao lado dela. Candidaturas: partido e resultado registrados pelo TSE na candidatura.">
+        {trajetoria.length > 0 ? (
+          <div className="sv-bloco">
+            <LinhaDoTempo itens={trajetoria} />
+            {(!cands.ok || !mandatosR.ok) && <Lacuna motivo="Isso não quer dizer que não existam. Tente de novo mais tarde.">{`Não conseguimos ler ${!cands.ok ? "as candidaturas" : "os mandatos"} agora: a linha do tempo está incompleta.`}</Lacuna>}
+            <Nota>Em ordem cronológica, do mais antigo para o mais recente. Candidatura com o ano da eleição.</Nota>
+          </div>
+        ) : !cands.ok || !mandatosR.ok ? (
+          <Falha />
+        ) : (
+          <Sem motivo="Nenhum mandato nem candidatura carregados para esta pessoa." />
         )}
       </Linha>
 
