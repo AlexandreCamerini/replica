@@ -4,6 +4,7 @@ import { cache } from "react";
 import { aguardaPosse, casaDoMandato, mandatoPrincipal, motivoPosse } from "@/components/sv/mandato";
 import { data, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { fonteTexto, ler } from "./format";
 
 export const SLUG = /^[a-z0-9-]{1,120}$/;
@@ -17,6 +18,13 @@ export const MOTIVO_COTA = "A cota de gabinete é verba de casa legislativa. Est
 export const SEM_ORIGEM = (rotulo: string) => `${rotulo}, sem registro de qual casa publicou nem da data da leitura`;
 
 export const carregarPessoa = cache((slug: string) => (SLUG.test(slug) ? data.getPerson(slug) : Promise.resolve(null)));
+
+/**
+ * Leitura principal das rotas da Pessoa. null = a pessoa não existe (404); undefined = a leitura falhou (lacuna na tela,
+ * nunca 500). `simular` é o parâmetro `?simular=` cru: `erro_pagina` só vale na demonstração (simular.ts).
+ */
+export const lerPessoa = (slug: string, simular?: string | string[]) =>
+  lerOuFalhar(simulacao(simular) === "erro_pagina", () => carregarPessoa(slug)).catch(() => undefined);
 
 type Mandatos = Awaited<ReturnType<typeof data.getMandates>>;
 

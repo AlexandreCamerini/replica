@@ -8,6 +8,8 @@ import { NotaRegra } from "@/components/sv/inicio/semana";
 import { aguardaPosse, casaDoMandato, fraseDesde, mandatoPrincipal, motivoPosse } from "@/components/sv/mandato";
 import { readPrefs } from "@/components/sv/prefs";
 import { vigenciaDe } from "@/components/sv/vigencia";
+import { FALHOU_LEITURA } from "@/components/sv/estados";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { loadThemes } from "@/components/sv/temas";
 import { Cobertura, JaVale, JaValeLegenda, Lacuna, Nota, Proxima, Quadro, Resposta, Selo, VotoMarca } from "@/components/sv/ui";
 import { data, type OfficeSlug, type PautaEntry, type PautaOverview } from "@/lib/data";
@@ -97,10 +99,12 @@ function quando(e: PautaEntry): string {
   return `${cap(fmtWeekday(e.scheduledFor))}, ${onde}${isUrgent(e.regime) ? ", em regime de urgência" : ""}.`;
 }
 
-export default async function Temas() {
+export default async function Temas({ searchParams }: { searchParams: Promise<{ simular?: string | string[] }> }) {
+  const falhar = simulacao((await searchParams).simular) === "erro_pagina";
+  // p null = a leitura dos assuntos falhou: o quadro dos assuntos vira lacuna nomeada, o resto da página segue (nunca 500)
   const [prefs, p, overview, follows] = await Promise.all([
     readPrefs(),
-    loadThemes(),
+    lerOuFalhar(falhar, loadThemes).catch(() => null),
     data.getPautaOverview().catch(() => null) as Promise<PautaOverview | null>,
     cookies().then((jar) => parseFollows(jar.get(FOLLOW_COOKIE)?.value)),
   ]);
@@ -119,7 +123,7 @@ export default async function Temas() {
   const temasOficiais = [...porTema.keys()].sort(ptSort);
 
   // Assuntos do produto: outra lista, em ordem alfabética. Não são mapeados ao tema oficial.
-  const assuntos = [...p.themes].sort((a, b) => ptSort(a.name, b.name));
+  const assuntos = [...(p?.themes ?? [])].sort((a, b) => ptSort(a.name, b.name));
 
   const readAt = overview ? (overview.week.readAt ?? [overview.reads.camara.readAt, overview.reads.senado.readAt].filter(Boolean).sort().at(-1) ?? null) : null;
   const falhas = overview ? overview.reads.camara.failed + overview.reads.senado.failed : 0;
@@ -198,7 +202,7 @@ export default async function Temas() {
         </p>
       )}
       <p className="sv-t">
-        {assuntos.length > 0 ? `Os ${fmtInt(assuntos.length)} assuntos do produto estão abaixo, em ordem alfabética.` : "Os assuntos do produto ainda não foram carregados."} Eles são outra lista: não são o tema oficial da Câmara.
+        {!p ? "Não conseguimos ler os assuntos do produto agora." : assuntos.length > 0 ? `Os ${fmtInt(assuntos.length)} assuntos do produto estão abaixo, em ordem alfabética.` : "Os assuntos do produto ainda não foram carregados."} Eles são outra lista: não são o tema oficial da Câmara.
       </p>
       <p className="sv-t">
         {prefs.uf ? (
@@ -259,7 +263,9 @@ export default async function Temas() {
       prova={`Assuntos em ordem alfabética. Fonte: ${FONTE_PAUTA}, votações nominais. A contagem é de votações, não de importância.`}
     >
       <div className="sv-tm-meio">
-        {assuntos.length === 0 ? (
+        {!p ? (
+          <Lacuna motivo="Não conseguimos ler os assuntos agora. Tente de novo em alguns minutos.">{FALHOU_LEITURA}</Lacuna>
+        ) : assuntos.length === 0 ? (
           <Lacuna>Ainda não temos esse dado. Nenhuma votação com assunto classificado foi carregada.</Lacuna>
         ) : (
           <>

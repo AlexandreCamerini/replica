@@ -1326,6 +1326,27 @@ test.describe("estados das sete telas", () => {
     await expect(page.locator(".sv h1")).toHaveText("Quem está no cargo?");
   });
 
+  test("leitura principal que falha vira lacuna nomeada, nunca 500 (Pessoa e subrotas, Decisão, Temas)", async ({ page }) => {
+    // Pessoa, Gastos, Equipe, Votos e Decisão: a página inteira é a lacuna (200), com o caminho de volta
+    const inteiras = ["/pessoa/helena-siqueira", "/pessoa/helena-siqueira/gastos", "/pessoa/helena-siqueira/equipe", "/pessoa/helena-siqueira/votos", `/decisao/${KEY_RESPONDIDA}`];
+    for (const url of inteiras) {
+      const resp = await page.goto(`${url}?simular=erro_pagina`);
+      expect(resp?.status(), url).toBe(200);
+      await expect(page.locator('[aria-labelledby="falha-1"]'), url).toContainText(FALHOU);
+      await expect(page.locator(".sv-main"), url).toContainText("Isso não quer dizer que o registro não existe");
+      // a mesma rota sem a simulação não é a tela de falha: o teste distingue a guarda da página normal
+      await abrir(page, url);
+      await expect(page.locator('[aria-labelledby="falha-1"]'), url).toHaveCount(0);
+    }
+    // Temas: só o quadro dos assuntos vira lacuna; a pauta da semana segue na página
+    const resp = await page.goto("/temas?simular=erro_pagina");
+    expect(resp?.status()).toBe(200);
+    const assuntos = page.locator('[aria-labelledby="tm-assuntos"]');
+    await expect(assuntos).toContainText(FALHOU);
+    await expect(assuntos).not.toContainText("Ainda não temos esse dado");
+    await expect(page.locator(".sv h1")).toHaveText("O que está em jogo no Congresso?");
+  });
+
   test("Decisões: o último dia da semana é o anterior a weekEnds; 'Aguardando conferência' só sem resposta publicada", async ({ page }) => {
     await abrir(page, "/decisoes");
     const titulo = await page.locator('[aria-labelledby="dc-plen"] h2').innerText();
