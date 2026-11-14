@@ -1116,7 +1116,7 @@ export const fakeSource: DataSource = {
     if (!entry) return null;
     const answers = entry.key === DEMO_ANSWERED_KEY ? demoAnswers() : entry.key in DEMO_QUEM_CONFERIU ? demoAnswers(DEMO_QUEM_CONFERIU[entry.key]) : null;
     const vazia = lista([], 0);
-    const { autores, votacoes } = entry.key === DEMO_MUITAS_KEY ? demoMuitas() : { autores: vazia, votacoes: vazia };
+    const { autores, votacoes, authors } = entry.key === DEMO_MUITAS_KEY ? demoMuitas() : { autores: vazia, votacoes: vazia, authors: [] };
     return {
       // como no pg.ts: com "o que propõe" conferido, a frase vira o título simples
       entry: answers?.fields.o_que_propoe.says
@@ -1127,7 +1127,7 @@ export const fakeSource: DataSource = {
       readAt: demoWeek().readAt,
       fichaUrl: null,
       presentedOn: null,
-      authors: autores.itens,
+      authors,
       votes: votacoes.itens,
       autores,
       votacoes,
@@ -1339,7 +1339,7 @@ function demoVotacaoSemVotos(): VotingEventDetail {
 /** Proposta sintética fora da pauta da semana com mais de 5 votações e mais de 20 autores: a tela diz "5 de 7" e "20 de 23". */
 export const DEMO_MUITAS_KEY = "camara-pl-9996-2026";
 export const DEMO_MUITAS = { votacoes: 7, autores: 23 } as const;
-function demoMuitas(): { autores: PautaProposal["autores"]; votacoes: PautaProposal["votacoes"] } {
+function demoMuitas(): { autores: PautaProposal["autores"]; votacoes: PautaProposal["votacoes"]; authors: PautaProposal["authors"] } {
   const autores = current()
     .filter((m) => m.office === "deputado_federal")
     .map(holder)
@@ -1354,7 +1354,12 @@ function demoMuitas(): { autores: PautaProposal["autores"]; votacoes: PautaPropo
   const votacoes = [...evs, demoVotacaoSemVotos()]
     .map((e) => ({ id: e.id, occurredAt: e.occurredAt, description: e.description, result: e.result, yes: e.yes, no: e.no }))
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id));
+  // Campo legado `authors` (v1 /proposta), como no pg.ts: autoria principal primeiro, depois ordem de assinatura, até 20.
+  // A assinatura fictícia é o inverso da alfabética: a ordem difere e os 20 não são os mesmos de `autores`. Tela que
+  // listar o campo errado sob a nota da ordem alfabética falha no e2e (S3-5 da revisão final de 14/11/2026).
+  const authors = [autores[0], ...autores.slice(1).reverse()].slice(0, 20);
   return {
+    authors,
     autores: lista(autores.slice(0, 20), autores.length),
     votacoes: lista(votacoes.slice(0, 5), votacoes.length),
   };

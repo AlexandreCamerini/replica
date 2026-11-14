@@ -1239,10 +1239,18 @@ test.describe("listas sem truncar em silêncio", () => {
     const aut = page.locator(".sv-aut > li");
     await expect(aut).toHaveCount(20);
     await expect(page.locator("body")).toContainText("Mostrando 20 de 23 autores que lemos");
-    // autoria principal primeiro, depois ordem alfabética
+    // autoria principal primeiro, depois ordem alfabética. No fixture o campo legado `authors` (ordem de assinatura) tem
+    // outra ordem e outros 20: se a tela voltar a listá-lo sob esta nota, as duas conferências abaixo falham.
     await expect(aut.first()).toContainText("autoria principal");
     const resto = (await aut.allInnerTexts()).slice(1).map((t) => t.replace(/\s*coautoria\s*$/, "").trim());
-    expect(resto).toEqual([...resto].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    expect(resto, "a lista segue a ordem que a nota declara").toEqual([...resto].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    // o v1 segue lendo o campo legado: lá os coautores vêm na ordem inversa, e os primeiros por nome ficam de fora
+    const v1 = await page.goto("/proposta/camara-pl-9996-2026");
+    expect(v1?.status(), "o v1 da proposta responde").toBe(200);
+    const legado = (await page.locator("li", { hasText: "· coautoria" }).allInnerTexts()).map((t) => t.replace(/\s*·\s*coautoria\s*$/, "").trim());
+    expect(legado, "o v1 lista 19 coautores").toHaveLength(19);
+    expect(legado, "o v1 segue na ordem do campo legado").toEqual([...legado].sort((a, b) => b.localeCompare(a, "pt-BR")));
+    expect(resto.filter((n) => !legado.includes(n)).length, "os 20 do campo legado não são os 20 da lista alfabética").toBeGreaterThan(0);
   });
 
   test("Decisão: lista que cabe inteira não diz 'mostrando'", async ({ page }) => {

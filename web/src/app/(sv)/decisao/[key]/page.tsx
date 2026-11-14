@@ -177,7 +177,7 @@ export default async function Decisao({ params, searchParams }: { params: Promis
     !a ? `Texto oficial, ${BODY_NAME[e.body]}. Ainda sem resposta conferida.` : c?.state === "diz" ? `Texto oficial, ${BODY_NAME[e.body]}. ${conferidoEm(a.reviewedAt, a.verifiedBy)}.` : `Texto oficial, ${BODY_NAME[e.body]}.`;
   const casaDoEvento = (v: { id: string }, ev: VotingEventDetail | null) => ev?.body ?? (v.id.startsWith("senado") ? "senado" : "camara");
 
-  const semConta = !temResposta(campos?.quem_paga) && !temResposta(campos?.dinheiro) && !temResposta(campos?.estimativa_impacto) && p.authors.length === 0;
+  const semConta = !temResposta(campos?.quem_paga) && !temResposta(campos?.dinheiro) && !temResposta(campos?.estimativa_impacto) && p.autores.itens.length === 0;
   const dir = campos?.dinheiro.state === "diz" ? campos.dinheiro.direction : undefined;
   const casasVotos = [...new Set(eventos.map(({ v, ev }) => casaDoEvento(v, ev)))] as Body[];
   // o contrato traz a página e o total (Lista): truncado diz "N de M", nunca "as N mais recentes" sem o total
@@ -284,11 +284,11 @@ export default async function Decisao({ params, searchParams }: { params: Promis
         <div className="sv-nc__l">
           <Pergunta id="sv-d6c">Quem propôs?</Pergunta>
           <div className="sv-nc__r">
-            {p.authors.length === 0 ? (
+            {p.autores.itens.length === 0 ? (
               <Lacuna>{SEM_DADO}</Lacuna>
             ) : (
               <ul className="sv-aut">
-                {p.authors.map((au) => (
+                {p.autores.itens.map((au) => (
                   <li key={au.slug}>
                     <Link href={`/pessoa/${au.slug}`}>{au.name}</Link> <span className="sv-esf">{au.role === "principal" ? "autoria principal" : "coautoria"}</span>
                   </li>
