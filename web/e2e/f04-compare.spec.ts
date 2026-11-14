@@ -76,7 +76,7 @@ test.describe("F04 comparar representantes", () => {
     await page.getByRole("button", { name: /^Comparar / }).first().click();
     await page.reload();
     await expect(page.getByRole("complementary", { name: "Comparação" })).toContainText("1 de 5");
-    await page.goto("/");
+    await page.goto("/no-seu-bolso");
     await expect(page.getByRole("complementary", { name: "Comparação" })).toContainText("1 de 5");
   });
 });

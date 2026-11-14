@@ -16,7 +16,7 @@ conta como "fora do prazo" no alerta daquela chamada: o frescor dela é de quem 
 Saída: 0 tudo certo; 2 houve alerta (falha, check quebrado, fonte fora do prazo ou run órfão).
 
 Janela horária (catálogo D06): tarefa com `window` vence dentro dela (hora de Brasília e dias da semana), e uma vez por janela: vencida =
-janela aberta e sem carimbo da tarefa desde a abertura. Fora da janela `every_h` não vale. A única exceção é a reposição (D316): se a
+janela aberta e sem carimbo da tarefa desde a abertura. Fora da janela `every_h` não vale. A única exceção é a reposição (D317): se a
 janela mais recente fechou sem carimbo desde a abertura (o cron atrasou ou pulou o disparo), a tarefa vence na chamada seguinte. O carimbo
 da reposição encerra; sem carimbo (fonte fora do ar, ou job que sai com 0 sem carimbar), tenta de novo só depois de REPOSICAO_RETRY_H.
 A reposição só existe depois do fechamento, nunca antes da abertura (o CSV da Câmara ainda seria o da véspera). Quem decide se a janela
@@ -57,7 +57,7 @@ SCHEDULER_LOCK = "etl.scheduler"
 DEDICATED_LOCK = "etl.scheduler.sapl"  # chamada dedicada (ETL_TASKS_INCLUDE): não disputa o lock do Actions, que não roda essas tarefas
 ORPHAN_AFTER = timedelta(hours=1)
 STUCK_AFTER = timedelta(hours=8)  # lock da agenda ocupado há mais que isso = agenda travada: alerta
-REPOSICAO_RETRY_H = 6  # D316: nova tentativa de repor uma janela perdida. Mais largo que o tick (3 h): fonte fora do ar não vira uma tentativa por chamada
+REPOSICAO_RETRY_H = 6  # D317: nova tentativa de repor uma janela perdida. Mais largo que o tick (3 h): fonte fora do ar não vira uma tentativa por chamada
 RESERVE_MIN = 45  # minutos guardados no fim para identity.repairs, derive.stats, check e alerta
 # Datasets que carimbam sem trazer dado da casa (descoberta do SAPL): não contam como "fonte em dia".
 NOT_FRESHNESS = ("sapl.descoberta", "sapl-ale.descoberta")
@@ -225,7 +225,7 @@ class Report:
         return [r for r in self.ran if r["exit"] != 0]
 
     missed: list[dict] = field(default_factory=list)  # S3-1/D257: janela fechou sem a tarefa rodar (e a reposição não leu)
-    recovered: list[dict] = field(default_factory=list)  # D316: janela perdida que esta chamada leu fora de hora; registro, não alerta
+    recovered: list[dict] = field(default_factory=list)  # D317: janela perdida que esta chamada leu fora de hora; registro, não alerta
     deferred: list[str] = field(default_factory=list)
     awaiting: list[str] = field(default_factory=list)  # fontes sem chave de API e sem carga: aguardam, não alertam
     partial: list[dict] = field(default_factory=list)  # runs que gravaram dado mas fecharam `partial` nesta chamada (db.Run.partial)
@@ -261,7 +261,7 @@ def is_due(task: Task, last_stamp: datetime | None, last_attempt: datetime | Non
     if task.window:
         opened = task.window.opened_at(now)
         if opened is None:
-            # reposição (D316): a janela mais recente fechou sem leitura; lê agora, fora de hora, em vez de esperar a próxima noite
+            # reposição (D317): a janela mais recente fechou sem leitura; lê agora, fora de hora, em vez de esperar a próxima noite
             w = task.window.last_closed(now)
             if w is None or (last_stamp is not None and last_stamp >= w[0]):
                 return False, "fora da janela horária"

@@ -19,7 +19,7 @@ async function pick(): Promise<DataSource> {
 const g = globalThis as unknown as { __dataSource?: Promise<DataSource> };
 const source = () => (process.env.NODE_ENV === "production" ? (g.__dataSource ??= pick()) : pick());
 
-/** A fonte sem o cache de dados, para quem precisa do estado de agora e de saber que o banco caiu (o vigia, D317).
+/** A fonte sem o cache de dados, para quem precisa do estado de agora e de saber que o banco caiu (o vigia, D318).
  * O `data` abaixo pode devolver valor guardado por até uma hora, e valor vencido enquanto revalida. Telas usam `data`. */
 export const fonteSemCache = (): Promise<DataSource> => source();
 

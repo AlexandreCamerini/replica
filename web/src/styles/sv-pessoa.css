@@ -1,4 +1,4 @@
-/* Segue o Voto, D2 · tela Pessoa (/v2/pessoa/[slug]).
+/* Segue o Voto, D2 · tela Pessoa (/pessoa/[slug]).
    Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
    rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px.
    Cor: nenhuma regra deste arquivo usa --agora ou --vida. O único uso é a classe global .sv-agora (sv.css) em "mês N de M". */

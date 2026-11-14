@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getHealth } from "@/lib/data/health";
 
-// Vigia externo (D14): o GitHub Actions `vigia.yml` bate aqui todo dia. O vigia fora do Actions (D317, /api/cron/vigia) lê a mesma régua direto de getHealth. 200 = fontes essenciais em dia; 503 = alguma fora do prazo.
+// Vigia externo (D14): o GitHub Actions `vigia.yml` bate aqui todo dia. O vigia fora do Actions (D318, /api/cron/vigia) lê a mesma régua direto de getHealth. 200 = fontes essenciais em dia; 503 = alguma fora do prazo.
 // Erro ao ler o banco também é 503 (e o corpo não diz por quê: nada de mensagem de driver nem URL).
 export const dynamic = "force-dynamic";
 const CACHE = { "Cache-Control": "public, s-maxage=60" };

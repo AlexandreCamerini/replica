@@ -189,7 +189,7 @@ export function ListaVotos({ itens, marcarProcedimento }: { itens: PersonVote[];
             </p>
             <p className="sv-t">
               {v.value === "nao_votou" && <b>Não é voto contra. </b>}
-              <Link href={`/v2/votacao/${v.event.id}`}>{clip(v.event.description, 110)}</Link>
+              <Link href={`/votacao/${v.event.id}`}>{clip(v.event.description, 110)}</Link>
             </p>
             <p className="sv-votos__q">
               {fmtDate(v.event.occurredAt)}

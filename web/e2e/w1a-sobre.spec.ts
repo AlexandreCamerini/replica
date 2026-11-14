@@ -2,7 +2,7 @@ import { expect, test } from "./fixtures";
 
 test.describe("W1a · tema escuro (axe)", () => {
   test.use({ colorScheme: "dark" });
-  for (const path of ["/sobre", "/atualizacoes", "/dados-abertos?cidade=3509502", "/"]) {
+  for (const path of ["/sobre", "/atualizacoes", "/dados-abertos?cidade=3509502", "/no-seu-bolso"]) {
     test(`DARK ${path} sem violações de contraste`, async ({ page, axe }) => {
       await page.goto(path);
       await expect(page.locator("html")).not.toHaveAttribute("data-theme", "light");

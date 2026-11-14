@@ -32,8 +32,8 @@ test("cidade: 7 dígitos e do prefixo da UF", () => {
   assert.equal(parseCidade("350950", "35"), null);
 });
 
-test("voltar: só caminhos do /v2, sem redirecionamento aberto", () => {
-  assert.equal(voltarSeguro("/v2"), "/v2");
-  assert.equal(voltarSeguro("/v2/acompanhando?x=1"), "/v2/acompanhando?x=1");
-  for (const bad of ["https://exemplo.com", "//exemplo.com", "/v2//exemplo.com", "/v20", "/", "/v2\\..", null, 42]) assert.equal(voltarSeguro(bad), "/v2/ajustes", String(bad));
+test("voltar: só caminho interno, sem redirecionamento aberto", () => {
+  assert.equal(voltarSeguro("/"), "/");
+  assert.equal(voltarSeguro("/acompanhando?x=1"), "/acompanhando?x=1");
+  for (const bad of ["https://exemplo.com", "//exemplo.com", "/pessoas//exemplo.com", "ajustes", "", "/\\exemplo.com", "/pessoas\\..", "/a\nb", null, 42]) assert.equal(voltarSeguro(bad), "/ajustes", String(bad));
 });

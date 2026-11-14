@@ -153,6 +153,7 @@ Atualizado em 13/11/2026, fim da execução (ondas 0 a 5).
 | A17 promover a Direção 2 | #36 | **parcial** (D309; merge `909df11`) | nenhuma rota do v1 tem paridade comprovada no /v2: sem 308 e `/v2` segue `noindex`. Entregue: stubs aposentados, rodapé e legenda coerentes com a D293, `noindex` próprio nas páginas pessoais; e2e inteiro local 721 passaram, 74 pulados |
 | CI e ETL em 13/11 | — | **bloqueado, depende do dono** (D312) | GitHub Actions recusa todo job por cobrança (CI da main, PR #37 e ETL manual); runs agendados vermelhos por "JANELA PERDIDA" das leituras noturnas de 12 e 13/11; produção e saúde das fontes conferidas `ok` em 13/11 13:03Z |
 | CI e ETL em 13/11, tarde | — | **resolvido** (D313) | Actions voltou a aceitar jobs às 17:38Z; leituras noturnas repostas (`43474640993`, `43475524412`); agenda inteira verde (`43477425230`); CI da main e da PR #37 verdes; causa dos crons noturnos sem disparo segue em aberto |
+| Promoção da Direção 2 | — | **feito em parte** (D316) | Direção 2 na raiz, `/v2` com 307, desenho anterior no ar onde não há paridade (`/no-seu-bolso`, `/conta`); seguem da D309: paridade de Decisão e Votação, perfil completo, unificar seguidos, aposentar o desenho anterior |
 
 ### Dívidas registradas nas revisões
 

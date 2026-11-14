@@ -1,4 +1,4 @@
-// Vigia fora do GitHub Actions (D317). O `vigia.yml` roda no Actions; quando o Actions para (cobrança, cota de minutos, cron
+// Vigia fora do GitHub Actions (D318). O `vigia.yml` roda no Actions; quando o Actions para (cobrança, cota de minutos, cron
 // desligado por inatividade), o ETL e o próprio vigia param juntos e ninguém é avisado. Este vigia é chamado pelo Vercel Cron
 // (web/vercel.json), lê a mesma régua de /api/health/fontes e avisa por webhook.
 // Sem dependência do Next nem do alias "@/": a decisão inteira é testável com `node --test` (deps injetadas).
