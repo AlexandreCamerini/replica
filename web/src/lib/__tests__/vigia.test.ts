@@ -27,7 +27,7 @@ test("autorizado: só o Bearer exato; sem segredo configurado ninguém entra", (
   assert.equal(autorizado(BEARER, "segredo-de-teste"), true);
   // o cabeçalho inteiro, como a Vercel envia: sem o prefixo, com outro prefixo ou com sobra não entra
   for (const h of ["segredo-de-teste", "bearer segredo-de-teste", "Bearer  segredo-de-teste", "Bearer segredo-de-teste ", "Bearer Bearer segredo-de-teste", "Basic segredo-de-teste"]) assert.equal(autorizado(h, "segredo-de-teste"), false, h);
-  // segredo colado com quebra de linha no fim (erro comum): a Vercel envia sem ela e nada autentica; fica documentado na D318
+  // segredo colado com quebra de linha no fim (erro comum): a Vercel envia sem ela e nada autentica; fica documentado na D319
   assert.equal(autorizado(BEARER, "segredo-de-teste\n"), false);
   assert.equal(autorizado("Bearer segredo-de-testE", "segredo-de-teste"), false);
   assert.equal(autorizado("Bearer segredo", "segredo-de-teste"), false);

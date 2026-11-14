@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getHealthSemCache } from "@/lib/data/health";
 import { rodarVigia } from "@/lib/vigia";
 
-// Vigia fora do GitHub Actions (D318). Chamado pelo Vercel Cron (web/vercel.json), que envia `Authorization: Bearer CRON_SECRET`.
+// Vigia fora do GitHub Actions (D319). Chamado pelo Vercel Cron (web/vercel.json), que envia `Authorization: Bearer CRON_SECRET`.
 // A decisão está em lib/vigia.ts (testada); aqui só entram o ambiente, a leitura (sem o cache de dados) e o POST.
 // Orçamento: 15 s para ler os carimbos (lib/vigia.ts) + 10 s do POST, dentro dos 30 s da função.
 // `?teste=1` (com o mesmo Bearer) envia uma mensagem de teste sem avaliar fonte: é como o dono prova que o aviso chega.

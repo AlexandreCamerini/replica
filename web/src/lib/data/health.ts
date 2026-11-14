@@ -61,7 +61,7 @@ export async function getHealth(now: number = Date.now()): Promise<HealthReport>
   return buildHealth(await data.listSourceStatus(), now);
 }
 
-/** A mesma régua, lida direto do banco, sem o cache de dados: o vigia (D318) precisa dos carimbos de agora e do erro se o banco estiver fora. */
+/** A mesma régua, lida direto do banco, sem o cache de dados: o vigia (D319) precisa dos carimbos de agora e do erro se o banco estiver fora. */
 export async function getHealthSemCache(now: number = Date.now()): Promise<HealthReport> {
   const { fonteSemCache } = await import("./index");
   return buildHealth(await (await fonteSemCache()).listSourceStatus(), now);
