@@ -15,7 +15,7 @@ Pelo critério de `verify-final.md` (nenhum S1 ou S2 aberto), a execução não 
 1. **S2-1, introduzido nesta execução.** Banco fora ou grant perdido derruba `/v2/pessoa` (e as três subrotas), `/v2/decisao` e `/v2/temas` com 500. A revisão D (`39fcaf0`) corrigiu exatamente isso em Votação e Tema; nas outras três rotas ficou sem guarda.
 2. **S2-2, herdado e já materializado.** Toda a vigilância (ETL, vigia, webhook) mora no GitHub Actions. Quando o Actions parou em 13/11, ninguém foi avisado. Não tem bug nem item de backlog.
 
-Abaixo do corte, mas com o mesmo peso prático: o Senado tem um único disparo dentro da janela noturna (S3-1) e **a leitura de hoje ainda não tinha acontecido às 03:48Z**, 17 minutos depois do cron das 03:31Z (ver seção 2). E o BUG-052 (S3-2) está registrado como latente, mas quando disparar bloqueia a carga inteira da Câmara, que é classe S1.
+Abaixo do corte, mas com o mesmo peso prático: o Senado tem um único disparo dentro da janela noturna (S3-1), e se o cron de hoje (primeiro dia da D315) disparou **não foi conferido** (ver seção 2). E o BUG-052 (S3-2) está registrado como latente, mas quando disparar bloqueia a carga inteira da Câmara, que é classe S1.
 
 Nenhum achado é dado errado publicado hoje.
 
@@ -40,7 +40,7 @@ Nenhum achado é dado errado publicado hoje.
 - `/api/health/fontes`: `ok:true`, nenhuma essencial com problema. Câmara 13/11 20:03Z, Senado 13/11 17:46Z, pauta 13/11 23:49Z, SAPL 11/11 17:04Z.
 - `/stf` e `/mais-vistos`: 404. `/v2`: `noindex, nofollow`. `/v2`, `/v2/decisoes`, `/v2/votacoes`, `/v2/pessoas`, `/v2/acompanhando`: 200. Rodapé do v1 com o texto novo.
 - `/robots.txt`: 404 (não existe robots nem sitemap).
-- **Cron do Senado de hoje (`31 3`, primeiro dia da D315):** consultado às 03:26Z, 03:44Z, 03:45Z, 03:47Z e 03:48Z; o carimbo do Senado seguia o de ontem (17:46Z). A janela fecha às 05:00Z. Dezessete minutos não provam perda (o tick das 03:17Z pode estar na frente na fila `etl`), mas a conferência que a D313 pediu **continua aberta**. Para fechar: `gh run list --workflow etl.yml --limit 5` e o carimbo do Senado depois das 05:00Z.
+- **Cron do Senado de hoje (`31 3`, primeiro dia da D315): não conferido.** Correção de uma versão anterior deste relatório, que tirava do carimbo do Senado em `/api/health/fontes` (parado em 13/11 17:46Z) a conclusão de que a leitura noturna não tinha acontecido: essa régua exclui de propósito os datasets `.noturna.` (`web/src/lib/data/health.ts`, função `core`), então o carimbo não se move com a leitura noturna e não prova nada. A conferência que a D313 pediu continua aberta e só se faz pelo Actions: `gh run list --workflow etl.yml --limit 8 --json databaseId,event,createdAt,conclusion`, procurando um `schedule` criado entre 03:30Z e 05:00Z.
 
 ## 3. Achados
 
