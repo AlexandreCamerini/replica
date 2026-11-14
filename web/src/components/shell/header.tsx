@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/ui/misc";
 import { dateTime } from "@/lib/pauta";
 import { PRIMARY } from "./nav-items";
 
-const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`));
+const isActive = (path: string, href: string) => path === href || path.startsWith(`${href}/`);
 
 /** Cabeçalho do jornal: marca em Newsreader, nav em chips retos, "Pauta lida em" sempre à vista. */
 export function AppHeader({ readAt }: { readAt: string | null }) {
@@ -15,7 +15,7 @@ export function AppHeader({ readAt }: { readAt: string | null }) {
   return (
     <header className="sticky top-0 z-40 border-b border-fg bg-surface">
       <div className="mx-auto flex h-14 max-w-[1320px] items-center gap-3 px-4 md:px-6">
-        <Link href="/" className="mr-auto font-serif text-[24px] font-semibold tracking-tight text-fg outline-none focus-visible:outline-2 focus-visible:outline-focus">
+        <Link href="/no-seu-bolso" className="mr-auto font-serif text-[24px] font-semibold tracking-tight text-fg outline-none focus-visible:outline-2 focus-visible:outline-focus">
           Segue o Voto
         </Link>
         <p className="lbl hidden sm:block">

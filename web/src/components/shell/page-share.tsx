@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { canonicalUrl } from "@/lib/share";
 
 // páginas com compartilhamento próprio (crachá) ou privadas (conta): a barra global não aparece
-const SKIP = /^\/(p\/|entrar|acompanhando)/;
+const SKIP = /^\/(p\/|entrar|conta)/;
 
 const btn =
   "inline-flex h-8 items-center gap-1.5 rounded-pill px-3 text-xs font-semibold text-fg outline-none hover:bg-surface hover:underline focus-visible:outline-2 focus-visible:outline-focus";

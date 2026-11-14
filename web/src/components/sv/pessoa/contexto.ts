@@ -1,4 +1,4 @@
-// Contexto comum das rotas da Pessoa no /v2 (gastos, equipe, votos): pessoa, mandato principal, posse, casa, cobertura e as
+// Contexto comum das rotas da Pessoa na Direção 2 (gastos, equipe, votos): pessoa, mandato principal, posse, casa, cobertura e as
 // funções de fonte. Server-only (lê o DataSource). Uma leitura por requisição (cache do React).
 import { cache } from "react";
 import { aguardaPosse, casaDoMandato, mandatoPrincipal, motivoPosse } from "@/components/sv/mandato";

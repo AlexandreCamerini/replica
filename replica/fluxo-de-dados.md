@@ -469,7 +469,7 @@ Dado pessoal de usuário:
 | Sugestão: texto, nome, e-mail, cidade | `submitSuggestion` | `suggestions` | ninguém pelo app; só o dono do banco | nenhuma: sem expurgo, e não é apagada com a conta | — | `web/src/lib/account.ts:121-141` |
 | IP | cabeçalhos da requisição | só como hash em `suggestions.ip_hash` | `web_writer`, janela de 24 h | junto da sugestão | Turnstile recebe o IP | `web/src/lib/account.ts:130-131` `web/src/lib/captcha.ts:4-15` |
 | Voto declarado em "quem votei" | botão na página | só no navegador (`localStorage`) | o próprio navegador; o id vai na URL | até limpar | — | `web/src/components/votos/lembrar.tsx:6-27` |
-| Voto declarado no tema v2 ("em quem votei", até 12 pessoas) | botão na página | cookie `sv_sigo`, 1 ano, legível por script | o servidor, em toda requisição, sem gravar. Ao contrário da linha acima, o dado sai do aparelho | 1 ano | — | `web/src/components/sv/follow.tsx:7-36` `web/src/app/v2/page.tsx:82` |
+| Voto declarado na Direção 2 ("em quem votei", até 12 pessoas) | botão na página | cookie `sv_sigo`, `path=/` desde a D316 (era `/v2`), 1 ano, legível por script | o servidor, em toda requisição, sem gravar. Ao contrário da linha acima, o dado sai do aparelho | 1 ano | — | `web/src/components/sv/follow.tsx` `web/src/app/(sv)/page.tsx` `web/src/app/v2/[[...resto]]/route.ts` |
 
 O único arquivo com a diretiva "use server" é `web/src/lib/account.ts`, com sete actions: `sendCode`, `verifyCode`, `signOut`, `toggleFollow`, `updateDigest`, `deleteAccount`, `submitSuggestion`.
 

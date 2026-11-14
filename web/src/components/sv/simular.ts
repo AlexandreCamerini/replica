@@ -1,4 +1,4 @@
-// Simulação de falha de leitura, para testar os estados de erro do /v2 (mesmo padrão de `?simular=erro` na /pauta).
+// Simulação de falha de leitura, para testar os estados de erro da Direção 2 (mesmo padrão de `?simular=erro` na /pauta).
 // Só a demonstração lê o parâmetro: com a fonte real (DATA_SOURCE=pg), `simulacao()` devolve sempre null.
 import "server-only";
 import { data } from "@/lib/data";

@@ -17,7 +17,7 @@ export const AFIRMACAO = {
  * Quem conferiu uma resposta publicada, pela coluna `verified_by` (v1 e v2 usam esta frase; nenhuma tela escreve outra).
  * agentes: "Conferido com o texto oficial por agentes de IA em <data>"; pessoa: "Revisado por pessoa em <data>";
  * não registrado: "Conferido com o texto oficial em <data>", sem dizer por quem.
- * Data: no v1 sempre dd/mm/aaaa (como era antes); no /v2, dd/mm no ano corrente e dd/mm/aaaa em outro ano.
+ * Data: no v1 sempre dd/mm/aaaa (como era antes); na Direção 2, dd/mm no ano corrente e dd/mm/aaaa em outro ano.
  */
 export const conferidoEm = (iso: string | null | undefined, por: VerifiedBy | undefined = null, formato: "v1" | "v2" = "v2") => {
   const quando = formato === "v1" ? fmtDate(iso) : fmtDayMonthAno(iso);
@@ -82,8 +82,8 @@ export const SELO = {
   apontarErro: "Apontar um erro",
 } as const;
 
-/** Destinos do selo. "Apontar um erro" é o mesmo destino que o /v2 já usava no rodapé. */
-export const SELO_HREF = { verConferido: "/v2/como-funciona", apontarErro: "/v2/como-funciona#correcoes" } as const;
+/** Destinos do selo. "Apontar um erro" é o mesmo destino que a Direção 2 já usava no rodapé. */
+export const SELO_HREF = { verConferido: "/como-funciona", apontarErro: "/como-funciona#correcoes" } as const;
 
 /** "Já vale?": três estados, cada um com forma própria (círculo cheio, tracejado, cortado). */
 export type JaValeEstado = "ja" | "ainda" | "nao";

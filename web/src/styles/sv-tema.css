@@ -1,4 +1,4 @@
-/* Segue o Voto, D2 · tela Tema (/v2/tema/[slug]). Importado pela própria página.
+/* Segue o Voto, D2 · tela Tema (/tema/[slug]). Importado pela própria página.
    Só regras desta tela, sob .sv e com prefixo sv-. Resultado em palavra e número, sem forma de voto (aprovar não é votar
    Sim) e sem barra. Esta tela não usa --agora nem --vida. */
 

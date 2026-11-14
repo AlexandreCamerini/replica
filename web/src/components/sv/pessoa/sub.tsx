@@ -1,4 +1,4 @@
-// Peças comuns das rotas da Pessoa no /v2 (gastos, equipe, votos). Server components, sem JS.
+// Peças comuns das rotas da Pessoa na Direção 2 (gastos, equipe, votos). Server components, sem JS.
 import Link from "next/link";
 import { fmtInt } from "@/components/sv/fmt";
 import type { ContextoPessoa } from "./contexto";
@@ -9,7 +9,7 @@ export function CabecalhoSub({ ctx, titulo, esfera }: { ctx: ContextoPessoa; tit
   return (
     <div className="sv-cab">
       <p className="sv-vt sv-vt--sub">
-        <span aria-hidden="true">←</span>&nbsp;Voltar a&nbsp;<Link href={`/v2/pessoa/${p.slug}`}>{p.displayName}</Link>
+        <span aria-hidden="true">←</span>&nbsp;Voltar a&nbsp;<Link href={`/pessoa/${p.slug}`}>{p.displayName}</Link>
       </p>
       <h1>{titulo}</h1>
       {ctx.cargoLinha && <p className="sv-cab__c">{ctx.cargoLinha}</p>}

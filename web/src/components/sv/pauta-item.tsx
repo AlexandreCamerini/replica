@@ -24,7 +24,7 @@ export function PautaItem({ e, legenda = false, quando }: { e: PautaEntry; legen
     <li className="sv-pi">
       <p className="sv-esf">Esfera: Federal · {BODY_NAME[e.body]}</p>
       <Resposta tamanho="m">
-        <Link href={`/v2/decisao/${e.key}`}>
+        <Link href={`/decisao/${e.key}`}>
           {e.plain ?? clip(e.summary ?? "Resumo não publicado pela fonte", 150)} <span aria-hidden="true">→</span>
         </Link>
       </Resposta>
