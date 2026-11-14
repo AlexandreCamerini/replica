@@ -72,7 +72,7 @@ Classe: F = front, B = back/ETL, D = dados/contrato, O = operação.
 | Conferir 3 casos de origem de campanha no DivulgaCandContas | D | D256 | adiado | Conferência manual contra a fonte; não bloqueia tela |
 | Lote do rascunho nunca exercitado na API real | B | D260 | adiado | Roda sozinho no cron das 08:30; observar |
 | Segunda leitura: ato do Senado "ainda não conferido" | D | D289 | adiado | Texto de tela já diz |
-| Voto do cookie legível por script no tema v2 | F | fluxo 10.25 | em revisão | Conferir na revisão da #22; se confirmado, vira achado dela |
+| Voto do cookie legível por script no tema v2 | F | fluxo 10.25 | **resolvido** (D317) | Cookie `httpOnly`, gravado por server action |
 | Sugestões sem expurgo; `web_writer` lê todos os perfis; sal fixo sem `SESSION_SECRET` | B | fluxo 10.8, 10.12, 10.13 | adiado | Privacidade e conta: PR própria, com migração (bloqueada) nos dois primeiros |
 | Blueprint v2.1; quem assina a responsabilidade editorial; teto de gasto; auditoria por amostra | O | §14, D293 | bloqueado | Decisão do dono |
 | BUG-019 (arquivo `_BRASIL` do TSE) | B | `bugs.md` | adiado | O app não mostra voto de presidente; recarga de ~4 GB por ano |
@@ -160,7 +160,7 @@ Atualizado em 13/11/2026, fim da execução (ondas 0 a 5).
 | Origem | Dívida | Destino |
 | --- | --- | --- |
 | #22 | N+1 dos escolhidos (até ~130 consultas por request com 12 pessoas) | P06 |
-| #22 | `sv_sigo` (voto declarado) gravado por script; falta server action com `httpOnly`; quem não clicar de novo fica com o cookie antigo em `path=/` | PR própria de privacidade, depois da P11 |
+| #22 | `sv_sigo` (voto declarado) gravado por script; falta server action com `httpOnly`; quem não clicar de novo fica com o cookie antigo em `path=/` | **feito** (D317); o cookie antigo vira `httpOnly` no primeiro toque no botão |
 | #22 | `prefs.ufFalhou` e o erro de Ajustes com banco fora sem e2e; Temas ainda mostra "Escolha seu estado" quando a leitura das UFs falha; pessoa marcada que a fonte não encontra some sem aviso no Início | P10 |
 | #22 | rodapé do v1 dizia "Temas lidos por IA, aguardando revisão por pessoa" | corrigido na #36 (D309) |
 | #20 | `where="true"` também no upsert dos tetos estaduais; teste de `party_memberships` com fixture própria | P06 troca o rótulo por carimbo; o teste entra na próxima PR de ETL |

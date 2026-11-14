@@ -80,4 +80,42 @@ test("lista na raiz e lista do protótipo: a rota /v2 junta as duas, sem repetir
   expect(sigo, "um só cookie sv_sigo").toHaveLength(1);
   expect(sigo[0].path).toBe("/");
   expect(sigo[0].value.split(".")).toEqual(["helena-siqueira", "bruno-sampaio"]);
+  expect(sigo[0].httpOnly, "httpOnly").toBe(true);
+});
+
+// D317: a lista é gravada pelo servidor, por formulário. Funciona sem JavaScript e o cookie é httpOnly.
+test("marcar e desmarcar em quem votei sem JavaScript", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
+  const page = await context.newPage();
+  await page.goto("/pessoa/helena-siqueira");
+  await page.getByRole("button", { name: /Votei nesta pessoa/ }).click();
+  await expect(page.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
+  const sigo = (await context.cookies()).filter((c) => c.name === "sv_sigo");
+  expect(sigo).toHaveLength(1);
+  // secure: false em http://localhost (segue o protocolo da requisição); em https é true
+  expect(sigo[0]).toMatchObject({ value: "helena-siqueira", path: "/", httpOnly: true, sameSite: "Lax", secure: false });
+  await page.getByRole("button", { name: "Você acompanha" }).click();
+  await expect(page.getByRole("button", { name: /Votei nesta pessoa/ })).toHaveAttribute("aria-pressed", "false");
+  expect((await context.cookies()).filter((c) => c.name === "sv_sigo")).toHaveLength(0);
+  await context.close();
+});
+
+test("com a lista cheia, o botão de quem não está nela fica desligado e diz o limite", async ({ page, context }) => {
+  const doze = Array.from({ length: 12 }, (_, i) => `pessoa-ficticia-${i}`).join(".");
+  await context.addCookies([{ name: "sv_sigo", value: doze, domain: "localhost", path: "/" }]);
+  await page.goto("/pessoa/helena-siqueira");
+  await expect(page.getByRole("button", { name: /Votei nesta pessoa/ })).toBeDisabled();
+  await expect(page.getByText("Você já acompanha 12 pessoas, o limite.")).toBeVisible();
+});
+
+test("a action recebe a intenção: outra aba com o estado antigo não desmarca", async ({ page, context }) => {
+  await page.goto("/pessoa/helena-siqueira");
+  const outra = await context.newPage();
+  await outra.goto("/pessoa/helena-siqueira");
+  await page.getByRole("button", { name: /Votei nesta pessoa/ }).click();
+  await expect(page.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
+  // a outra aba ainda mostra "Votei nesta pessoa": clicar ali pede para incluir, e a pessoa continua na lista
+  await outra.getByRole("button", { name: /Votei nesta pessoa/ }).click();
+  await expect(outra.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
+  expect((await context.cookies()).find((c) => c.name === "sv_sigo")?.value).toBe("helena-siqueira");
 });

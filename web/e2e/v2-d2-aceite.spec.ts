@@ -1024,6 +1024,9 @@ test("sv_sigo: gravado em path=/, um cookie só", async ({ page, context }) => {
   expect(sigo, "um só cookie sv_sigo").toHaveLength(1);
   expect(sigo[0].path).toBe("/");
   expect(sigo[0].value.split(".").sort()).toEqual(["bruno-sampaio", "helena-siqueira"]);
+  // D317: o cookie antigo (legível por script) vira httpOnly no primeiro toque, e a página não o enxerga
+  expect(sigo[0].httpOnly, "httpOnly").toBe(true);
+  expect(await page.evaluate(() => document.cookie)).not.toContain("sv_sigo");
   await abrir(page, "/acompanhando");
   await expect(page.locator(".sv-esc__pessoas .sv-esc__n")).toHaveText(["Bruno Sampaio", "Helena Siqueira"]);
 });
