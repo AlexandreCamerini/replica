@@ -4,13 +4,15 @@ export const FOLLOW_COOKIE = "sv_sigo";
 export const FOLLOW_MAX = 12;
 /**
  * Caminho do cookie. Era "/v2" enquanto a Direção 2 era protótipo; com ela na raiz (D316) o cookie vale no site inteiro.
- * Pessoas em quem o leitor diz ter votado são dado sensível: o cookie é só deste navegador e nenhuma rota o grava em banco.
+ * Pessoas em quem o leitor diz ter votado são dado sensível: o cookie é só deste navegador, nenhuma rota o grava em banco
+ * e, desde a D317, ele é `httpOnly` (gravado só pelo servidor, em follow-actions.ts e na rota /v2).
  */
 export const FOLLOW_PATH = "/";
 /** Caminho antigo (protótipo): a rota /v2 junta essa lista à da raiz e apaga a cópia que ficou lá. */
 export const FOLLOW_PATH_ANTIGO = "/v2";
 
 const SLUG = /^[a-z0-9-]{1,120}$/;
+export const slugValido = (s: string) => SLUG.test(s);
 
 export function parseFollows(raw: string | undefined | null): string[] {
   if (!raw || typeof raw !== "string") return [];
