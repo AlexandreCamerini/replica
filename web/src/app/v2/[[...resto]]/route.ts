@@ -19,7 +19,7 @@ async function levar(req: NextRequest, ctx: { params: Promise<{ resto?: string[]
   const res = NextResponse.redirect(destino, 307);
   const valores = todos(req);
   if (valores.length > 0) {
-    const fim = `; SameSite=Lax${req.nextUrl.protocol === "https:" ? "; Secure" : ""}`;
+    const fim = `; HttpOnly; SameSite=Lax${req.nextUrl.protocol === "https:" ? "; Secure" : ""}`;
     // O navegador manda as duas cópias (a de /v2, caminho mais específico, vem primeiro). Junta as duas sem repetir,
     // a da raiz na frente, até o teto: nenhuma escolha some por causa da ordem em que a pessoa visitou as páginas.
     const lista = parseFollows([...valores].reverse().flatMap((v) => parseFollows(v)).join("."));
