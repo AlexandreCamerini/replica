@@ -4,7 +4,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { fmtInt } from "@/components/sv/fmt";
 import { ESFERA } from "@/components/sv/pessoa/cargos";
-import { carregarPessoa, contextoPessoa, inteiroPositivo, MOTIVO_PLENARIO } from "@/components/sv/pessoa/contexto";
+import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
+import { carregarPessoa, contextoPessoa, lerPessoa, inteiroPositivo, MOTIVO_PLENARIO } from "@/components/sv/pessoa/contexto";
 import { ler, statusLacuna } from "@/components/sv/pessoa/format";
 import { Falha, Linha, ListaVotos, Sem, SemCobertura } from "@/components/sv/pessoa/secoes";
 import { CabecalhoSub, Paginacao } from "@/components/sv/pessoa/sub";
@@ -19,14 +20,16 @@ const POR = 50;
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const r = await carregarPessoa((await params).slug);
-  return { title: r ? `Votos · ${r.person.displayName}` : "Pessoa não encontrada" };
+  const r = await carregarPessoa((await params).slug).catch(() => undefined);
+  return { title: r ? `Votos · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada" };
 }
 
 export default async function VotosPessoa({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
-  const r = await carregarPessoa(slug);
+  // null = não existe (404); undefined = a leitura falhou (lacuna, nunca 500)
+  const r = await lerPessoa(slug, sp.simular);
+  if (r === undefined) return <PessoaNaoLida />;
   if (!r) notFound();
   if (r.redirectTo) permanentRedirect(`/v2/pessoa/${r.redirectTo}/votos`);
   const ctx = await contextoPessoa(r.person);

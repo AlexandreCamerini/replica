@@ -35,6 +35,8 @@ import {
 } from "@/components/sv/pessoa/secoes";
 import { ESFERA } from "@/components/sv/pessoa/cargos";
 import { EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO, SEM_ORIGEM } from "@/components/sv/pessoa/contexto";
+import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
 
@@ -43,8 +45,8 @@ const SLUG = /^[a-z0-9-]{1,120}$/;
 const load = cache((slug: string) => (SLUG.test(slug) ? data.getPerson(slug) : Promise.resolve(null)));
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const r = await load((await params).slug);
-  return { title: r ? r.person.displayName : "Pessoa não encontrada" };
+  const r = await load((await params).slug).catch(() => undefined);
+  return { title: r ? r.person.displayName : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada" };
 }
 
 // O que cada cargo decide, em uma frase. Texto próprio, escrito a partir da Constituição Federal.
@@ -68,9 +70,11 @@ const ROLE: Record<OfficeSlug, string> = {
 const STATUS_LABEL: Record<string, string> = { eleito_aguardando_posse: "eleito, aguardando posse", licenciado: "licenciado", afastado: "afastado", encerrado: "mandato encerrado", renunciou: "renunciou", cassado: "cassado" };
 const FONTE_MANDATO: Record<string, string> = { tse: "TSE (Justiça Eleitoral)", camara: "Câmara dos Deputados", senado: "Senado Federal" };
 
-export default async function Pessoa({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const r = await load(slug);
+export default async function Pessoa({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ simular?: string | string[] }> }) {
+  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  // null = a pessoa não existe (404); undefined = a leitura falhou (lacuna, nunca 500). `?simular=erro_pagina` só vale na demonstração.
+  const r = await lerOuFalhar(simulacao(sp.simular) === "erro_pagina", () => load(slug)).catch(() => undefined);
+  if (r === undefined) return <PessoaNaoLida />;
   if (!r) notFound();
   if (r.redirectTo) permanentRedirect(`/v2/pessoa/${r.redirectTo}`);
   const person = r.person;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA, SEM_DADO, conferidoEm } from "@/components/sv/estados";
+import { FalhaDeLeitura } from "@/components/sv/falha-leitura";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtWeekday } from "@/components/sv/fmt";
@@ -36,8 +37,8 @@ const KEY = /^[a-z0-9-]{3,80}$/;
 const load = cache((key: string) => (KEY.test(key) ? data.getPautaProposal(key) : Promise.resolve(null)));
 
 export async function generateMetadata({ params }: { params: Promise<{ key: string }> }): Promise<Metadata> {
-  const p = await load((await params).key);
-  return { title: p ? billLabel(p.entry) : "Decisão não encontrada" };
+  const p = await load((await params).key).catch(() => undefined);
+  return { title: p ? billLabel(p.entry) : p === undefined ? "Não conseguimos ler agora" : "Decisão não encontrada" };
 }
 
 /** Tipo por extenso + sigla: "projeto de lei (PL)". A sigla nunca aparece sozinha na primeira ocorrência. */
@@ -144,9 +145,12 @@ function votoNaVotacao(ev: VotingEventDetail, slug: string) {
 }
 
 export default async function Decisao({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ simular?: string | string[] }> }) {
-  const p = await load((await params).key);
+  const sim = simulacao((await searchParams).simular);
+  // null = a proposta não existe (404); undefined = a leitura falhou (lacuna, nunca 500). `?simular=erro_pagina` só vale na demonstração.
+  const p = await lerOuFalhar(sim === "erro_pagina", async () => load((await params).key)).catch(() => undefined);
+  if (p === undefined) return <FalhaDeLeitura titulo="O que estão decidindo que mexe comigo?" pergunta="O que esta proposta propõe?" oQue="esta proposta" proxima={{ href: "/v2/decisoes", pergunta: "O que mexe comigo?" }} />;
   // `?simular=erro` só vale na demonstração (simular.ts): a leitura dos escolhidos falha
-  const falhar = simulacao((await searchParams).simular) === "erro";
+  const falhar = sim === "erro";
   if (!p) notFound();
   const e = p.entry;
   const a = p.answers;

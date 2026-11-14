@@ -4,7 +4,8 @@ import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { fmtDate, fmtInt } from "@/components/sv/fmt";
 import { SEM_DADO } from "@/components/sv/estados";
 import { ESFERA } from "@/components/sv/pessoa/cargos";
-import { carregarPessoa, contextoPessoa } from "@/components/sv/pessoa/contexto";
+import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
+import { carregarPessoa, contextoPessoa, lerPessoa } from "@/components/sv/pessoa/contexto";
 import { vmEquipe } from "@/components/sv/pessoa/equipe";
 import { brl, ler } from "@/components/sv/pessoa/format";
 import { Falha, Linha, Sem, SemCobertura } from "@/components/sv/pessoa/secoes";
@@ -15,16 +16,18 @@ import { data } from "@/lib/data";
 // Equipe do gabinete SÓ em agregado: quantos, por função (como a fonte escreve) e quanto, com fonte e data. Nenhum nome de
 // assessor (catálogo de 08/11, "Não adaptar": terceiro, pessoa física; LGPD). O perfil v1 lista nomes; o /v2 não.
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ simular?: string | string[] }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const r = await carregarPessoa((await params).slug);
-  return { title: r ? `Equipe do gabinete · ${r.person.displayName}` : "Pessoa não encontrada" };
+  const r = await carregarPessoa((await params).slug).catch(() => undefined);
+  return { title: r ? `Equipe do gabinete · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada" };
 }
 
-export default async function EquipePessoa({ params }: Props) {
-  const { slug } = await params;
-  const r = await carregarPessoa(slug);
+export default async function EquipePessoa({ params, searchParams }: Props) {
+  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  // null = não existe (404); undefined = a leitura falhou (lacuna, nunca 500)
+  const r = await lerPessoa(slug, sp.simular);
+  if (r === undefined) return <PessoaNaoLida />;
   if (!r) notFound();
   if (r.redirectTo) permanentRedirect(`/v2/pessoa/${r.redirectTo}/equipe`);
   const ctx = await contextoPessoa(r.person);
