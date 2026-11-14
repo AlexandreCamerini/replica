@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Decide se o e2e do web precisa rodar neste run do ci (D323). Imprime "true" ou "false".
 #
-# Roda quando a mudança toca web/, o próprio ci.yml ou esta pasta. Na dúvida, roda: qualquer erro ao achar a base
+# Roda quando a mudança toca web/, mcp/src, o próprio ci.yml ou esta pasta. Na dúvida, roda: qualquer erro ao achar a base
 # ou ao ler o diff devolve "true". Pular o e2e nunca pode ser o resultado de uma falha deste script.
 #
 # Uso: toca-web.sh <evento> [sha-anterior]
@@ -26,6 +26,12 @@ case "$evento" in
 esac
 
 if [ -z "$base" ]; then echo true; exit 0; fi
-if ! arquivos="$(git diff --no-renames --name-only "$base" HEAD 2>/dev/null)"; then echo true; exit 0; fi
-
-if printf '%s\n' "$arquivos" | grep -qE '^(web/|\.github/workflows/ci\.yml$|\.github/scripts/)'; then echo true; else echo false; fi
+# Pathspec em vez de ler nomes: caminho com acento ou aspas sai escapado no --name-only e escaparia de um grep.
+# --no-renames: mover arquivo para fora de web/ conta como mudança em web/. Saída 0 = não toca; 1 = toca; outra = erro, roda.
+# CAMINHOS é o que o e2e lê: web/ inteiro e mcp/src (b6-mcp-ajudar.spec.ts confere as ferramentas em mcp/src/server.ts).
+CAMINHOS=(web mcp/src .github/workflows/ci.yml .github/scripts)
+git diff --no-renames --quiet "$base" HEAD -- "${CAMINHOS[@]}" 2>/dev/null
+case $? in
+  0) echo false ;;
+  *) echo true ;;
+esac

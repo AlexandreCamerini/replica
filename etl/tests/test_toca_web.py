@@ -58,7 +58,10 @@ def merge_de_pr(repo: Path, mudanca) -> None:
         ("etl/x.py", "false"),
         ("website/x.ts", "false"),  # prefixo parecido não é web/
         (".github/workflows/etl.yml", "false"),
+        ("mcp/README.md", "false"),
         ("web/b.ts", "true"),
+        ("web/ação \"x\".ts", "true"),  # nome que o git escaparia numa lista de arquivos
+        ("mcp/src/server.ts", "true"),  # o e2e confere as ferramentas do MCP neste arquivo
         (".github/workflows/ci.yml", "true"),
         (".github/scripts/qualquer.sh", "true"),
     ],
@@ -121,3 +124,18 @@ def test_evento_desconhecido_roda(repo, args):
 def test_fora_de_repositorio_git_roda(tmp_path):
     assert decide(tmp_path, "pull_request") == "true"
     assert decide(tmp_path, "push", "a" * 40) == "true"
+
+
+def test_filtro_cobre_o_que_o_e2e_le_fora_do_web():
+    """Arquivo de web/e2e que lê caminho fora de web/ (../../x/...) exige x no filtro do script."""
+    import re
+
+    raiz = SCRIPT.parents[2]
+    lidos = set()
+    for f in [*(raiz / "web" / "e2e").rglob("*.ts"), raiz / "web" / "playwright.config.ts"]:
+        lidos |= set(re.findall(r"""["'`]\.\./\.\./([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)""", f.read_text()))
+    lidos = {c for c in lidos if not c.startswith("src/")}  # ../../src a partir de web/e2e/x/ ainda é web/
+    filtro = re.search(r"^CAMINHOS=\((.*)\)$", SCRIPT.read_text(), re.M).group(1).split()
+    fora = {c for c in lidos if not any(c == p or c.startswith(p.rstrip("/") + "/") or p.startswith(c + "/") for p in filtro)}
+    assert lidos, "esperava ao menos a leitura de mcp/src pelo e2e do MCP"
+    assert not fora, f"o e2e lê {sorted(fora)} e o filtro de toca-web.sh não cobre"
