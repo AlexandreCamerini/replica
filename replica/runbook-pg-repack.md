@@ -18,6 +18,7 @@ O desperdício real em produção era escrita: `person_period_stats` teve 5,99 m
 Índices (estatísticas sem reset desde a carga, só ~2 dias de tráfego, então vale como pista, não como prova):
 - `votes_person_id_voting_event_id_idx` (70 MB, 0 leituras) é **duplicata exata** de `votes_person_recent`: migração `0141` remove.
 - `proposals_summary_trgm` (80 MB, 0 leituras), `expenses_supplier_doc_idx` (25 MB, 0) e `asset_declarations_person_id_year_idx` (16 MB, 0): **não mexer** até haver semanas de tráfego; o trigram pode servir à busca.
+- Atualização de 14/11/2026 (D314): `expenses_supplier_doc_idx` removido pela migração `0142`, sem leitor no código. Os outros dois ficam: o trigram serve à busca de propostas e o de `asset_declarations` é lido pelo MCP.
 - Consultas mais lentas: são do ETL (`derive.stats` ~42 s, checks de invariantes ~5 s), nenhuma é do site.
 
 ## Por que
