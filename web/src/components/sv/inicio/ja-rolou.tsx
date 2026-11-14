@@ -55,7 +55,7 @@ export async function JaRolou() {
               {dia && <p className="sv-ev__d">{fmtLong(dia)}</p>}
               <p className="sv-esf">Federal · {BODY_NAME[r.body]}</p>
               <p className="sv-ev__t">
-                <Link href={`/v2/votacao/${r.id}`}>{r.proposal ? `${r.proposal.label}: ${clip(r.proposal.summary, 140)}` : clip(r.description, 140)}</Link>
+                <Link href={`/votacao/${r.id}`}>{r.proposal ? `${r.proposal.label}: ${clip(r.proposal.summary, 140)}` : clip(r.description, 140)}</Link>
               </p>
               {d ? <Contagem ev={d} /> : <Cobertura fonte={`${BODY_NAME[r.body]}, votação nominal`} />}
             </div>
@@ -64,7 +64,7 @@ export async function JaRolou() {
       )}
       {resumo.length > 0 && <Nota>Sem voto soma quem não registrou voto e quem presidia a sessão. Não é voto contra. A ordem é fixa: Sim, Não, Abstenção, Sem voto.</Nota>}
       <p className="sv-ir2">
-        <Link className="sv-lk" href="/v2/acompanhando">
+        <Link className="sv-lk" href="/acompanhando">
           Como meus escolhidos votaram <span aria-hidden="true">→</span>
         </Link>
       </p>

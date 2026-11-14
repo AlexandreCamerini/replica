@@ -1,4 +1,4 @@
-/* Segue o Voto, D2 · tela Votação (/v2/votacao/[id]). Importado pela própria página.
+/* Segue o Voto, D2 · tela Votação (/votacao/[id]). Importado pela própria página.
    Só regras desta tela, sob .sv e com prefixo sv-. Voto é forma + palavra (sv.css §7); nada aqui tem cor: tudo em tinta. */
 
 /* estados: um link de 44px por UF; a escolhida em tinta cheia (papel sobre tinta), sem cor de destaque */

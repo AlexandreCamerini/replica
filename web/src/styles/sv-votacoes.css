@@ -1,4 +1,4 @@
-/* Segue o Voto, D2 · tela Votações (/v2/votacoes). Importado pela própria página.
+/* Segue o Voto, D2 · tela Votações (/votacoes). Importado pela própria página.
    Só regras desta tela, sob .sv e com prefixo sv-. Peças compartilhadas (abas, item de votação, placar da fonte) em sv.css §13.
    Esta tela não usa --agora nem --vida: tudo em tinta. */
 

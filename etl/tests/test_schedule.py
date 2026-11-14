@@ -233,7 +233,7 @@ def test_tarefa_com_janela_vence_uma_vez_por_janela():
 
 
 def test_janela_perdida_e_reposta_fora_de_hora_uma_vez():
-    """D316: a janela fechou sem carimbo desde a abertura (cron atrasado ou pulado) -> a tarefa vence na chamada seguinte, fora da janela."""
+    """D317: a janela fechou sem carimbo desde a abertura (cron atrasado ou pulado) -> a tarefa vence na chamada seguinte, fora da janela."""
     t = S.Task("x.noturna", lambda d: ["x"], ("x.noturna.",), 24, 1, retry_h=1, window=S.Window(S.dtime(0, 30), S.dtime(2, 0), S.TER_A_SAB))
     ontem = _at(3, 0, 50)  # carimbo da janela de terça
     # quarta 03:17 BRT (o tick de 06:17Z): a janela de quarta (00:30-02:00) fechou sem leitura

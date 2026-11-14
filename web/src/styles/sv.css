@@ -1,6 +1,6 @@
 /* Segue o Voto, Direção 2 (decisão do dono em 10/11/2026; HANDOFF-DIRECAO-2.md §4, §6, §9).
    Tudo fica sob .sv para não vazar para as páginas atuais. Base = celular; desktop a partir de 900px (e 1100px onde a maquete pede).
-   Esta folha tem só o que é compartilhado. CSS de uma tela vai em sv-<tela>.css (importados depois desta, em app/v2/layout.tsx).
+   Esta folha tem só o que é compartilhado. CSS de uma tela vai em sv-<tela>.css (importados depois desta, em components/sv/casco.tsx).
 
    Regra de cor (§4): a página é tinta sobre papel. --agora e --vida só aparecem nos utilitários marcados "COR" abaixo e nos
    seletores de tela que o §4 lista (faixa "Hoje", bloco "Esta semana", "Se aprovado", "Isso é comigo?"). Nunca colorir voto,

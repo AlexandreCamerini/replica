@@ -1,4 +1,4 @@
-// Formatação e leitura segura da tela Pessoa (D2). Sem JSX. Datas no fuso de Brasília, como o resto do /v2.
+// Formatação e leitura segura da tela Pessoa (D2). Sem JSX. Datas no fuso de Brasília, como o resto da Direção 2.
 import { fmtDate } from "@/components/sv/fmt";
 import type { CoverageStatus, MissingDataset, Stamp } from "@/lib/data";
 

@@ -8,22 +8,22 @@ import { NavLink } from "./shell-client";
 
 /** As duas perguntas principais. */
 const PRINCIPAIS = [
-  { href: "/v2", label: "O que está rolando?" },
-  { href: "/v2/acompanhando", label: "O que meus escolhidos estão fazendo?" },
+  { href: "/", label: "O que está rolando?" },
+  { href: "/acompanhando", label: "O que meus escolhidos estão fazendo?" },
 ] as const;
 
 /** Linha "Também:". */
 const TAMBEM = [
-  { href: "/v2/decisoes", label: "O que mexe comigo?" },
-  { href: "/v2/temas", label: "O que está em jogo?" },
-  { href: "/v2/ajustes", label: "Ajustes" },
+  { href: "/decisoes", label: "O que mexe comigo?" },
+  { href: "/temas", label: "O que está em jogo?" },
+  { href: "/ajustes", label: "Ajustes" },
 ] as const;
 
 /** Rotas que a D2 não redesenhou: ficam acessíveis no rodapé. */
 const ROTAS = [
-  { href: "/v2/votacoes", label: "Votações" },
-  { href: "/v2/pessoas", label: "Pessoas" },
-  { href: "/v2/como-funciona", label: "Como funciona" },
+  { href: "/votacoes", label: "Votações" },
+  { href: "/pessoas", label: "Pessoas" },
+  { href: "/como-funciona", label: "Como funciona" },
 ] as const;
 
 export const CONTEUDO_ID = "sv-conteudo";
@@ -37,21 +37,21 @@ export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boo
       </a>
       <header className="sv-wrap sv-topo">
         <div className="sv-id">
-          <Link className="sv-marca" href="/v2">
+          <Link className="sv-marca" href="/">
             segue o voto
           </Link>
           <p className="sv-uf">
             {uf ? (
               <>
-                {uf.nome} ({uf.sigla}) · <Link href="/v2/ajustes">trocar estado</Link>
+                {uf.nome} ({uf.sigla}) · <Link href="/ajustes">trocar estado</Link>
               </>
             ) : ufFalhou ? (
               <>
                 Seu estado: {FALHOU_LEITURA.charAt(0).toLowerCase()}
-                {FALHOU_LEITURA.slice(1)} · <Link href="/v2/ajustes">Ajustes</Link>
+                {FALHOU_LEITURA.slice(1)} · <Link href="/ajustes">Ajustes</Link>
               </>
             ) : (
-              <Link href="/v2/ajustes">Escolha seu estado</Link>
+              <Link href="/ajustes">Escolha seu estado</Link>
             )}
           </p>
         </div>
@@ -93,10 +93,10 @@ export function Rodape() {
             </li>
           ))}
           <li>
-            <Link href="/v2/como-funciona#correcoes">{SELO.apontarErro}</Link>
+            <Link href="/como-funciona#correcoes">{SELO.apontarErro}</Link>
           </li>
           <li>
-            <Link href="/">Versão atual do site</Link>
+            <Link href="/no-seu-bolso">Páginas do desenho anterior</Link>
           </li>
         </ul>
         <p className="sv-ass">Seu voto não termina na urna.</p>

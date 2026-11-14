@@ -1,29 +1,29 @@
 import { expect, test } from "@playwright/test";
 
-// Protótipo "Segue o Voto" em /v2, Direção 2 (decisão do dono em 10/11/2026).
+// "Segue o Voto", Direção 2 (decisão do dono em 10/11/2026), na raiz do site desde a D316 (era /v2).
 // Portado do desenho anterior: a intenção de cada teste que ainda faz sentido foi mantida; busca por cidade virou escolha de UF
-// por formulário em /v2/ajustes, e o menu hambúrguer virou navegação sempre visível com aria-current.
-// As páginas atuais (v1) não podem mudar: o shell antigo some só sob /v2.
+// por formulário em /ajustes, e o menu hambúrguer virou navegação sempre visível com aria-current.
+// As páginas do desenho anterior (v1) não podem mudar: cada grupo de rotas traz o próprio casco.
 
 const PAGES = [
-  "/v2",
-  "/v2/acompanhando",
-  "/v2/ajustes",
-  "/v2/temas",
-  "/v2/decisoes",
-  "/v2/decisoes?aba=leis",
-  "/v2/decisao/camara-pl-79-2020",
-  "/v2/decisao/camara-pl-4567-2024",
-  "/v2/decisao/camara-pl-9999-2026",
-  "/v2/votacoes",
-  "/v2/votacao/camara-v2026-15",
-  "/v2/votacao/camara-v2026-15?uf=SP",
-  "/v2/pessoas",
-  "/v2/pessoas?cargo=senador&uf=SP",
-  "/v2/pessoas?cidade=3509502&grupo=vereadores",
-  "/v2/pessoa/helena-siqueira",
-  "/v2/tema/agro",
-  "/v2/como-funciona",
+  "/",
+  "/acompanhando",
+  "/ajustes",
+  "/temas",
+  "/decisoes",
+  "/decisoes?aba=leis",
+  "/decisao/camara-pl-79-2020",
+  "/decisao/camara-pl-4567-2024",
+  "/decisao/camara-pl-9999-2026",
+  "/votacoes",
+  "/votacao/camara-v2026-15",
+  "/votacao/camara-v2026-15?uf=SP",
+  "/pessoas",
+  "/pessoas?cargo=senador&uf=SP",
+  "/pessoas?cidade=3509502&grupo=vereadores",
+  "/pessoa/helena-siqueira",
+  "/tema/agro",
+  "/como-funciona",
 ];
 
 // Mesmas palavras vetadas do teste de neutralidade das páginas atuais.
@@ -53,25 +53,25 @@ for (const width of [390, 768, 1280]) {
 
 test("v2: a UF se escolhe por formulário em Ajustes (sem busca por cidade) e aparece no topo", async ({ page }) => {
   // não existe mais busca de lugar na entrada
-  await page.goto("/v2");
+  await page.goto("/");
   await expect(page.getByRole("searchbox")).toHaveCount(0);
   await expect(page.locator('.sv-main input[type="search"], .sv-main input[name="q"]')).toHaveCount(0);
 
   await page.getByRole("link", { name: "Escolha seu estado" }).first().click();
-  await expect(page).toHaveURL(/\/v2\/ajustes/);
+  await expect(page).toHaveURL(/\/ajustes/);
   await page.locator("#aj-uf-sel").selectOption("SP");
   await page.getByRole("button", { name: "Guardar estado" }).click();
-  await expect(page).toHaveURL(/\/v2\/ajustes$/);
+  await expect(page).toHaveURL(/\/ajustes$/);
   await expect(page.locator(".sv-uf")).toContainText("São Paulo (SP)");
   expect((await page.context().cookies()).find((c) => c.name === "sv_uf")?.value).toBe("SP");
 
   // a UF vale nas outras telas
-  await page.goto("/v2");
+  await page.goto("/");
   await expect(page.locator(".sv-uf")).toContainText("São Paulo (SP)");
   await expect(page.locator(".sv-uf").getByRole("link", { name: "trocar estado" })).toBeVisible();
 
   // limpar a escolha volta ao estado "sem estado escolhido"
-  await page.goto("/v2/ajustes");
+  await page.goto("/ajustes");
   await page.locator("#aj-uf-sel").selectOption("");
   await page.getByRole("button", { name: "Guardar estado" }).click();
   await expect(page.locator(".sv-uf")).toContainText("Escolha seu estado");
@@ -79,7 +79,7 @@ test("v2: a UF se escolhe por formulário em Ajustes (sem busca por cidade) e ap
 });
 
 test("v2: pessoas de um grupo aparecem em ordem alfabética", async ({ page }) => {
-  await page.goto("/v2/pessoas?cidade=3509502&grupo=vereadores");
+  await page.goto("/pessoas?cidade=3509502&grupo=vereadores");
   await expect(page.locator(".sv h1")).toHaveText("Vereadores");
   const names = await page.locator(".sv-pp > li > a").evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim()));
   expect(names.length).toBeGreaterThan(1);
@@ -87,7 +87,7 @@ test("v2: pessoas de um grupo aparecem em ordem alfabética", async ({ page }) =
 });
 
 test("v2: voto é forma mais palavra, nunca cor", async ({ page }) => {
-  await page.goto("/v2/votacao/camara-v2026-15?uf=SP");
+  await page.goto("/votacao/camara-v2026-15?uf=SP");
   const marks = page.locator(".sv-vt-grupo .sv-voto");
   await expect(marks.first()).toBeVisible();
   // toda marca vem com a palavra ao lado
@@ -108,7 +108,7 @@ test("v2: voto é forma mais palavra, nunca cor", async ({ page }) => {
 test("v2: a navegação fica sempre visível e marca a seção atual com aria-current", async ({ page }) => {
   for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 844 });
-    await page.goto("/v2");
+    await page.goto("/");
     // sem hambúrguer: nenhum botão Menu/Fechar e nenhum #sv-menu
     await expect(page.getByRole("button", { name: /^(Menu|Fechar)$/ })).toHaveCount(0);
     await expect(page.locator("#sv-menu")).toHaveCount(0);
@@ -122,38 +122,38 @@ test("v2: a navegação fica sempre visível e marca a seção atual com aria-cu
     await expect(escolhidos).not.toHaveAttribute("aria-current", /.+/);
 
     await escolhidos.click();
-    await expect(page).toHaveURL(/\/v2\/acompanhando$/);
+    await expect(page).toHaveURL(/\/acompanhando$/);
     await expect(escolhidos).toHaveAttribute("aria-current", "page");
     await expect(rolando).not.toHaveAttribute("aria-current", /.+/);
 
     // dentro de uma decisão, "O que mexe comigo?" segue marcado (seção), sem ser a página
-    await page.goto("/v2/decisao/camara-pl-79-2020");
+    await page.goto("/decisao/camara-pl-79-2020");
     await expect(nav.getByRole("link", { name: "O que mexe comigo?" })).toHaveAttribute("aria-current", "true");
-    await page.goto("/v2/ajustes");
+    await page.goto("/ajustes");
     await expect(nav.getByRole("link", { name: "Ajustes" })).toHaveAttribute("aria-current", "page");
   }
 });
 
 test("v2: página inexistente responde 404 dentro do shell novo", async ({ page }) => {
-  const res = await page.goto("/v2/decisao/nao-existe");
+  const res = await page.goto("/decisao/nao-existe");
   expect(res?.status()).toBe(404);
   await expect(page.locator(".sv h1")).toHaveText("Não consta");
   await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
   await expect(page.locator("header.sticky")).toHaveCount(0);
-  const res2 = await page.goto("/v2/pessoa/nao-existe");
+  const res2 = await page.goto("/pessoa/nao-existe");
   expect(res2?.status()).toBe(404);
   await expect(page.locator(".sv h1")).toHaveCount(1);
 });
 
-test("páginas atuais continuam com o shell atual", async ({ page }) => {
-  await page.goto("/");
+test("páginas do desenho anterior continuam com o shell delas", async ({ page }) => {
+  await page.goto("/no-seu-bolso");
   await expect(page.locator("header.sticky")).toBeVisible();
   await expect(page.locator(".sv")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Perguntas" })).toHaveCount(0);
 });
 
 test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async ({ page }) => {
-  await page.goto("/v2/pessoas?cargo=senador&uf=SP");
+  await page.goto("/pessoas?cargo=senador&uf=SP");
   const first = page.locator(".sv-pp > li > a").first();
   const name = ((await first.textContent()) ?? "").trim();
   await first.click();
@@ -161,23 +161,23 @@ test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async 
   await expect(page.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
   expect((await page.context().cookies()).find((c) => c.name === "sv_sigo")?.value).toBeTruthy();
   // "Escolhidos": um quadro com o nome e as cinco perguntas fixas
-  await page.goto("/v2/acompanhando");
+  await page.goto("/acompanhando");
   await expect(page.locator(".sv-esc__pessoas").getByRole("heading", { name: new RegExp(name) })).toBeVisible();
   await expect(page.locator(".sv-esc__pessoas h3.sv-r3l__q")).toHaveText(["Foi trabalhar?", "Como votou?", "Quanto gastou o gabinete?", "O patrimônio declarado mudou?", "O que propôs?"]);
   // no Início, "Em quem eu votei" cita a pessoa
-  await page.goto("/v2");
+  await page.goto("/");
   await expect(page.locator(".sv-main").getByText(name).first()).toBeVisible();
   // desmarcar: volta ao estado vazio, com convite
-  await page.goto("/v2/pessoas?cargo=senador&uf=SP");
+  await page.goto("/pessoas?cargo=senador&uf=SP");
   await page.locator(".sv-pp > li > a").first().click();
   await page.getByRole("button", { name: "Você acompanha" }).click();
-  await page.goto("/v2/acompanhando");
+  await page.goto("/acompanhando");
   await expect(page.getByRole("heading", { name: "Você ainda não marcou ninguém." })).toBeVisible();
 });
 
 test("v2: cookie sv_sigo fora de ordem é mostrado em ordem alfabética, com a ordem declarada", async ({ page, context }) => {
   await context.addCookies([{ name: "sv_sigo", value: SIGO.join("."), domain: "localhost", path: "/" }]);
-  await page.goto("/v2/acompanhando");
+  await page.goto("/acompanhando");
   const nomes = await page.locator(".sv-esc__pessoas .sv-esc__n").allTextContents();
   expect(nomes).toHaveLength(SIGO.length);
   expect(nomes).toEqual([...nomes].sort((a, b) => a.localeCompare(b, "pt-BR")));
@@ -185,7 +185,7 @@ test("v2: cookie sv_sigo fora de ordem é mostrado em ordem alfabética, com a o
 });
 
 test("v2: a decisão mostra os três estados de cada resposta e diz quem conferiu", async ({ page }) => {
-  await page.goto("/v2/decisao/camara-pl-9999-2026");
+  await page.goto("/decisao/camara-pl-9999-2026");
   await expect(page.locator(".sv h1")).toHaveText("O que estão decidindo que mexe comigo?");
   // conferida: frase + trecho + quem conferiu, pelo `verifiedBy` da resposta (aqui, agentes), na resposta e no selo
   await expect(page.locator('[aria-labelledby="sv-d1"]')).toContainText(/Conferido com o texto oficial por agentes de IA em \d{2}\/\d{2}/);
@@ -194,7 +194,7 @@ test("v2: a decisão mostra os três estados de cada resposta e diz quem conferi
   await expect(page.getByText("Ainda não conseguimos conferir esta resposta.").first()).toBeVisible();
   await expect(page.getByText("O texto oficial não trata disso.")).toHaveCount(1);
   // proposta sem respostas: "Aguardando conferência", nunca "não trata"
-  await page.goto("/v2/decisao/camara-pl-79-2020");
+  await page.goto("/decisao/camara-pl-79-2020");
   await expect(page.getByText("Aguardando conferência").first()).toBeVisible();
   await expect(page.getByText("O texto oficial não trata disso.")).toHaveCount(0);
   // sem resposta publicada, a página não afirma quem conferiu (nem agentes, nem pessoa)
@@ -208,11 +208,11 @@ test("v2: a decisão mostra os três estados de cada resposta e diz quem conferi
 });
 
 test("v2: a visão por temas leva às votações de cada tema", async ({ page }) => {
-  await page.goto("/v2/temas");
+  await page.goto("/temas");
   await expect(page.locator(".sv h1")).toHaveText("O que está em jogo no Congresso?");
-  const tema = page.locator('a[href^="/v2/tema/"]').first();
+  const tema = page.locator('a[href^="/tema/"]').first();
   await expect(tema).toBeVisible();
   await tema.click();
-  await expect(page).toHaveURL(/\/v2\/tema\//);
-  await expect(page.locator('.sv-vls .sv-vl a[href^="/v2/votacao/"]').first()).toBeVisible();
+  await expect(page).toHaveURL(/\/tema\//);
+  await expect(page.locator('.sv-vls .sv-vl a[href^="/votacao/"]').first()).toBeVisible();
 });
