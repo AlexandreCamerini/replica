@@ -15,8 +15,12 @@ roda só essas (o launchd do Mac roda só o SAPL das câmaras). Nome fora de TAS
 conta como "fora do prazo" no alerta daquela chamada: o frescor dela é de quem roda a tarefa, e o site e o vigia seguem acusando se envelhecer.
 Saída: 0 tudo certo; 2 houve alerta (falha, check quebrado, fonte fora do prazo ou run órfão).
 
-Janela horária (catálogo D06): tarefa com `window` só vence dentro dela (hora de Brasília e dias da semana), e uma vez por janela: vencida =
-janela aberta e sem carimbo da tarefa desde a abertura. Fora da janela nada mais vale (nem `every_h`), exceto `--force`.
+Janela horária (catálogo D06): tarefa com `window` vence dentro dela (hora de Brasília e dias da semana), e uma vez por janela: vencida =
+janela aberta e sem carimbo da tarefa desde a abertura. Fora da janela `every_h` não vale. A única exceção é a reposição (D318): se a
+janela mais recente fechou sem carimbo desde a abertura (o cron atrasou ou pulou o disparo), a tarefa vence na chamada seguinte. O carimbo
+da reposição encerra; sem carimbo (fonte fora do ar, ou job que sai com 0 sem carimbar), tenta de novo só depois de REPOSICAO_RETRY_H.
+A reposição só existe depois do fechamento, nunca antes da abertura (o CSV da Câmara ainda seria o da véspera). Quem decide se a janela
+foi reposta é o carimbo, não o exit da tarefa: com carimbo novo ela sai do alerta e fica registrada ("JANELA REPOSTA"); sem ele, "JANELA PERDIDA" segue.
 Chave de API ausente (`needs_env`): a tarefa é pulada com o motivo e a fonte sem carga não acusa "SEM CARGA" (aguarda a chave, catálogo D01).
 
 Vencida = o carimbo mais novo dos datasets da tarefa (dataset_stamps; skipped_unchanged também carimba) é mais velho que
@@ -53,6 +57,7 @@ SCHEDULER_LOCK = "etl.scheduler"
 DEDICATED_LOCK = "etl.scheduler.sapl"  # chamada dedicada (ETL_TASKS_INCLUDE): não disputa o lock do Actions, que não roda essas tarefas
 ORPHAN_AFTER = timedelta(hours=1)
 STUCK_AFTER = timedelta(hours=8)  # lock da agenda ocupado há mais que isso = agenda travada: alerta
+REPOSICAO_RETRY_H = 6  # D318: nova tentativa de repor uma janela perdida. Mais largo que o tick (3 h): fonte fora do ar não vira uma tentativa por chamada
 RESERVE_MIN = 45  # minutos guardados no fim para identity.repairs, derive.stats, check e alerta
 # Datasets que carimbam sem trazer dado da casa (descoberta do SAPL): não contam como "fonte em dia".
 NOT_FRESHNESS = ("sapl.descoberta", "sapl-ale.descoberta")
@@ -117,9 +122,10 @@ class Window:
         return s.astimezone(timezone.utc) if s <= local < e else None
 
     def last_closed(self, now: datetime) -> tuple[datetime, datetime] | None:
-        """(abertura, fechamento) em UTC da janela mais recente que já fechou (hoje ou ontem, em Brasília); None se não houve."""
+        """(abertura, fechamento) em UTC da janela mais recente que já fechou, olhando até 7 dias para trás (em Brasília); None se não houve.
+        Sete dias cobrem qualquer conjunto de dias da semana: a janela de sábado segue visível no domingo e na segunda."""
         local = now.astimezone(BRT)
-        for back in (0, 1):
+        for back in range(8):
             day = local.date() - timedelta(days=back)
             if day.weekday() not in self.days:
                 continue
@@ -218,7 +224,8 @@ class Report:
     def failed(self) -> list[dict]:
         return [r for r in self.ran if r["exit"] != 0]
 
-    missed: list[dict] = field(default_factory=list)  # S3-1/D257: janela do dia fechou sem a tarefa rodar
+    missed: list[dict] = field(default_factory=list)  # S3-1/D257: janela fechou sem a tarefa rodar (e a reposição não leu)
+    recovered: list[dict] = field(default_factory=list)  # D318: janela perdida que esta chamada leu fora de hora; registro, não alerta
     deferred: list[str] = field(default_factory=list)
     awaiting: list[str] = field(default_factory=list)  # fontes sem chave de API e sem carga: aguardam, não alertam
     partial: list[dict] = field(default_factory=list)  # runs que gravaram dado mas fecharam `partial` nesta chamada (db.Run.partial)
@@ -235,6 +242,7 @@ class Report:
         lines += [f"RUN ÓRFÃO fechado: {o['dataset']} (iniciado {o['started_at'][:16]})" for o in self.orphans]
         lines += [f"FORA DO PRAZO {o['source']}: {o['age_h']:.0f} h > {o['max_h']} h" if o["age_h"] is not None else f"SEM CARGA {o['source']}" for o in self.overdue]
         lines += [f"JANELA PERDIDA {m['task']}: janela {m['opened'][:16]}Z-{m['closed'][:16]}Z fechou sem leitura" for m in self.missed]
+        lines += [f"JANELA REPOSTA {m['task']}: janela {m['opened'][:16]}Z-{m['closed'][:16]}Z lida fora de hora nesta chamada (sem alerta)" for m in self.recovered]
         if self.awaiting:
             lines.append(f"aguardam chave de API (sem alerta): {', '.join(self.awaiting)}")
         if self.deferred:
@@ -253,8 +261,16 @@ def is_due(task: Task, last_stamp: datetime | None, last_attempt: datetime | Non
     if task.window:
         opened = task.window.opened_at(now)
         if opened is None:
-            return False, "fora da janela horária"
-        if last_stamp and last_stamp >= opened:
+            # reposição (D318): a janela mais recente fechou sem leitura; lê agora, fora de hora, em vez de esperar a próxima noite
+            w = task.window.last_closed(now)
+            if w is None or (last_stamp is not None and last_stamp >= w[0]):
+                return False, "fora da janela horária"
+            if last_attempt and last_attempt >= w[0] and now - last_attempt < timedelta(hours=REPOSICAO_RETRY_H):
+                return False, f"reposição: última tentativa há {(now - last_attempt).total_seconds() / 3600:.1f} h (< {REPOSICAO_RETRY_H} h)"
+            return True, f"reposição: a janela das {w[0].astimezone(BRT):%d/%m %H:%M} BRT fechou sem leitura"
+        # "lida nesta janela" pede carimbo desde a abertura e, havendo tentativa registrada, que ela também tenha começado desde a abertura:
+        # uma reposição da janela anterior que começa às 04:58 e carimba às 05:01 leu o CSV da véspera, não o desta janela
+        if last_stamp and last_stamp >= opened and (last_attempt is None or last_attempt >= opened):
             return False, f"já lida nesta janela (carimbo {last_stamp.astimezone(BRT):%H:%M} BRT)"
         if last_attempt and last_attempt >= opened and now - last_attempt < timedelta(hours=task.retry()):
             return False, f"última tentativa há {(now - last_attempt).total_seconds() / 3600:.1f} h (< {task.retry()} h)"
@@ -278,6 +294,13 @@ def missed_window(task: Task, last_stamp: datetime | None, now: datetime) -> dic
     if w is None or (last_stamp is not None and last_stamp >= w[0]):
         return None
     return {"task": task.name, "opened": w[0].isoformat(), "closed": w[1].isoformat()}
+
+
+def settle_missed(missed: list[dict], still: set[str]) -> tuple[list[dict], list[dict]]:
+    """(ainda perdidas, repostas). `missed` é calculada antes de as tarefas rodarem; `still` são as tarefas cuja janela continua sem carimbo
+    depois delas (missed_window de novo, com o carimbo atual). Decide o carimbo, não o exit: job que sai com 0 sem carimbar (a Câmara devolve
+    404 no CSV do ano em janeiro) não leu nada e segue em alerta. Reposta = lida nesta chamada, pela agenda ou por `--only … --force`."""
+    return [m for m in missed if m["task"] in still], [m for m in missed if m["task"] not in still]
 
 
 def filtered_sources(include: frozenset[str] | None, exclude: frozenset[str]) -> tuple[frozenset[str] | None, frozenset[str]]:
@@ -600,6 +623,11 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
                 rep.ran.append({"task": t.name, "why": why, **res})
                 people_ran |= t.people and res["exit"] == 0
                 need_derive |= not t.derives and res["exit"] == 0
+            if rep.missed:  # depois das tarefas: o que ganhou carimbo desde a abertura da janela perdida deixa de ser alerta
+                by = {t.name: t for t in TASKS}
+                with _connect(url) as c:
+                    still = {m["task"] for m in rep.missed if missed_window(by[m["task"]], last_stamp(c, by[m["task"]], today), now)}
+                rep.missed, rep.recovered = settle_missed(rep.missed, still)
             if people_ran and has_repairs:
                 rep.ran.append({"task": "identity.repairs", **_run_cli(["identity.repairs", "--apply"], 2, log_dir)})
                 need_derive = True
