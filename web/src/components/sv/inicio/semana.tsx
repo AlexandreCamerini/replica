@@ -66,7 +66,7 @@ export function NotaRegra() {
   return (
     <Nota>
       Acompanhamos só as propostas que entram na nossa regra de seleção, não a pauta inteira.{" "}
-      <Link className="sv-lk" href="/v2/como-funciona">
+      <Link className="sv-lk" href="/como-funciona">
         Ver a regra
       </Link>
     </Nota>
@@ -177,7 +177,7 @@ export async function Semana({
                   <div key={`${e.key}-${e.scheduledFor}-${e.committee ?? ""}`} className={`sv-dec${eh1 ? " sv-dec--1" : ""}`}>
                     <p className="sv-esf">{esferaDe(e)}</p>
                     <p className="sv-dec__t">
-                      <Link href={`/v2/decisao/${e.key}`}>
+                      <Link href={`/decisao/${e.key}`}>
                         {tituloDe(e)} <span aria-hidden="true">→</span>
                       </Link>
                     </p>
@@ -195,7 +195,7 @@ export async function Semana({
                         ) : estado === "falhou" ? (
                           <span className="sv-conf">{FRASE_RESPOSTA.falhou}</span>
                         ) : estado === "na_pagina" || !lida ? (
-                          <Link className="sv-lk" href={`/v2/decisao/${e.key}`}>
+                          <Link className="sv-lk" href={`/decisao/${e.key}`}>
                             {FRASE_RESPOSTA.naPagina}
                             <span className="sv-vh"> sobre {billLabel(e)}</span> <span aria-hidden="true">→</span>
                           </Link>

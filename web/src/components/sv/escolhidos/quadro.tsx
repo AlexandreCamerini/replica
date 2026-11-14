@@ -109,7 +109,7 @@ function Votos({ p }: { p: Escolhido }) {
               <VotoMarca voto={v.valor} />
             </p>
             <p className="sv-esc__vv-t">
-              <Link href={`/v2/votacao/${v.id}`}>{fmtDate(v.em)}</Link> · {clip(v.texto, 110)}
+              <Link href={`/votacao/${v.id}`}>{fmtDate(v.em)}</Link> · {clip(v.texto, 110)}
             </p>
           </li>
         ))}
@@ -176,7 +176,7 @@ export function QuadroEscolhido({ p }: { p: Escolhido }) {
           <span className="sv-esc__c">{sub}</span>
           {p.esfera && <span className="sv-esc__e">Esfera: {p.esfera}</span>}
         </h2>
-        <Link className="sv-esc__lk" href={`/v2/pessoa/${p.slug}`}>
+        <Link className="sv-esc__lk" href={`/pessoa/${p.slug}`}>
           Ver tudo de {p.nome}&nbsp;<span aria-hidden="true">→</span>
         </Link>
       </div>
@@ -206,7 +206,7 @@ const FORMA: Record<string, { forma: VotoForma; palavra: string }> = {
   "Não votou": { forma: "sem", palavra: "Sem voto" },
 };
 const TIPO = { voto: "voto", proposta: "proposta", gasto: "gasto" } as const;
-const hrefDe = (h: string) => (h.startsWith("/votacoes/") ? h.replace("/votacoes/", "/v2/votacao/") : null);
+const hrefDe = (h: string) => (h.startsWith("/votacoes/") ? h.replace("/votacoes/", "/votacao/") : null);
 
 function Texto({ r }: { r: Recente }) {
   const { item } = r;
@@ -276,7 +276,7 @@ export function SemEscolhidos({ className }: { className?: string }) {
       <Resposta tamanho="m">Abra a página de uma pessoa em quem você votou e use o botão “Votei nesta pessoa: acompanhar”.</Resposta>
       <p className="sv-t">Marcadas as pessoas, cada uma ganha um quadro aqui, com as mesmas cinco perguntas.</p>
       <p>
-        <Link className="sv-btn" href="/v2/pessoas">
+        <Link className="sv-btn" href="/pessoas">
           Escolher em quem votei
         </Link>
       </p>

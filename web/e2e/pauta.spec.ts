@@ -5,7 +5,7 @@ const FORBIDDEN = /beneficia|prejudica|polêmica|ataque|conquista|retrocesso|ava
 
 test.describe("Pauta no seu bolso", () => {
   test("PA-H1 número com definição e hora da leitura; igual à lista do plenário", async ({ page, axe }) => {
-    await page.goto("/");
+    await page.goto("/no-seu-bolso");
     const h1 = page.getByRole("heading", { level: 1 });
     await expect(h1).toContainText(/propostas? pode(m)? mexer no que você paga ou recebe nesta semana/);
     const n = Number((await h1.locator("span.font-display").innerText()).trim());
@@ -35,7 +35,7 @@ test.describe("Pauta no seu bolso", () => {
   });
 
   test("PA-E2 navegação sem link para página em construção", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/no-seu-bolso");
     for (const href of await page.locator("header a, footer a").evaluateAll((as) => as.map((a) => a.getAttribute("href")))) {
       expect(href).not.toMatch(/^\/(partidos|governos|eleicoes|stf|impostos|sobre|dados-abertos|entrar|sugestoes)/);
     }

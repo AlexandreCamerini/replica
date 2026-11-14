@@ -103,7 +103,7 @@ test.describe("F01 eleitor descobre quem o representa", () => {
     const red = await request.get("/p/slug-antigo-demo", { maxRedirects: 0 });
     expect([308, 404]).toContain(red.status()); // 404 quando a base real não tem o slug de demonstração
     await page.goto("/representantes?cidade=123");
-    await expect(page.getByText(/404|não encontrad/i).first()).toBeVisible();
+    await expect(page.getByText(/404|não encontrad|não encontramos/i).first()).toBeVisible(); // D316: o 404 do site é o da Direção 2
   });
 
   test("F01-E6 fluxo inteiro em 390 px sem rolagem horizontal @mobile", async ({ page, axe }) => {

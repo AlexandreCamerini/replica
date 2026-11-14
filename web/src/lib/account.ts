@@ -59,7 +59,7 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
 
 export async function signOut() {
   await (await auth()).signOut();
-  redirect("/");
+  redirect("/no-seu-bolso");
 }
 
 async function followSlug(userId: string, slug: string) {
@@ -85,17 +85,17 @@ export async function toggleFollow(_: FormState, form: FormData): Promise<FormSt
     return { error: "Não deu para salvar agora. Tente de novo." };
   }
   revalidatePath(`/p/${slug}`);
-  revalidatePath("/acompanhando");
+  revalidatePath("/conta");
   return { ok: true };
 }
 
 export async function updateDigest(_: FormState, form: FormData): Promise<FormState> {
   const user = await currentUser();
-  if (!user) redirect("/entrar?volta=/acompanhando");
+  if (!user) redirect("/entrar?volta=/conta");
   const v = z.enum(["daily", "weekly", "off"]).safeParse(form.get("digest"));
   if (!v.success) return { error: "Escolha uma das opções." };
   await asUser(user.id, (sql) => sql`update profiles set digest = ${v.data}, updated_at = now() where id = ${user.id}`);
-  revalidatePath("/acompanhando");
+  revalidatePath("/conta");
   return { ok: true };
 }
 
@@ -104,7 +104,7 @@ export async function deleteAccount(_: FormState, form: FormData): Promise<FormS
   if (!user) redirect("/entrar");
   if (String(form.get("confirmar") ?? "").trim().toUpperCase() !== "APAGAR") return { error: "Digite APAGAR para confirmar." };
   await (await auth()).deleteUser(user.id); // profiles, follows e digests caem em cascata
-  redirect("/?conta=apagada");
+  redirect("/no-seu-bolso?conta=apagada");
 }
 
 // ---------- sugestões (S25) ----------

@@ -45,7 +45,7 @@ export function Representa({
     return (
       <Quadro id="inicio-representa" variante="fio" className="sv-gt" pergunta="Quem mais me representa?">
         <Lacuna motivo="A lista de estados não pôde ser lida, e o estado guardado depende dela.">{FALHOU_LEITURA}</Lacuna>
-        <Link className="sv-btn" href="/v2/ajustes">
+        <Link className="sv-btn" href="/ajustes">
           Ver em Ajustes
         </Link>
       </Quadro>
@@ -56,7 +56,7 @@ export function Representa({
     return (
       <Quadro id="inicio-representa" variante="fio" className="sv-gt" pergunta="Quem mais me representa?">
         <p className="sv-t">Escolha seu estado para ver todas as pessoas que representam você, de A a Z.</p>
-        <Link className="sv-btn" href="/v2/ajustes">
+        <Link className="sv-btn" href="/ajustes">
           Escolher meu estado
         </Link>
       </Quadro>
@@ -101,8 +101,8 @@ export function Representa({
         </Nota>
       ))}
       <p className="sv-selo__l">
-        <Link href={`/v2/pessoas?uf=${uf.sigla}`}>Ver todas, de A a Z</Link>
-        <Link href="/v2/ajustes">{esferas.municipal ? "Mudar em Ajustes" : "Ligar em Ajustes"}</Link>
+        <Link href={`/pessoas?uf=${uf.sigla}`}>Ver todas, de A a Z</Link>
+        <Link href="/ajustes">{esferas.municipal ? "Mudar em Ajustes" : "Ligar em Ajustes"}</Link>
       </p>
     </Quadro>
   );

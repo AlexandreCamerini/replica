@@ -31,7 +31,7 @@ export async function currentUser() {
 
 /** `volta` só aceita caminho interno: começa com "/" e não com "//" ou "/\" (bloqueia redirect aberto). */
 export function safeReturn(v: unknown): string {
-  return typeof v === "string" && /^\/(?![/\\])[^\s]*$/.test(v) && v.length <= 300 ? v : "/";
+  return typeof v === "string" && /^\/(?![/\\])[^\s]*$/.test(v) && v.length <= 300 ? v : "/conta";
 }
 
 export type { SessionUser } from "./types";

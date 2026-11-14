@@ -11,14 +11,13 @@ function read(): string[] {
 }
 
 /**
- * Grava a lista em `path=/v2` (todos os leitores do cookie estão sob /v2: é opinião política, não vai para o resto do
- * site) e com `secure` em https (em http://localhost, sem: os e2e rodam assim). Antes, apaga a versão antiga gravada em
- * `path=/`, para não haver dois valores. Dívida registrada: gravar por server action com httpOnly.
+ * Grava a lista em `path=/` e com `secure` em https (em http://localhost, sem: os e2e rodam assim). Não toca na cópia que
+ * o protótipo gravava em `path=/v2`: uma página da raiz não consegue lê-la, e apagá-la aqui perderia a lista sem ninguém
+ * ter visto. Quem a junta à lista da raiz e a apaga é a rota /v2. Dívida registrada: gravar por server action com httpOnly.
  */
 function write(slugs: string[]) {
   const v = serializeFollows(slugs);
   const secure = window.location.protocol === "https:" ? "; secure" : "";
-  document.cookie = `${FOLLOW_COOKIE}=; path=/; max-age=0; samesite=lax${secure}`;
   document.cookie = v ? `${FOLLOW_COOKIE}=${v}; path=${FOLLOW_PATH}; max-age=31536000; samesite=lax${secure}` : `${FOLLOW_COOKIE}=; path=${FOLLOW_PATH}; max-age=0; samesite=lax${secure}`;
 }
 

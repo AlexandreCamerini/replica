@@ -50,7 +50,7 @@ test.describe("F05 monitorar", () => {
     await expect(page.getByRole("button", { name: /Deixar de acompanhar/ })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("link", { name: "Acompanhando" })).toBeVisible();
 
-    await page.goto("/acompanhando");
+    await page.goto("/conta");
     await expect(page.getByRole("heading", { name: /Quem eu acompanho/ })).toContainText("1 de 200");
     await expect(page.locator('[aria-labelledby="novidades-h"] li').first()).toBeVisible();
     await axe();
@@ -64,15 +64,15 @@ test.describe("F05 monitorar", () => {
     await page.getByRole("button", { name: /Deixar de acompanhar/ }).click();
     await expect(page.getByRole("button", { name: /^Acompanhar/ })).toHaveAttribute("aria-pressed", "false");
 
-    await page.goto("/acompanhando");
+    await page.goto("/conta");
     await page.getByLabel("Digite APAGAR para confirmar").fill("errado");
     await page.getByRole("button", { name: "Apagar minha conta" }).click();
     await expect(page.locator("form [role=alert]").filter({ hasText: "Digite APAGAR" })).toBeVisible();
     await page.getByLabel("Digite APAGAR para confirmar").fill("APAGAR");
     await page.getByRole("button", { name: "Apagar minha conta" }).click();
     await expect(page).toHaveURL(/conta=apagada/);
-    await page.goto("/acompanhando");
-    await expect(page).toHaveURL(/\/entrar\?volta=(%2F|\/)acompanhando/);
+    await page.goto("/conta");
+    await expect(page).toHaveURL(/\/entrar\?volta=(%2F|\/)conta/);
   });
 
   test("F05-E2 segunda pessoa não vê os dados da primeira; volta maliciosa vira /", async ({ browser }) => {
@@ -86,8 +86,8 @@ test.describe("F05 monitorar", () => {
     const eb = `b.${Date.now()}@exemplo.test`;
     await b.goto(`/entrar?volta=${encodeURIComponent("//evil.example/x")}`);
     await login(b, eb);
-    await expect(b).toHaveURL(/^http:\/\/localhost:\d+\/$/);
-    await b.goto("/acompanhando");
+    await expect(b).toHaveURL(/^http:\/\/localhost:\d+\/no-seu-bolso$/);
+    await b.goto("/conta");
     await expect(b.getByText("Você ainda não acompanha ninguém.")).toBeVisible();
     await expect(b.getByText(ea)).toHaveCount(0);
     await a.close();

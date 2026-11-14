@@ -36,7 +36,7 @@ test.describe("tema escolhido sobrevive à hidratação", () => {
     });
   }
 
-  for (const route of ["/", "/pauta", "/ja-decidido"]) {
+  for (const route of ["/no-seu-bolso", "/pauta", "/ja-decidido"]) {
     test(`controle: ${route} continua claro`, async ({ page }) => {
       await page.goto(route);
       await expectLight(page);
