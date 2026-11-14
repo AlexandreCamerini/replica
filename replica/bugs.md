@@ -911,13 +911,13 @@ Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não conve
 
 - Severity: S4 latente (achado nas revisões da PR #25; anterior a ela)
 - Onde: `camara_diario._deputies`, `titular = condicao == "Titular" or any(s == start ...)`. Quando esse suplente sai, a linha vira `titular`/`encerrado` com `ends_on` no fim da legislatura e escapa do `close_suplentes`.
-- Status: open.
+- Status: fixed (D320). Só o mandato de papel `titular` no início da legislatura faz da pessoa titular (`mandato_da_camara`). Testes: `test_camara_mandato.py::test_bug051_suplente_do_primeiro_dia_nao_vira_titular` (sem banco) e `test_camara_suplente_saiu.py::test_bug051_suplente_do_primeiro_dia_segue_suplente_e_e_encerrado_com_data` (com banco). Linha que um run anterior já tenha virado para `titular` não é desfeita.
 
 ### BUG-052: suplente efetivado como "Titular" pode derrubar o run da Câmara
 
 - Severity: S3 latente (achado nas revisões da PR #25; anterior a ela)
 - Onde: o ramo do titular insere `(início da legislatura, fim)` por cima do mandato de suplente aberto da mesma pessoa; a exclusão `no_overlapping_mandate` (por pessoa e cargo) estoura fora do savepoint e desfaz a carga de deputados do ciclo. O mesmo vale para mandato da mesma pessoa em outra UF (`known` é por UF, a exclusão é por cargo).
-- Status: open. Em produção, 11/11/2026: nenhuma pessoa com titular do 1º dia e suplente aberto na legislatura (consulta de leitura).
+- Status: fixed (D320). Era S2 quando disparasse: a exceção saía de `_deputies`, o primeiro passo de `run_camara`, e levava junto votações, proposições e cota. O suplente efetivado reaproveita a chave do mandato aberto e a linha passa a `titular`; mandato do mesmo cargo em outra UF no período é recusado com motivo e o run fecha parcial. Testes: `test_camara_mandato.py` (decisão, sem banco) e `test_camara_suplente_saiu.py::test_bug052_*` (contra a exclusão de verdade). Em produção, 11/11/2026: nenhuma pessoa com titular do 1º dia e suplente aberto na legislatura (consulta de leitura); a correção não foi exercitada lá.
 
 ### BUG-053: pessoa criada por carga recente fica sem as candidaturas de eleições antigas do próprio título
 

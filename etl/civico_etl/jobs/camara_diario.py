@@ -84,11 +84,24 @@ def run_camara(conn: psycopg.Connection, *, years: list[int], limit: int | None,
     _deputies(conn, ctx, leg, limit, force)
     for past in sorted({_legislature_for(date(y, 6, 1)) for y in years} - {leg}):
         link_past_roster(conn, ctx, past)
+    falhas: list[str] = []
     for y in years:
         _votes(conn, ctx, y, force)
         _proposals(conn, ctx, y, force)
         if expenses:
-            _expenses(conn, ctx, y, force)
+            # a cota de um ano que falha (API da cota fora do ar) não tira do ciclo as votações e proposições do ano seguinte;
+            # o job ainda sai com erro no fim, para a agenda alertar e tentar de novo
+            try:
+                _expenses(conn, ctx, y, force)
+            except Exception as e:  # noqa: BLE001
+                log.error("câmara: cota de %d falhou, seguindo para o próximo ano", y, exc_info=True)
+                falhas.append(f"{y}: {type(e).__name__}: {e}"[:300])
+                try:
+                    conn.rollback()  # falha fora de um run deixaria a sessão em transação abortada para o próximo ano
+                except Exception as e2:  # noqa: BLE001  conexão caída: não há próximo ano, mas o motivo da cota não se perde
+                    raise RuntimeError("cota da Câmara falhou em " + "; ".join(falhas) + f"; e a conexão não voltou ({type(e2).__name__})") from e2
+    if falhas:
+        raise RuntimeError("cota da Câmara falhou em " + "; ".join(falhas))
 
 
 class _Ctx:
@@ -213,6 +226,58 @@ def link_past_roster(conn: psycopg.Connection, ctx: "_Ctx", leg: int) -> int:
     return n_birth + n_name
 
 
+def mandato_da_camara(*, titular_na_fonte: bool, em_exercicio: bool, data: date | None, start: date, end: date,
+                      aqui: list[tuple[date, date, str]], fora: list[tuple[date, date]]) -> tuple[str, Any, Any]:
+    """Decide a linha de mandato de um deputado listado na legislatura [start, end). Pura (testada sem banco).
+
+    `aqui`: mandatos de deputado federal já conhecidos da pessoa NESTA UF, (início, fim, papel). `fora`: os de OUTRAS UFs, (início, fim).
+    A exclusão `no_overlapping_mandate` é por pessoa e cargo, sem a UF: a checagem aqui tem de olhar os dois.
+    Devolve ("gravar", papel, início) | ("saiu", None, None) | ("recusar", motivo, None).
+
+    - Titular: a fonte diz "Titular", ou o TSE já gravou o mandato de titular no início da legislatura (cassado vira "Não Eleito" na Câmara e
+      segue sendo aquele mandato). Um mandato de SUPLENTE que começou no 1º dia não faz da pessoa titular (BUG-051).
+    - Titular sem linha no início da legislatura e com mandato conhecido que cruza o período é suplente efetivado (BUG-052): segue a regra do
+      suplente (reaproveita a chave do mandato aberto; depois de um encerrado, começa no fim dele ou na data da fonte, o que for mais tarde).
+      O upsert troca o papel da linha para titular. Antes, isso inseria (início da legislatura, fim) por cima do mandato de suplente e a
+      exclusão derrubava a carga inteira da Câmara.
+    - Suplente fora do exercício não ganha mandato: "saiu" (close_suplentes encerra o que um run anterior abriu, BUG-050). Vale também
+      para o efetivado que a fonte volta a chamar de suplente: a linha dele é `titular` com início depois do da legislatura, e o
+      close_suplentes a alcança por isso.
+    - Efetivado que sai com a fonte ainda dizendo "Titular" (renúncia, cassação) segue a convenção dos titulares: o status muda, o fim
+      continua no fim da legislatura e a data de saída não é gravada.
+    - Mandato do mesmo cargo em outra UF cruzando o período: a chave do upsert (pessoa, cargo, UF, início) não tem como reaproveitar
+      a linha, e inserir estouraria a exclusão. Recusa o deputado, com o motivo, e a carga segue.
+    """
+    titular = titular_na_fonte or any(s == start and papel == "titular" for s, _, papel in aqui)
+    # a linha do início da legislatura só é reaproveitada se for de titular ou estiver aberta: a de um suplente do 1º dia já encerrado
+    # (fim no passado) fica como histórico, e a volta dele ganha linha nova pela regra de baixo
+    no_inicio = any(s == start and (papel == "titular" or e >= end) for s, e, papel in aqui)
+    if titular and (no_inicio or not any(s < end and e > start for s, e, _ in aqui)):
+        started = start  # eleito titular: a linha do TSE (ou nenhuma ainda) no início da legislatura
+    else:
+        if not titular and not em_exercicio:
+            return "saiu", None, None
+        started = max(data or start, start)
+        # mandato conhecido (run anterior) que cruza [started, end): reaproveita a chave do aberto (fim = fim da
+        # legislatura) para não sobrepor; um já encerrado guarda o histórico e o novo começa no fim dele. Cobre a
+        # volta com data antiga ou sem data (started = início da legislatura), que antes sobreporia o encerrado
+        while True:
+            over = [(s, e) for s, e, _ in aqui if s < end and e > started]
+            opened = [s for s, e in over if e >= end]
+            if opened:
+                started = min(opened)
+                break
+            if not over:
+                break
+            started = max(e for _, e in over)
+        if started >= end:
+            return "recusar", "data da fonte no fim da legislatura ou depois: não há período a gravar", None
+    # chave que já existe nesta UF vira só update (o fim não muda): a linha já convive com a de fora, não há o que estourar
+    if not any(s == started for s, _, _ in aqui) and any(s < end and e > started for s, e in fora):
+        return "recusar", "mandato do mesmo cargo em outra UF cruza o período", None
+    return "gravar", "titular" if titular else "suplente_em_exercicio", started
+
+
 def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, force: bool) -> None:
     listing = list(paginate_camara(f"{API}/deputados?idLegislatura={leg}&itens=100&ordem=ASC&ordenarPor=nome"))
     if limit:
@@ -223,10 +288,13 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
             start, end = LEGISLATURES[leg]
             mandates, memberships = [], []
             gone: dict[str, tuple[date | None, str]] = {}  # suplente listado que deixou o exercício: pid -> (data da Câmara, status)
-            # mandatos já conhecidos do cargo (TSE ou run anterior): evita sobreposição e reconhece titular eleito
-            existing: dict[tuple[str, str], list[tuple[date, date]]] = defaultdict(list)
-            for row in conn.execute("select person_id, place_id, started_on, ends_on from mandates where office_id = %s", (ctx.office,)):
-                existing[(str(row["person_id"]), str(row["place_id"]))].append((row["started_on"], row["ends_on"]))
+            # mandatos já conhecidos do cargo (TSE ou run anterior), por pessoa: evita sobreposição (a exclusão é por pessoa e cargo,
+            # em qualquer UF) e reconhece titular eleito
+            existing: dict[str, list[tuple[str, date, date, str]]] = defaultdict(list)
+            for row in conn.execute("select person_id, place_id, started_on, ends_on, role from mandates where office_id = %s", (ctx.office,)):
+                existing[str(row["person_id"])].append((str(row["place_id"]), row["started_on"], row["ends_on"], row["role"]))
+            aceitos: set[str] = set()  # pessoas com linha neste lote: dois ids da Câmara na mesma pessoa não gravam duas linhas
+            recusados: dict[str, list[str]] = defaultdict(list)  # motivo -> ids da Câmara
             for d0 in listing:
                 try:
                     d = fetch_json(f"{API}/deputados/{d0['id']}", max_age=86400)["dados"]
@@ -243,36 +311,37 @@ def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, 
                     continue
                 party = ctx.parties.get(st.get("siglaPartido"))
                 condicao = st.get("condicaoEleitoral") or "Titular"
-                known = existing.get((pid, place), [])
+                known = existing.get(pid, [])
                 # "Titular" = eleito titular. "Suplente"/"Não Eleito" = entrou depois (ou perdeu o mandato: cassado vira "Não Eleito" + "Vacância").
                 # Se o TSE já registrou posse de titular nesta legislatura, o status da Câmara atualiza esse mandato.
-                titular = condicao == "Titular" or any(s == start for s, _ in known)
-                if titular:
-                    started = start
-                else:
-                    if status not in OPEN:
-                        # suplente que não está exercendo: sem mandato novo. Se um run anterior abriu o mandato de suplente,
-                        # ele é encerrado depois do upsert (BUG-050: o titular voltou e o suplente ficava em exercício para sempre)
-                        gone[pid] = (parse_date(st.get("data")), status)
-                        continue
-                    started = max(parse_date(st.get("data")) or start, start)
-                    # mandato conhecido (run anterior) que cruza [started, end): reaproveita a chave do aberto (fim = fim da
-                    # legislatura) para não sobrepor; um já encerrado guarda o histórico e o novo começa no fim dele. Cobre a
-                    # volta com data antiga ou sem data (started = início da legislatura), que antes sobreporia o encerrado
-                    while True:
-                        over = [(s, e) for s, e in known if s < end and e > started]
-                        opened = [s for s, e in over if e >= end]
-                        if opened:
-                            started = min(opened)
-                            break
-                        if not over:
-                            break
-                        started = max(e for _, e in over)
-                mandates.append((pid, ctx.office, place, ctx.body, party, "titular" if titular else "suplente_em_exercicio", status, started, end, f"TSE {start.year - 1}", "camara"))
+                oque, papel, started = mandato_da_camara(
+                    titular_na_fonte=condicao == "Titular", em_exercicio=status in OPEN, data=parse_date(st.get("data")), start=start, end=end,
+                    aqui=[(s, e, role) for pl, s, e, role in known if pl == place], fora=[(s, e) for pl, s, e, _ in known if pl != place])
+                if oque == "saiu":
+                    # suplente que não está exercendo: sem mandato novo. Se um run anterior abriu o mandato de suplente,
+                    # ele é encerrado depois do upsert (BUG-050: o titular voltou e o suplente ficava em exercício para sempre)
+                    gone[pid] = (parse_date(st.get("data")), status)
+                    continue
+                if oque == "gravar" and pid in aceitos:
+                    oque, papel = "recusar", "segundo id da Câmara para a mesma pessoa nesta listagem"
+                if oque == "recusar":
+                    # BUG-052: o que estouraria a exclusão no_overlapping_mandate sai do lote com o motivo; a carga dos outros segue
+                    recusados[papel].append(str(d["id"]))
+                    r.reject(1)
+                    continue
+                aceitos.add(pid)
+                mandates.append((pid, ctx.office, place, ctx.body, party, papel, status, started, end, f"TSE {start.year - 1}", "camara"))
                 if party:
                     # observação de partido (D05): mesma chave do /historico, que o job de presença também grava
                     seen = parse_date(st.get("data")) or start
                     memberships.append((pid, party, seen, "camara", f"camara:{d['id']}:{st.get('data') or start.isoformat()}"))
+            # dois ids da Câmara na mesma pessoa, um fora do exercício e outro gravado: quem tem linha neste lote não saiu
+            for pid in aceitos:
+                gone.pop(pid, None)
+            for motivo, ids in recusados.items():
+                msg = f"{len(ids)} deputado(s) sem mandato gravado ({motivo}): camara {', '.join(sorted(ids))}"
+                log.warning("câmara: %s", msg)
+                r.partial(msg[:500])  # dado de mandato incoerente pede conferência: fecha parcial (alerta), não derruba a carga
             # mandato: a Câmara é dona do status; não mexe em party_id (partido na posse vem do TSE)
             n = len(upsert(
                 conn, "mandates",
@@ -318,7 +387,8 @@ def _today() -> date:
 def close_suplentes(conn: psycopg.Connection, ctx: _Ctx, r: Run, gone: dict[str, tuple[date | None, str]], listed: set[str],
                     start: date, end: date) -> int:
     """BUG-050: encerra o mandato `suplente_em_exercicio` aberto de quem a Câmara lista na legislatura com situação fora do
-    exercício (`gone`, ex.: "Suplência"). Nunca apaga linha. Fim = `ultimoStatus.data`, com teto em hoje (check `mandate_order`).
+    exercício (`gone`, ex.: "Suplência"). Entra também o `titular` com início depois do da legislatura: é o suplente efetivado
+    (D320), que a fonte pode voltar a chamar de suplente; titular eleito começa no início da legislatura e nunca entra. Nunca apaga linha. Fim = `ultimoStatus.data`, com teto em hoje (check `mandate_order`).
 
     Não encerra (só anota no run):
     - suplente aberto ausente da listagem: a listagem da legislatura traz todo mundo que passou por ela, então ausência é
@@ -333,9 +403,9 @@ def close_suplentes(conn: psycopg.Connection, ctx: _Ctx, r: Run, gone: dict[str,
                   array(select e.external_id from person_external_ids e join sources s on s.id = e.source_id
                         where e.person_id = m.person_id and s.slug = 'camara') as camara_ids
            from mandates m join people p on p.id = m.person_id
-           where m.office_id = %s and m.role = 'suplente_em_exercicio' and m.status = any(%s)
-             and m.started_on >= %s and m.started_on < %s""",
-        (ctx.office, list(OPEN), start, end),
+           where m.office_id = %s and m.status = any(%s) and m.started_on >= %s and m.started_on < %s
+             and (m.role = 'suplente_em_exercicio' or (m.role = 'titular' and m.started_on > %s))""",
+        (ctx.office, list(OPEN), start, end, start),
     ).fetchall()
     # uma nota por motivo (MAX_NOTES): motivo -> "slug [id Câmara]"
     why: dict[str, list[str]] = defaultdict(list)
@@ -845,6 +915,11 @@ def _expenses(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> No
         log.warning("sem cota de %d", year)
         return
     prefix = f"cota{year}"
+    # A API é consultada ANTES de gravar o arquivo (D321). O arquivo e o complemento da API fecham em commits separados; se o arquivo
+    # entrasse primeiro e a API falhasse depois, as linhas que o arquivo passou a trazer ficariam em dobro com o complemento antigo
+    # (BUG-054) até a API responder para todos os deputados. Sem a resposta de todos, nada deste ano é gravado: a cota fica como
+    # estava (atrasada, não em dobro) e o job falha.
+    api = _expenses_api_fetch(conn, year) if year >= COTA_API_FROM else None
     try:
         with run(conn, f"camara.despesas.{year}", "camara", input_checksum=f.checksum, force=force) as r:
             with zipfile.ZipFile(f.path) as z:
@@ -885,16 +960,15 @@ def _expenses(conn: psycopg.Connection, ctx: _Ctx, year: int, force: bool) -> No
                 r.notes.append(f"{len(unknown)} deputados da cota sem cadastro: {sorted(unknown)[:10]}")
     except SkipUnchanged:
         pass
-    if year >= COTA_API_FROM:
-        _expenses_api(conn, ctx, year)
+    if api is not None:
+        _expenses_api(conn, ctx, year, api)
 
 
-def _expenses_api(conn: psycopg.Connection, ctx: _Ctx, year: int) -> None:
-    """D181: complemento da API para o que o arquivo não traz (passagens SIGEPA com codDocumento UUID). Sempre roda (a API
-    muda sem o arquivo mudar); o prefixo próprio (cotaapi) faz o prune não tocar nas linhas do arquivo."""
-    prefix = f"cotaapi{year}"
+def _expenses_api_fetch(conn: psycopg.Connection, year: int) -> dict[tuple[str, str], list[dict]]:
+    """Passada de rede do complemento da cota: (pessoa, id da Câmara) -> itens de /deputados/{id}/despesas no ano. Não grava dado.
+    Se algum deputado ficar sem resposta, registra um run `camara.despesasapi.ANO` falho e levanta: quem chama ainda não gravou nada."""
     legs = sorted({n for n, (a, b) in LEGISLATURES.items() if a <= date(year, 12, 31) and b > date(year, 1, 1)})
-    # deputados com mandato no ano (id da Câmara já ligado no diretório) e linhas do arquivo de cada um, por (documento, valor)
+    # deputados com mandato no ano (id da Câmara já ligado no diretório)
     deps = defaultdict(set)
     for row in conn.execute(
         """select distinct e.external_id, e.person_id from person_external_ids e join sources s on s.id = e.source_id and s.slug = 'camara'
@@ -903,36 +977,56 @@ def _expenses_api(conn: psycopg.Connection, ctx: _Ctx, year: int) -> None:
         (date(year, 12, 31), date(year, 1, 1)),
     ):
         deps[str(row["person_id"])].add(row["external_id"])
+    conn.commit()  # fecha a transação da leitura antes dos minutos de rede (o `run` que abria logo em seguida já fazia este commit)
+    out: dict[tuple[str, str], list[dict]] = {}
+    failed: list[str] = []
+    for pid, ext_ids in sorted(deps.items()):
+        for dep in sorted(ext_ids):
+            items: list[dict] = []
+            try:
+                for leg in legs:
+                    items += list(paginate_camara(f"{API}/deputados/{dep}/despesas?idLegislatura={leg}&ano={year}&itens=100&ordem=ASC&ordenarPor=dataDocumento", max_age=86400))
+            except (httpx.HTTPError, OSError, ValueError) as e:
+                # OSError cobre o 404 (FileNotFoundError) e o cache em disco; ValueError, corpo que não é JSON com HTTP 200.
+                # Todos viram deputado sem resposta, para a falha ficar em ingest_runs em vez de escapar fora de um run
+                failed.append(dep)
+                log.warning("cota pela API: deputado %s %d sem resposta (%s)", dep, year, e)
+                continue
+            out[(pid, dep)] = items
+    if failed:
+        # sem a resposta de um deputado, o prune apagaria o complemento dele; e gravar o arquivo sem podar o complemento deixaria
+        # a cota em dobro. Nada é gravado. O run existe só para a falha ficar em ingest_runs
+        with run(conn, f"camara.despesasapi.{year}", "camara"):
+            raise RuntimeError(f"API da cota sem resposta para {len(failed)} deputado(s) em {year}: {failed[:10]}; arquivo e complemento de {year} não gravados")
+    return out
+
+
+def _expenses_api(conn: psycopg.Connection, ctx: _Ctx, year: int, api: dict[tuple[str, str], list[dict]]) -> None:
+    """D181: complemento da API para o que o arquivo não traz (passagens SIGEPA com codDocumento UUID). Sempre roda (a API
+    muda sem o arquivo mudar); o prefixo próprio (cotaapi) faz o prune não tocar nas linhas do arquivo.
+    `api` vem de _expenses_api_fetch, lida antes de o arquivo ser gravado e completa (todo deputado respondeu); a diferença contra o
+    arquivo é calculada aqui, depois do commit dele."""
+    prefix = f"cotaapi{year}"
+    # linhas do arquivo de cada deputado, por (documento, valor)
     file_rows: dict[str, list[tuple[str, int]]] = defaultdict(list)
     for row in conn.execute("select source_key, amount_cents from expenses where body_id = %s and source_key like %s", (ctx.body, f"cota{year}:%")):
         _, dep, doc, _h = row["source_key"].split(":", 3)
         file_rows[dep].append((doc, row["amount_cents"]))
     with run(conn, f"camara.despesasapi.{year}", "camara") as r:
-        rows, ident, failed = [], [], []
-        for pid, ext_ids in sorted(deps.items()):
-            for dep in sorted(ext_ids):
-                items: list[dict] = []
-                try:
-                    for leg in legs:
-                        items += list(paginate_camara(f"{API}/deputados/{dep}/despesas?idLegislatura={leg}&ano={year}&itens=100&ordem=ASC&ordenarPor=dataDocumento", max_age=86400))
-                except (httpx.HTTPError, FileNotFoundError) as e:
-                    failed.append(dep)
-                    log.warning("cota pela API: deputado %s %d sem resposta (%s)", dep, year, e)
+        rows, ident = [], []
+        for pid, dep in sorted(api):
+            items = api[(pid, dep)]
+            amounts = {id(x): a for x, a in zip(items, cota_api_amounts(items))}
+            for x in cota_api_extra(file_rows.get(dep, []), items):
+                amount = amounts[id(x)]
+                occurred = cota_occurred(x.get("dataDocumento"), x.get("ano"), x.get("mes"))
+                if amount is None or not occurred:
+                    r.reject(1)
                     continue
-                amounts = {id(x): a for x, a in zip(items, cota_api_amounts(items))}
-                for x in cota_api_extra(file_rows.get(dep, []), items):
-                    amount = amounts[id(x)]
-                    occurred = cota_occurred(x.get("dataDocumento"), x.get("ano"), x.get("mes"))
-                    if amount is None or not occurred:
-                        r.reject(1)
-                        continue
-                    fields = (x.get("tipoDespesa"), x.get("numDocumento"), x.get("dataDocumento"), x.get("valorDocumento"), x.get("valorGlosa"),
-                              x.get("valorLiquido"), x.get("mes"), x.get("parcela"), x.get("numRessarcimento"), x.get("codLote"), x.get("cnpjCpfFornecedor"))
-                    ident.append((dep, str(x.get("codDocumento") or ""), fields))
-                    rows.append((pid, ctx.body, occurred, _cat(x.get("tipoDespesa")), nz(x.get("nomeFornecedor")), nz(x.get("cnpjCpfFornecedor")), amount, "BRL", nz(x.get("urlDocumento"))))
-        if failed:
-            # sem a resposta de um deputado, o prune apagaria o complemento dele: não grava nada e falha o run
-            raise RuntimeError(f"API da cota sem resposta para {len(failed)} deputado(s) em {year}: {failed[:10]}")
+                fields = (x.get("tipoDespesa"), x.get("numDocumento"), x.get("dataDocumento"), x.get("valorDocumento"), x.get("valorGlosa"),
+                          x.get("valorLiquido"), x.get("mes"), x.get("parcela"), x.get("numRessarcimento"), x.get("codLote"), x.get("cnpjCpfFornecedor"))
+                ident.append((dep, str(x.get("codDocumento") or ""), fields))
+                rows.append((pid, ctx.body, occurred, _cat(x.get("tipoDespesa")), nz(x.get("nomeFornecedor")), nz(x.get("cnpjCpfFornecedor")), amount, "BRL", nz(x.get("urlDocumento"))))
         rows = [p + (k,) for p, k in zip(rows, cota_keys(ident, prefix))]
         r.add(_write_year(conn, ctx.body, prefix, rows))
         r.notes.append(f"{len(rows)} lançamentos só na API (fora do arquivo Ano-{year}.csv.zip)")
