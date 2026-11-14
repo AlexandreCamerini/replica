@@ -32,27 +32,27 @@ export function Lemos({ overview, ufSigla, ufFalhou = false, esferas }: { overvi
         {!ufSigla && ufFalhou ? (
           <li>
             <span>Estadual: não conseguimos ler o estado guardado agora.</span>
-            <Link href="/v2/ajustes">Ver em Ajustes</Link>
+            <Link href="/ajustes">Ver em Ajustes</Link>
           </li>
         ) : !ufSigla ? (
           <li>
             <span>Estadual: escolha seu estado para ver.</span>
-            <Link href="/v2/ajustes">Escolher estado em Ajustes</Link>
+            <Link href="/ajustes">Escolher estado em Ajustes</Link>
           </li>
         ) : !esferas.estadual ? (
           <li>
             <span>Estadual: desligado.</span>
-            <Link href="/v2/ajustes">Ligar em Ajustes</Link>
+            <Link href="/ajustes">Ligar em Ajustes</Link>
           </li>
         ) : (
           <li>
             <span>Estadual: {casaEstadual(ufSigla)}.</span>
-            <Link href="/v2/ajustes">Ver o que lemos em Ajustes</Link>
+            <Link href="/ajustes">Ver o que lemos em Ajustes</Link>
           </li>
         )}
         <li>
           <span>Municipal: {esferas.municipal ? "ligado" : "desligado"}.</span>
-          <Link href="/v2/ajustes">{esferas.municipal ? "Ver em Ajustes" : "Ligar em Ajustes"}</Link>
+          <Link href="/ajustes">{esferas.municipal ? "Ver em Ajustes" : "Ligar em Ajustes"}</Link>
         </li>
       </ul>
     </div>

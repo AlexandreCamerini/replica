@@ -145,7 +145,7 @@ export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slu
           <p className="sv-t">
             Para marcar, abra a lista de pessoas{ufSigla ? ` de ${ufSigla}` : ""}, entre na página de uma delas e marque que votou nela.
           </p>
-          <Link className="sv-btn" href={ufSigla ? `/v2/pessoas?uf=${ufSigla}` : "/v2/pessoas"}>
+          <Link className="sv-btn" href={ufSigla ? `/pessoas?uf=${ufSigla}` : "/pessoas"}>
             Escolher em quem votei
           </Link>
           <Nota>{COOKIE_TEXTO}</Nota>
@@ -180,7 +180,7 @@ export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slu
                     <SemVotos e={e} />
                   )}
                 </div>
-                <Link href={`/v2/pessoa/${e.slug}`}>
+                <Link href={`/pessoa/${e.slug}`}>
                   Ver o que faz<span className="sv-vh"> {e.nome}</span>&nbsp;<span aria-hidden="true">→</span>
                 </Link>
               </li>

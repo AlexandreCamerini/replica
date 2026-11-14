@@ -25,7 +25,7 @@ test.describe("Neutralidade e null nunca vira 0", () => {
   test("NEU-4 sem vocabulário de avaliação", async ({ page }) => {
     await page.goto(CAMPINAS);
     const first = await page.locator('a[href^="/p/"]').first().getAttribute("href");
-    for (const u of ["/", CAMPINAS, first!, "/quem"]) {
+    for (const u of ["/", "/no-seu-bolso", CAMPINAS, first!, "/quem"]) {
       await page.goto(u);
       const text = await page.locator("main").innerText();
       expect(text.match(FORBIDDEN), u).toBeNull();

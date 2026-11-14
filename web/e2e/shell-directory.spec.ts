@@ -2,7 +2,7 @@ import { CAMPINAS, expect, test } from "./fixtures";
 
 test.describe("Shell e diretório", () => {
   test("SH-H1 skip link, navegação v1, tema persiste, aria-current", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/no-seu-bolso");
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Pular para o conteúdo" })).toBeFocused();
     await page.keyboard.press("Enter");
@@ -29,14 +29,15 @@ test.describe("Shell e diretório", () => {
   test("SH-E1 rota desconhecida dá 404 com navegação", async ({ page, request }) => {
     expect((await request.get("/xyz-nao-existe")).status()).toBe(404);
     await page.goto("/xyz-nao-existe");
-    await expect(page.getByRole("navigation", { name: "Principal" })).toBeVisible();
+    // D316: o 404 do site é o da Direção 2
+    await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
   });
 
   test("SH-E2 sem rolagem horizontal em 390 px @mobile", async ({ page }) => {
     await page.goto(CAMPINAS);
     const a = await page.locator("#vereadores a[href^='/p/']").nth(0).getAttribute("href");
     const b = await page.locator("#vereadores a[href^='/p/']").nth(1).getAttribute("href");
-    for (const u of ["/", "/sobre", "/atualizacoes", "/dados-abertos", "/congresso", CAMPINAS, a!, `/comparar?p=${a!.split("/").pop()},${b!.split("/").pop()}`, "/quem"]) {
+    for (const u of ["/", "/no-seu-bolso", "/sobre", "/atualizacoes", "/dados-abertos", "/congresso", CAMPINAS, a!, `/comparar?p=${a!.split("/").pop()},${b!.split("/").pop()}`, "/quem"]) {
       await page.goto(u);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - 390), u).toBeLessThanOrEqual(0);
     }

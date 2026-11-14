@@ -64,7 +64,7 @@ export async function VaiRolar({ overview, fimDaSemana }: { overview: PautaOverv
                 <p className="sv-ev__d">{k ? fmtDiaMes(k) : "Data não informada"}</p>
                 <p className="sv-esf">{esferaDe(e)}</p>
                 <p className="sv-ev__t">
-                  <Link href={`/v2/decisao/${e.key}`}>{tituloDe(e)}</Link>
+                  <Link href={`/decisao/${e.key}`}>{tituloDe(e)}</Link>
                 </p>
               </div>
             );
@@ -81,7 +81,7 @@ export async function VaiRolar({ overview, fimDaSemana }: { overview: PautaOverv
         <Posse body="camara" t={camara} />
         <Posse body="senado" t={senado} />
       </div>
-      <Link className="sv-lk" href="/v2/decisoes">
+      <Link className="sv-lk" href="/decisoes">
         Ver tudo o que está em pauta <span aria-hidden="true">→</span>
       </Link>
       <Prova>

@@ -1,4 +1,4 @@
-/* Segue o Voto, D2 · tela Início (/v2): "O que está rolando?".
+/* Segue o Voto, D2 · tela Início (/): "O que está rolando?".
    Só regras desta tela, com seletores sob .sv e prefixo sv-. Base compartilhada (tokens, quadro, respostas, voto, lacuna,
    rodapé) em sv.css; regra de cor em sv.css (topo) e no §4 do handoff. Media queries: 900px e 1100px.
    Cor nesta tela (§4, d2.css v7): --agora na data do fólio, no fio de 4px do bloco "Esta semana", e na coluna "Hoje" (fio de 4px,

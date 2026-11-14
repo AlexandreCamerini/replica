@@ -64,10 +64,10 @@ export function serializeEsferas(e: Esferas): string {
   return `e${e.estadual ? 1 : 0}.m${e.municipal ? 1 : 0}${c}`;
 }
 
-/** Destino de volta depois de gravar: só caminhos do /v2, sem "//" (sem redirecionamento aberto). */
-export function voltarSeguro(raw: unknown, padrao = "/v2/ajustes"): string {
+/** Destino de volta depois de gravar: só caminho interno (começa com uma única "/"), sem "//" nem "\\" (sem redirecionamento aberto). */
+export function voltarSeguro(raw: unknown, padrao = "/ajustes"): string {
   if (typeof raw !== "string") return padrao;
   const s = raw.trim();
-  if (!/^\/v2(?:[/?#]|$)/.test(s) || s.includes("//") || s.includes("\\") || /[\u0000-\u001f]/.test(s)) return padrao;
+  if (!/^\/(?![/\\])/.test(s) || s.includes("//") || s.includes("\\") || /[\u0000-\u001f]/.test(s)) return padrao;
   return s;
 }

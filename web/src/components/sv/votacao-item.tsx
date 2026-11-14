@@ -38,7 +38,7 @@ export function VotacaoItem({ v }: { v: VotingEventSummary }) {
       <p className="sv-vl__d">{fmtDate(v.occurredAt)}</p>
       <p className="sv-esf">Esfera: Federal · {BODY_NAME[v.body]}</p>
       <p className="sv-vl__t">
-        <Link href={`/v2/votacao/${v.id}`}>{titulo}</Link>
+        <Link href={`/votacao/${v.id}`}>{titulo}</Link>
       </p>
       <p className="sv-vl__k">
         {v.proposal?.label ? `${v.proposal.label}. ` : ""}

@@ -22,7 +22,7 @@ test.describe("fixui · correções da verificação final", () => {
   // (interino do TJ-RJ e da ALE-RR), então a home conta 25 de 27 e diz quais UFs
   test("FX-024 home conta 25 de 27 governos do estado e nomeia RJ e RR", async ({ page }) => {
     test.skip(!PG, "números reais");
-    await page.goto("/");
+    await page.goto("/no-seu-bolso");
     await expect(page.getByRole("link", { name: /Governo do estado 25 de 27/ })).toBeVisible();
     await expect(page.getByText(/RJ, RR sem governador em exercício/)).toBeVisible();
   });
@@ -94,7 +94,7 @@ test.describe("fixui · correções da verificação final", () => {
     await expect(page.locator("#presenca")).toContainText("sessões deliberativas");
   });
 
-  const PAGES = ["/", "/representantes?cidade=1302603", "/representantes?cidade=3509502", "/p/adriana-ventura", "/comparar?p=adriana-ventura,baleia-rossi", "/partidos", "/governos"];
+  const PAGES = ["/", "/no-seu-bolso", "/representantes?cidade=1302603", "/representantes?cidade=3509502", "/p/adriana-ventura", "/comparar?p=adriana-ventura,baleia-rossi", "/partidos", "/governos"];
   for (const scheme of ["light", "dark"] as const) {
     test.describe(`telas alteradas · ${scheme}`, () => {
       test.use({ colorScheme: scheme });
