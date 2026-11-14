@@ -115,23 +115,47 @@ jobs:
       - name: next build
         run: npx next build
 
+  # O e2e só roda quando a mudança toca web/, este arquivo ou .github/scripts/ (D323): é o job mais caro do ci (9 min; 58% dos
+  # minutos medidos na D322) e metade dos merges não toca web/. A decisão é um passo DENTRO do job, não um `if:` no job nem
+  # `paths` no workflow: assim o check "web-e2e" sempre conclui (um check obrigatório não fica pendente) e não há job a mais
+  # cobrando 1 min por run. Quando pula, o job sai verde em segundos e o aviso do run diz que o e2e NÃO rodou.
+  # Na dúvida, roda: .github/scripts/toca-web.sh devolve "true" se não achar a base ou o diff.
   web-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults: { run: { working-directory: web } }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 2 # em PR o checkout é o commit de merge; o primeiro pai é a base
+      - name: a mudança toca web/?
+        id: alvo
+        working-directory: .
+        env:
+          EVENTO: ${{ github.event_name }}
+          ANTES: ${{ github.event.before }}
+        run: |
+          rodar="$(bash .github/scripts/toca-web.sh "$EVENTO" "$ANTES" || echo true)"
+          [ "$rodar" = false ] || rodar=true
+          echo "rodar=$rodar" >> "$GITHUB_OUTPUT"
+          if [ "$rodar" = false ]; then
+            echo "::notice title=web-e2e pulado::a mudança não toca web/, ci.yml nem .github/scripts/; o e2e NÃO rodou neste run (D323)"
+          fi
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.alvo.outputs.rodar == 'true'
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: npm ci
+        if: steps.alvo.outputs.rodar == 'true'
         run: npm ci
       - name: versão do Playwright
+        if: steps.alvo.outputs.rodar == 'true'
         id: pw
         run: echo "versao=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
       - name: cache dos navegadores
+        if: steps.alvo.outputs.rodar == 'true'
         id: pwcache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -139,13 +163,14 @@ jobs:
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.versao }}
       # projetos desktop e mobile (Pixel 7) usam chromium; o headless shell é o que o modo headless executa (BUG-003)
       - name: navegadores do Playwright (com dependências do sistema)
-        if: steps.pwcache.outputs.cache-hit != 'true'
+        if: steps.alvo.outputs.rodar == 'true' && steps.pwcache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium chromium-headless-shell
       - name: dependências do sistema (navegadores em cache)
-        if: steps.pwcache.outputs.cache-hit == 'true'
+        if: steps.alvo.outputs.rodar == 'true' && steps.pwcache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       # o webServer do config faz `next build && next start -p 3200` com NEXT_DIST_DIR=.next-e2e e DATA_SOURCE=demo
       - name: e2e (fonte demo)
+        if: steps.alvo.outputs.rodar == 'true'
         run: npx playwright test
         env:
           CI: "true"
