@@ -171,6 +171,8 @@ test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async 
   await page.goto("/pessoas?cargo=senador&uf=SP");
   await page.locator(".sv-pp > li > a").first().click();
   await page.getByRole("button", { name: "Você acompanha" }).click();
+  // D317: a gravação é no servidor; espera a resposta antes de sair da página
+  await expect(page.getByRole("button", { name: /Votei nesta pessoa/ })).toHaveAttribute("aria-pressed", "false");
   await page.goto("/acompanhando");
   await expect(page.getByRole("heading", { name: "Você ainda não marcou ninguém." })).toBeVisible();
 });

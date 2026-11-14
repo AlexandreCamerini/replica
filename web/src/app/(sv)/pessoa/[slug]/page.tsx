@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
-import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
+import { FOLLOW_COOKIE, FOLLOW_MAX, parseFollows } from "@/components/sv/follow-shared";
 import { FollowButton } from "@/components/sv/follow";
 import { fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
 import { Lacuna, Nota, Resposta, Selo } from "@/components/sv/ui";
@@ -267,7 +267,7 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
           </p>
         )}
         <div className="sv-cab__f">
-          <FollowButton slug={person.slug} name={person.displayName} />
+          <FollowButton slug={person.slug} name={person.displayName} on={votou} cheio={follows.length >= FOLLOW_MAX} />
         </div>
         <p className="sv-ir">
           Ir para: <a href="#gastos">gastos do gabinete</a> <a href="#patrimonio">patrimônio</a>
