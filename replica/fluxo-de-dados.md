@@ -471,7 +471,7 @@ Dado pessoal de usuário:
 | Sugestão: texto, nome, e-mail, cidade | `submitSuggestion` | `suggestions` | ninguém pelo app; só o dono do banco | nenhuma: sem expurgo, e não é apagada com a conta | — | `web/src/lib/account.ts:121-141` |
 | IP | cabeçalhos da requisição | só como hash em `suggestions.ip_hash` | `web_writer`, janela de 24 h | junto da sugestão | Turnstile recebe o IP | `web/src/lib/account.ts:130-131` `web/src/lib/captcha.ts:4-15` |
 | Voto declarado em "quem votei" | botão na página | só no navegador (`localStorage`) | o próprio navegador; o id vai na URL | até limpar | — | `web/src/components/votos/lembrar.tsx:6-27` |
-| Voto declarado na Direção 2 ("em quem votei", até 12 pessoas) | botão na página | cookie `sv_sigo`, `path=/` desde a D316 (era `/v2`), 1 ano, legível por script | o servidor, em toda requisição, sem gravar. Ao contrário da linha acima, o dado sai do aparelho | 1 ano | — | `web/src/components/sv/follow.tsx` `web/src/app/(sv)/page.tsx` `web/src/app/v2/[[...resto]]/route.ts` |
+| Voto declarado na Direção 2 ("em quem votei", até 12 pessoas) | botão na página | cookie `sv_sigo`, `path=/` desde a D316 (era `/v2`), 1 ano, `httpOnly` desde a D317 (gravado só pelo servidor) | o servidor, em toda requisição, sem gravar. Ao contrário da linha acima, o dado sai do aparelho | 1 ano | — | `web/src/components/sv/follow-actions.ts` `web/src/app/(sv)/page.tsx` `web/src/app/v2/[[...resto]]/route.ts` |
 
 O único arquivo com a diretiva "use server" é `web/src/lib/account.ts`, com sete actions: `sendCode`, `verifyCode`, `signOut`, `toggleFollow`, `updateDigest`, `deleteAccount`, `submitSuggestion`.
 
@@ -548,7 +548,7 @@ Por severidade. Alta = pode publicar dado errado, perder dado ou expor mais do q
 | 10.15 | média | O eval do rascunho tem 11 casos sem rótulo e nenhum gatilho; não há eval do verificador. | `etl/evals/rascunho_casos.jsonl:1-11` `etl/evals/rascunho_eval.py:129-143` |
 | 10.16 | média | `sanctions` é carregada toda semana e nenhuma tela nem tool a lê. | `etl/civico_etl/jobs/sancoes.py:237-294` |
 | 10.24 | média | Rascunho reprovado é redigido de novo a cada disparo enquanto a proposta estiver na pauta, pagando API. | `etl/civico_etl/jobs/rascunho.py:100-112` |
-| 10.25 | média | O voto declarado no tema v2 vai ao servidor em toda requisição, por cookie legível por script. | `web/src/components/sv/follow.tsx:7-36` |
+| 10.25 | média | **Fechado em parte (D317, 14/11/2026):** o cookie do voto declarado deixou de ser legível por script (`httpOnly`, gravado só pelo servidor). Segue indo ao servidor em toda requisição ao próprio site. | `web/src/components/sv/follow-actions.ts` |
 | 10.26 | média | O bruto do TSE, com título de eleitor e nascimento, fica no cache do GitHub Actions, fora do banco e das suas regras de acesso. | `.github/workflows/etl.yml:38-42` `.github/workflows/etl.yml:60-64` |
 | 10.27 | baixa | `ibge.malhas` no Actions só carimba a fonte: os arquivos do mapa gerados não chegam ao site. | `.github/workflows/etl.yml:60-67` |
 | 10.17 | baixa | 20 tabelas não têm escritor nem leitor (lista ao fim da seção 4), entre elas `activity_events`, `page_views` e as três de STF. | `db/migrations/0001_init.sql:761` |
