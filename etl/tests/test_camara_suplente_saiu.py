@@ -324,3 +324,98 @@ def test_falha_no_encerramento_preserva_o_upsert_e_marca_parcial(h):
     assert len(r.partial_why) == 1
     assert r.partial_why[0].startswith("encerramento de suplentes (BUG-050) falhou, nenhum encerrado: DivisionByZero")
     assert not _so(r, "(fora de rows_upserted)")  # a nota dos encerramentos desfeitos não fica
+
+
+# ---------------------------------------------------------------- BUG-052 e BUG-051, contra a exclusão no_overlapping_mandate de verdade
+# (a decisão em si, caso a caso, está em test_camara_mandato.py, sem banco)
+
+
+def _linhas(h, pid):
+    return [(m["role"], m["status"], m["started_on"], m["ends_on"]) for m in h.mandatos(pid)]
+
+
+def test_bug052_suplente_efetivado_como_titular_nao_derruba_a_carga(h):
+    """A Câmara passa a listar como "Titular" quem tinha mandato de suplente aberto. Antes: insert (início da legislatura, fim) por cima
+    do mandato de suplente -> ExclusionViolation fora do savepoint -> a carga inteira da Câmara caía, a cada run."""
+    efetivado, outro = h.pessoa(990000561, "efetivado"), h.pessoa(990000562, "efetivado-outro")
+    h.api.status(990000561, situacao="Exercício", condicao="Suplente", data=ENTROU)
+    h.rodar()
+    h.api.status(990000561, situacao="Exercício", condicao="Titular", data=SAIU)
+    h.api.status(990000562, situacao="Exercício", condicao="Titular", data=None)
+    r = h.rodar()
+    assert _linhas(h, efetivado) == [("titular", "em_exercicio", ENTROU, END)]  # a mesma linha, agora titular; nenhuma por cima
+    assert _linhas(h, outro) == [("titular", "em_exercicio", START, END)]  # o resto do lote entrou
+    assert not r.partial_why and r.rows_rejected == 0
+    h.rodar()  # idempotente
+    assert _linhas(h, efetivado) == [("titular", "em_exercicio", ENTROU, END)]
+
+
+def test_bug052_efetivado_depois_de_ter_saido_ganha_mandato_novo_sem_sobrepor(h):
+    pid = h.pessoa(990000563, "efetivado-volta")
+    h.api.status(990000563, situacao="Exercício", condicao="Suplente", data=ENTROU)
+    h.rodar()
+    h.api.status(990000563, situacao="Suplência", condicao="Suplente", data=SAIU)
+    h.rodar()
+    volta = SAIU + timedelta(days=3)
+    h.api.status(990000563, situacao="Exercício", condicao="Titular", data=volta)
+    r = h.rodar()
+    assert _linhas(h, pid) == [("suplente_em_exercicio", "encerrado", ENTROU, SAIU), ("titular", "em_exercicio", volta, END)]
+    assert not r.partial_why
+
+
+def test_bug052_mandato_em_outra_uf_e_recusado_com_motivo_e_o_resto_do_lote_entra(h):
+    """A exclusão é por pessoa e cargo, sem a UF. Mesma pessoa listada em outra UF na mesma legislatura: recusa só ela, fecha parcial."""
+    duas_ufs, bom = h.pessoa(990000571, "outra-uf"), h.pessoa(990000572, "outra-uf-bom")
+    h.api.status(990000571, situacao="Exercício", condicao="Titular", data=None, uf="SP")
+    h.rodar()
+    h.api.status(990000571, situacao="Exercício", condicao="Titular", data=None, uf="PB")
+    h.api.status(990000572, situacao="Exercício", condicao="Titular", data=None, uf="PB")
+    r = h.rodar()
+    assert _linhas(h, duas_ufs) == [("titular", "em_exercicio", START, END)]  # só o mandato de SP, intocado
+    assert _linhas(h, bom) == [("titular", "em_exercicio", START, END)]
+    assert r.rows_rejected == 1
+    assert r.partial_why == ["1 deputado(s) sem mandato gravado (mandato do mesmo cargo em outra UF cruza o período): camara 990000571"]
+
+
+def test_bug051_suplente_do_primeiro_dia_segue_suplente_e_e_encerrado_com_data(h):
+    """Antes: o mandato de suplente iniciado no 1º dia fazia `any(s == start)` valer no run seguinte, o papel virava titular e,
+    na saída, a linha ficava encerrada com fim em 2027 (fora do alcance do close_suplentes)."""
+    pid = h.pessoa(990000581, "dia1")
+    h.api.status(990000581, situacao="Exercício", condicao="Suplente", data=START)
+    h.rodar()
+    h.rodar()
+    assert _linhas(h, pid) == [("suplente_em_exercicio", "em_exercicio", START, END)]
+    h.api.status(990000581, situacao="Suplência", condicao="Suplente", data=SAIU)
+    h.rodar()
+    assert _linhas(h, pid) == [("suplente_em_exercicio", "encerrado", START, SAIU)]
+
+
+def test_efetivado_que_volta_a_suplencia_e_encerrado_com_a_data_da_fonte(h):
+    """Suplente -> "Titular" (a linha vira titular) -> "Suplência": sem alcançar o titular de início tardio, o close_suplentes
+    deixaria a linha em exercício para sempre (o sintoma do BUG-050 por outro caminho)."""
+    pid, eleito = h.pessoa(990000591, "efetivado-sai"), h.pessoa(990000592, "efetivado-eleito")
+    h.api.status(990000591, situacao="Exercício", condicao="Suplente", data=ENTROU)
+    h.api.status(990000592, situacao="Exercício", condicao="Titular", data=None)
+    h.rodar()
+    h.api.status(990000591, situacao="Exercício", condicao="Titular", data=ENTROU)
+    h.rodar()
+    assert _linhas(h, pid) == [("titular", "em_exercicio", ENTROU, END)]
+    h.api.status(990000591, situacao="Suplência", condicao="Suplente", data=SAIU)
+    h.api.status(990000592, situacao="Suplência", condicao="Suplente", data=SAIU)  # a fonte muda o rótulo de um titular eleito
+    h.rodar()
+    assert _linhas(h, pid) == [("titular", "encerrado", ENTROU, SAIU)]
+    # titular eleito (início da legislatura) nunca é encerrado por este caminho: o status dele vem do upsert, o fim não muda
+    assert [(m["role"], m["started_on"], m["ends_on"]) for m in h.mandatos(eleito)] == [("titular", START, END)]
+
+
+def test_dois_ids_da_camara_na_mesma_pessoa_um_fora_e_outro_em_exercicio_nao_encerra_a_linha_gravada(h):
+    pid = h.pessoa(990000601, "dois-ids")
+    src = h.conn.execute("select id from sources where slug = 'camara'").fetchone()["id"]
+    h.conn.execute("insert into person_external_ids (person_id, source_id, external_id, match_method, match_confidence) values (%s, %s, '990000602', 'exact_id', 1)", (pid, src))
+    h.api.status(990000601, situacao="Suplência", condicao="Suplente", data=SAIU)
+    h.api.status(990000602, situacao="Exercício", condicao="Suplente", data=ENTROU)
+    ctx = cd._Ctx(h.conn)
+    ctx.ensure = lambda d, create=True: pid  # os dois ids resolvem para a mesma pessoa
+    cd._deputies(h.conn, ctx, LEG, None, force=False)
+    # o id fora do exercício pôs a pessoa em `gone`; o outro gravou a linha. Quem tem linha no lote não saiu: nada é encerrado
+    assert _linhas(h, pid) == [("suplente_em_exercicio", "em_exercicio", ENTROU, END)]
