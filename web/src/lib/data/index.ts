@@ -19,6 +19,10 @@ async function pick(): Promise<DataSource> {
 const g = globalThis as unknown as { __dataSource?: Promise<DataSource> };
 const source = () => (process.env.NODE_ENV === "production" ? (g.__dataSource ??= pick()) : pick());
 
+/** A fonte sem o cache de dados, para quem precisa do estado de agora e de saber que o banco caiu (o vigia, D319).
+ * O `data` abaixo pode devolver valor guardado por até uma hora, e valor vencido enquanto revalida. Telas usam `data`. */
+export const fonteSemCache = (): Promise<DataSource> => source();
+
 // Cache de dados (só com DATA_SOURCE=pg). Toda leitura leva a tag `data`, que o ETL invalida no fim de cada run
 // (POST /api/revalidate); `ds:<método>`, `person:<id>` e `place:<ibge>` permitem invalidação mais fina.
 // O TTL é a rede de segurança: se a revalidação falhar, o dado novo aparece em no máximo uma hora.
