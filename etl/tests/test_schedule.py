@@ -225,9 +225,80 @@ def test_tarefa_com_janela_vence_uma_vez_por_janela():
     ok, why = S.is_due(t, _at(3, 0, 50), _at(4, 0, 38), now)
     assert not ok and "tentativa" in why  # falhou há 2 min: espera o retry de 1 h
     assert S.is_due(t, _at(3, 0, 50), _at(4, 0, 38), _at(4, 1, 45))[0]  # ainda dentro da janela, passou 1 h
-    ok, why = S.is_due(t, None, None, _at(4, 2, 5))
-    assert not ok and "fora da janela" in why  # nem nunca lida vence fora da janela
-    assert not S.is_due(t, None, None, _at(8, 1, 0))[0]  # domingo
+    # fora da janela, com a janela mais recente LIDA: nada vence, nem com every_h estourado
+    ok, why = S.is_due(t, _at(4, 0, 35), _at(4, 0, 35), _at(4, 2, 5))
+    assert not ok and "fora da janela" in why
+    assert not S.is_due(t, _at(7, 0, 35), None, _at(8, 1, 0))[0]  # domingo, sábado lido
+    assert not S.is_due(t, _at(7, 0, 35), None, _at(9, 23, 0))[0]  # segunda à noite, sábado lido: espera a janela de terça
+
+
+def test_janela_perdida_e_reposta_fora_de_hora_uma_vez():
+    """D318: a janela fechou sem carimbo desde a abertura (cron atrasado ou pulado) -> a tarefa vence na chamada seguinte, fora da janela."""
+    t = S.Task("x.noturna", lambda d: ["x"], ("x.noturna.",), 24, 1, retry_h=1, window=S.Window(S.dtime(0, 30), S.dtime(2, 0), S.TER_A_SAB))
+    ontem = _at(3, 0, 50)  # carimbo da janela de terça
+    # quarta 03:17 BRT (o tick de 06:17Z): a janela de quarta (00:30-02:00) fechou sem leitura
+    ok, why = S.is_due(t, ontem, None, _at(4, 3, 17))
+    assert ok and "reposição" in why and "04/11 00:30" in why
+    assert S.is_due(t, None, None, _at(4, 2, 5))[0]  # nunca lida e a janela já fechou: repõe também
+    # reposta (carimbo depois da abertura da janela perdida): não vence de novo até a próxima janela abrir
+    ok, why = S.is_due(t, _at(4, 3, 20), _at(4, 3, 17), _at(4, 6, 17))
+    assert not ok and "fora da janela" in why
+    assert S.is_due(t, _at(4, 3, 20), _at(4, 3, 17), _at(5, 0, 31))[0]  # quinta, janela nova: vence normalmente
+    # a reposição não carimbou (fonte fora do ar, ou exit 0 sem carimbo): não tenta em toda chamada de 3 h, só depois de REPOSICAO_RETRY_H
+    assert S.REPOSICAO_RETRY_H > S.TICK_EVERY_H
+    ok, why = S.is_due(t, ontem, _at(4, 3, 17), _at(4, 6, 17))
+    assert not ok and "reposição: última tentativa há 3.0 h" in why
+    assert not S.is_due(t, ontem, _at(4, 3, 17), _at(4, 9, 16))[0]
+    assert S.is_due(t, ontem, _at(4, 3, 17), _at(4, 9, 17))[0]  # 6 h depois
+    # tentativa de dentro da janela (falhou à 01:50) também conta para o intervalo
+    assert not S.is_due(t, ontem, _at(4, 1, 50), _at(4, 3, 17))[0]
+    # tentativa de antes da abertura da janela perdida, mesmo recente, não segura a reposição: foi de outra janela
+    assert S.is_due(t, ontem, _at(4, 0, 20), _at(4, 2, 5))[0]
+    # fronteiras: 01:59 ainda é a janela aberta; 02:00 em ponto já é reposição
+    assert "janela aberta" in S.is_due(t, ontem, None, _at(4, 1, 59))[1]
+    assert "reposição" in S.is_due(t, ontem, None, _at(4, 2, 0))[1]
+    # carimbo exatamente na abertura conta como lida
+    assert not S.is_due(t, _at(4, 0, 30), None, _at(4, 2, 5))[0]
+    # nunca antes da abertura: quarta 00:17 BRT (tick de 03:17Z), com a janela de terça lida, não vence
+    assert not S.is_due(t, ontem, None, _at(4, 0, 17))[0]
+    # sábado perdido: repõe no domingo e ainda na segunda (a janela de sábado segue sendo a mais recente fechada)
+    sexta = _at(6, 0, 40)
+    assert S.is_due(t, sexta, None, _at(8, 9, 17))[0] and S.is_due(t, sexta, None, _at(9, 15, 17))[0]
+    assert S.missed_window(t, sexta, _at(9, 15, 17))["opened"].startswith("2026-11-07T03:30")  # o alerta também não some na segunda
+    # tarefa sem janela não muda
+    y = S.Task("y", lambda d: ["y"], ("y.",), 24, 1)
+    assert not S.is_due(y, _at(4, 0, 0), None, _at(4, 3, 0))[0]
+
+
+def test_reposicao_que_carimba_dentro_da_janela_seguinte_nao_engole_a_leitura_dela():
+    """A reposição da janela de terça começa às 04:58 de quarta (tick atrasado) e carimba às 05:01, já com a janela de quarta aberta:
+    ela leu o CSV da véspera. A janela de quarta ainda tem de vencer."""
+    c = S.Task("c.noturna", lambda d: ["c"], ("c.noturna.",), 24, 1, retry_h=1, window=S.Window(S.dtime(5, 0), S.dtime(7, 0), S.TER_A_SAB))
+    ok, why = S.is_due(c, _at(4, 5, 1), _at(4, 4, 58), _at(4, 5, 6))
+    assert ok and "janela aberta" in why
+    # lida de verdade na janela (tentativa e carimbo desde a abertura): não repete
+    assert "já lida nesta janela" in S.is_due(c, _at(4, 5, 9), _at(4, 5, 6), _at(4, 6, 17))[1]
+    # carimbo sem tentativa registrada pela agenda (job rodado à mão pela CLI): vale como lida
+    assert "já lida nesta janela" in S.is_due(c, _at(4, 5, 9), None, _at(4, 6, 17))[1]
+
+
+def test_janela_reposta_sai_do_alerta_pelo_carimbo_nao_pelo_exit():
+    m = {"task": "x.noturna", "opened": "2026-11-04T03:30:00+00:00", "closed": "2026-11-04T05:00:00+00:00"}
+    outra = {"task": "z.noturna", "opened": "2026-11-04T08:00:00+00:00", "closed": "2026-11-04T10:00:00+00:00"}
+    # x ganhou carimbo nesta chamada (não está mais em `still`): reposta, sem alerta, registrada no texto
+    missed, recovered = S.settle_missed([m, outra], {"z.noturna"})
+    assert missed == [outra] and recovered == [m]
+    rep = S.Report(started_at="2026-11-04T06:17:00+00:00", recovered=recovered)
+    assert not rep.alert and "JANELA REPOSTA x.noturna" in rep.text()
+    # segue sem carimbo (falhou, foi adiada, nem rodou, ou saiu com 0 sem carimbar): perdida, com alerta
+    assert S.settle_missed([m], {"x.noturna"}) == ([m], [])
+    assert S.Report(started_at="x", missed=[m]).alert
+    assert S.settle_missed([], set()) == ([], [])
+    # o `still` que run_due monta: missed_window de novo, com o carimbo de depois das tarefas
+    t = S.Task("x.noturna", lambda d: ["x"], ("x.noturna.",), 24, 1, retry_h=1, window=S.Window(S.dtime(0, 30), S.dtime(2, 0), S.TER_A_SAB))
+    now = _at(4, 3, 17)
+    assert S.missed_window(t, _at(3, 0, 50), now) is not None  # exit 0 sem carimbo novo: o carimbo segue o de terça
+    assert S.missed_window(t, _at(4, 3, 20), now) is None  # carimbou: reposta
 
 
 def test_janelas_das_tarefas_noturnas_cabem_nos_crons_do_workflow():

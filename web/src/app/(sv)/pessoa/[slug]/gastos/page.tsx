@@ -5,7 +5,8 @@ import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { fmtDate, fmtInt } from "@/components/sv/fmt";
 import { rotuloGastos } from "@/components/sv/mandato";
 import { ESFERA } from "@/components/sv/pessoa/cargos";
-import { carregarPessoa, contextoPessoa, inteiroPositivo, MOTIVO_COTA, texto } from "@/components/sv/pessoa/contexto";
+import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
+import { carregarPessoa, contextoPessoa, lerPessoa, inteiroPositivo, MOTIVO_COTA, texto } from "@/components/sv/pessoa/contexto";
 import { brl, hojeBR, ler, statusLacuna } from "@/components/sv/pessoa/format";
 import { Falha, Linha, Sem, SemCobertura, TabelaGastos, vmGastos } from "@/components/sv/pessoa/secoes";
 import { CabecalhoSub, Paginacao } from "@/components/sv/pessoa/sub";
@@ -20,8 +21,8 @@ const POR = 50;
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const r = await carregarPessoa((await params).slug);
-  return { title: r ? `Gastos do gabinete · ${r.person.displayName}` : "Pessoa não encontrada" };
+  const r = await carregarPessoa((await params).slug).catch(() => undefined);
+  return { title: r ? `Gastos do gabinete · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada" };
 }
 
 /** Só link http(s) da fonte vira link. */
@@ -37,7 +38,9 @@ const CASA_SO_MES = new Set<OfficeSlug>(["deputado_estadual", "deputado_distrita
 export default async function GastosPessoa({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
-  const r = await carregarPessoa(slug);
+  // null = não existe (404); undefined = a leitura falhou (lacuna, nunca 500)
+  const r = await lerPessoa(slug, sp.simular);
+  if (r === undefined) return <PessoaNaoLida />;
   if (!r) notFound();
   if (r.redirectTo) permanentRedirect(`/pessoa/${r.redirectTo}/gastos`);
   const ctx = await contextoPessoa(r.person);
