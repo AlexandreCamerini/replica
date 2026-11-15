@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import "@/styles/sv-pessoas.css";
 import { fraseLida, lidoEm } from "@/components/sv/carimbo";
-import { esferaDoCargo } from "@/components/sv/esfera";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA } from "@/components/sv/estados";
 import { fmtInt } from "@/components/sv/fmt";
+import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
+import { ListaPessoas, Marcados } from "@/components/sv/pessoas-lista";
+import { readPrefs } from "@/components/sv/prefs";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
-import { data, type Officeholder, type OfficeSlug } from "@/lib/data";
+import { data, type OfficeSlug } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Quem está no cargo?" };
 
@@ -16,27 +19,6 @@ const SLUGS: OfficeSlug[] = ["presidente", "vice_presidente", "senador", "deputa
 const isOffice = (s: string | undefined): s is OfficeSlug => !!s && (SLUGS as string[]).includes(s);
 const POR_PAGINA = 60;
 const FONTE = "TSE, dados abertos, e as casas legislativas";
-
-/** Pessoas sempre de A a Z: nenhuma lista de pessoas tem ordem de mérito. O link leva só o nome. */
-function Pessoas({ items }: { items: Officeholder[] }) {
-  const sorted = [...items].sort((a, b) => a.person.displayName.localeCompare(b.person.displayName, "pt-BR"));
-  return (
-    <ul className="sv-pp">
-      {sorted.map((h) => {
-        const esfera = esferaDoCargo(h.mandate.office);
-        return (
-          <li key={`${h.person.id}-${h.mandate.id}`}>
-            <Link href={`/pessoa/${h.person.slug}`}>{h.person.displayName}</Link>
-            <span className="sv-pp__c">
-              {h.officeName}, {h.placeLabel} · {h.party.acronym}
-            </span>
-            <span className="sv-esf">Esfera: {esfera ?? "ainda não temos esse dado"}</span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
 
 export default async function PessoasPage({ searchParams }: { searchParams: Promise<{ nome?: string; cargo?: string; uf?: string; cidade?: string; grupo?: string; pagina?: string; simular?: string | string[] }> }) {
   const raw = await searchParams;
@@ -49,7 +31,14 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
   const paginaInvalida = !!sp.pagina && !pagina;
   const q = (sp.nome ?? "").trim().slice(0, 80);
   const office = isOffice(sp.cargo) ? sp.cargo : undefined;
-  const uf = sp.uf && /^[A-Za-z]{2}$/.test(sp.uf) ? sp.uf.toUpperCase() : undefined;
+  // Estado (D324). Com `uf` no endereço vale o do endereço; `uf=` vazio é o pedido explícito de "todos os estados".
+  // Sem `uf` no endereço, a lista abre no estado guardado em Ajustes (cookie sv_uf), e a tela diz isso.
+  const [prefs, jar] = await Promise.all([readPrefs(), cookies()]);
+  const ufPedida = sp.uf !== undefined;
+  const ufDoCookie = !ufPedida && prefs.uf ? prefs.uf : null;
+  const uf = sp.uf && /^[A-Za-z]{2}$/.test(sp.uf) ? sp.uf.toUpperCase() : (ufDoCookie?.sigla ?? undefined);
+  // quem a pessoa já marcou (cookie sv_sigo, lido só aqui no servidor): define o estado de cada botão da lista
+  const marcados = parseFollows(jar.get(FOLLOW_COOKIE)?.value);
   // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
   const falhar = simulacao(raw.simular) === "erro";
   const stamp = await data.getStamp("tse.candidatos").catch(() => null);
@@ -97,7 +86,14 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
               </>
             }
           >
-            {group.people.length === 0 ? <Lacuna motivo="Ninguém foi carregado para este grupo.">Ainda não temos esse dado.</Lacuna> : <Pessoas items={group.people} />}
+            {group.people.length === 0 ? (
+              <Lacuna motivo="Ninguém foi carregado para este grupo.">Ainda não temos esse dado.</Lacuna>
+            ) : (
+              <>
+                <Marcados n={marcados.length} />
+                <ListaPessoas items={group.people} marcados={marcados} />
+              </>
+            )}
           </Quadro>
           {group.gaps && group.gaps.length > 0 && (
             <Quadro id="pp-gaps" variante="lacuna" numero={3} pergunta="O que ainda não consta?" prova={fonte}>
@@ -123,9 +119,17 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
   const next = new URLSearchParams();
   if (q) next.set("nome", q);
   if (office) next.set("cargo", office);
-  if (uf) next.set("uf", uf);
+  // o pedido explícito segue para a próxima página, inclusive o `uf=` vazio ("todos"): sem isso a página 2 cairia no estado do cookie
+  if (ufPedida) next.set("uf", uf ?? "");
   if (page?.nextCursor) next.set("pagina", page.nextCursor);
   const filtrou = !!(q || office || uf);
+  // só o estado guardado filtra a lista: a tela nomeia o estado em vez de dizer "com esses filtros"
+  const soEstadoGuardado = ufDoCookie !== null && !q && !office;
+  // "ver todos os estados": tira só o estado, mantém nome e cargo
+  const todos = new URLSearchParams();
+  if (q) todos.set("nome", q);
+  if (office) todos.set("cargo", office);
+  todos.set("uf", "");
   const n = page?.items.length ?? 0;
 
   return (
@@ -141,7 +145,8 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
         </Quadro>
       )}
       <Quadro id="pp-1" numero={1} pergunta="Quem você procura?">
-        <form className="sv-filtro" action="/pessoas" method="get" role="search" aria-label="Procurar pessoas">
+        {/* key: os campos não são controlados; sem remontar, uma navegação no cliente ("ver todos os estados", "limpar") deixaria o valor antigo no campo */}
+        <form key={`${q}|${office ?? ""}|${uf ?? ""}`} className="sv-filtro" action="/pessoas" method="get" role="search" aria-label="Procurar pessoas">
           <label htmlFor="pp-nome">Nome</label>
           <input className="sv-campo" id="pp-nome" name="nome" type="text" defaultValue={q} maxLength={80} autoComplete="off" />
           <label htmlFor="pp-cargo">Cargo</label>
@@ -172,7 +177,30 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
             Não conseguimos ler a lista de {!offices && !ufs ? "cargos e de estados" : !offices ? "cargos" : "estados"} agora.
           </Lacuna>
         )}
-        {filtrou && (
+        {ufDoCookie ? (
+          <p className="sv-t" id="pp-estado">
+            A lista abre em {ufDoCookie.nome} ({ufDoCookie.sigla}), o estado guardado em Ajustes.{" "}
+            <Link className="sv-lk" href={`/pessoas?${todos.toString()}`}>
+              Ver todos os estados
+            </Link>
+          </p>
+        ) : !ufPedida && prefs.ufFalhou ? (
+          // há estado guardado, mas ele não pôde ser lido: a lista não abre nele, e a tela diz por quê
+          <Lacuna motivo="A lista abaixo é do país inteiro.">Não conseguimos ler o estado guardado agora.</Lacuna>
+        ) : (
+          !uf &&
+          !prefs.uf && (
+            <p className="sv-t" id="pp-estado">
+              Sem estado escolhido, a lista é do país inteiro. Para ela abrir sempre no seu estado,{" "}
+              <Link className="sv-lk" href="/comecar">
+                escolha seu estado
+              </Link>
+              .
+            </p>
+          )
+        )}
+        {/* com estado guardado, "limpar" volta ao padrão, que é o estado guardado; só o estado do cookie não é filtro a limpar */}
+        {(q || office || (uf && !ufDoCookie)) && (
           <Link className="sv-lk" href="/pessoas">
             Limpar os filtros
           </Link>
@@ -183,7 +211,7 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
         id="pp-2"
         variante={page && n > 0 ? "padrao" : "lacuna"}
         numero={2}
-        pergunta={filtrou ? "Quem está no cargo, com esses filtros?" : "Quem está no cargo, em ordem alfabética?"}
+        pergunta={soEstadoGuardado ? `Quem está no cargo em ${ufDoCookie.nome}, em ordem alfabética?` : filtrou ? "Quem está no cargo, com esses filtros?" : "Quem está no cargo, em ordem alfabética?"}
         prova={
           <>
             <ExemploIlustrativo>Exemplo ilustrativo: pessoas inventadas para a demonstração</ExemploIlustrativo> Pessoas em ordem alfabética. {fonte}
@@ -201,14 +229,15 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
             {paginaInvalida && <p className="sv-t">O endereço pedia uma página que não existe. Mostramos o começo da lista.</p>}
             <Resposta tamanho="m">
               {page.total === 1 ? "1 pessoa" : `${fmtInt(page.total)} pessoas`}
-              {filtrou ? " com esses filtros" : " no cargo hoje"}, em ordem alfabética.
+              {soEstadoGuardado ? ` no cargo hoje em ${ufDoCookie.nome}` : filtrou ? " com esses filtros" : " no cargo hoje"}, em ordem alfabética.
             </Resposta>
             {n < page.total && (
               <p className="sv-t">
                 Esta página mostra {fmtInt(n)} de {fmtInt(page.total)}.
               </p>
             )}
-            <Pessoas items={page.items} />
+            <Marcados n={marcados.length} />
+            <ListaPessoas items={page.items} marcados={marcados} />
             {page.nextCursor && (
               <Link className="sv-lk" href={`/pessoas?${next.toString()}`}>
                 Próximas {POR_PAGINA} <span aria-hidden="true">→</span>

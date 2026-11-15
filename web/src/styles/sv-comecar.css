@@ -1,0 +1,10 @@
+/* Segue o Voto, D2 · começo em dois passos (/comecar). Importado pela própria página, junto com sv-pessoas.css (a lista do
+   passo 2 é a mesma de /pessoas). Só regras desta tela, sob .sv e com prefixo sv-. Tinta sobre papel: nada aqui tem cor. */
+
+.sv .sv-passos{display:flex;flex-wrap:wrap;column-gap:20px;padding:0 4px;font-size:15px;line-height:1.5;font-weight:600;font-stretch:88%;color:var(--tinta2)}
+.sv .sv-passos [aria-current]{color:var(--tinta);font-weight:800;text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:4px}
+.sv .sv-cm-f{max-width:520px}
+.sv .sv-cm-nav{display:flex;flex-wrap:wrap;align-items:center;gap:4px 24px;padding:0 4px}
+@media (min-width:900px){
+  .sv .sv-passos,.sv .sv-cm-nav{padding:0}
+}

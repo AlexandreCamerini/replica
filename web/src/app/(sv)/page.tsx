@@ -10,10 +10,10 @@ import { Lemos } from "@/components/sv/inicio/lemos";
 import { Representa } from "@/components/sv/inicio/representa";
 import { Semana, faixaDaSemana } from "@/components/sv/inicio/semana";
 import { VaiRolar } from "@/components/sv/inicio/vai-rolar";
-import { readPrefs } from "@/components/sv/prefs";
+import { UF_COOKIE, readPrefs } from "@/components/sv/prefs";
 import { FALHOU_LEITURA } from "@/components/sv/estados";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
-import { Lacuna, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
+import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type PautaOverview, type RepresentativeGroup } from "@/lib/data";
 
 export const metadata: Metadata = { title: { absolute: "Segue o Voto: o que está rolando" } };
@@ -66,6 +66,19 @@ function ECongresso({ overview, hoje }: { overview: PautaOverview | null; hoje: 
   );
 }
 
+/** Convite único para o começo em dois passos (/comecar). Sem nome de estado: nada é assumido antes da escolha. */
+function Convite() {
+  return (
+    <Quadro id="inicio-convite" className="sv-gc" pergunta="Primeira vez aqui?">
+      <p className="sv-t">Em dois passos você escolhe seu estado e marca as pessoas em quem votou. Aí esta página passa a mostrar o que elas fazem.</p>
+      <Link className="sv-btn" href="/comecar">
+        Começar <span aria-hidden="true">&nbsp;→</span>
+      </Link>
+      <Nota>Sem conta e sem cadastro. Você pode pular qualquer passo.</Nota>
+    </Quadro>
+  );
+}
+
 export default async function Inicio({ searchParams }: { searchParams: Promise<{ simular?: string | string[] }> }) {
   const [prefs, jar, sp] = await Promise.all([readPrefs(), cookies(), searchParams]);
   // `?simular=…` só vale na demonstração (simular.ts): é como os estados de leitura que falhou são testados
@@ -90,23 +103,28 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
     data.getStamp("tse.candidatos").catch(() => null),
   ]);
   const representantesFalhou = ufPlace === undefined || groups === null || !!prefs.ufFalhou;
+  // Convite para o começo em dois passos: só para quem ainda não tem estado nem escolhidos guardados neste navegador.
+  // É um link, nunca um redirecionamento: a raiz abre sempre no "O que está rolando?".
+  const convidar = !uf && !prefs.ufFalhou && !jar.get(UF_COOKIE)?.value && follows.length === 0;
   const fimDaSemana = overview ? (faixaDaSemana(overview, hoje).dias[6] ?? null) : null;
 
   return (
-    <div className="sv-pg sv-pg--rola">
+    <div className={`sv-pg sv-pg--rola${convidar ? " sv-pg--convite" : ""}`}>
       <div className="sv-folio sv-gh">
         <h1>O que está rolando?</h1>
         <p className="sv-intro">Aqui você acompanha o que o Congresso decide e o que fazem as pessoas em quem você votou.</p>
         <p className="sv-so-larga sv-agora">{fmtFolio(dayKey(new Date()) ?? hoje)}</p>
       </div>
 
-      <Lemos overview={overview} ufSigla={uf?.sigla ?? null} ufFalhou={!!prefs.ufFalhou} esferas={esferas} />
+      {convidar && <Convite />}
       <Escolhidos slugs={follows} ufSigla={uf?.sigla ?? null} simularFalha={falhar} />
       <Semana overview={overview} ufSigla={uf?.sigla ?? null} estadualLigado={esferas.estadual} hoje={hoje} simularFalha={falhar} />
       <JaRolou />
       <VaiRolar overview={overview} fimDaSemana={fimDaSemana} />
       <Representa uf={uf} groups={groups ?? []} falhou={representantesFalhou} esferas={esferas} tse={tse} />
       <ECongresso overview={overview} hoje={hoje} />
+      {/* registro técnico do que foi lido: perto do fim, antes de "Quem conferiu isso?" (D324; era o primeiro bloco) */}
+      <Lemos overview={overview} ufSigla={uf?.sigla ?? null} ufFalhou={!!prefs.ufFalhou} esferas={esferas} />
       <Selo className="sv-gs" lidoEm={overview?.week.readAt ?? null} />
       <Proxima className="sv-gn" href="/acompanhando" pergunta="O que meus escolhidos estão fazendo?" />
     </div>

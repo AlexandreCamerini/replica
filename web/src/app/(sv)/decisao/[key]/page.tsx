@@ -4,7 +4,7 @@ import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
-import { FALHOU_LEITURA, SEM_DADO, conferidoEm } from "@/components/sv/estados";
+import { AFIRMACAO, FALHOU_LEITURA, SEM_DADO, conferidoEm } from "@/components/sv/estados";
 import { FalhaDeLeitura } from "@/components/sv/falha-leitura";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
@@ -15,7 +15,6 @@ import { COOKIE_TEXTO } from "@/components/sv/prefs";
 import { reuniaoTexto, vigenciaDe } from "@/components/sv/vigencia";
 import {
   Afirmacao,
-  Etiqueta,
   Fonte,
   JaVale,
   JaValeLegenda,
@@ -173,7 +172,12 @@ export default async function Decisao({ params, searchParams }: { params: Promis
   const fontePauta = `${BODY_NAME[e.body]}, pauta, ${lida}`;
   const quem = deciders(e);
   const status = statusLinha(p.status);
+  // Sem resposta publicada (D324): as caixas "Aguardando conferência" de cada campo (o que é, hoje, se aprovado, quem é
+  // afetado, dinheiro, estimativa, quem paga) viram um aviso só. Etapa, quem decide, autoria, votos e texto oficial ficam.
   const aguardando = !a;
+  // os quadros são numerados na ordem em que aparecem: sem resposta há menos quadros, e a numeração não pula
+  let quadro = 0;
+  const num = () => ++quadro;
   const vig = vigenciaDe(e.type);
   const momento = reuniaoTexto(p.status, reuniao);
   // prova do quadro: só diz "conferido" quando o campo do quadro está em `diz`; o selo é da resposta publicada, não do campo
@@ -196,7 +200,7 @@ export default async function Decisao({ params, searchParams }: { params: Promis
           : `Lemos ${vt.total} votações desta proposta.`;
 
   return (
-    <div className="sv-pg sv-pg--decisao">
+    <div className={`sv-pg sv-pg--decisao${aguardando ? " sv-pg--aguarda" : ""}`}>
       <div className="sv-folio sv-gh">
         <h1>O que estão decidindo que mexe comigo?</h1>
         <p className="sv-so-larga">
@@ -208,7 +212,7 @@ export default async function Decisao({ params, searchParams }: { params: Promis
       <Quadro
         id="sv-d1"
         variante="fio"
-        numero={1}
+        numero={num()}
         pergunta="O que é isso?"
         className="sv-ga"
         prova={
@@ -217,13 +221,14 @@ export default async function Decisao({ params, searchParams }: { params: Promis
           </>
         }
       >
-        <Afirmacao claim={campos?.o_que_propoe ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="m" />
+        {/* sem resposta conferida, o que dá para afirmar é só a identificação oficial; o conteúdo fica para o aviso único */}
+        {aguardando ? <Resposta tamanho="m">{`${id.charAt(0).toUpperCase()}${id.slice(1)}.`}</Resposta> : <Afirmacao claim={campos?.o_que_propoe ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="m" />}
         <p className="sv-t">
           <b>Onde se decide?</b> Federal · {BODY_NAME[e.body]} · {onde}. {momento.frase}
         </p>
       </Quadro>
 
-      <Quadro id="sv-d2" numero={2} pergunta="Já vale?" className="sv-gb" prova={`Fonte: ${fontePauta}.`}>
+      <Quadro id="sv-d2" numero={num()} pergunta="Já vale?" className="sv-gb" prova={`Fonte: ${fontePauta}.`}>
         <Resposta tamanho="xl">
           <JaVale estado={vig.estado} frase={vig.frase} />
         </Resposta>
@@ -232,29 +237,42 @@ export default async function Decisao({ params, searchParams }: { params: Promis
         <JaValeLegenda />
       </Quadro>
 
-      <Quadro id="sv-d3" variante="dom" numero={3} vida pergunta="O que muda para mim?" className="sv-gc" prova={provaTexto(campos?.o_que_muda)}>
-        <div className="sv-hs">
-          <div className="sv-hs__m sv-hs__m--hoje">
-            <h3 className="sv-hs__t">Hoje</h3>
-            <Lacuna motivo="Falta uma resposta conferida para este ponto.">Ainda não conseguimos conferir como é hoje.</Lacuna>
-          </div>
-          <div className="sv-hs__m sv-hs__m--se">
-            <div className="sv-hs__liso">
-              <h3 className="sv-hs__t">Se aprovado</h3>
-              <p className="sv-tipo">Do texto oficial</p>
-              <Afirmacao claim={campos?.o_que_muda ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="fala" />
+      {aguardando ? (
+        <Quadro id="sv-d3" numero={num()} pergunta="O que muda para mim?" className="sv-gc" prova={`Texto oficial, ${BODY_NAME[e.body]}. Ainda sem resposta conferida.`}>
+          <Lacuna>{AFIRMACAO.aguardando}</Lacuna>
+          <p className="sv-t">
+            Esta proposta ainda não tem resposta conferida. Por isso esta página não diz o que ela propõe, o que muda, quem é afetado, quanto custa nem quem paga: essas respostas só aparecem depois de conferidas com o texto oficial.
+          </p>
+          <p className="sv-t">O que já dá para ver abaixo vem direto da fonte: em que etapa está, quem decide, quem propôs, como foi votada e o texto oficial.</p>
+          <p className="sv-selo__l">
+            <a href="#sv-d9">Onde eu confiro o texto oficial?</a>
+          </p>
+        </Quadro>
+      ) : (
+        <Quadro id="sv-d3" variante="dom" numero={num()} vida pergunta="O que muda para mim?" className="sv-gc" prova={provaTexto(campos?.o_que_muda)}>
+          <div className="sv-hs">
+            <div className="sv-hs__m sv-hs__m--hoje">
+              <h3 className="sv-hs__t">Hoje</h3>
+              <Lacuna motivo="Falta uma resposta conferida para este ponto.">Ainda não conseguimos conferir como é hoje.</Lacuna>
+            </div>
+            <div className="sv-hs__m sv-hs__m--se">
+              <div className="sv-hs__liso">
+                <h3 className="sv-hs__t">Se aprovado</h3>
+                <p className="sv-tipo">Do texto oficial</p>
+                <Afirmacao claim={campos?.o_que_muda ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="fala" />
+              </div>
             </div>
           </div>
-        </div>
-        <Nota>Cada resposta tem um de três estados: conferida, ainda não conferida ou “o texto oficial não trata disso”.</Nota>
-        {a?.correction && (
-          <Nota>
-            Corrigido em {fmtDate(a.correction.correctedAt)}: {a.correction.note} <Link href="/como-funciona#correcoes">Ver todas as correções</Link>
-          </Nota>
-        )}
-      </Quadro>
+          <Nota>Cada resposta tem um de três estados: conferida, ainda não conferida ou “o texto oficial não trata disso”.</Nota>
+          {a?.correction && (
+            <Nota>
+              Corrigido em {fmtDate(a.correction.correctedAt)}: {a.correction.note} <Link href="/como-funciona#correcoes">Ver todas as correções</Link>
+            </Nota>
+          )}
+        </Quadro>
+      )}
 
-      <Quadro id="sv-d4" variante="fio" numero={4} pergunta="Quem decide agora?" className="sv-gd" prova={`Fonte: ${fontePauta}.`}>
+      <Quadro id="sv-d4" variante="fio" numero={num()} pergunta="Quem decide agora?" className="sv-gd" prova={`Fonte: ${fontePauta}.`}>
         <Resposta>{quem.who}</Resposta>
         <p className="sv-t">{quem.needs}</p>
         <p className="sv-t">{momento.frase}</p>
@@ -262,29 +280,35 @@ export default async function Decisao({ params, searchParams }: { params: Promis
         <p className="sv-t">Leis estaduais e municipais sobre o mesmo assunto são outras decisões. Esta é só a federal.</p>
       </Quadro>
 
-      <Quadro id="sv-d5" variante="fio" numero={5} pergunta="Quem é afetado?" className="sv-ge" prova={provaTexto(campos?.quem_recebe)}>
-        <Afirmacao claim={campos?.quem_recebe ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="m" />
-      </Quadro>
+      {!aguardando && (
+        <Quadro id="sv-d5" variante="fio" numero={num()} pergunta="Quem é afetado?" className="sv-ge" prova={provaTexto(campos?.quem_recebe)}>
+          <Afirmacao claim={campos?.quem_recebe ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="m" />
+        </Quadro>
+      )}
 
-      <Quadro id="sv-d6" variante={semConta ? "lacuna" : "padrao"} rotulo="Dinheiro, quem paga e autoria" className="sv-gf" prova={p.readAt ? `Leitura das fontes: ${fmtDateTime(p.readAt)}.` : "Fontes ainda não lidas."}>
-        <div className="sv-nc__l">
-          <Pergunta id="sv-d6a">Quanto muda na conta?</Pergunta>
-          <div className="sv-nc__r">
-            <p className="sv-tipo">Dinheiro envolvido</p>
-            <Afirmacao claim={campos?.dinheiro ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
-            {dir && DIRECAO[dir] && <p className="sv-t">Direção do dinheiro: {DIRECAO[dir]}</p>}
-            <p className="sv-tipo sv-nc__s">Estimativa de impacto</p>
-            <Afirmacao claim={campos?.estimativa_impacto ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
-          </div>
-          <Fonte>Fonte: texto oficial, {BODY_NAME[e.body]}.</Fonte>
-        </div>
-        <div className="sv-nc__l">
-          <Pergunta id="sv-d6b">Quem paga?</Pergunta>
-          <div className="sv-nc__r">
-            <Afirmacao claim={campos?.quem_paga ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
-          </div>
-          <Fonte>Fonte: texto oficial, {BODY_NAME[e.body]}.</Fonte>
-        </div>
+      <Quadro id="sv-d6" variante={(aguardando ? p.autores.itens.length === 0 : semConta) ? "lacuna" : "padrao"} rotulo={aguardando ? "Autoria" : "Dinheiro, quem paga e autoria"} className="sv-gf" prova={p.readAt ? `Leitura das fontes: ${fmtDateTime(p.readAt)}.` : "Fontes ainda não lidas."}>
+        {!aguardando && (
+          <>
+            <div className="sv-nc__l">
+              <Pergunta id="sv-d6a">Quanto muda na conta?</Pergunta>
+              <div className="sv-nc__r">
+                <p className="sv-tipo">Dinheiro envolvido</p>
+                <Afirmacao claim={campos?.dinheiro ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
+                {dir && DIRECAO[dir] && <p className="sv-t">Direção do dinheiro: {DIRECAO[dir]}</p>}
+                <p className="sv-tipo sv-nc__s">Estimativa de impacto</p>
+                <Afirmacao claim={campos?.estimativa_impacto ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
+              </div>
+              <Fonte>Fonte: texto oficial, {BODY_NAME[e.body]}.</Fonte>
+            </div>
+            <div className="sv-nc__l">
+              <Pergunta id="sv-d6b">Quem paga?</Pergunta>
+              <div className="sv-nc__r">
+                <Afirmacao claim={campos?.quem_paga ?? null} conferidaEm={a?.reviewedAt ?? null} conferidaPor={a?.verifiedBy} tamanho="r" />
+              </div>
+              <Fonte>Fonte: texto oficial, {BODY_NAME[e.body]}.</Fonte>
+            </div>
+          </>
+        )}
         <div className="sv-nc__l">
           <Pergunta id="sv-d6c">Quem propôs?</Pergunta>
           <div className="sv-nc__r">
@@ -309,7 +333,7 @@ export default async function Decisao({ params, searchParams }: { params: Promis
         </div>
       </Quadro>
 
-      <Quadro id="sv-d7" variante="fio" numero={6} pergunta="Onde está?" className="sv-gj" prova={`Fonte: ${fontePauta}.`}>
+      <Quadro id="sv-d7" variante="fio" numero={num()} pergunta="Onde está?" className="sv-gj" prova={`Fonte: ${fontePauta}.`}>
         <Resposta>{momento.presente ? (e.stage === "plenario" ? "No plenário." : "Na comissão.") : `Última pauta em que apareceu: ${e.stage === "plenario" ? "plenário" : "comissão"}.`}</Resposta>
         <ol className="sv-etapas">
           <li>
@@ -334,7 +358,7 @@ export default async function Decisao({ params, searchParams }: { params: Promis
       <Quadro
         id="sv-d8"
         variante="fio"
-        numero={7}
+        numero={num()}
         pergunta="Como votou quem eu elegi?"
         className="sv-gk"
         prova={p.votes.length > 0 ? `Fonte: ${casasVotos.map((c) => BODY_NAME[c]).join(" e ")}, votação nominal, ${lida}.` : `Fonte: ${fontePauta}.`}
@@ -451,7 +475,7 @@ export default async function Decisao({ params, searchParams }: { params: Promis
       <Quadro
         id="sv-d9"
         variante="fio"
-        numero={8}
+        numero={num()}
         pergunta="Onde eu confiro?"
         className="sv-gl"
         prova={
@@ -488,14 +512,9 @@ export default async function Decisao({ params, searchParams }: { params: Promis
         <Nota>
           Por que esta proposta está aqui: {e.reason.theme ? `a Casa a classificou em “${e.reason.theme}” e ` : ""}o resumo oficial cita “{e.reason.term}”. <Link href="/como-funciona#regras">Ver a regra</Link>
         </Nota>
-        {aguardando && (
-          <Nota>
-            <Etiqueta>Aguardando conferência</Etiqueta> As respostas desta página só aparecem depois de conferidas com o texto oficial.
-          </Nota>
-        )}
       </Quadro>
 
-      <Selo id="sv-d10" numero={9} lidoEm={p.readAt} resposta={a ? { em: a.reviewedAt, por: a.verifiedBy } : null} className="sv-gs" />
+      <Selo id="sv-d10" numero={num()} lidoEm={p.readAt} resposta={a ? { em: a.reviewedAt, por: a.verifiedBy } : null} className="sv-gs" />
 
       <Proxima href="/temas" pergunta="O que está em jogo no Congresso?" className="sv-gn" />
     </div>
