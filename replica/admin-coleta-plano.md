@@ -5,7 +5,8 @@ Plano exigido por `replica/prompts/admin-coleta-enriquecimento.md`. Escrito depo
 Convenções:
 - Caminhos relativos à raiz do repositório.
 - "Banco" é sempre `postgres://postgres@localhost:54329/admin_coleta`, com `DATABASE_URL` e `ETL_DATABASE_URL` como prefixo de cada comando e `select current_database()` conferido antes.
-- Todo comando de pronto leva também `PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"`, `UV_CACHE_DIR="$TMPDIR/uv-cache"` e `npm_config_cache="$TMPDIR/npm-cache"`. Abaixo eles aparecem abreviados como `[amb]`.
+- `[amb]` abrevia o prefixo completo de todo comando de pronto: `DATABASE_URL=postgres://postgres@localhost:54329/admin_coleta ETL_DATABASE_URL=postgres://postgres@localhost:54329/admin_coleta PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH" UV_CACHE_DIR="$TMPDIR/uv-cache" npm_config_cache="$TMPDIR/npm-cache"`. Sem as duas variáveis de banco, `etl/tests/conftest.py` cai no banco `civico`.
+- Migração nova é aplicada em `admin_coleta` pelo orquestrador (`[amb] db/migrate.sh --local`), depois de ler o SQL e antes de rodar `[suite]` da tarefa que a criou.
 - `[suite]` = `cd etl && [amb] uv run --frozen pytest -q -rs`. "Passa" = nenhuma falha nem pulo além da linha de base de `replica/admin-coleta-estado.md` (767 passam, 33 pulam, 4 xfail).
 
 ## 0. Parte R: reorganização
@@ -44,13 +45,13 @@ Pacote novo `etl/civico_etl/catalogo/` (dentro de `civico_etl`, único pacote em
 
 - `modelo.py`: dataclasses congeladas.
   - `Comando(nome, classe, modulo, parser, argumentos, encadeia, sai_com)`: o que a CLI aceita. `parser` diz qual parser o reconhece (`cli`, `ale_cli`, `sapl`, `sancoes`, `transparencia`, `schedule`, `inline`). `encadeia` é a lista ordenada dos passos seguintes.
-  - `Coletor(id, modulos, comandos, tarefas, fontes, datasets, acesso, entradas, recortes_aceitos, recortes_nao_aceitos, tabelas, territorio, ausentes, encadeados, orquestradores, env, modos, caracterizado)`. `entradas` é `Entradas(tipo="estaticas"|"dinamicas", urls=(...), depende_de="...")`. `ausentes` é `Ausentes(politica="nao_apaga"|"apaga"|"apaga_com_guarda", guarda="...")`. `modos` é um dicionário `{"descobrir"|"recoletar"|"reprocessar": Modo(suporta: bool, motivo: str)}`.
+  - `Coletor(id, modulos, comandos, tarefas, fontes, datasets, acesso, entradas, recortes_aceitos, recortes_nao_aceitos, tabelas, territorio, ausentes, encadeados, orquestradores, env, modos, caracterizado, tentativas_registradas)`. `fontes` é uma lista de `Fonte(slug, origem)`, com `origem` em `seed`, `migracao` ou `job`. `entradas` é `Entradas(tipo="estaticas"|"dinamicas", urls=(...), depende_de="...")`. `ausentes` é `Ausentes(politica="nao_apaga"|"apaga"|"apaga_com_guarda", guarda="...")`. `modos` é um dicionário `{"descobrir"|"recoletar"|"reprocessar": Modo(suporta: bool, motivo: str)}`.
   - `Classe` (enum com as dez classes) e `ARQUIVOS: dict[str, Classe]` com todo arquivo de 0.1.
 - `comandos.py`: `COMANDOS: tuple[Comando, ...]`, todos os comandos da CLI.
 - `coletores.py`: `COLETORES: tuple[Coletor, ...]`.
 - `contrato.py`: o contrato comum, atendido por fora.
   - `descrever(coletor_id, recorte) -> Descricao(argv, urls_entrada, entradas_tipo, estimativa, nao_suportado)`. Sem rede e sem banco para URL estática; para dinâmica pode ler o banco (ex.: `sapl_houses`), nunca a rede.
-  - `executar(coletor_id, recorte, *, runner=None) -> int`. O `runner` padrão é `civico_etl.cli.main(argv)`: o mesmo despacho da CLI, com os passos encadeados. O executor de administração passa um `runner` de subprocesso (`python -m civico_etl.cli`, como `schedule._run_cli`), para isolar o estado global de `http.RATE`. Nunca chama `run_*` direto.
+  - `executar(coletor_id, recorte, *, runner=None) -> int`. O `runner` padrão é `civico_etl.cli.main(argv)`: o mesmo despacho da CLI, com os passos encadeados. O executor de administração usa por padrão um `runner` de subprocesso (`python -m civico_etl.cli`, como `schedule._run_cli`), para isolar o estado global de `http.RATE`; com `ADMIN_RUNNER=processo` usa o `runner` em processo. Os dois passam por `cli.main`. Nunca chama `run_*` direto.
   - Recorte que o comando não aceita hoje: `descrever` devolve `nao_suportado` com o motivo; `executar` recusa com `ValueError`. Nenhum argumento novo em job.
 
 Exemplo simples, `camara.equipe` (URL em `jobs/camara_equipe.py:25`, delete em `:52`):
@@ -66,7 +67,7 @@ Coletor(
     tabelas=("staff_members",), territorio="nenhuma",
     ausentes=Ausentes("apaga", guarda="retrato: apaga todo staff_members com source_key 'camara:%' que não veio no arquivo; sem guarda de arquivo vazio"),
     encadeados=(),
-    orquestradores=("etl.yml:run-due", "launchd-local:run-due", "agendar-local"),
+    orquestradores=("etl.yml:run-due", "launchd-local:run-due"),
     env=None,
     modos={"descobrir": Modo(False, "arquivo único, não há o que descobrir"),
            "recoletar": Modo(True, ""), "reprocessar": Modo(True, "")},
@@ -90,7 +91,7 @@ Coletor(
     territorio="municipio",
     ausentes=Ausentes("nao_apaga", guarda=""),
     encadeados=(),
-    orquestradores=("launchd-mac:run-due-sapl-prod",),
+    orquestradores=("launchd-mac:run-due-sapl-prod", "launchd-local:run-due"),
     env=None,
     modos={"descobrir": Modo(True, "sapl.descobrir"), "recoletar": Modo(True, "sapl.carregar"),
            "reprocessar": Modo(False, "a carga é incremental por cursor: reler o cache não reproduz a rodada")},
@@ -108,7 +109,7 @@ Coletor(
     datasets=("camara.deputados", "camara.votacoes.{ano}", "camara.proposicoes.{ano}", "camara.despesas.{ano}", "camara.despesasapi.{ano}"),
     acesso="api+arquivo",
     entradas=Entradas("dinamicas", urls=(
-        "{FILES}/deputados/csv/deputados.csv",
+        "{FILES}/deputados/csv/deputados.csv",  # só em link_past_roster (:186)
         "{API}/deputados?idLegislatura={leg}&itens=100&ordem=ASC&ordenarPor=nome",
         "{FILES}/votacoes/csv/votacoes-{ano}.csv", "{FILES}/votacoesVotos/csv/votacoesVotos-{ano}.csv",
         "{FILES}/votacoesOrientacoes/csv/votacoesOrientacoes-{ano}.csv", "{FILES}/votacoesProposicoes/csv/votacoesProposicoes-{ano}.csv",
@@ -121,9 +122,9 @@ Coletor(
              "party_orientations", "laws", "proposal_authors", "proposal_topics", "expenses",
              "people", "person_external_ids", "identity_match_queue", "parties", "party_aliases"),
     territorio="pais",
-    ausentes=Ausentes("apaga_com_guarda", guarda="expenses: apaga só chaves do mesmo prefixo e ano que o arquivo não trouxe (camara_diario.py:898) e chaves de formato antigo (:953); o resto não apaga"),
+    ausentes=Ausentes("apaga_com_guarda", guarda="expenses: apaga só chaves do mesmo prefixo e ano que o arquivo não trouxe (camara_diario.py:898) e chaves de formato antigo (:953); mandato ausente da lista é encerrado, não apagado (:356-375)"),
     encadeados=("identity.dedupe", "derive.stats"),
-    orquestradores=("etl.yml:run-due", "launchd-local:run-due", "agendar-local"),
+    orquestradores=("etl.yml:run-due", "launchd-local:run-due"),
     env=None,
     modos={"descobrir": Modo(False, "fonte única"), "recoletar": Modo(True, ""),
            "reprocessar": Modo(True, "desde que o cache tenha todas as URLs de entrada")},
@@ -149,7 +150,7 @@ Coletor(
     caracterizado=True,
 )
 ```
-Os valores de `tabelas`, `ausentes` e `orquestradores` de cada entrada são conferidos no código pelo construtor e, para `encadeados`, por teste (R-7).
+Os valores de `tabelas`, `ausentes` e `orquestradores` de cada entrada são conferidos no código pelo construtor (os orquestradores, contra `.github/workflows/`, `etl/deploy/` e `etl/agenda/`; `agendar-local.sh` só agenda `pauta`, `rascunho` e `revisar`). `encadeados` é conferido por teste para todos os comandos do parser principal (R-7).
 
 ### 0.3 Relação com `TASKS`, `MAX_AGE_H`, `SOURCE_ENV` e os parsers
 
@@ -186,9 +187,9 @@ Na Parte R nenhum arquivo existente de `etl/civico_etl/` é editado: só o pacot
 | R-2 | `etl/tests/test_caracterizacao.py` com retratos em `etl/tests/retratos/*.json`, gerados sobre o código de `39ee3ec` e commitados antes de qualquer outra tarefa. Ver lista abaixo |
 | R-3 | `etl/tests/test_retrato_agenda.py` contra `etl/tests/retratos/agenda.json` (todos os campos de `Task`, `argv` e `families` para 2026-10-04 e 2027-03-10, `MAX_AGE_H`, `SOURCE_ENV`) |
 | R-4 | `etl/tests/test_orquestradores.py`: extrai nomes de `.github/workflows/*.yml`, `etl/deploy/*.sh`, `etl/agenda/*.sh` e confere contra os comandos extraídos da CLI por AST e contra `TASKS` |
-| R-5 | `etl/tests/test_catalogo.py` (0.3). Fontes: cada `Coletor.fontes` traz o slug e de onde ele nasce (`seed`, `migracao` ou `job`). O teste confere no banco, depois do seed, as de origem `seed` e `migracao` (`ibge-sidra`, `bcb-sgs`, `receita-federal` vêm da 0040). As de origem `job` (`sapl-ale` em `sapl.py:650`; `alesp` e `alemg` em `assembleias.py:320`) não existem depois do seed: o teste confere, por leitura do código-fonte do módulo, que o slug é criado lá. O critério R-5 como escrito ("toda fonte existe em `sources` depois do seed") é impossível para essas três; vira `AC-04` e o original sai como "substituído" no relato. A paridade de `test_schedule.py` segue na suíte |
+| R-5 | `etl/tests/test_catalogo.py` (0.3). Fontes: cada `Coletor.fontes` traz o slug e de onde ele nasce (`seed`, `migracao` ou `job`). O teste confere no banco, depois do seed, as de origem `seed` e `migracao` (`ibge-sidra`, `bcb-sgs`, `receita-federal` vêm da 0040). As de origem `job` (`sapl-ale` em `sapl.py:650`; `alesp` e `alemg` em `assembleias.py:320`) não existem depois do seed: o teste confere, por leitura do código-fonte do módulo, que o slug é criado lá. O critério R-5 como escrito ("toda fonte existe em `sources` depois do seed") é impossível para essas três; vira `AC-04`, e no relato o original sai como "não atendido" nessa parte, com o substituto ao lado. A paridade de `test_schedule.py` segue na suíte |
 | R-6 | `etl/tests/test_retrato_plano.py`: `schedule.plan()` com `now` fixo, filtros fixos e carimbos fabricados, contra `etl/tests/retratos/plano.json` |
-| R-7 | `etl/tests/test_contrato_cadeia.py`: troca `run_camara`, `run_senado`, `run_dedupe`, `run_derive` por gravadores e compara a sequência via `cli.main([...])` e via `contrato.executar(...)`, em dois cenários: carga normal e `SkipUnchanged` levantada pelo job |
+| R-7 | `etl/tests/test_contrato_cadeia.py`: troca por gravadores todas as funções `run_*` que o parser principal de `cli.py` chama (inclusive `run_seed`, `run_dedupe`, `run_derive`) e, para cada comando de coletor desse parser, compara a sequência via `cli.main([...])` e via `contrato.executar(...)`, e as duas com `Comando.encadeia`. Cobre `camara.diario` e `senado.diario` (exigidos), `ibge.populacao` → `seed`, e as cadeias de `derive.stats` de `tse.*`, `camara.presenca` e `parlamento.extras`. Dois cenários: carga normal e `SkipUnchanged` levantada pelo job |
 | R-8 | `etl/tests/test_codigos_saida.py`: `cli.main(["check"])` com invariante quebrada devolve 1; `schedule.main` com alerta devolve 2 |
 | R-9 | o `git diff --stat` acima |
 | R-10 | `python3 -I replica/tools/fluxo_confere.py`: os mesmos 7 problemas da linha de base, nenhum novo |
@@ -216,7 +217,7 @@ Lista confirmada (levantamento 03 e conferência do verificador por `grep` de im
 
 Fora dessa lista: `tse_candidatos`, `tse_votos_contas` e `tse_bug019` têm teste, mas o caminho de zip remoto por faixa (`remotezip`) fica "sem caracterização" e não é tocado. `identity_bug033/038/041` não têm teste do job, são reparo pontual, estão fora do catálogo de coletores e não são tocados.
 
-Isolamento. Os testes de caracterização e os `test_admin_*` que precisam de commit de verdade não usam o banco da suíte. Uma fixture de sessão (`etl/tests/banco_isolado.py`) cria um banco próprio (`<banco da suíte>_iso_<pid>`), aplica `db/migrate.sh --local`, roda o seed e `base.sql`, aponta `ETL_DATABASE_URL` para ele durante o teste e o apaga no fim (em `finally`). Motivos: `db.run` grava `ingest_runs` e `dataset_stamps` com commit, e um município fabricado no banco da suíte faria os testes hoje pulados por "banco sem carga" rodarem e falharem. Se a criação do banco falhar, o teste falha; não pula. O comando roda pela CLI (`cli.main`) e as tabelas de destino são comparadas com o retrato, ignorando `id`, `created_at`, `updated_at`, `run_id`, `last_run_id` e horários de execução.
+Isolamento. Os testes de caracterização e os `test_admin_*` que precisam de commit de verdade não usam o banco da suíte. Uma fixture de sessão (`etl/tests/banco_isolado.py`) cria um banco próprio (`<banco da suíte>_iso_<pid>`), aplica `db/migrate.sh --local`, roda o seed e `base.sql`, aponta `ETL_DATABASE_URL` para ele durante o teste e o apaga no fim (em `finally`). Motivos: `db.run` grava `ingest_runs` e `dataset_stamps` com commit, e um município fabricado no banco da suíte faria os testes hoje pulados por "banco sem carga" rodarem e falharem. Se a criação do banco falhar, o teste falha; não pula. Ao criar, a fixture apaga bancos `_iso_*` órfãos de execução anterior cujo PID não existe mais. O tempo que a fixture acrescenta à suíte é medido em R4 e registrado (o job do CI tem teto de 15 min). O comando roda pela CLI (`cli.main`) e as tabelas de destino são comparadas com o retrato, ignorando `id`, `created_at`, `updated_at`, `run_id`, `last_run_id` e horários de execução.
 
 ### 0.6 O que não será reorganizado
 
@@ -228,7 +229,7 @@ Isolamento. Os testes de caracterização e os `test_admin_*` que precisam de co
 
 ## 1. Modelo de dados novo
 
-Migração `db/migrations/0150_admin_coleta.sql` (tabelas das Partes A e B) e `0151_admin_central.sql` (role, policies, visões; Parte C). O número é conferido com `ls db/migrations` na hora. Todas as tabelas com prefixo `adm_`, RLS ligada, sem policy pública.
+Migração `db/migrations/0150_admin_coleta.sql` (tabelas das Partes A e B) e `0151_admin_central.sql` (role, grants e policies; Parte C). O número é conferido com `ls db/migrations` na hora. Todas as tabelas com prefixo `adm_`, RLS ligada, sem policy pública.
 
 | Tabela | Para quê | Chave e pontos principais |
 | --- | --- | --- |
@@ -236,10 +237,10 @@ Migração `db/migrations/0150_admin_coleta.sql` (tabelas das Partes A e B) e `0
 | `adm_tentativas` | uma linha por tentativa de URL | `rodada_id`, `url`, `url_sha`, `host`, `tentada_em`, `resultado` (`lida`, `reaproveitada`, `falha`), `http_status`, `motivo` (`bloqueio`, `robots`, `expiracao`, `erro`, `sem_conteudo`), `conteudo_sha256`, `bytes`, `entrada bool` |
 | `adm_evidencias` | última evidência válida por URL | PK `url_sha`; `url`, `conteudo_sha256`, `lida_em`, `fonte_declarada_em`, `rodada_id`. Só é regravada por leitura bem-sucedida: falha não a toca |
 | `adm_vinculos` | URL ou fonte ↔ registro, com origem e histórico | `classe`, `registro_chave`, `fonte_slug`, `url`, `url_sha`, `origem` (`registro_oficial`, `descoberta_automatica`, `correcao_manual`), `vigente`, `substitui_id`, `rodada_id`, `decisao_id`. Único parcial em (`classe`, `registro_chave`, `url_sha`) onde `vigente` |
-| `adm_propostas` | valor candidato com evidência | `classe`, `registro_chave`, `campo`, `valor_vigente jsonb`, `valor_candidato jsonb`, `url`, `trecho`, `conteudo_sha256`, `lida_em`, `fonte_declarada_em`, `alcance` (`registro`, `regra`), `regra_criterio`, `regra_ids jsonb`, `fonte_slug`, `rodada_id`, `chave_idem` única. `url`, `trecho` e `conteudo_sha256` `not null` com `check` de não vazio |
+| `adm_propostas` | valor candidato com evidência | `classe`, `registro_chave`, `campo`, `valor_vigente jsonb`, `valor_candidato jsonb`, `url`, `trecho`, `conteudo_sha256`, `lida_em`, `fonte_declarada_em`, `alcance` (`registro`, `regra`), `regra_criterio`, `regra_ids jsonb`, `fonte_slug`, `rodada_id`, `chave_idem` única. `bloco` (delimitador do bloco do registro na página, quando a evidência vem de diretório). `url`, `trecho` e `conteudo_sha256` `not null` com `check` de não vazio |
 | `adm_pendencias` | uma por (classe, registro, campo) | `pergunta`, `tipo` (`mudanca`, `divergencia`, `duplicata`, `confirmacao`), `status` (`aberta`, `decidida`), `reaberta bool`, `motivo_reabertura` (`evidencia_mudou`, `registro_mudou`), `evidencia_sha`, `vigente_sha`, `vence_em`, `cobertura_recorte numeric`. Única em (`classe`, `registro_chave`, `campo`) |
 | `adm_pendencia_propostas` | propostas de uma pendência | (`pendencia_id`, `proposta_id`) |
-| `adm_decisoes` | trilha de decisão, só acréscimo | `pendencia_id`, `acao` (`aprovar`, `corrigir`, `descartar`, `pedir_confirmacao`), `decidido_por_tipo` (`pessoa`, `agentes`), `decidido_por_nome`, `relatorio`, `versao_verificador`, `justificativa not null`, `campos_afetados jsonb`, `valor jsonb`, `aplicada bool`, `aplicada_em`, `criada_em` |
+| `adm_decisoes` | trilha de decisão, só acréscimo | `pendencia_id`, `acao` (`aprovar`, `corrigir`, `descartar`, `pedir_confirmacao`), `decidido_por_tipo` (`pessoa`, `agentes`), `decidido_por_nome`, `relatorio`, `versao_verificador`, `justificativa not null` com `check` de não vazio, `campos_afetados jsonb`, `valor jsonb`, `aplicada bool`, `aplicada_em`, `criada_em` |
 | `adm_overrides` | valor que a decisão fixou, por (classe, registro, campo) | `valor jsonb`, `suprimir bool`, `decisao_id`, `vigente`. Lida pelos gatilhos do item 2 |
 | `adm_pareceres` | parecer de IA guardado | `pendencia_id`, `pedido_id`, `modelo`, `versao_verificador`, `entrada jsonb`, `saida jsonb`, `modo` (`ensaio`), `simulado bool` |
 | `adm_pedidos` | fila entre a tela e o executor | `tipo` (`rodada`, `recoleta`, `parecer`), `parametros jsonb`, `chave_idem`, `status`, `criado_em`, `iniciado_em`, `batimento_em`, `finalizado_em`, `rodada_id`, `andamento jsonb`, `erro`. Único parcial em `chave_idem` onde `status in ('na_fila','em_execucao')` |
@@ -330,14 +331,16 @@ Reprocessamento sem rede: **cache em disco de `http.fetch`**, não a cópia do b
 
 Mudanças em `etl/civico_etl/http.py` (infraestrutura com teste próprio, não coletor), todas desligadas por padrão e sem efeito sem a variável:
 - `ETL_ATTEMPT_LOG=<arquivo>`: `fetch` acrescenta uma linha JSON por tentativa (URL, horário, status, hash, e o desfecho: `cache_fresco`, `revalidada_304`, `baixada` ou `falha` com o motivo). Uma linha por `write` em arquivo aberto com `O_APPEND`, para valer com `--workers`. O executor importa o arquivo para `adm_tentativas`; `cache_fresco` e `revalidada_304` entram como `reaproveitada`. Sobrevive à morte do subprocesso.
-- `ETL_HTTP_OFFLINE=1`: `fetch` serve só do cache, qualquer que seja a idade. URL ausente levanta `SemRedeSemCache`, que herda de `BaseException`. Motivo: `sapl.py:355` e `:668` transformam qualquer `Exception` em `fora_do_ar` ou `sem_api`; com `BaseException` o processo aborta com código 1 e nenhum status falso é gravado.
+- `ETL_HTTP_OFFLINE=1`: `fetch` serve só do cache, qualquer que seja a idade. URL ausente levanta `SemRedeSemCache`, que herda de `SystemExit` (código 1). Motivo: `sapl.py:356` e `:669` transformam qualquer `Exception` em `fora_do_ar` ou `sem_api`, e `SystemExit` não é `Exception`; e `db.run` (`db.py:181`) captura `SystemExit`, então o run aberto é fechado como `failed` em vez de ficar `running`. Exceção: URL terminada em `/robots.txt` ausente do cache levanta `FileNotFoundError`, que é o que `fetch` levanta num 404 de verdade (`http.py:104`, resposta que nunca entra no cache) e o que `assembleias._robots_rules` trata como "sem robots.txt". `test_admin_tentativas.py` cobre os dois casos.
 - `ETL_HTTP_REFETCH=<arquivo>`: URLs listadas ignoram o cache nesta execução.
 
 Limites declarados do registro de tentativas:
 - Bloqueio por robots.txt acontece em `assembleias.allowed`, antes de `fetch`: o executor registra essa tentativa a partir de `sapl_houses.status = 'robots_bloqueia'` depois da rodada. Para coletores fora do SAPL, bloqueio por robots não aparece.
 - `remotezip.py` (zip do TSE por faixa) e `http.api_json` (Portal da Transparência) não passam por `fetch`: os coletores que os usam têm `tentativas_registradas = False` no catálogo, e a prévia e o relatório dizem "tentativas não registradas" em vez de zero.
 
-Evidência em página de diretório (Parte B): uma proposta de `contato_mandato` só é aceita se o `trecho` for um caminho (JSON pointer ou seletor) dentro do bloco do próprio parlamentar; o proponente recebe o bloco já delimitado e rejeita evidência fora dele. Contato de rodapé é da Casa e não vira proposta de mandato.
+Entrada fabricada fora dos testes (primeira rodada SIMULADA). O `MockTransport` não atravessa subprocesso. Por isso existe `etl/tests/simulado.py`: um lançador que instala o transporte fabricado sobre o cliente de `http.py` (o mesmo padrão de `test_transparencia.py`), define `ADMIN_RUNNER=processo` e chama `civico_etl.cli.main(argv)`. Toda saída dele começa com a linha `SIMULADO`. Nenhum gancho de fixture entra no código de produção. Os testes dos critérios 3, 4 e 5 usam o mesmo transporte, em processo.
+
+Evidência em página de diretório (Parte B): uma proposta de `contato_mandato` só é aceita se o `trecho` for um caminho (JSON pointer ou seletor) dentro do bloco do próprio parlamentar, e o delimitador desse bloco fica gravado em `adm_propostas.bloco`, para auditoria; o proponente recebe o bloco já delimitado e rejeita evidência fora dele. Contato de rodapé é da Casa e não vira proposta de mandato.
 
 ### 4.2 Central: rotas e telas
 
@@ -407,7 +410,8 @@ Fato do ambiente: o Playwright não roda nesta sessão. Não há navegador do Pl
 
 - Os specs e a configuração são escritos e entregues: `web/e2e-admin/*.spec.ts` e `web/playwright.admin.config.ts` (porta 3210, `NEXT_DIST_DIR=.next-admin`, `DATA_SOURCE=demo`, `ALLOW_DEMO_DATA=1`, `ADMIN_CENTRAL=1`, `ADMIN_DATABASE_URL` local). O `webServer` da configuração sobe `next build && next start`. O `globalSetup` carrega a fixture no banco. O executor é chamado pelos próprios testes, uma execução por passo (`civico-etl admin executor --uma-vez`), para o tempo ser determinístico. `web/playwright.config.ts` e `web/e2e/` não são tocados.
 - Critérios 21 e 26 saem como "não executado", com o comando exato para o dono.
-- Prova sem navegador, executada aqui: `web/e2e-admin/sem-navegador.mjs` (Node puro, sem dependência). Ele sobe `next start` (o bind em porta local foi provado nesta sessão), faz as requisições por `fetch` e confere status e HTML. Cobre 15 (status 404 por rota, nos dois casos), 19 (os números dos dois painéis, lidos do HTML renderizado, contra `civico-etl admin relatorio --json`), 20, 22, 24, os estados de tela de 4.2 e, para o 23, a varredura do HTML servido em busca de URL absoluta fora de `localhost`. Por isso o mapa, os painéis e as listas são renderizados no servidor.
+- Se `next start` não abrir porta na hora da prova, os critérios de segurança 15, 22 e 23 ficam sem prova: é o item 6 da lista de parada, não "não executado".
+- Prova sem navegador, executada aqui: `web/e2e-admin/sem-navegador.mjs` (Node puro, sem dependência). Ele faz o próprio `next build` em `.next-admin`, define as variáveis `ADMIN_*` que cada caso exige, sobe `next start` (o bind em porta local foi provado nesta sessão), faz as requisições por `fetch` e confere status e HTML. Cobre 15 (status 404 por rota, nos dois casos), 19 (os números dos dois painéis, lidos do HTML renderizado, contra `civico-etl admin relatorio --json`), 20, 22, 24, os estados de tela de 4.2 e, para o 23, a varredura do HTML servido em busca de URL absoluta fora de `localhost`. Por isso o mapa, os painéis e as listas são renderizados no servidor.
 - Critério 23, parte estática: `web/e2e-admin/sem-rede-externa.mjs` varre `web/src/app/(admin)`, `web/src/components/admin`, `web/src/lib/admin` e `web/src/styles/admin.css` atrás de URL absoluta, `fetch` para fora, e recurso remoto em `<link>`, `<script>` e `url()` de CSS. Falha com código 1 se achar.
 - Critério 25: `next build` nas condições do CI roda aqui (linha de base: passa). O conjunto ponta a ponta público não roda aqui pelo mesmo motivo. A conduta do prompt só prevê "não executado" para 21 e 26, então o 25 sai como **"não atendido"** na parte de execução, com decisão registrada (`AC-05`), o critério substituto (`git diff --stat 39ee3ec..HEAD -- web/e2e web/playwright.config.ts` vazio, mais o build do CI passando) e o comando para o dono rodar.
 - As páginas da central são `force-dynamic` (herdado do layout raiz) e o pool é criado sob demanda: o build não toca banco. Prova: o `next build` do CI reproduzido sem `ADMIN_*`.
@@ -426,8 +430,8 @@ Criar:
 - `etl/civico_etl/admin/{__init__,cli,inventario,vinculos,rodadas,tentativas,relatorio,propostas,pendencias,decisoes,aplicar,parecer,executor,classes}.py`
 - `db/migrations/0150_admin_coleta.sql`, `db/migrations/0151_admin_central.sql`, `db/local/post_0003_admin_central.sql`
 - `etl/tests/retratos/*.json`, `etl/tests/fixtures/sapl_ale/*` (respostas fabricadas), `etl/tests/fixtures/admin_base.sql`, `etl/tests/banco_isolado.py`, `etl/tests/caracterizacao.py`, `etl/tests/admin_fixtures.py`
-- `etl/tests/test_{retrato_agenda,retrato_plano,orquestradores,catalogo,contrato_cadeia,codigos_saida,caracterizacao}.py`
-- `etl/tests/test_admin_{migracao,previa,rodada,tentativas,propostas,decisoes,chaves,sobrevive,leitor,fila,parecer,pedidos,relatorio}.py`
+- `etl/tests/test_{retrato_agenda,retrato_plano,orquestradores,catalogo_forma,catalogo,contrato_cadeia,codigos_saida,caracterizacao}.py`, `etl/tests/simulado.py`
+- `etl/tests/test_admin_{migracao,inventario,fixture_sapl,previa,rodada,tentativas,relatorio,propostas,fila,decisoes,sobrevive,leitor,classes,chaves,parecer,grants,pedidos}.py`
 - `web/src/app/(admin)/layout.tsx` e as rotas de 4.2; `web/src/components/admin/*`; `web/src/styles/admin.css`; `web/src/lib/admin/{guarda,db,consultas,agregacao,tipos}.ts`
 - `web/src/lib/__tests__/admin-agregacao.test.ts`, `web/src/lib/__tests__/admin-guarda.test.ts`
 - `web/e2e-admin/*.spec.ts`, `web/e2e-admin/sem-navegador.mjs`, `web/e2e-admin/sem-rede-externa.mjs`, `web/playwright.admin.config.ts`
@@ -488,7 +492,7 @@ Abreviações nos comandos de pronto: `PT <arquivos>` = `cd etl && [amb] uv run 
 | R9 entradas simples restantes | Haiku | `etl/civico_etl/catalogo/{coletores,comandos}.py` | `PT tests/test_catalogo_forma.py` | R8 |
 | R10 testes do catálogo e da cadeia (R-5, R-7) | Sonnet | `etl/tests/test_catalogo.py`, `etl/tests/test_contrato_cadeia.py` | `PT tests/test_catalogo.py tests/test_contrato_cadeia.py` e `[suite]` | R9 |
 | R11 documentação e R-10 | Haiku | `replica/admin-coleta.md`, `replica/fluxo-de-dados.md`, `replica/bugs.md` | `[fluxo]` | R10 |
-| Verificador da Parte R | Sonnet | só leitura; grava `verificacao/parte-r.md` na pasta de notas | o arquivo existe e traz veredito por critério R-7 e R-9 | R11 |
+| Verificador da Parte R | Sonnet | só leitura; grava `verificacao/parte-r.md` na pasta de notas (`$NOTAS`) | `test -s "$NOTAS/verificacao/parte-r.md" && grep -c -E 'R-7|R-9' "$NOTAS/verificacao/parte-r.md"` | R11 |
 
 Dependência dura: R1 a R6 saem do código de `39ee3ec` e são commitados antes de R7.
 
@@ -499,11 +503,11 @@ Dependência dura: R1 a R6 saem do código de `39ee3ec` e são commitados antes 
 | A1 migração 0150, medição do gatilho e citação das tabelas no fluxo | Sonnet | `db/migrations/0150_admin_coleta.sql`, `etl/tests/test_admin_migracao.py`, `replica/fluxo-de-dados.md` | `PT tests/test_admin_migracao.py`, `[suite]`, `[fluxo]` | fase R |
 | A2 variáveis de `http.py` e importação de tentativas | Sonnet | `etl/civico_etl/http.py`, `etl/civico_etl/admin/{__init__,tentativas}.py`, `etl/tests/test_admin_tentativas.py` | `PT tests/test_admin_tentativas.py tests/test_http_fetch.py` e `[suite]` | A1 |
 | A3 CLI `admin`, inventário e vínculos | Sonnet | `etl/civico_etl/cli.py`, `etl/civico_etl/admin/{cli,inventario,vinculos}.py`, `etl/tests/test_admin_inventario.py` | `PT tests/test_admin_inventario.py tests/test_orquestradores.py tests/test_catalogo.py` e `cd etl && [amb] uv run --frozen civico-etl admin inventario --json` com código 0 | A2 |
-| A4 fixture SAPL das Assembleias e de uma Câmara | Sonnet | `etl/tests/fixtures/sapl_ale/*`, `etl/tests/fixtures/admin_base.sql`, `etl/tests/admin_fixtures.py`, `etl/tests/test_admin_fixture_sapl.py` | `PT tests/test_admin_fixture_sapl.py` | A2 |
+| A4 fixture SAPL das Assembleias e de uma Câmara, e o lançador simulado | Sonnet | `etl/tests/fixtures/sapl_ale/*`, `etl/tests/fixtures/admin_base.sql`, `etl/tests/admin_fixtures.py`, `etl/tests/simulado.py`, `etl/tests/test_admin_fixture_sapl.py` | `PT tests/test_admin_fixture_sapl.py` e `[suite]` | A3 |
 | A5 prévia, rodada, repetição, reprocessamento | Sonnet | `etl/civico_etl/admin/{rodadas,cli}.py`, `etl/tests/test_admin_previa.py`, `etl/tests/test_admin_rodada.py` | `PT tests/test_admin_previa.py tests/test_admin_rodada.py` e `[suite]` | A3, A4 |
 | A6 relatório | Sonnet | `etl/civico_etl/admin/{relatorio,cli}.py`, `etl/tests/test_admin_relatorio.py` | `PT tests/test_admin_relatorio.py` e `[suite]` | A5 |
 
-A3 e A4 tocam arquivos disjuntos e podem rodar em paralelo; A4 recebe um banco próprio (`admin_coleta_2`).
+A fase A é toda em série: um banco só.
 
 ### Fase B (teto: 16)
 
@@ -513,9 +517,9 @@ A3 e A4 tocam arquivos disjuntos e podem rodar em paralelo; A4 recebe um banco p
 | B2 decisões, aplicação, overrides, `corrections` | Sonnet | `etl/civico_etl/admin/{decisoes,aplicar,cli}.py`, `etl/tests/test_admin_decisoes.py`, `etl/tests/test_admin_sobrevive.py`, `etl/tests/test_admin_leitor.py` | `PT tests/test_admin_decisoes.py tests/test_admin_sobrevive.py tests/test_admin_leitor.py` e `[suite]` | B1 |
 | B3 proponentes por classe e executor da fila de identidade | Sonnet | `etl/civico_etl/admin/{classes,aplicar,rodadas}.py`, `etl/tests/test_admin_classes.py` | `PT tests/test_admin_classes.py` e `[suite]` | B2 |
 | B4 duas chaves e parecer em ensaio | Sonnet | `etl/civico_etl/admin/{parecer,cli}.py`, `etl/tests/test_admin_chaves.py`, `etl/tests/test_admin_parecer.py` | `PT tests/test_admin_chaves.py tests/test_admin_parecer.py` e `[suite]` | B3 |
-| B5 primeira rodada, passos 1 a 5, e relatório | Sonnet | `replica/admin-coleta-primeira-rodada.md`, `replica/prompts/evidencias/primeira-rodada-*.txt` | `cd etl && [amb] uv run --frozen civico-etl admin relatorio <id> --json` com código 0, `cd etl && [amb] uv run --frozen civico-etl check` com código 0, e `[suite]` | B4 |
-| Verificador de 4, 5 e 11 | Sonnet | só leitura; grava `verificacao/parte-b-sonnet.md` | o arquivo existe com veredito por critério | B5 |
-| Verificador de 9 | Opus | só leitura; grava `verificacao/parte-b-opus.md` | idem | B5 |
+| B5 primeira rodada, passos 1 a 5, e relatório | Sonnet | `replica/admin-coleta-primeira-rodada.md`, `replica/prompts/evidencias/primeira-rodada.sh`, `replica/prompts/evidencias/primeira-rodada-*.txt` | `bash replica/prompts/evidencias/primeira-rodada.sh` com código 0 (o roteiro roda os cinco passos pelo lançador simulado, grava cada saída em `primeira-rodada-*.txt` e falha se algum passo falhar), `cd etl && [amb] uv run --frozen civico-etl check` com código 0, e `[suite]` | B4 |
+| Verificador de 4, 5 e 11 | Sonnet | só leitura; grava `verificacao/parte-b-sonnet.md` | `test -s "$NOTAS/verificacao/parte-b-sonnet.md" && grep -c -i 'critério' "$NOTAS/verificacao/parte-b-sonnet.md"` | B5 |
+| Verificador de 9 | Opus | só leitura; grava `verificacao/parte-b-opus.md` | `test -s "$NOTAS/verificacao/parte-b-opus.md" && grep -c -i 'critério 9' "$NOTAS/verificacao/parte-b-opus.md"` | B5 |
 
 ### Fase C (teto: 20)
 
@@ -527,11 +531,11 @@ A3 e A4 tocam arquivos disjuntos e podem rodar em paralelo; A4 recebe um banco p
 | C4 layout, guarda, rotas de API e citação das rotas no fluxo | Sonnet | `web/src/app/(admin)/layout.tsx`, `web/src/app/(admin)/admin/api/**`, `replica/fluxo-de-dados.md` | `[web]`, `[build]`, `[fluxo]` | C3 |
 | C5 mapa e estilos | Sonnet | `web/src/components/admin/mapa*.tsx`, `web/src/styles/admin.css` | `[web]` | C3 |
 | C6 páginas: painéis, fila, registros, ficha, rodadas, estados de tela | Sonnet | `web/src/app/(admin)/admin/**` (fora `api`), `web/src/components/admin/*` (fora `mapa*`) | `[web]` e `[build]` | C4, C5 |
-| C7 provas sem navegador | Sonnet | `web/e2e-admin/sem-navegador.mjs`, `web/e2e-admin/sem-rede-externa.mjs` | `node web/e2e-admin/sem-navegador.mjs` e `node web/e2e-admin/sem-rede-externa.mjs`, ambos com código 0 | C2, C6 |
-| C8 specs e configuração do Playwright | Sonnet | `web/e2e-admin/*.spec.ts`, `web/playwright.admin.config.ts`, `.gitignore` | `cd web && npx tsc --noEmit` e `cd web && npx playwright test -c playwright.admin.config.ts --list` com código 0 | C6 |
-| C9 primeira rodada, passos 6 a 9, pela API da central | Sonnet | `replica/admin-coleta-primeira-rodada.md`, `replica/prompts/evidencias/primeira-rodada-central-*.txt` | `node web/e2e-admin/sem-navegador.mjs --fluxo` com código 0 e `cd etl && [amb] uv run --frozen civico-etl admin pendencia <id> --json` mostrando a mesma decisão gravada pela API | C7 |
+| C7 provas sem navegador (inclui o modo `--fluxo`, que executa os passos 6 a 9 pela API e falha se a decisão lida pela CLI divergir da gravada pela API) | Sonnet | `web/e2e-admin/sem-navegador.mjs`, `web/e2e-admin/sem-rede-externa.mjs`, `.gitignore` (`web/.next-admin/`) | `cd web && [amb] node e2e-admin/sem-navegador.mjs` e `cd web && node e2e-admin/sem-rede-externa.mjs`, ambos com código 0 | C2, C6 |
+| C8 specs e configuração do Playwright | Sonnet | `web/e2e-admin/*.spec.ts`, `web/playwright.admin.config.ts` | `cd web && npx tsc --noEmit` e `cd web && npx playwright test -c playwright.admin.config.ts --list` com código 0 | C6 |
+| C9 primeira rodada, passos 6 a 9, pela API da central | Sonnet | `replica/admin-coleta-primeira-rodada.md`, `replica/prompts/evidencias/primeira-rodada-central-*.txt` | `cd web && [amb] node e2e-admin/sem-navegador.mjs --fluxo` com código 0, com a saída gravada em `replica/prompts/evidencias/primeira-rodada-central-fluxo.txt` | C7 |
 | C10 documentação final | Haiku | `replica/admin-coleta.md`, `replica/fluxo-de-dados.md` | `[fluxo]` | C9 |
-| Verificador da Parte C | Opus | só leitura; grava `verificacao/parte-c.md` | o arquivo existe com veredito para 15, 22, 23 e grants | C10 |
+| Verificador da Parte C | Opus | só leitura; grava `verificacao/parte-c.md` | `test -s "$NOTAS/verificacao/parte-c.md" && grep -c -E 'critério (15|22|23)|grant' "$NOTAS/verificacao/parte-c.md"` | C10 |
 
 C4 e C5 tocam arquivos disjuntos e podem rodar em paralelo. C2 (Python) pode rodar em paralelo a C3.
 
@@ -541,6 +545,7 @@ Teto por fase (construção, retentativas e verificação somadas): R 16, A 14, 
 
 | # | Premissa | Se estiver errada |
 | --- | --- | --- |
+| P0 | O plano foi reprovado nas duas verificações previstas (a segunda por comando de pronto não executável em quatro linhas e por três furos no modo sem rede). Os achados das duas foram corrigidos nesta versão. O prompt limita a reverificação a uma, então esta versão não passou por um terceiro verificador (`AC-06`) | o verificador da Parte R é o primeiro a conferir o que a correção final mudou |
 | P1 | A sessão roda em Fable 5.2, não em Opus; mantenho o papel de orquestrador | nada muda no plano |
 | P2 | Rede: o sandbox nega saída por padrão. A primeira rodada usa respostas do SAPL fabricadas e sai marcada SIMULADO, item por item. Não peço exceção por host: a carga real das cinco Assembleias leva até 2 h e grava volume alto | o dono roda os mesmos comandos com rede; o relatório traz o comando |
 | P3 | Playwright não roda nesta sessão (4c): 21 e 26 "não executado"; 15, 19, 20, 22, 23, 24 por prova sem navegador | se o dono instalar o navegador e rodar fora do sandbox, os specs entregues cobrem 21 e 26 |

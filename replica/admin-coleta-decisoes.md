@@ -55,3 +55,14 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Consequências: 21 e 26 "não executado". O 25 depende do conjunto ponta a ponta público, que também não roda: sai como "não atendido" na parte de execução, com o critério substituto (`git diff` vazio em `web/e2e` e `web/playwright.config.ts`, mais `next build` do CI passando). 15, 19, 20, 22, 23 e 24 têm prova por `next start` e requisição HTTP, sem navegador.
 - Materializa: seção 4c do plano.
 - Desfazer: não se aplica. O dono roda `cd web && npx playwright install chromium chromium-headless-shell && npx playwright test && npx playwright test -c playwright.admin.config.ts` fora do sandbox.
+
+## AC-06 · Plano segue depois de duas reprovações, com os achados corrigidos
+
+- Data e fase: 2026-11-15, plano.
+- Em jogo: o primeiro verificador reprovou o plano (4 bloqueantes, 14 não bloqueantes). Corrigi e reverifiquei com outro agente, que reprovou de novo: comando de pronto não executável nas linhas dos verificadores e na tarefa C9, e três furos no modo sem rede (`robots.txt` com 404 não entra no cache; exceção fora de `Exception` deixava o run `running`; a entrada fabricada não chegava ao subprocesso). Nenhum achado apontou violação de restrição crítica.
+- Opções: (a) terceira verificação; (b) corrigir os achados e seguir, como o prompt determina ("corrija e reverifique uma vez").
+- Escolha: (b). Todos os achados bloqueantes e não bloqueantes das duas rodadas foram corrigidos no plano; nenhuma objeção foi mantida.
+- Objeção registrada sem mudança de desenho, citada do segundo verificador: "Os gatilhos em tabelas existentes não são 'tabelas e colunas novas': o plano os declara aditivos (P4/AC-03) e deixa a alternativa (a). Fica como risco de interpretação." Mantida como risco em AC-03; o verificador não a classificou como violação.
+- Limite: a versão final do plano não foi lida por verificador independente. O verificador da Parte R é o primeiro a conferir o que ela mudou.
+- Materializa: `replica/admin-coleta-plano.md`; relatórios em `verificacao/plano-v1.md` e `verificacao/plano-v2.md`, na pasta de notas da sessão.
+- Desfazer: não se aplica.
