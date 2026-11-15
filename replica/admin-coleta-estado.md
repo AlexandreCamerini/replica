@@ -46,13 +46,24 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 ## Fase e tarefas
 
-- Fase: preparo. Plano ainda não gravado. Nenhum código, nenhuma migração.
-- Subagentes lançados: 1 (consulta à documentação do sandbox, fora das fases).
-- Critérios passando: nenhum avaliado.
-- Decisões abertas: nenhuma. Último `AC-NN` usado: nenhum. Última migração existente: `0142`.
+- `next build` nas condições do CI: passa (linha de base). Playwright não roda nesta sessão (AC-05).
+- Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a`. Reprovado nas duas verificações; achados corrigidos; sem terceira verificação (AC-06). Relatórios em `verificacao/plano-v1.md` e `plano-v2.md`, na pasta de notas.
+- Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-06. Último `AC-NN`: AC-06. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
+- Fase: R, recém-iniciada. Nenhum código de produto escrito. Nenhum critério avaliado.
+- Subagentes lançados: 8 antes das fases (1 consulta de sandbox, 5 levantamentos, 2 verificadores do plano); fase R: 3 de 16.
+
+Tarefas da fase R em voo quando a sessão parou por limite de uso (2026-11-15). Nenhuma foi conferida nem commitada:
+
+| Tarefa | Modelo | Arquivos permitidos | Situação |
+| --- | --- | --- | --- |
+| R1 retratos da agenda | Haiku | `etl/tests/test_retrato_agenda.py`, `etl/tests/retratos/agenda.json` | em voo, não conferida |
+| R2 retrato do plano e códigos de saída | Sonnet | `etl/tests/test_retrato_plano.py`, `etl/tests/retratos/plano.json`, `etl/tests/test_codigos_saida.py` | em voo, não conferida |
+| R3 orquestradores | Sonnet | `etl/tests/test_orquestradores.py` | em voo, não conferida |
+
+Na retomada: esses arquivos podem existir no worktree, completos ou pela metade. Não aproveitar sem conferir: `git status --porcelain` contra a lista acima, ler o teste, rodar o comando de pronto do plano. Se a devolução do subagente não estiver disponível, refazer a tarefa.
 
 ## Próximo passo
 
-1. `next build` nas condições do CI e conjunto ponta a ponta público (linha de base do critério 25; decide se 21 e 26 são executáveis).
-2. Exploração por subagentes de leitura, em paralelo.
-3. Plano em `replica/admin-coleta-plano.md`, verificador independente, correção.
+1. Conferir e commitar R1, R2 e R3 (ou refazer).
+2. R4 (banco isolado e caracterização de `camara.equipe`), depois R5 e R6; só então R7 em diante (catálogo).
+3. Seguir o plano, seção 7.
