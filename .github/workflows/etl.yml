@@ -7,7 +7,8 @@
 # catálogo D06 (segunda leitura noturna, ter–sáb, hora de Brasília = UTC-3): Senado 00:30–02:00 (UTC 03:30–05:00), Câmara 05:00–07:00 (UTC 08:00–10:00).
 # O cron "17 */3" cai em 00:17 e 03:17 BRT, fora da janela do Senado; por isso as duas linhas a mais. Os dois disparos
 # ficam 1 min depois da abertura (D315): antes dela o run não lê nada, e o GitHub só atrasa, nunca adianta. Folga para o atraso: 89 min no Senado e
-# 119 min na Câmara. Em 13 e 14/11/2026 o cron de 3 h atrasou 85 min e pulou disparos; atraso maior que a folga ainda perde a janela. As constantes de "17 */3" repetem-se em schedule.py (TICK_*) e web/src/lib/sources.ts; test_schedule.py confere.
+# 119 min na Câmara. Em 13 e 14/11/2026 o cron de 3 h atrasou 85 min e pulou disparos. Atraso maior que a folga perde a janela, mas não a leitura (D318):
+# a chamada seguinte, em qualquer um dos três crons, repõe a janela fechada sem leitura (schedule.is_due) e só alerta se a reposição falhar. As constantes de "17 */3" repetem-se em schedule.py (TICK_*) e web/src/lib/sources.ts; test_schedule.py confere.
 # O cache de downloads (etl/.cache) é preservado entre execuções para o TSE e o SAPL não baixarem tudo de novo.
 # SAPL das câmaras (sapl.todas, ~150 min por dia) NÃO roda aqui: minutos do Actions em repositório privado são pagos (D274). Roda no Mac do dono por
 # launchd (etl/deploy/launchd-sapl-prod.sh). ETL_TASKS_EXCLUDE tira a tarefa desta chamada e a fonte "sapl" do alerta de prazo daqui. Quem acusa a parada
