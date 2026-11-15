@@ -43,6 +43,9 @@ const ROTAS: Rota[] = [
   { nome: "decisoes-leis", url: "/decisoes?aba=leis" },
   { nome: "pessoas-grupo", url: "/pessoas?cidade=3509502&grupo=vereadores" },
   { nome: "pessoas-filtro", url: "/pessoas?cargo=senador&uf=SP" },
+  // começo em dois passos (D324): estado (e cidade) e marcar pessoas. Com o leitor (sv_uf=SP) o passo 2 lista o estado.
+  { nome: "comecar-1", url: "/comecar" },
+  { nome: "comecar-2", url: "/comecar?passo=2" },
   { nome: "404-decisao", url: "/decisao/nao-existe", status: 404 },
 ];
 const STATUS = new Map(ROTAS.map((r) => [r.url, r.status ?? 200]));
@@ -480,7 +483,7 @@ const GEOMETRIA = new Set(["width", "height", "inline-size", "block-size", "pers
 type Snap = { chave: string; props: Record<string, string> }[];
 
 test.describe("neutralidade", () => {
-  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r));
+  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro", "comecar-2"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r));
   for (const r of ROTAS_PESSOAS) {
     test(`trocar nomes e siglas: 0 diferenças de estilo, pseudo-elementos e ordem: ${r.nome} [leitor]`, async ({ page, context }, info) => {
       await cookiesDoLeitor(context, "leitor");
@@ -736,7 +739,8 @@ test.describe("conteúdo", () => {
   test("'Exemplo ilustrativo' presente no modo demo nas telas com dado fictício", async ({ page, context }) => {
     await cookiesDoLeitor(context, "leitor");
     const falhas: string[] = [];
-    const comDado = ROTAS.filter((r) => !["como-funciona", "ajustes", "404-decisao"].includes(r.nome));
+    // o passo 1 do começo só tem a lista de estados (dado real do IBGE) e formulários: não há dado fictício a etiquetar
+    const comDado = ROTAS.filter((r) => !["como-funciona", "ajustes", "404-decisao", "comecar-1"].includes(r.nome));
     for (const r of comDado) {
       await abrir(page, r.url);
       const t = await page.locator(".sv").innerText();
@@ -751,9 +755,16 @@ test.describe("conteúdo", () => {
     const t = await page.locator(".sv-main").innerText();
     expect(t).toContain("Aguardando conferência");
     expect(t).not.toContain("O texto oficial não trata disso.");
-    // todo campo sem resposta é lacuna nomeada, não frase afirmativa
-    await expect(page.locator('[aria-labelledby="sv-d1"] .sv-lac')).toContainText("Aguardando conferência");
-    await expect(page.locator('[aria-labelledby="sv-d5"] .sv-lac')).toContainText("Aguardando conferência");
+    // D324: sem resposta publicada, um aviso só (lacuna nomeada, não frase afirmativa) no lugar das caixas de cada campo
+    expect(t.match(/Aguardando conferência/g), "um aviso só").toHaveLength(1);
+    await expect(page.locator('[aria-labelledby="sv-d3"] .sv-lac')).toContainText("Aguardando conferência");
+    await expect(page.locator(".sv-main .sv-lac", { hasText: /Aguardando conferência|Ainda não conseguimos conferir/ })).toHaveCount(1);
+    // os quadros que só teriam a resposta conferida não aparecem vazios
+    await expect(page.locator('[aria-labelledby="sv-d5"]')).toHaveCount(0);
+    for (const q of ["Quanto muda na conta?", "Quem paga?", "Quem é afetado?"]) await expect(page.getByRole("heading", { name: q })).toHaveCount(0);
+    // etapa, quem decide, autoria, votos e texto oficial continuam, numerados sem pular
+    for (const q of ["O que é isso?", "Já vale?", "Quem decide agora?", "Quem propôs?", "Onde está?", "Como votou quem eu elegi?", "Onde eu confiro?"]) await expect(page.getByRole("heading", { name: q }), q).toBeVisible();
+    expect(await page.locator(".sv-pg--decisao .sv-n").allInnerTexts()).toEqual(["1", "2", "3", "4", "5", "6", "7", "8"]);
     // sem resposta publicada, o selo não afirma quem conferiu
     const selo = page.locator('[aria-labelledby="sv-d10"]');
     await expect(selo).toContainText("Esta proposta ainda não tem resposta publicada.");

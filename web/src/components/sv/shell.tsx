@@ -5,6 +5,7 @@ import { NavLink } from "./shell-client";
 
 // Casco da D2: link "pular", topo (marca + UF + "trocar estado"), navegação em duas camadas, rodapé. Server component, sem JS
 // essencial: a navegação fica sempre visível (sem menu hambúrguer). O layout lê o cookie e passa a UF por prop.
+// Abaixo de 900px as duas camadas viram uma linha só, que rola na horizontal (sv.css, bloco "casco"): o topo cabe em 130px.
 
 /** As duas perguntas principais. */
 const PRINCIPAIS = [
@@ -12,14 +13,16 @@ const PRINCIPAIS = [
   { href: "/acompanhando", label: "O que meus escolhidos estão fazendo?" },
 ] as const;
 
-/** Linha "Também:". */
+/** Linha "Também:". "Pessoas" e "Votações" entraram aqui na D324: antes só estavam no rodapé. */
 const TAMBEM = [
   { href: "/decisoes", label: "O que mexe comigo?" },
   { href: "/temas", label: "O que está em jogo?" },
+  { href: "/pessoas", label: "Pessoas" },
+  { href: "/votacoes", label: "Votações" },
   { href: "/ajustes", label: "Ajustes" },
 ] as const;
 
-/** Rotas que a D2 não redesenhou: ficam acessíveis no rodapé. */
+/** Rodapé: repete "Votações" e "Pessoas" (também estão no topo) e traz "Como funciona". */
 const ROTAS = [
   { href: "/votacoes", label: "Votações" },
   { href: "/pessoas", label: "Pessoas" },
@@ -43,7 +46,10 @@ export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boo
           <p className="sv-uf">
             {uf ? (
               <>
-                {uf.nome} ({uf.sigla}) · <Link href="/ajustes">trocar estado</Link>
+                {/* no celular só a sigla aparece; o nome completo continua no texto (leitor de tela) */}
+                <span className="sv-uf__n">{uf.nome} (</span>
+                {uf.sigla}
+                <span className="sv-uf__n">)</span> · <Link href="/ajustes">trocar estado</Link>
               </>
             ) : ufFalhou ? (
               <>
