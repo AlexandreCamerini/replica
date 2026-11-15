@@ -2,6 +2,8 @@
 # GitHub e não depende de nenhum secret, bate no site em produção e falha se as fontes essenciais (Câmara, Senado, pauta e SAPL das câmaras, que roda fora do Actions)
 # estiverem velhas. Job vermelho = e-mail do GitHub para quem mantém o workflow (Settings > Notifications > Actions).
 # Limites e estados: web/src/lib/data/health.ts. Sem actions de terceiros (só curl e jq da imagem), então não há SHA a fixar.
+# Este job roda no Actions: se o Actions parar (cobrança, cota de minutos), ele para junto com o ETL e não avisa (D312). O segundo vigia, fora daqui,
+# é o Vercel Cron em web/vercel.json -> /api/cron/vigia (D319), com a mesma régua e aviso por webhook. Os dois ficam: horários afastados 12 h.
 # URL: variável de repositório VIGIA_URL (padrão abaixo). Atenção: o GitHub desliga cron de repositório sem atividade por 60 dias.
 name: vigia · frescor das fontes
 
