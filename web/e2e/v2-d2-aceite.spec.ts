@@ -1239,10 +1239,18 @@ test.describe("listas sem truncar em silêncio", () => {
     const aut = page.locator(".sv-aut > li");
     await expect(aut).toHaveCount(20);
     await expect(page.locator("body")).toContainText("Mostrando 20 de 23 autores que lemos");
-    // autoria principal primeiro, depois ordem alfabética
+    // autoria principal primeiro, depois ordem alfabética. No fixture o campo legado `authors` (ordem de assinatura) tem
+    // outra ordem e outros 20: se a tela voltar a listá-lo sob esta nota, as duas conferências abaixo falham.
     await expect(aut.first()).toContainText("autoria principal");
     const resto = (await aut.allInnerTexts()).slice(1).map((t) => t.replace(/\s*coautoria\s*$/, "").trim());
-    expect(resto).toEqual([...resto].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    expect(resto, "a lista segue a ordem que a nota declara").toEqual([...resto].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    // o v1 segue lendo o campo legado: lá os coautores vêm na ordem inversa, e os primeiros por nome ficam de fora
+    const v1 = await page.goto("/proposta/camara-pl-9996-2026");
+    expect(v1?.status(), "o v1 da proposta responde").toBe(200);
+    const legado = (await page.locator("li", { hasText: "· coautoria" }).allInnerTexts()).map((t) => t.replace(/\s*·\s*coautoria\s*$/, "").trim());
+    expect(legado, "o v1 lista 19 coautores").toHaveLength(19);
+    expect(legado, "o v1 segue na ordem do campo legado").toEqual([...legado].sort((a, b) => b.localeCompare(a, "pt-BR")));
+    expect(resto.filter((n) => !legado.includes(n)).length, "os 20 do campo legado não são os 20 da lista alfabética").toBeGreaterThan(0);
   });
 
   test("Decisão: lista que cabe inteira não diz 'mostrando'", async ({ page }) => {
@@ -1324,6 +1332,27 @@ test.describe("estados das sete telas", () => {
     await abrir(page, "/pessoas?cidade=3509502&grupo=vereadores&simular=erro");
     await expect(page.locator('[aria-labelledby="pp-lugar"]')).toContainText(FALHOU);
     await expect(page.locator(".sv h1")).toHaveText("Quem está no cargo?");
+  });
+
+  test("leitura principal que falha vira lacuna nomeada, nunca 500 (Pessoa e subrotas, Decisão, Temas)", async ({ page }) => {
+    // Pessoa, Gastos, Equipe, Votos e Decisão: a página inteira é a lacuna (200), com o caminho de volta
+    const inteiras = ["/pessoa/helena-siqueira", "/pessoa/helena-siqueira/gastos", "/pessoa/helena-siqueira/equipe", "/pessoa/helena-siqueira/votos", `/decisao/${KEY_RESPONDIDA}`];
+    for (const url of inteiras) {
+      const resp = await page.goto(`${url}?simular=erro_pagina`);
+      expect(resp?.status(), url).toBe(200);
+      await expect(page.locator('[aria-labelledby="falha-1"]'), url).toContainText(FALHOU);
+      await expect(page.locator(".sv-main"), url).toContainText("Isso não quer dizer que o registro não existe");
+      // a mesma rota sem a simulação não é a tela de falha: o teste distingue a guarda da página normal
+      await abrir(page, url);
+      await expect(page.locator('[aria-labelledby="falha-1"]'), url).toHaveCount(0);
+    }
+    // Temas: só o quadro dos assuntos vira lacuna; a pauta da semana segue na página
+    const resp = await page.goto("/temas?simular=erro_pagina");
+    expect(resp?.status()).toBe(200);
+    const assuntos = page.locator('[aria-labelledby="tm-assuntos"]');
+    await expect(assuntos).toContainText(FALHOU);
+    await expect(assuntos).not.toContainText("Ainda não temos esse dado");
+    await expect(page.locator(".sv h1")).toHaveText("O que está em jogo no Congresso?");
   });
 
   test("Decisões: o último dia da semana é o anterior a weekEnds; 'Aguardando conferência' só sem resposta publicada", async ({ page }) => {
