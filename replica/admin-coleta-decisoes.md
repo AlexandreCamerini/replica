@@ -126,3 +126,22 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Contagem da fase A: 6 subagentes de um teto de 14 (A1 a A6, todos Sonnet). A6 foi retomada uma vez para corrigir a definição acima e a marca SIMULADO; conto como uma reprovação por defeito do briefing. Nenhuma subiu de modelo. O orquestrador fez três ajustes pequenos: URL da fonte `curadoria` na migração antes de aplicá-la, um teste da A3 que fixava o conjunto exato de subcomandos, e `etl/admin-rodadas/` no `.gitignore`.
 - Critérios com teste passando ao fim da fase A: 1, 3, 4 (vínculos, tabelas de domínio e tentativas; propostas entram na fase B), 5, 6. Critério 2: suíte com 1.119 passando, os mesmos 33 pulos e 4 xfail da linha de base, nenhum teste novo pulado.
 - Desfazer: `git revert` dos commits `068e2c6` a este; a migração `0150` já aplicada no banco local não volta só com o revert.
+
+## AC-12 · Como a rodada propõe mudança, e o gatilho passa a anotar o que o job tentou gravar
+
+- Data e fase: 2026-11-16, fase B, tarefas B2 e B3a.
+- Em jogo: o job do SAPL grava direto em `sapl_houses` e `data_coverage`. O módulo não pode impedir nem editar o job. De onde sai a proposta de mudança, e como uma pendência decidida reabre quando a fonte volta a divergir do valor decidido.
+- Opções para a origem da proposta: (a) reinterpretar a resposta da fonte dentro do módulo, repetindo a regra do job; (b) comparar o registro antes e depois da execução do coletor.
+- Escolha: (b). Campo sem override: a proposta registra a mudança que o job já fez (valor de antes, valor de depois, evidência da rodada), e a pendência pergunta se procede. Registro que não existia antes é primeiro preenchimento, não proposta.
+- Opções para o campo com override: (a) aceitar que o valor tentado pelo job se perde; (b) migração nova `0151` em que o gatilho anota no override o último valor que o job tentou gravar quando ele difere do decidido.
+- Escolha: (b). Sem isso, um valor decidido nunca mais seria confrontado com a fonte.
+- Motivo: (a) da primeira escolha duplicaria regra de coletor, o que a restrição 5 proíbe; (b) usa só o que o job efetivamente gravou.
+- Consequência: a migração `0151` é a segunda deste trabalho; a do role da central passa a ser `0152`. A `0151` troca duas funções criadas na `0150` por `create or replace`, sem editar o arquivo da `0150`.
+- Decisões menores da B2, mantidas:
+  - `aprovar` com fontes divergentes é recusado: a pessoa usa `corrigir` com o valor escolhido. O sistema não escolhe.
+  - `corrections` (tabela pública, hoje sem leitor no site) recebe linha só quando a decisão aplicada troca um valor que já existia, o campo tem leitor no site e há proposta com URL de fonte para o valor decidido. O campo `reason` recebe a justificativa escrita por quem decidiu. Ponto para o dono: esse texto vai para uma tabela pública.
+  - Contato que já existe com fonte `camara` ou `senado` e é aprovado como está não troca de fonte. Se a casa parar de publicar, ele some na carga seguinte. Trocar a fonte para `curadoria` perderia a proveniência.
+  - Valor de contato suprimido não volta: não há decisão que levante a supressão.
+  - Correção de premissa do prompt: `sapl_houses.base_url` tem leitor no site (`getCityCouncil` e `getPeopleCoverage` em `web/src/lib/data/pg.ts`). Só `getAssembly` não a lê.
+- Materializa: commits `565c687` (B2) e o da B3a; `db/migrations/0151_admin_coleta_colisoes.sql`.
+- Desfazer: `git revert` desses commits. A `0151` aplicada no banco local não volta só com o revert: `alter table adm_overrides drop column tentou_valor, drop column tentou_em, drop column tentou_vezes` e reaplicar as duas funções da `0150`.

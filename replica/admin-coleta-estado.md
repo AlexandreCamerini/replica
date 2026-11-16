@@ -51,9 +51,9 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 - Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
 - Fase R: concluída e verificada (AC-08). 16 subagentes de um teto de 16. A linha da R11 abaixo cita o commit em que a decisão ainda se chamava D324; ela foi renumerada para D325 em `97c7930`.
 - Fase A: concluída (AC-11). 6 subagentes de um teto de 14. Commits: A1 `068e2c6`, A2 `9085621`, A3 `ae681ac`, A4 `1737029`, A5 `9900a7b`, A6 no commit seguinte a este estado.
-- Fase B: iniciada. Subagentes da fase: 1 de 16 (B1 em voo: `etl/civico_etl/admin/{propostas,pendencias,classes,cli}.py`, `etl/tests/test_admin_{propostas,fila}.py`).
+- Fase B: em andamento. Subagentes da fase: 3 de 16. Aceitas: B1 (propostas, pendências, fila; critérios 7, 8, 10, 13) `16fa1a9`; B2 (decisões, aplicação, overrides, `corrections`; critérios 11, 12) `565c687`. Em voo: B3a (proponente de SAPL e cobertura; migração `0151` com a anotação do valor tentado; AC-12): `db/migrations/0151_admin_coleta_colisoes.sql`, `etl/civico_etl/admin/{proponentes,rodadas,propostas}.py`, `etl/tests/test_admin_{proponentes,migracao}.py`. A `0151` ainda NÃO foi aplicada em `admin_coleta`: aplicar depois de ler o SQL.
 - Incidente AC-09: duas rodadas de teste da A2 caíram no banco `civico` (vazio, 0 tabelas, sem dano). Todo briefing passa a exigir o prefixo de banco literal em cada linha.
-- Suíte ao fim da fase A: `1119 passed, 33 skipped, 4 xfailed`, em cerca de 97 s. `civico-etl check`: as mesmas 5 invariantes da linha de base.
+- Suíte depois da B2: `1183 passed, 33 skipped, 4 xfailed`, entre 100 e 160 s. `civico-etl check`: as mesmas 5 invariantes da linha de base.
 
 | Tarefa | Modelo | Situação | Reprovações | Commit |
 | --- | --- | --- | --- | --- |
@@ -82,6 +82,8 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 ## Próximo passo
 
-1. Conferir e commitar B1 (propostas, pendências, reabertura, fila: critérios 7, 8, 10, 13).
-2. B2 (decisões, aplicação, overrides, `corrections`: critérios 11, 12), B3 (proponentes por classe e executor da fila de identidade), B4 (duas chaves e parecer em ensaio: critérios 9, 22), B5 (primeira rodada, passos 1 a 5, pelo lançador simulado).
-3. Verificadores da Parte B: Sonnet (critérios 4, 5, 11) e Opus de contexto limpo (critério 9).
+1. Conferir B3a, ler e aplicar a migração `0151` em `admin_coleta`, rodar a suíte, commitar.
+2. B3b (proponentes de contato do mandato e de identidade; pendência de duplicata a partir de `identity_dedupe.PAIRS_SQL`).
+3. B4 (matriz das duas chaves e parecer em ensaio: critérios 9 e 22), B5 (primeira rodada, passos 1 a 5, pelo lançador simulado).
+4. Verificadores da Parte B: Sonnet (critérios 4, 5, 11) e Opus de contexto limpo (critério 9).
+5. Fase C: a migração do role da central passa a ser `0152`.
