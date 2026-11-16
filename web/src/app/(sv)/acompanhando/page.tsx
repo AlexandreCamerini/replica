@@ -13,9 +13,9 @@ export const metadata: Metadata = { title: "O que meus escolhidos estão fazendo
 
 export default async function Acompanhando({ searchParams }: { searchParams: Promise<{ simular?: string | string[] }> }) {
   const slugs = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
-  // `?simular=erro|erro_dados` só vale na demonstração (simular.ts)
+  // `?simular=erro|erro_dados|atos_repetidos` só vale na demonstração (simular.ts)
   const sim = simulacao((await searchParams).simular);
-  const { pessoas, recentes, recentesFalhou, falhas, naoEncontradas, lidoEm } = await carregarEscolhidos(slugs, { pessoa: sim === "erro", dados: sim === "erro_dados" });
+  const { pessoas, recentes, recentesFalhou, falhas, naoEncontradas, lidoEm } = await carregarEscolhidos(slugs, { pessoa: sim === "erro", dados: sim === "erro_dados", atosRepetidos: sim === "atos_repetidos" });
   // "Você ainda não marcou ninguém." só com o cookie vazio; quem marcou e não foi lido vira lacuna nomeada
   const semCookie = slugs.length === 0;
   const vazio = pessoas.length === 0;
