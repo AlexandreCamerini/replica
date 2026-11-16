@@ -540,4 +540,6 @@ main:has(.sv){padding-bottom:0}
 @media (min-width:900px){
   .sv .sv-filtro{grid-template-columns:minmax(0,5fr) minmax(0,4fr) minmax(0,3fr) auto;grid-auto-flow:column;grid-template-rows:auto auto;align-items:end}
   .sv .sv-filtro .sv-enviar{margin-top:0;grid-row:2}
+  /* quatro campos (D328: partido, cargo, estado e nome em /pessoas) */
+  .sv .sv-filtro.sv-filtro--4{grid-template-columns:repeat(3,minmax(0,3fr)) minmax(0,4fr) auto}
 }

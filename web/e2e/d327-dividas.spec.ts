@@ -86,7 +86,8 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
     const ctx = await browser.newContext({ baseURL: info.project.use.baseURL as string, javaScriptEnabled: false, locale: "pt-BR" });
     await ctx.addCookies([uf("SP"), sigo(Array.from({ length: 12 }, (_, i) => `pessoa-que-sumiu-${i}`))]);
     const page = await ctx.newPage();
-    await page.goto("/pessoas");
+    // D328: a lista (e os botões) só aparece com um filtro do eleitor
+    await page.goto("/pessoas?cargo=deputado_estadual");
     const status = page.locator(".sv-pp__m [role=status]");
     await expect(status).toContainText("Nenhuma das 12 pessoas que você marcou aparece nos dados de hoje.");
     await expect(status).toContainText("tire as que não entram na conta para abrir lugar");
@@ -100,7 +101,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
 
   test("marcar uma pessoa na lista soma uma à conta de quem existe", async ({ page, context }) => {
     await context.addCookies([uf("SP"), sigo(["pessoa-que-sumiu"])]);
-    await page.goto("/pessoas");
+    await page.goto("/pessoas?cargo=deputado_estadual");
     const status = page.locator(".sv-pp__m [role=status]");
     await expect(status).toContainText("A pessoa que você marcou não aparece nos dados de hoje.");
     await page.locator(".sv-pp__f button[aria-pressed=false]").first().click();

@@ -46,6 +46,9 @@ const ROTAS: Rota[] = [
   // começo em dois passos (D324): estado (e cidade) e marcar pessoas. Com o leitor (sv_uf=SP) o passo 2 lista o estado.
   { nome: "comecar-1", url: "/comecar" },
   { nome: "comecar-2", url: "/comecar?passo=2" },
+  // D328: a lista só aparece depois do filtro do eleitor; estas rotas mostram a lista filtrada por partido
+  { nome: "pessoas-partido", url: "/pessoas?partido=aur" },
+  { nome: "comecar-2-partido", url: "/comecar?passo=2&partido=aur" },
   { nome: "404-decisao", url: "/decisao/nao-existe", status: 404 },
 ];
 const STATUS = new Map(ROTAS.map((r) => [r.url, r.status ?? 200]));
@@ -483,7 +486,7 @@ const GEOMETRIA = new Set(["width", "height", "inline-size", "block-size", "pers
 type Snap = { chave: string; props: Record<string, string> }[];
 
 test.describe("neutralidade", () => {
-  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro", "comecar-2"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r));
+  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro", "comecar-2", "pessoas-partido", "comecar-2-partido"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r));
   for (const r of ROTAS_PESSOAS) {
     test(`trocar nomes e siglas: 0 diferenças de estilo, pseudo-elementos e ordem: ${r.nome} [leitor]`, async ({ page, context }, info) => {
       await cookiesDoLeitor(context, "leitor");
@@ -1397,7 +1400,8 @@ test.describe("estados das sete telas", () => {
   });
 
   test("Pessoas: página truncada dita; Tema diz a janela de leitura", async ({ page }) => {
-    await abrir(page, "/pessoas");
+    // D328: a lista só aparece com um filtro do eleitor (partido, cargo ou nome)
+    await abrir(page, "/pessoas?cargo=deputado_estadual");
     await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText(/Esta página mostra 60 de [\d.]+\./);
     await expect(page.locator(".sv-pp > li")).toHaveCount(60);
     await abrir(page, "/tema/agro");
@@ -1406,13 +1410,13 @@ test.describe("estados das sete telas", () => {
 
   test("Pessoas: página inválida é entrada inválida, não falha da fonte", async ({ page }) => {
     for (const p of ["Infinity", "1e308", "1.5", "-3", "abc", "1234567"]) {
-      await abrir(page, `/pessoas?pagina=${encodeURIComponent(p)}`);
+      await abrir(page, `/pessoas?cargo=deputado_estadual&pagina=${encodeURIComponent(p)}`);
       const q = page.locator('[aria-labelledby="pp-2"]');
       await expect(q, p).not.toContainText(FALHOU);
       await expect(q, p).toContainText("O endereço pedia uma página que não existe. Mostramos o começo da lista.");
       await expect(page.locator(".sv-pp > li"), p).toHaveCount(60);
     }
-    await abrir(page, "/pessoas?pagina=999999");
+    await abrir(page, "/pessoas?cargo=deputado_estadual&pagina=999999");
     await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText("Esta página fica depois do fim da lista.");
   });
 
