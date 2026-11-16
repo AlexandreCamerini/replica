@@ -29,6 +29,7 @@ from . import aplicar as apl
 from . import decisoes as dec
 from . import inventario as inv
 from . import pendencias as pen
+from . import proponentes as pro
 from . import propostas as prop
 from . import relatorio as rel
 from . import rodadas as rod
@@ -389,6 +390,25 @@ def _run_aplicar(conn: Any, a: argparse.Namespace) -> Resultado:
     return {"decisoes": itens, "totais": {"aplicadas": ap, "nao_aplicadas": ruins}}, txt, ap > 0, 1 if ruins else 0
 
 
+# ------------------------------------------------------------------ identidade (B3b): o executor da fila de identidade
+
+
+def _cfg_identidade(p: argparse.ArgumentParser) -> None:
+    p.add_argument("acao", choices=["propor"], help="propor: leva à revisão os itens pendentes de identity_match_queue que têm pessoa candidata (grava só em adm_propostas e adm_pendencias)")
+    p.add_argument("--limite", type=int, metavar="N", help="só os N itens pendentes mais antigos")
+
+
+def _run_identidade(conn: Any, a: argparse.Namespace) -> Resultado:
+    if a.limite is not None and a.limite < 1:
+        raise _Uso("--limite espera um inteiro maior que zero")
+    r = pro.propor_identidade(conn, limite=a.limite)
+    d = r.para_dict()
+    txt = lista_chave_valor([("novas", len(r.novas)), ("repetidas", r.repetidas), ("sem candidato", len(r.identidade_sem_candidato)), ("sem evidência", len(r.sem_evidencia)),
+                             ("recusadas", len(r.recusadas)), ("pendências abertas", len(r.pendencias_abertas)), ("pendências reabertas", len(r.pendencias_reabertas)),
+                             ("duplicatas abertas", r.duplicatas["abertas"]), ("pares na regra de duplicata (não abertos)", r.duplicatas["pares_na_regra_existente"])])
+    return d, txt, True, 1 if r.recusadas else 0
+
+
 class _Uso(Exception):
     """Combinação de opções inválida: sai com 2, como um erro do argparse."""
 
@@ -403,6 +423,7 @@ SUBCOMANDOS: dict[str, Subcomando] = {s.nome: s for s in (
     Subcomando("fila", "pendências abertas na ordem da fila: classe, tipo, vencimento, cobertura do recorte (nunca por pessoa ou partido)", _cfg_fila, _run_fila),
     Subcomando("pendencia", "detalhe de uma pendência (ID) ou `reavaliar` as decididas cujo valor vigente mudou", _cfg_pendencia, _run_pendencia),
     Subcomando("decidir", "registra a decisão de uma pessoa sobre uma pendência (aprovar, corrigir, descartar, pedir_confirmacao); --aplicar aplica em seguida", _cfg_decidir, _run_decidir),
+    Subcomando("identidade", "leva à revisão os itens pendentes da fila de identidade que têm pessoa candidata (`identidade propor`); a decisão e a aplicação são `decidir` e `aplicar`", _cfg_identidade, _run_identidade),
     Subcomando("aplicar", "aplica às tabelas de domínio as decisões aprovadas e ainda não aplicadas (agentes só com as duas chaves ligadas)", _cfg_aplicar, _run_aplicar),
 )}
 

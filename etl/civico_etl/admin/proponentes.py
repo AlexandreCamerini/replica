@@ -34,26 +34,58 @@ hash do cache é o da leitura; o SAPL das fixtures e (até onde o cache mostra) 
 
 Não decide nada sozinho: só registra proposta e deixa a pendência aberta ou reaberta. Não escreve em tabela de domínio. Nenhuma função daqui comita; `registrar` roda num
 savepoint por proposta (uma recusa ou erro de uma não derruba as outras).
+
+CONTATO DO MANDATO (B3b, coletor `parlamento.extras`; classe `contato_mandato`). O job apaga os contatos de fonte `camara`/`senado` do mandato que teve contato na entrada e insere os
+que a fonte publica hoje (jobs/parlamento_extras.py:123-126). Foto de antes e de depois: por mandato em exercício que o job cobre (a MESMA consulta, :44-49), o conjunto de contatos
+(kind, value, fonte) e os overrides de supressão vigentes. Só contam contatos de fonte `camara`/`senado`: os de `curadoria` são decisão, não leitura.
+  - mandato sem nenhum contato `camara`/`senado` antes: PRIMEIRO PREENCHIMENTO, sem proposta;
+  - (kind, value) que APARECEU: proposta no campo `novo:<kind>:<value>`, candidato = o valor, vigente de antes nulo. O job JÁ inseriu a linha: a pendência pergunta se o contato novo procede
+    (a pergunta da classe, "Deve ser cadastrado...", é reescrita porque seria falsa: o contato já está na tabela);
+  - (kind, value) que SUMIU: a fonte deixou de publicar; o módulo não propõe ausência (`propostas.validar` recusa candidato nulo). Fica em `Resumo.contatos_removidos_pela_fonte`,
+    sem proposta nem pendência. Um kind que tinha exatamente um valor e passou a ter exatamente um valor diferente é só sumiço do antigo + aparição do novo, cada um por si
+    (`kind_trocou_de_valor` registra o fato; o módulo NÃO infere que um seja a correção do outro);
+  - valor SUPRIMIDO por decisão que a fonte voltou a trazer: o gatilho da 0150 descarta o insert em silêncio e nada registra o valor descartado; conferir exigiria reinterpretar a
+    resposta com regra própria (duplicaria o parser do job). LIMITE desta entrega: `Resumo.suprimidos_nao_conferidos` conta os mandatos com supressão vigente, sem proposta.
+EVIDÊNCIA do contato: deputado = o documento `{CAMARA}/deputados/{id externo}` (um por deputado: o bloco é o objeto `/dados`); senador = a lista `{SENADO}/senador/lista/atual.json`, em que o
+bloco é o ITEM do senador identificado por `IdentificacaoParlamentar/CodigoParlamentar` (o índice do item muda entre leituras, o código não). `PONTEIROS_CONTATO` diz de que campo o job
+tira cada `kind` (arquivo:linha); descreve onde o job lê e NÃO relê o documento. O valor gravado pode ser derivado do campo (minúsculas, prefixo "(61) ", gabinete composto, tipo da rede
+por expressão regular): o trecho diz isso. Hash e `lida_em` são os da tentativa da URL na rodada; sem tentativa: `sem_evidencia`.
+
+IDENTIDADE (B3b, `propor_identidade`): cada item `pendente` da `identity_match_queue` com `candidate_person_id` vira uma proposta `aceito` em (identidade, id do item, status). A fila já diz quem
+é o candidato (regra existente de identity.py); o módulo só a leva à revisão e NUNCA decide que duas pessoas são a mesma. Item sem candidato: sem valor a propor (`aceito` sem pessoa não
+existe e `rejeitado` seria decisão): `Resumo.identidade_sem_candidato`. Evidência: `sources.url` da fonte do item; hash do JSON canônico de `{"raw", "candidate_person_id"}` (o registro bruto que a fonte entregou e o
+job guardou, não uma página); `lida_em` = `updated_at` da linha. Pendência sem território (classe identidade). A pergunta da classe ("... mudou de 'pendente' para 'aceito'?") é reescrita
+com o registro (fonte e id externo) e a pessoa candidata (slug e id). POSSÍVEL DUPLICATA DE PESSOA NÃO É ABERTA: ver o docstring de `propor_identidade`.
 """
 
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
+from ..catalogo import COLETORES as CATALOGO
 from ..catalogo.adaptadores_a import _ale_sapl_bases
 from ..catalogo.contrato import Recorte
+from ..jobs.identity_dedupe import PAIRS_SQL
+from ..jobs.parlamento_extras import CAMARA, SENADO
 from ..util import sha256_text
 from . import propostas as prop
-from .classes import canonico
+from .classes import canonico, http
 from .propostas import Proposta, PropostaRecusada
 from .saida import ErroAdmin
 
-COLETORES = {"sapl.assembleias": "uf", "sapl.camaras": "municipio"}  # coletor -> nível dos lugares das casas (places.kind)
+COLETORES = {"sapl.assembleias": "uf", "sapl.camaras": "municipio", "parlamento.extras": "mandato"}  # coletor -> nível dos registros (places.kind das casas; "mandato" = contato_mandato)
+FONTES_LEITURA = ("camara", "senado")  # fontes de contato que o job de `parlamento.extras` lê (os de `curadoria` são decisão)
+# os mandatos que `parlamento.extras` cobre: a MESMA consulta do job (jobs/parlamento_extras.py:44-49), sem as colunas que o job não usa aqui
+MANDATOS_EXTRAS_SQL = """select m.id as mandate_id, b.kind, e.external_id
+           from mandates m join legislative_bodies b on b.id = m.body_id
+           join person_external_ids e on e.person_id = m.person_id and e.source_id = (select id from sources where slug = case b.kind when 'senado' then 'senado' else 'camara' end)
+           where m.status = 'em_exercicio' and b.kind in ('camara_deputados','senado') order by m.id"""
 DATASETS = ("propostas", "presenca", "votos")  # datasets que o SAPL grava em data_coverage (jobs/sapl.py:625-640)
 CAMPOS_CASA = ("status", "base_url")
 CAMPOS_COBERTURA = ("status", "reason", "evidence_url")
@@ -76,10 +108,13 @@ class Foto:
     cobertura: dict[tuple[int, str], dict[str, Any]] = field(default_factory=dict)
     overrides: dict[tuple[str, str, str], dict[str, Any]] = field(default_factory=dict)
     anotacao_disponivel: bool = True  # False: a coluna `tentou_valor` não existe (migração 0151 não aplicada)
+    mandatos: dict[str, dict[str, Any]] = field(default_factory=dict)  # parlamento.extras: mandate_id -> {kind (casa), ext (id externo da casa)}
+    contatos: dict[str, list[tuple[str, str, str]]] = field(default_factory=dict)  # parlamento.extras: mandate_id -> [(kind, value, slug da fonte)]
+    supressoes: dict[str, list[str]] = field(default_factory=dict)  # parlamento.extras: mandate_id -> campos `<kind>:<value>` com override de supressão vigente
 
     @property
     def vazia(self) -> bool:
-        return not self.casas and not self.cobertura
+        return not self.casas and not self.cobertura and not self.mandatos
 
 
 def _tem_anotacao(conn: Any) -> bool:
@@ -97,6 +132,8 @@ def fotografar(conn: Any, coletor_id: str, recorte: Recorte | None, elegiveis: d
         return foto
     r = recorte or Recorte()
     foto.tirada_em = conn.execute("select clock_timestamp() as t").fetchone()["t"]
+    if nivel == "mandato":
+        return _fotografar_contatos(conn, foto)
     foto.anotacao_disponivel = _tem_anotacao(conn)
     if nivel == "uf":
         ufs = list(dict.fromkeys(r.ufs)) or list(_ale_sapl_bases())
@@ -134,6 +171,21 @@ def fotografar(conn: Any, coletor_id: str, recorte: Recorte | None, elegiveis: d
     return foto
 
 
+def _fotografar_contatos(conn: Any, foto: Foto) -> Foto:
+    """`parlamento.extras`: os mandatos em exercício que o job cobre, os contatos de cada um e os overrides de supressão vigentes. Só lê."""
+    foto.escopo = "mandatos em exercício da Câmara dos Deputados e do Senado (os que parlamento.extras cobre)"
+    for x in conn.execute(MANDATOS_EXTRAS_SQL).fetchall():
+        foto.mandatos[str(x["mandate_id"])] = {"kind": x["kind"], "ext": str(x["external_id"])}
+    ids = list(foto.mandatos)
+    for c in conn.execute(
+            "select mc.mandate_id, mc.kind, mc.value, s.slug from mandate_contacts mc join sources s on s.id = mc.source_id where mc.mandate_id = any(%s::uuid[]) order by mc.mandate_id, mc.kind, mc.value",
+            (ids,)).fetchall():
+        foto.contatos.setdefault(str(c["mandate_id"]), []).append((c["kind"], c["value"], c["slug"]))
+    for o in conn.execute("select registro_chave, campo from adm_overrides where vigente and suprimir and classe = 'contato_mandato' and registro_chave = any(%s) order by registro_chave, campo", (ids,)).fetchall():
+        foto.supressoes.setdefault(o["registro_chave"], []).append(o["campo"])
+    return foto
+
+
 # ------------------------------------------------------------------ resumo
 
 
@@ -153,6 +205,10 @@ class Resumo:
     reason_sem_proposta: list[dict[str, Any]] = field(default_factory=list)  # mudança só de `reason` (cobertura): contada, sem proposta nem pendência
     anotadas_antes: list[dict[str, Any]] = field(default_factory=list)  # divergência de override anotada ANTES desta execução (`anotada_em`) e ainda assim proposta/avaliada
     avisos: list[str] = field(default_factory=list)
+    contatos_removidos_pela_fonte: list[dict[str, Any]] = field(default_factory=list)  # contato que o job apagou e não trouxe de volta: contado, sem proposta (ausência não se propõe)
+    suprimidos_nao_conferidos: list[dict[str, Any]] = field(default_factory=list)  # mandato com supressão vigente: não se confere se a fonte voltou a trazer o valor (limite declarado)
+    identidade_sem_candidato: list[str] = field(default_factory=list)  # ids de itens da fila `pendente` sem `candidate_person_id`: sem valor a propor
+    duplicatas: dict[str, Any] = field(default_factory=dict)  # pendência de duplicata de pessoa: não aberta (ver `propor_identidade`); `pares_na_regra_existente` = o que PAIRS_SQL devolve agora
 
     def para_dict(self) -> dict[str, Any]:
         return {"executado": self.executado, "escopo": self.escopo, "novas": len(self.novas), "ids_novas": list(self.novas), "repetidas": self.repetidas,
@@ -160,7 +216,8 @@ class Resumo:
                 "primeiros_preenchimentos_por_classe": dict(sorted(self.primeiros_preenchimentos.items())), "inalterados": self.inalterados,
                 "sem_evidencia": list(self.sem_evidencia), "pendencias_abertas": list(self.pendencias_abertas), "pendencias_reabertas": list(self.pendencias_reabertas),
                 "pendencias_ligadas": list(self.pendencias_ligadas), "reason_sem_proposta": list(self.reason_sem_proposta), "anotadas_antes": list(self.anotadas_antes),
-                "avisos": list(self.avisos)}
+                "avisos": list(self.avisos), "contatos_removidos_pela_fonte": list(self.contatos_removidos_pela_fonte),
+                "suprimidos_nao_conferidos": list(self.suprimidos_nao_conferidos), "identidade_sem_candidato": list(self.identidade_sem_candidato), "duplicatas": dict(self.duplicatas)}
 
 
 # ------------------------------------------------------------------ evidência
@@ -369,10 +426,21 @@ def _base_sondada(antes: Foto, depois: Foto, casa: dict[str, Any]) -> str | None
 
 
 def propor(conn: Any, rodada_id: str, coletor_id: str, antes: Foto, depois: Foto, *, agora: datetime | None = None) -> Resumo:
-    """Compara as fotos e registra as propostas (ver o docstring do módulo). NÃO comita. Coletor sem classe revisável: não faz nada (resumo `executado = False`)."""
+    """Compara as fotos e registra as propostas (ver o docstring do módulo). NÃO comita. Coletor que só alimenta a fila de identidade (catálogo: `tabelas` com `identity_match_queue`):
+    leva à revisão os itens `pendente` das fontes do coletor (`propor_identidade`). Coletor sem classe revisável: não faz nada (resumo `executado = False`)."""
     if coletor_id not in COLETORES:
+        fontes = _fontes_da_fila(coletor_id)
+        if fontes:
+            with conn.transaction():
+                return propor_identidade(conn, rodada_id=rodada_id, fontes=fontes, agora=agora)
         return Resumo(executado=False, avisos=[f"{coletor_id} não alimenta classe revisável: nenhuma proposta"])
     res = Resumo(escopo=depois.escopo or antes.escopo)
+    if COLETORES[coletor_id] == "mandato":
+        rod = conn.execute("select cache_dir from adm_rodadas where id = %s", (rodada_id,)).fetchone()
+        if rod is None:
+            raise ErroAdmin(f"rodada inexistente: {rodada_id}")
+        _propor_contatos(conn, rodada_id, rod["cache_dir"], antes, depois, agora, res)
+        return res
     if not depois.anotacao_disponivel:
         res.avisos.append("migração 0151 não aplicada neste banco: a divergência entre o job e um override não é detectada (só a mudança de campo sem override)")
     rod = conn.execute("select cache_dir from adm_rodadas where id = %s", (rodada_id,)).fetchone()
@@ -424,3 +492,191 @@ def propor(conn: Any, rodada_id: str, coletor_id: str, antes: Foto, depois: Foto
             res.pendencias_ligadas.append(r.pendencia_id)
     return res
 
+
+
+# ------------------------------------------------------------------ contato do mandato (parlamento.extras)
+
+_REDES = ("instagram", "facebook", "x", "youtube", "tiktok", "outra_rede")
+_GAB = "/dados/ultimoStatus/gabinete"
+# (casa, kind) -> (ponteiro do campo de onde o job tira o valor, linhas do job, como o job transforma o valor). Descreve ONDE O JOB LÊ (jobs/parlamento_extras.py); não relê o documento.
+# Deputado: o documento é `{CAMARA}/deputados/{id}` e o ponteiro é JSON pointer na resposta (o job usa `["dados"]`). Senador: o documento é a lista `{SENADO}/senador/lista/atual.json` e o
+# ponteiro é relativo ao ITEM do senador (`ITEM_SENADOR`, identificado por CodigoParlamentar).
+ITEM_SENADOR = "/ListaParlamentarEmExercicio/Parlamentares/Parlamentar"
+PONTEIROS_CONTATO: dict[tuple[str, str], tuple[str, str, str]] = {
+    ("camara_deputados", "email"): (f"{_GAB}/email", "parlamento_extras.py:64-65", "o job grava em minúsculas"),
+    ("camara_deputados", "telefone"): (f"{_GAB}/telefone", "parlamento_extras.py:66-67", "o job grava com o prefixo '(61) '"),
+    ("camara_deputados", "gabinete"): (f"{_GAB}/sala (com predio e andar)", "parlamento_extras.py:68-70",
+                                       "o job compõe o texto 'Câmara dos Deputados, anexo <predio>, <andar>º andar, gabinete <sala>'"),
+    ("camara_deputados", "site"): ("/dados/urlWebsite", "parlamento_extras.py:71-72", "o job grava o endereço como está"),
+    **{("camara_deputados", k): ("/dados/redeSocial/*", "parlamento_extras.py:73-75", "o job grava o endereço como está e classifica o tipo da rede por expressão regular sobre ele")
+       for k in _REDES},
+    ("senado", "email"): ("IdentificacaoParlamentar/EmailParlamentar", "parlamento_extras.py:92-93", "o job grava em minúsculas"),
+    ("senado", "telefone"): ("IdentificacaoParlamentar/Telefones/Telefone/*/NumeroTelefone", "parlamento_extras.py:94-96",
+                             "o job grava com o prefixo '(61) ' e ignora o telefone marcado como fax (IndicadorFax = 'Sim')"),
+    ("senado", "site"): ("IdentificacaoParlamentar/UrlPaginaParlamentar", "parlamento_extras.py:97-98", "o job grava o endereço como está"),
+}
+
+
+def url_documento_do_mandato(casa: str, ext: str) -> str:
+    """A URL que o job lê para o mandato: deputado = o documento próprio; senador = a lista (uma só para todos). A mesma é a evidência do contato e a URL do elegível na prévia."""
+    return f"{CAMARA}/deputados/{ext}" if casa == "camara_deputados" else f"{SENADO}/senador/lista/atual.json"
+
+
+def _evidencia_contato(conn: Any, rodada_id: str, cache_dir: str | None, casa: str, ext: str, kind: str, valor: str, fonte: str) -> tuple[_Evid, str] | str:
+    """(evidência, bloco) do contato que apareceu, ou o motivo de não haver. A URL é a que o JOB leu para o parlamentar; sem tentativa dela na rodada, não há evidência."""
+    ponteiro = PONTEIROS_CONTATO.get((casa, kind))
+    if ponteiro is None:
+        return f"o job não lê contato do tipo {kind} no documento da casa {casa}: o valor não é atribuível a um campo conhecido"
+    campo, linhas, transforma = ponteiro
+    if casa == "camara_deputados":
+        url, bloco, onde = url_documento_do_mandato(casa, ext), "/dados", f"campo {campo} do documento do deputado (id {ext})"
+    else:
+        url = url_documento_do_mandato(casa, ext)
+        bloco = f"item de {ITEM_SENADOR} em que IdentificacaoParlamentar/CodigoParlamentar = {ext}"
+        onde = f"campo {campo} do item do senador (CodigoParlamentar {ext}) na lista"
+    d = (f"valor gravado pelo job como contato {kind} da fonte {fonte} ({linhas}; {transforma}), derivado do {onde}; o valor citado é o que está em mandate_contacts "
+         f"(o documento não é relido aqui: o ponteiro descreve onde o job lê): {_curto(valor)}")
+    ev = _da_tentativa(conn, rodada_id, cache_dir, url, d)
+    return (ev, bloco) if ev else f"a rodada não tentou {url}: não há leitura que sustente o contato {kind}"
+
+
+def _contabiliza(res: Resumo, r: prop.Resultado) -> None:
+    if not r.nova:
+        res.repetidas += 1
+        return
+    res.novas.append(r.proposta_id)
+    if r.pendencia_acao == "criada":
+        res.pendencias_abertas.append(r.pendencia_id)
+    elif r.pendencia_acao == "reaberta":
+        res.pendencias_reabertas.append(r.pendencia_id)
+    elif r.pendencia_id:
+        res.pendencias_ligadas.append(r.pendencia_id)
+
+
+def _reescreve_pergunta(conn: Any, pendencia_id: str | None, pergunta: str) -> None:
+    """A pergunta da classe ("Deve ser cadastrado..." / "mudou de 'pendente' para 'aceito'?") não descreve estes casos; troca-a enquanto a pendência está aberta e não é divergência.
+    `registrar` (nova ligação) e `reavaliar` regeneram o texto da classe: a próxima passada do proponente a reescreve."""
+    if pendencia_id:
+        conn.execute("update adm_pendencias set pergunta = %s where id = %s and status = 'aberta' and tipo <> 'divergencia'", (pergunta, pendencia_id))
+
+
+def _propor_contatos(conn: Any, rodada_id: str, cache_dir: str | None, antes: Foto, depois: Foto, agora: datetime | None, res: Resumo) -> None:
+    res.escopo = depois.escopo or antes.escopo
+    cache_recorte: dict[str, Any] = {}
+    for mid in sorted(depois.supressoes):
+        res.suprimidos_nao_conferidos.append({"mandate_id": mid, "campos": sorted(depois.supressoes[mid]),
+                                              "motivo": "o job não registra o valor descartado pelo gatilho de supressão: não se sabe se a fonte voltou a trazê-lo"})
+
+    def so_leitura(foto: Foto, mid: str) -> dict[tuple[str, str], str]:
+        return {(k, v): f for k, v, f in foto.contatos.get(mid, []) if f in FONTES_LEITURA}
+
+    for mid in sorted(depois.mandatos):
+        info = depois.mandatos[mid]
+        ant, dep = so_leitura(antes, mid) if mid in antes.mandatos else {}, so_leitura(depois, mid)
+        if not ant:
+            if dep:
+                res.primeiros_preenchimentos["contato_mandato"] = res.primeiros_preenchimentos.get("contato_mandato", 0) + 1
+            continue
+        novos, sumidos = sorted(set(dep) - set(ant)), sorted(set(ant) - set(dep))
+        if not novos and not sumidos:
+            res.inalterados += 1
+            continue
+        por_kind_antes, por_kind_depois = defaultdict(set), defaultdict(set)
+        for k, v in ant:
+            por_kind_antes[k].add(v)
+        for k, v in dep:
+            por_kind_depois[k].add(v)
+        for k, v in sumidos:
+            trocou = len(por_kind_antes[k]) == 1 and len(por_kind_depois[k]) == 1 and por_kind_antes[k] != por_kind_depois[k]
+            res.contatos_removidos_pela_fonte.append({"mandate_id": mid, "kind": k, "value": v, "fonte": ant[(k, v)], "kind_trocou_de_valor": trocou,
+                                                      "motivo": "a fonte deixou de publicar; o módulo não propõe ausência"})
+        for k, v in novos:
+            campo = f"novo:{k}:{v}"
+            ev = _evidencia_contato(conn, rodada_id, cache_dir, info["kind"], info["ext"], k, v, dep[(k, v)])
+            if isinstance(ev, str):
+                res.sem_evidencia.append({"classe": "contato_mandato", "registro_chave": mid, "campo": campo, "motivo": ev})
+                continue
+            e, bloco = ev
+            p = Proposta(classe="contato_mandato", registro_chave=mid, campo=campo, valor_candidato=v, url=e.url, trecho=e.trecho, conteudo_sha256=e.sha, lida_em=e.lida_em,
+                         fonte_declarada_em=e.declarada_em, fonte_slug=dep[(k, v)], alcance="registro", bloco=bloco, rodada_id=rodada_id)
+            try:
+                with conn.transaction():
+                    r = prop.registrar(conn, p, agora=agora, cache_recorte=cache_recorte, vigente_antes=None)  # antes da rodada o mandato não tinha este contato
+                    _reescreve_pergunta(conn, r.pendencia_id, f"O mandato passou a ter o contato {k} '{v}' na fonte; ele procede?")
+            except PropostaRecusada as e2:
+                res.recusadas.append({"classe": "contato_mandato", "registro_chave": mid, "campo": campo, "valor_candidato": v, "motivo": str(e2)})
+                continue
+            _contabiliza(res, r)
+
+
+# ------------------------------------------------------------------ identidade (identity_match_queue)
+
+
+def _fontes_da_fila(coletor_id: str) -> list[str]:
+    """Slugs das fontes do coletor que o catálogo declara gravar em `identity_match_queue` (vazio: o coletor não alimenta a fila)."""
+    return [f.slug for c in CATALOGO if c.id == coletor_id and "identity_match_queue" in c.tabelas for f in c.fontes]
+
+
+def _trecho_identidade(raw: Any, confianca: Any, candidato: str) -> str:
+    campos = "; ".join(f"{k} = {_curto(v)}" for k, v in sorted(raw.items())) if isinstance(raw, dict) and raw else f"raw = {_curto(raw)}"
+    conf = "sem valor" if confianca is None else f"{confianca}"
+    return (f"hash do registro bruto guardado na fila (`raw`) e do candidato apontado pelo job, não de uma página. Campos do raw que a fonte entregou e o job guardou: {campos}. "
+            f"candidato apontado pelo job: pessoa {candidato}. confiança registrada pelo job: {conf}")
+
+
+def propor_identidade(conn: Any, *, rodada_id: str | None = None, limite: int | None = None, fontes: list[str] | None = None, agora: datetime | None = None) -> Resumo:
+    """Leva à revisão os itens `pendente` da `identity_match_queue` (o "executor" que a fila não tinha). NÃO comita; `registrar` roda num savepoint por item.
+
+    Por item `pendente` com `candidate_person_id`: proposta `aceito` em (identidade, id do item, status), com a pergunta "O registro <id externo> da fonte <fonte> é da pessoa <slug> (id <uuid>)?".
+    A regra de identidade (identity.py) já apontou o candidato; aqui só se registra isso, com os indícios que a fila guarda. Sem candidato: sem valor a propor (`identidade_sem_candidato`).
+    Evidência: `sources.url` (precisa ser http(s); senão `sem_evidencia`), hash do JSON canônico de `{"raw", "candidate_person_id"}`, `lida_em` = `updated_at` da linha. Não filtra o que já tem pendência: a
+    `chave_idem` (mesmo candidato, URL e hash de `raw`) repete sem criar nada, e a regra de reabertura por hash de `registrar` reabre a pendência decidida quando o `raw` muda.
+    Só itens `pendente` entram (o job só regrava `raw` enquanto `pendente`: item `aceito`/`rejeitado` não muda mais). `fontes` restringe a slugs de fonte (a rodada passa as do coletor);
+    `limite` corta pelos N itens mais antigos (`created_at`, `id`), nunca por pessoa.
+    O `flush` do job pode trocar `candidate_person_id` com o MESMO `raw`: o hash inclui o candidato, então sai proposta nova e a pendência decidida reabre (`evidencia_mudou`); a pergunta
+    é reescrita com o candidato de agora.
+
+    POSSÍVEL DUPLICATA DE PESSOA (`identity_dedupe.PAIRS_SQL`): NÃO é aberta. O desenho atual não a comporta sem mudar `classes.py`/`propostas.py`: `registro_chave` da classe identidade tem de
+    ser o id de um item da fila (um par de pessoas não é item), o campo único é `status` (a mesma chave do item, que já carrega a pendência de casamento), o candidato `{"unir": ...}`
+    é recusado por `classes._ident_candidato` e `registrar` nunca cria `tipo = 'duplicata'`. `run_dedupe` ainda une sozinho todo par de PAIRS_SQL (`merge_person`, depois de cada carga da
+    Câmara/Senado). `Resumo.duplicatas` só informa quantos pares a regra existente aponta agora."""
+    res = Resumo(escopo="fila de identidade (itens pendentes)")
+    if limite is not None and limite < 1:
+        raise ErroAdmin("limite espera um inteiro maior que zero")
+    sql = ("select q.id, q.external_id, q.raw, q.candidate_person_id, q.confidence, q.created_at, q.updated_at, s.slug as fonte, s.url as fonte_url, p.slug as pessoa "
+           "from identity_match_queue q join sources s on s.id = q.source_id left join people p on p.id = q.candidate_person_id where q.status = 'pendente'")
+    params: list[Any] = []
+    if fontes is not None:
+        sql += " and s.slug = any(%s)"
+        params.append(list(fontes))
+    sql += " order by q.created_at, q.id" + (" limit %s" if limite is not None else "")
+    if limite is not None:
+        params.append(limite)
+    cache_recorte: dict[str, Any] = {}
+    for q in conn.execute(sql, params or None).fetchall():
+        qid = str(q["id"])
+        if q["candidate_person_id"] is None:
+            res.identidade_sem_candidato.append(qid)
+            continue
+        if not http(q["fonte_url"]):
+            res.sem_evidencia.append({"classe": "identidade", "registro_chave": qid, "campo": "status", "motivo": f"a fonte {q['fonte']!r} não tem URL http(s) em sources.url: {q['fonte_url']!r}"})
+            continue
+        cand = str(q["candidate_person_id"])
+        p = Proposta(classe="identidade", registro_chave=qid, campo="status", valor_candidato="aceito", url=q["fonte_url"], trecho=_trecho_identidade(q["raw"], q["confidence"], cand),
+                     conteudo_sha256=sha256_text(canonico({"raw": q["raw"], "candidate_person_id": cand})), lida_em=q["updated_at"], fonte_slug=q["fonte"], alcance="registro", rodada_id=rodada_id)
+        try:
+            with conn.transaction():
+                r = prop.registrar(conn, p, agora=agora, cache_recorte=cache_recorte)
+                _reescreve_pergunta(conn, r.pendencia_id, f"O registro {q['external_id']} da fonte {q['fonte']} é da pessoa {q['pessoa']} (id {cand})?")
+        except PropostaRecusada as e:
+            res.recusadas.append({"classe": "identidade", "registro_chave": qid, "campo": "status", "valor_candidato": "aceito", "motivo": str(e)})
+            continue
+        _contabiliza(res, r)
+    res.duplicatas = {"abertas": 0, "pares_na_regra_existente": None,
+                      "motivo": "pendência de duplicata de pessoa não se abre: o desenho (registro_chave = item da fila, campo status, candidato de status) não a comporta; run_dedupe une os pares sozinho"}
+    try:
+        with conn.transaction():
+            res.duplicatas["pares_na_regra_existente"] = len(conn.execute(PAIRS_SQL).fetchall())
+    except Exception as e:  # noqa: BLE001 - informação de apoio: nunca derruba a proposta de identidade
+        res.avisos.append(f"não foi possível consultar PAIRS_SQL: {type(e).__name__}")
+    return res

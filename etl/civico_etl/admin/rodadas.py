@@ -176,6 +176,15 @@ def _elegiveis(conn: Any, c: Any, r: Recorte) -> dict[str, Any]:
                 "base": "municípios do recorte em places" + (f"; IBGE fora de places: {sem}" if sem else "")}
     if c.id == "sapl.camaras":
         return {"classe": "vinculo_sapl", "valor": None, "chaves": [], "motivo": "sem --ibge o escopo é a fila de câmaras na hora da execução; não é determinável sem rede"}
+    if c.id == "parlamento.extras":  # os mandatos em exercício que o job cobre (consulta do próprio job, só banco: não depende de rede)
+        from . import proponentes as PRO  # import tardio: proponentes -> propostas -> relatorio -> rodadas
+
+        mand = conn.execute(PRO.MANDATOS_EXTRAS_SQL).fetchall()
+        ids = [str(x["mandate_id"]) for x in mand]
+        rot = V._rotulos(conn, "contato_mandato", ids)
+        urls = {str(x["mandate_id"]): PRO.url_documento_do_mandato(x["kind"], str(x["external_id"])) for x in mand}  # a URL que o job lê: a mesma que o proponente cita como evidência
+        return {"classe": "contato_mandato", "valor": len(ids), "chaves": [{"mandate_id": i, "rotulo": rot.get(i), "url": urls[i]} for i in ids], "motivo": None,
+                "base": "mandatos em exercício da Câmara dos Deputados e do Senado com id externo da casa (a consulta de parlamento_extras.py:44-49); o rótulo é cargo · casa · lugar, sem pessoa nem partido"}
     tocadas = sorted(k for k, t in CLASSES_REVISAVEIS.items() if t in c.tabelas)
     if not tocadas:
         return {"classe": None, "valor": None, "chaves": [], "motivo": "o coletor não alimenta classe revisável (vinculo_sapl, cobertura, contato_mandato, identidade)"}

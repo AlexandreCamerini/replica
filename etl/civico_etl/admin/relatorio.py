@@ -22,7 +22,8 @@ na prévia lê `sapl_houses` e `places`, tabelas de domínio, não de revisão: 
   `.declaradas_nao_tentadas`: declaradas sem tentativa de entrada na rodada.
 - `registros_elegiveis`: a lista de chaves da prévia (`previa.registros_elegiveis`). Chave nula na prévia (casa ainda não registrada na abertura)
   resolve-se, na hora da leitura, pela UF ou IBGE do item em `sapl_houses`; se ainda não existe, o item fica sem chave (`classe:~sem_registro(rotulo)`).
-- `registros_alcancados`: um registro elegível é ALCANÇADO quando existe na rodada uma URL cuja ÚLTIMA tentativa é `lida` ou `reaproveitada` e que (a) é igual
+- `registros_alcancados`: elegível que traz `url` PRÓPRIA na prévia (contato_mandato: o documento que o job lê para o mandato) é ALCANÇADO quando a ÚLTIMA tentativa dessa URL
+  na rodada é `lida` ou `reaproveitada`; senão traz o motivo da última falha dela, ou "URL do registro não tentada nesta rodada". Elegível SEM `url` (SAPL): um registro é ALCANÇADO quando existe na rodada uma URL cuja ÚLTIMA tentativa é `lida` ou `reaproveitada` e que (a) é igual
   à URL de um vínculo VIGENTE do registro, ou (b) começa com a URL do vínculo (normalizada sem barra final) seguida de `/`; fica de fora a URL cujo caminho é
   `/robots.txt` (ler só o robots.txt não é alcançar o registro). Restrito aos elegíveis quando a prévia tem a lista (de = `registros_elegiveis`); sem lista,
   de = null com `motivo_de` e nada é restrito. `registros_elegiveis_nao_alcancados` lista os demais, cada um com `situacao` e `motivo_falha` (motivo da
@@ -87,16 +88,18 @@ _DECLARADAS = r"""declaradas as (
   cross join lateral jsonb_array_elements(case when jsonb_typeof(r.previa->'urls_entrada') = 'array' then r.previa->'urls_entrada' else '[]'::jsonb end) as x(item)
   where r.id = %(rodada)s::uuid and coalesce(jsonb_typeof(x.item->'condicional'), 'null') = 'null')"""
 
-# CTE `elegiveis`: uma linha por chave da lista `previa.registros_elegiveis.chaves` (nenhuma se a prévia não tem a lista: valor nulo). `registro_chave` =
-# `sapl_houses_id` da prévia ou, se nulo, a casa de `sapl_houses` da UF (`uf`) ou do município (`ibge`) do item; nulo se ela ainda não existe.
+# CTE `elegiveis`: uma linha por chave da lista `previa.registros_elegiveis.chaves` (nenhuma se a prévia não tem a lista: valor nulo). `url` = a URL PRÓPRIA do registro, quando a prévia a traz
+# (contato_mandato: o documento que o job lê para o mandato). `registro_chave` = `sapl_houses_id` ou `mandate_id` da prévia ou, se nulo, a casa de `sapl_houses` da UF (`uf`) ou do município (`ibge`) do item; nulo se ela ainda não existe.
 _ELEGIVEIS = r"""elegiveis as (
   select r.previa->'registros_elegiveis'->>'classe' as classe,
-         coalesce(x.item->>'sapl_houses_id',
+         coalesce(x.item->>'sapl_houses_id', x.item->>'mandate_id',
                   (select h.id::text from sapl_houses h join places p on p.id = h.place_id
                     where (x.item->>'uf' is not null and p.kind = 'uf' and p.uf = x.item->>'uf')
                        or (x.item->>'ibge' is not null and p.ibge_code = x.item->>'ibge')
                     order by h.id limit 1)) as registro_chave,
-         coalesce(x.item->>'uf', x.item->>'ibge', x.item->>'sapl_houses_id') as rotulo
+         coalesce(x.item->>'uf', x.item->>'ibge', x.item->>'sapl_houses_id', x.item->>'rotulo', x.item->>'mandate_id') as rotulo,
+         x.item->>'url' as url,
+         encode(sha256(convert_to(x.item->>'url', 'UTF8')), 'hex') as url_sha
   from adm_rodadas r
   cross join lateral jsonb_array_elements(case when jsonb_typeof(r.previa->'registros_elegiveis'->'chaves') = 'array' then r.previa->'registros_elegiveis'->'chaves' else '[]'::jsonb end) as x(item)
   where r.id = %(rodada)s::uuid and jsonb_typeof(r.previa->'registros_elegiveis'->'valor') = 'number')"""
@@ -109,13 +112,18 @@ _CASAM = r"""casam as (
   join ultima u on u.url = v.url or left(u.url, length(rtrim(v.url, '/')) + 1) = rtrim(v.url, '/') || '/'
   where v.vigente and split_part(regexp_replace(u.url, '^[A-Za-z]+://[^/]+', ''), '?', 1) <> '/robots.txt')"""
 
-# CTE `alcancados`: registros com ao menos uma URL casada cuja última tentativa foi lida ou reaproveitada; restritos aos elegíveis quando a prévia tem a lista.
+# CTE `alcancados`: (1) elegível que traz `url` própria: alcançado se a ÚLTIMA tentativa dessa URL na rodada é lida ou reaproveitada; (2) os demais (sem `url`, ex.: SAPL): registros com ao menos
+# uma URL casada pelo vínculo cuja última tentativa foi lida ou reaproveitada; restritos aos elegíveis quando a prévia tem a lista.
 _ALCANCADOS = r"""alcancados as (
   select distinct c.classe, c.registro_chave
   from casam c
   where c.resultado in ('lida', 'reaproveitada')
     and (not exists (select 1 from adm_rodadas r where r.id = %(rodada)s::uuid and jsonb_typeof(r.previa->'registros_elegiveis'->'valor') = 'number')
-         or exists (select 1 from elegiveis e where e.classe = c.classe and e.registro_chave = c.registro_chave)))"""
+         or exists (select 1 from elegiveis e where e.classe = c.classe and e.registro_chave = c.registro_chave and e.url is null))
+  union
+  select e.classe, e.registro_chave
+  from elegiveis e join ultima u on u.url_sha = e.url_sha
+  where e.url is not null and u.resultado in ('lida', 'reaproveitada'))"""
 
 # ---------------------------------------------------------------------------------------------------------------------------- coleta: totais
 
@@ -141,12 +149,15 @@ SQL_REGISTROS_ELEGIVEIS = _com((_ELEGIVEIS,), "select classe, registro_chave, ro
 SQL_REGISTROS_ALCANCADOS = _com((_ULTIMA, _ELEGIVEIS, _CASAM, _ALCANCADOS), "select classe, registro_chave from alcancados order by classe, registro_chave")
 # Elegíveis NÃO alcançados, com a situação e o motivo da última falha entre as URLs do registro na rodada que casam pela mesma regra (se houver).
 SQL_REGISTROS_NAO_ALCANCADOS = _com((_ULTIMA, _ELEGIVEIS, _CASAM, _ALCANCADOS), r"""select e.classe, e.registro_chave, e.rotulo,
-  case when e.registro_chave is null then 'registro ainda não existe no banco (casa não registrada)'
+  case when e.registro_chave is null then case when e.classe = 'vinculo_sapl' then 'registro ainda não existe no banco (casa não registrada)' else 'registro ainda não existe no banco' end
+       when e.url is not null and not exists (select 1 from ultima u where u.url_sha = e.url_sha) then 'URL do registro não tentada nesta rodada'
+       when e.url is not null then 'URL do registro tentada na rodada, nenhuma leitura'
        when not exists (select 1 from adm_vinculos v where v.vigente and v.classe = e.classe and v.registro_chave = e.registro_chave) then 'sem vínculo vigente com URL'
        when not exists (select 1 from casam c where c.classe = e.classe and c.registro_chave = e.registro_chave) then 'nenhuma URL do registro foi tentada nesta rodada'
        else 'URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada' end as situacao,
-  (select c.motivo from casam c where c.classe = e.classe and c.registro_chave = e.registro_chave and c.resultado = 'falha'
-    order by c.tentada_em desc, c.url_sha limit 1) as motivo_falha
+  case when e.url is not null then (select u.motivo from ultima u where u.url_sha = e.url_sha and u.resultado = 'falha')
+       else (select c.motivo from casam c where c.classe = e.classe and c.registro_chave = e.registro_chave and c.resultado = 'falha'
+              order by c.tentada_em desc, c.url_sha limit 1) end as motivo_falha
 from elegiveis e
 where not exists (select 1 from alcancados a where a.classe = e.classe and a.registro_chave = e.registro_chave)
 order by e.classe, e.registro_chave nulls last, e.rotulo""")
