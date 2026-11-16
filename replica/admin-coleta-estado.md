@@ -50,9 +50,10 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 - Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a` (AC-06).
 - Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
 - Fase R: concluída e verificada (AC-08). 16 subagentes de um teto de 16. A linha da R11 abaixo cita o commit em que a decisão ainda se chamava D324; ela foi renumerada para D325 em `97c7930`.
-- Fase A: em andamento. Subagentes da fase: 5 de 14. Aceitas: A1 (migração `0150`, critério 1) `068e2c6`; A2 (`http.py` e tentativas, critério 6) `9085621`; A3 (CLI `admin`, inventário, vínculos) `ae681ac`; A4 (fixture SAPL em três cenários e `tests/simulado.py`) `1737029`. Em voo: A5 (prévia, rodada, repetição, reprocessamento; critérios 3, 4, 5): `etl/civico_etl/admin/{rodadas,cli}.py`, `etl/tests/test_admin_{previa,rodada}.py`, e a entrada `sapl.assembleias` em `catalogo/coletores_a.py` e `adaptadores_a.py` (AC-10).
+- Fase A: concluída (AC-11). 6 subagentes de um teto de 14. Commits: A1 `068e2c6`, A2 `9085621`, A3 `ae681ac`, A4 `1737029`, A5 `9900a7b`, A6 no commit seguinte a este estado.
+- Fase B: iniciada. Subagentes da fase: 1 de 16 (B1 em voo: `etl/civico_etl/admin/{propostas,pendencias,classes,cli}.py`, `etl/tests/test_admin_{propostas,fila}.py`).
 - Incidente AC-09: duas rodadas de teste da A2 caíram no banco `civico` (vazio, 0 tabelas, sem dano). Todo briefing passa a exigir o prefixo de banco literal em cada linha.
-- Suíte depois da A4: `1086 passed, 33 skipped, 4 xfailed`, em cerca de 90 s. `civico-etl check`: as mesmas 5 invariantes da linha de base.
+- Suíte ao fim da fase A: `1119 passed, 33 skipped, 4 xfailed`, em cerca de 97 s. `civico-etl check`: as mesmas 5 invariantes da linha de base.
 
 | Tarefa | Modelo | Situação | Reprovações | Commit |
 | --- | --- | --- | --- | --- |
@@ -81,6 +82,6 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 ## Próximo passo
 
-1. Conferir e commitar A5.
-2. A6 (relatório da rodada: coleta e revisão separadas, com denominador e IDs).
-3. Fase B: B1 (propostas, pendências, fila), B2 (decisões, aplicação, overrides), B3 (proponentes por classe, executor de identidade), B4 (duas chaves, parecer), B5 (primeira rodada, passos 1 a 5), verificadores.
+1. Conferir e commitar B1 (propostas, pendências, reabertura, fila: critérios 7, 8, 10, 13).
+2. B2 (decisões, aplicação, overrides, `corrections`: critérios 11, 12), B3 (proponentes por classe e executor da fila de identidade), B4 (duas chaves e parecer em ensaio: critérios 9, 22), B5 (primeira rodada, passos 1 a 5, pelo lançador simulado).
+3. Verificadores da Parte B: Sonnet (critérios 4, 5, 11) e Opus de contexto limpo (critério 9).

@@ -32,7 +32,7 @@ Ficam para resposta a incidente. A rotina roda `identity.repairs` depois de tse.
   civico-etl verificar [chave] [--limit N] [--force]                 # agentes conferem o rascunho; ensaio até VERIFICACAO_AGENTICA=on (D293)
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
   civico-etl run-due [--dry-run] [--only TAREFA --force]             # agenda (D250): roda o que venceu, check e alerta; exit 2 = alerta
-  civico-etl admin inventario|vinculos [--json]                      # administração de coleta: inventário de coletores e vínculos de fonte/URL
+  civico-etl admin inventario|vinculos|previa|rodada|relatorio [--json]  # administração de coleta: inventário de coletores e vínculos de fonte/URL
 """
 
 from __future__ import annotations

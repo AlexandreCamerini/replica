@@ -22,6 +22,7 @@ from typing import Any, Callable
 from .. import db
 from ..catalogo.contrato import Recorte
 from . import inventario as inv
+from . import relatorio as rel
 from . import rodadas as rod
 from . import vinculos as vin
 from .saida import ErroAdmin, lista_chave_valor, para_json, tabela
@@ -228,6 +229,16 @@ def _run_rodada(conn: Any, a: argparse.Namespace) -> Resultado:
     return linhas, rod.texto_lista(linhas), False
 
 
+def _cfg_relatorio(p: argparse.ArgumentParser) -> None:
+    p.add_argument("id", help="identificador da rodada")
+    p.add_argument("--ids", action="store_true", help="tabela: lista todos os identificadores de cada total (padrão: até 20 e \"e mais N\"); o JSON sempre traz a lista inteira")
+
+
+def _run_relatorio(conn: Any, a: argparse.Namespace) -> Resultado:
+    doc = rel.relatorio(conn, a.id)
+    return doc, rel.texto_relatorio(doc, ids=a.ids), False
+
+
 class _Uso(Exception):
     """Combinação de opções inválida: sai com 2, como um erro do argparse."""
 
@@ -237,6 +248,7 @@ SUBCOMANDOS: dict[str, Subcomando] = {s.nome: s for s in (
     Subcomando("vinculos", "de onde vem cada registro e quais registros dependem de uma URL ou fonte", _cfg_vinculos, _run_vinculos),
     Subcomando("previa", "recorte, registros elegíveis, URLs de entrada e quantas serão consultadas, sem rede (estimativas marcadas)", _cfg_previa, _run_previa),
     Subcomando("rodada", "abrir, executar, repetir, ver e listar rodadas de coleta (identificador, parâmetros gravados, repetível)", _cfg_rodada, _run_rodada),
+    Subcomando("relatorio", "relatório de uma rodada: estado da coleta e estado da revisão (painéis separados), com denominador e identificadores", _cfg_relatorio, _run_relatorio),
 )}
 
 

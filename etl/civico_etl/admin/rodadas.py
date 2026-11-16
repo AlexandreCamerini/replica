@@ -454,7 +454,8 @@ def executar(conn: Any, rodada_id: str, *, runner: Callable[[list[str]], int] | 
     forcar = list(rod["forcar_urls"] or [])
     conn.execute("update adm_rodadas set status = 'em_andamento', invocation = %s, finalizada_em = null where id = %s", (invocation, rid))
     conn.commit()
-    resultado: dict[str, Any] = {"execucao": n_exec, "inicio": inicio.isoformat(), "invocation": invocation, "regra": REGRA_DESFECHO}
+    resultado: dict[str, Any] = {"execucao": n_exec, "inicio": inicio.isoformat(), "invocation": invocation, "regra": REGRA_DESFECHO,
+                                "simulado": os.environ.get("ADMIN_SIMULADO") or None}
 
     def encerrar(status: str, regra: str, **mais: Any) -> dict[str, Any]:
         resultado.update(status=status, motivo=REGRA_DESFECHO[regra], fim=datetime.now(timezone.utc).isoformat(), **mais)

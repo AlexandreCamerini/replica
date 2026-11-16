@@ -74,6 +74,7 @@ def main(argv: list[str]) -> int:
         print(f"simulado.py: recusado: {motivo}", file=sys.stderr)
         return 2
     os.environ["ADMIN_RUNNER"] = "processo"
+    os.environ["ADMIN_SIMULADO"] = a.cenario  # a rodada grava a marca em previa.resultado.simulado; o relatório a lê de lá
     os.environ.setdefault("ETL_RAW_STORE", "off")
     sys.path.insert(0, str(AQUI))
     from admin_fixtures import instalar

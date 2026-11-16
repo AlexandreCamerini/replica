@@ -115,3 +115,14 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Consequência: no relato, o passo 5 da primeira rodada é marcado com esse limite. Reprocessar a carga de matérias de uma casa exigiria um argumento novo no job, que a Parte R proíbe.
 - Materializa: `etl/civico_etl/catalogo/coletores_a.py` e `adaptadores_a.py` (tarefa A5).
 - Desfazer: `git revert` do commit da A5 devolve o modo a "não suportado".
+
+## AC-11 · Fim da fase A: segundo incidente de escrita, definição de "registro alcançado" e contagem
+
+- Data e fase: 2026-11-16, fim da fase A.
+- Segundo incidente (tarefa A6): um teste exploratório do subagente importou fixtures com `from ... import *`, que não traz nomes iniciados por `_`, e o coletor rodou duas vezes direto no banco da suíte (`admin_coleta`), sem rede. Gravou 2 linhas em `ingest_runs`, 1 em `dataset_stamps` e a fonte `sapl-ale`. O subagente apagou essas linhas por id e relatou. Conferi depois: `ingest_runs`, `dataset_stamps`, `adm_rodadas`, `sapl_houses` e `data_coverage` com 0 linhas, `sources` com 18 (as 17 do seed e migrações mais `curadoria`), suíte passando e `check` com as mesmas 5 invariantes da linha de base. O banco atingido é o dedicado a este trabalho; não é o `civico`. Fica registrado porque a regra era não gravar linha de teste nele.
+- Definição corrigida no relatório: "registro alcançado" não pode exigir URL idêntica entre vínculo e tentativa, porque o vínculo é o endereço-base da casa e as tentativas são páginas dentro dele. Vale: a rodada leu (ou reaproveitou) alguma URL igual ao vínculo vigente do registro ou dentro dele, sem contar `robots.txt`. O erro era do briefing.
+- Marca SIMULADO: o lançador `etl/tests/simulado.py` define `ADMIN_SIMULADO`; a rodada grava o cenário no próprio resultado; o relatório lê da rodada, não do ambiente de quem consulta.
+- Fase A sem verificador próprio: o prompt prevê verificação independente ao fim das Partes R, B e C. Os critérios 4 e 5 da fase A são alvo do verificador da Parte B.
+- Contagem da fase A: 6 subagentes de um teto de 14 (A1 a A6, todos Sonnet). A6 foi retomada uma vez para corrigir a definição acima e a marca SIMULADO; conto como uma reprovação por defeito do briefing. Nenhuma subiu de modelo. O orquestrador fez três ajustes pequenos: URL da fonte `curadoria` na migração antes de aplicá-la, um teste da A3 que fixava o conjunto exato de subcomandos, e `etl/admin-rodadas/` no `.gitignore`.
+- Critérios com teste passando ao fim da fase A: 1, 3, 4 (vínculos, tabelas de domínio e tentativas; propostas entram na fase B), 5, 6. Critério 2: suíte com 1.119 passando, os mesmos 33 pulos e 4 xfail da linha de base, nenhum teste novo pulado.
+- Desfazer: `git revert` dos commits `068e2c6` a este; a migração `0150` já aplicada no banco local não volta só com o revert.
