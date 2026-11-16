@@ -94,3 +94,13 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - SQL novo da fase R, para o critério R-9 (só leitura, dentro de `descrever` e só quando recebe conexão): `catalogo/contrato.py` (deputados com mandato aberto; municípios por código; casas do SAPL por código), `catalogo/adaptadores_a.py` (casas do SAPL das Assembleias), `catalogo/adaptadores_b.py` (duas consultas de parlamentares em exercício), `catalogo/adaptadores_c.py` (UFs). Nenhum SQL de domínio, parser ou regra de identidade foi alterado.
 - Contagem da fase R: 16 subagentes de um teto de 16 (11 de construção, 1 de correção, 2 verificadores, e R1 a R3 retomadas depois de um limite de uso, sem novo lançamento). Haiku: R1, R5, R9, R11. Sonnet: as demais. Nenhuma tarefa reprovada; nenhuma subiu de modelo. A R9 (Haiku) devolveu duas perguntas antes de escrever. O orquestrador fez a integração dos três lotes e quatro ajustes de comentário.
 - Desfazer: `git revert` dos commits `2d4591b` a `3758712`.
+
+## AC-09 · Incidente: duas rodadas de teste de um subagente caíram no banco `civico`
+
+- Data e fase: 2026-11-15, fase A, tarefa A2.
+- O que houve: o subagente da A2 montou o prefixo de banco numa variável de shell (`env $E ...`). No zsh a variável não é separada em palavras, então `ETL_DATABASE_URL` não chegou ao processo e `etl/tests/conftest.py` caiu no padrão `.../civico`. Duas rodadas de pytest (dois arquivos e a suíte inteira) rodaram contra `civico`. O próprio subagente percebeu pela saída (`database=civico`, `UndefinedTable`) e relatou.
+- Regra violada: restrição 3a ("NUNCA rode a suíte contra um banco que você não criou"; "Nunca o banco `civico`").
+- Dano conferido por mim, só com leitura do catálogo do Postgres: o `civico` deste cluster é o banco vazio que `db/pg-local.sh start` cria no worktree. Tem 0 tabelas no schema `public` e 8,0 MB, o mesmo tamanho do banco `postgres` vazio. Não havia dado para apagar, e nada ficou gravado. A fixture de banco isolado criou e apagou um `civico_iso_<pid>`; não sobrou banco.
+- Por que não parei: a lista de parada, item 2, trata de ação a fazer; esta já tinha acontecido, o banco atingido estava vazio e não há o que desfazer. Fica relatado aqui e no relato final. Se este cluster não fosse novo, o `civico` seria a cópia de trabalho do dono e o caso seria de parada.
+- Correção de conduta: daqui em diante todo briefing diz, por extenso, que o prefixo de banco é escrito literalmente em cada linha de comando, sem variável de shell intermediária, e que a primeira linha da saída do pytest (`database=`) tem de ser conferida antes de seguir.
+- Desfazer: não se aplica.

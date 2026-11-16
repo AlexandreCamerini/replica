@@ -2,6 +2,17 @@
 
 Só fontes oficiais. Nada aqui conhece o site original.
 Cache em etl/.cache/<host>/<sha>.{body,meta.json}; ETag/Last-Modified evitam baixar de novo o que não mudou.
+
+Três recursos opcionais de `fetch`, lidos do ambiente a cada chamada e sem efeito com a variável ausente ou vazia
+(a administração de coleta os liga; sem eles o módulo se comporta como sempre):
+- ETL_ATTEMPT_LOG=<arquivo>: acrescenta uma linha JSON por chamada de `fetch` (um `os.write` com O_APPEND: vale com threads e processos).
+  Campos: url, ts (UTC), desfecho (cache_fresco | revalidada_304 | baixada | falha), http_status, sha256, bytes, retentativas e, em falha,
+  motivo + detalhe. Motivo: bloqueio (HTTP 401/403/429/451), expiracao (timeout), sem_conteudo (2xx com corpo vazio: `fetch` devolve
+  normalmente, só o log marca) ou erro (o resto, inclusive 404 e 5xx esgotado). Falha ao gravar o log nunca derruba o `fetch`.
+  Ficam fora: `client()` (remotezip), `api_json` e o bloqueio por robots.txt (decidido em jobs/assembleias antes de chamar `fetch`).
+- ETL_HTTP_OFFLINE=1: sem rede; serve do cache de qualquer idade. Ausente do cache: SemRedeSemCache (SystemExit, código 1), exceto
+  `/robots.txt`, que levanta FileNotFoundError como um 404 real. `api_json` levanta SemRedeSemCache. `client()` não muda: remotezip ignora o modo.
+- ETL_HTTP_REFETCH=<arquivo com uma URL por linha>: para essas URLs `max_age` é ignorado (vai à rede; ETag continua valendo). Offline vence.
 """
 
 from __future__ import annotations
@@ -11,6 +22,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -72,15 +84,12 @@ def client() -> httpx.Client:
     return _client
 
 
-def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: str | None = None) -> Fetched:
-    """GET com cache. `max_age` em segundos: dentro dele nem consulta a rede (útil para detalhes estáveis).
-
-    404 vira FileNotFoundError (fonte ainda não publicou). 5xx/429/timeout: retenta com backoff.
-    """
+def _fetch(url: str, *, max_age: float | None, retries: int, accept: str | None, trace: dict[str, Any]) -> Fetched:
     body, meta = _paths(url)
     m: dict[str, Any] = json.loads(meta.read_text()) if meta.exists() and body.exists() else {}
     if m and max_age is not None and time.time() - m.get("fetched_at", 0) < max_age:
         rawstore.note(url, body, m["sha256"])
+        trace["desfecho"] = "cache_fresco"
         return Fetched(body, m["sha256"], True, 304)
     headers: dict[str, str] = {}
     if accept:
@@ -92,6 +101,7 @@ def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: s
     host = urlparse(url).netloc
     delay = 2.0
     for attempt in range(retries + 1):
+        trace["retentativas"] = attempt
         _throttle(host)
         try:
             with client().stream("GET", url, headers=headers) as r:
@@ -99,6 +109,7 @@ def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: s
                     m["fetched_at"] = time.time()
                     meta.write_text(json.dumps(m))
                     rawstore.note(url, body, m["sha256"])
+                    trace["desfecho"] = "revalidada_304"
                     return Fetched(body, m["sha256"], True, 304)
                 if r.status_code == 404:
                     raise FileNotFoundError(url)
@@ -124,6 +135,7 @@ def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: s
                     )
                 )
                 rawstore.note(url, body, sha)
+                trace["desfecho"] = "baixada"
                 return Fetched(body, sha, False, r.status_code)
         except FileNotFoundError:
             raise
@@ -134,6 +146,112 @@ def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: s
             time.sleep(delay)
             delay = min(delay * 2, 60)
     raise RuntimeError("unreachable")
+
+
+class SemRedeSemCache(SystemExit):
+    """ETL_HTTP_OFFLINE: URL fora do cache. SystemExit (código 1) de propósito: `except Exception` dos coletores não a engole
+    e `db.run` fecha o run como failed. Mensagem em args[0]."""
+
+    def __init__(self, url: str):
+        super().__init__(f"sem rede (ETL_HTTP_OFFLINE) e sem cache para {url}")
+        self.code = 1
+        self.url = url
+
+
+_BLOQUEIO = frozenset({401, 403, 429, 451})  # a fonte recusou: não autorizado, proibido, limite de taxa, bloqueio legal
+_refetch: tuple[str, frozenset[str]] | None = None
+_log_avisado: set[str] = set()
+
+
+def _env(nome: str) -> str:
+    return (os.environ.get(nome) or "").strip()
+
+
+def _offline() -> bool:
+    return _env("ETL_HTTP_OFFLINE").lower() not in ("", "0", "false", "no", "off")
+
+
+def _refetch_urls() -> frozenset[str]:
+    """URLs de ETL_HTTP_REFETCH; o arquivo é lido uma vez por processo e relido se o caminho mudar."""
+    global _refetch
+    p = _env("ETL_HTTP_REFETCH")
+    if not p:
+        return frozenset()
+    if _refetch is None or _refetch[0] != p:
+        try:
+            urls = frozenset(x.strip() for x in Path(p).read_text(encoding="utf-8").splitlines() if x.strip())
+        except OSError as e:
+            log.warning("ETL_HTTP_REFETCH ilegível (%s); nenhuma URL forçada", e)
+            urls = frozenset()
+        _refetch = (p, urls)
+    return _refetch[1]
+
+
+def _fetch_offline(url: str) -> Fetched:
+    body, meta = _paths(url)
+    m: dict[str, Any] = json.loads(meta.read_text()) if meta.exists() and body.exists() else {}
+    if not m:
+        if urlparse(url).path.endswith("/robots.txt"):
+            raise FileNotFoundError(url)  # o que um 404 real levanta; _robots_rules trata como "sem robots.txt"
+        raise SemRedeSemCache(url)
+    rawstore.note(url, body, m["sha256"])
+    return Fetched(body, m["sha256"], True, 304)
+
+
+def _registrar(caminho: str, url: str, ts: str, trace: dict[str, Any], f: Fetched | None, e: BaseException | None) -> None:
+    """Uma linha JSON em `caminho`. Nunca levanta."""
+    try:
+        rec: dict[str, Any] = {"url": url, "ts": ts, "retentativas": trace.get("retentativas", 0), "sha256": None, "bytes": None, "http_status": None}
+        if trace.get("offline"):
+            rec["offline"] = True
+        if f is not None:
+            des = trace.get("desfecho", "baixada")
+            n = f.path.stat().st_size
+            rec.update(desfecho=des, http_status=None if des == "cache_fresco" else f.status, bytes=n)
+            if n:
+                rec["sha256"] = f.checksum
+            else:  # 2xx de corpo vazio: `fetch` devolve como sempre; só o registro o trata como falha
+                rec.update(desfecho="falha", motivo="sem_conteudo", detalhe="corpo vazio")
+        else:
+            resp = getattr(e, "response", None)
+            status = resp.status_code if resp is not None else (404 if isinstance(e, FileNotFoundError) and not trace.get("offline") else None)
+            motivo = "expiracao" if isinstance(e, httpx.TimeoutException) else "bloqueio" if status in _BLOQUEIO else "erro"
+            rec.update(desfecho="falha", http_status=status, motivo=motivo, detalhe=type(e).__name__ + (f" http_status={status}" if status is not None else ""))
+        linha = (json.dumps(rec, ensure_ascii=True, separators=(",", ":")) + "\n").encode("ascii")
+        fd = os.open(caminho, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o644)
+        try:
+            os.write(fd, linha)  # uma chamada só: com O_APPEND as linhas de threads e processos não se misturam
+        finally:
+            os.close(fd)
+    except Exception as ex:  # noqa: BLE001 - o registro nunca derruba a leitura
+        if caminho not in _log_avisado:
+            _log_avisado.add(caminho)
+            log.warning("ETL_ATTEMPT_LOG: não consegui gravar em %s (%s: %s)", caminho, type(ex).__name__, ex)
+
+
+def fetch(url: str, *, max_age: float | None = None, retries: int = 4, accept: str | None = None) -> Fetched:
+    """GET com cache. `max_age` em segundos: dentro dele nem consulta a rede (útil para detalhes estáveis).
+
+    404 vira FileNotFoundError (fonte ainda não publicou). 5xx/429/timeout: retenta com backoff.
+    ETL_ATTEMPT_LOG, ETL_HTTP_OFFLINE e ETL_HTTP_REFETCH: ver a docstring do módulo.
+    """
+    caminho = _env("ETL_ATTEMPT_LOG")
+    offline = _offline()
+    if max_age is not None and not offline and url in _refetch_urls():
+        max_age = None
+    trace: dict[str, Any] = {"offline": True} if offline else {}
+    ts = datetime.now(timezone.utc).isoformat(timespec="microseconds") if caminho else ""
+    try:
+        f = _fetch_offline(url) if offline else _fetch(url, max_age=max_age, retries=retries, accept=accept, trace=trace)
+    except (Exception, SemRedeSemCache) as e:
+        if caminho:
+            _registrar(caminho, url, ts, trace, None, e)
+        raise
+    if caminho:
+        if offline:
+            trace["desfecho"] = "cache_fresco"
+        _registrar(caminho, url, ts, trace, f, None)
+    return f
 
 
 def fetch_json(url: str, **kw: Any) -> Any:
@@ -167,6 +285,8 @@ def api_json(url: str, *, headers: dict[str, str], retries: int = 3, gate: Any =
 
     401/403 -> ApiAuthError, sem retentar. 3xx -> ApiRedirectError (follow_redirects=False), sem retentar. 404 -> FileNotFoundError. 429/5xx/rede: retenta com backoff e respeita Retry-After
     (até 120 s); esgotadas as tentativas, propaga HTTPStatusError/TransportError. `gate.wait()` (opcional) é o limite de taxa."""
+    if _offline():
+        raise SemRedeSemCache(url)
     delay = 5.0
     for attempt in range(retries + 1):
         if gate is not None:
