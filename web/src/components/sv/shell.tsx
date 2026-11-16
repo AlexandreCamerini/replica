@@ -13,14 +13,20 @@ const PRINCIPAIS = [
   { href: "/acompanhando", label: "O que meus escolhidos estão fazendo?" },
 ] as const;
 
-/** Linha "Também:". "Pessoas" e "Votações" entraram aqui na D324: antes só estavam no rodapé. */
-const TAMBEM = [
+/**
+ * Linha "Também:", em três partes na ordem em que aparecem. "Pessoas" e "Votações" entraram aqui na D324 (antes só no
+ * rodapé) e, na D325, ganharam um grupo próprio (`FIXOS`): abaixo de 900px ele fica preso à borda direita da linha que
+ * rola, para os dois ficarem à vista sem rolar. A partir de 900px o grupo não existe na tela (display:contents).
+ */
+const TAMBEM_ANTES = [
   { href: "/decisoes", label: "O que mexe comigo?" },
   { href: "/temas", label: "O que está em jogo?" },
+] as const;
+const FIXOS = [
   { href: "/pessoas", label: "Pessoas" },
   { href: "/votacoes", label: "Votações" },
-  { href: "/ajustes", label: "Ajustes" },
 ] as const;
+const TAMBEM_DEPOIS = [{ href: "/ajustes", label: "Ajustes" }] as const;
 
 /** Rodapé: repete "Votações" e "Pessoas" (também estão no topo) e traz "Como funciona". */
 const ROTAS = [
@@ -70,8 +76,20 @@ export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boo
             ))}
           </ul>
           <p className="sv-nv2">
-            <span>Também:</span>
-            {TAMBEM.map((n) => (
+            <span className="sv-nv2__t">Também:</span>
+            {TAMBEM_ANTES.map((n) => (
+              <NavLink key={n.href} href={n.href}>
+                {n.label}
+              </NavLink>
+            ))}
+            <span className="sv-fixo">
+              {FIXOS.map((n) => (
+                <NavLink key={n.href} href={n.href}>
+                  {n.label}
+                </NavLink>
+              ))}
+            </span>
+            {TAMBEM_DEPOIS.map((n) => (
               <NavLink key={n.href} href={n.href}>
                 {n.label}
               </NavLink>

@@ -64,9 +64,14 @@
 .sv .sv-nv2 a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding-inline:6px;font-weight:600;color:var(--tinta)}
 .sv .sv-nv2 a[aria-current]{font-weight:800;text-decoration-thickness:3px}
 .sv .sv-nv1 a:focus-visible,.sv .sv-nv2 a:focus-visible{outline-offset:-3px}
+/* grupo de "Pessoas" e "Votações" (D325): só existe na tela abaixo de 900px; no desktop os links seguem na linha "Também" */
+.sv-fixo{display:contents}
 /* Abaixo de 900px (D324): o topo cabe em duas linhas de 44px (antes eram cinco). Marca e UF na primeira; as duas camadas
    da navegação viram uma linha só, que rola na horizontal: sem menu e sem JavaScript. O link cortado na borda direita mostra
-   que há mais. O nome do estado fica só para leitor de tela; a sigla aparece. A partir de 900px nada disto vale. */
+   que há mais. O nome do estado fica só para leitor de tela; a sigla aparece. A partir de 900px nada disto vale.
+   D325: "Pessoas" e "Votações" ficam presos à borda direita da linha (position:sticky), à vista sem rolar; o resto passa
+   por baixo deles. Para isso a linha "Também" se desfaz (display:contents) e os links viram itens da própria linha que
+   rola, que é o bloco de referência do sticky. scroll-padding: um link focado pelo teclado nunca para escondido sob o grupo. */
 @media (max-width:899.98px){
   .sv-id{flex-wrap:nowrap}
   .sv .sv-marca{flex:none}
@@ -74,8 +79,23 @@
   .sv-perg{display:flex;align-items:stretch;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;border-top:3px solid var(--tinta);border-bottom:1.5px solid var(--tinta)}
   .sv-nv1{display:flex;flex:none;border:0}
   .sv-nv1 li+li{border-top:0}
-  .sv .sv-nv1 a{padding:0 8px 0 4px;font-size:16px;white-space:nowrap}
-  .sv-nv2{flex:none;flex-wrap:nowrap;white-space:nowrap;column-gap:2px;padding:0 4px 0 8px;border-left:1.5px solid var(--tinta)}
+  /* as duas perguntas em até duas linhas cada (D325): cabem inteiras à esquerda do grupo preso, sem passar por baixo dele.
+     A largura de cada uma segue o texto dela (se o texto mudar, revise os max-width); com espaçamento de texto maior
+     quebram em mais linhas e a linha cresce. Sublinhado da pergunta atual mais fino e mais perto: não invade a 2ª linha. */
+  .sv .sv-nv1 a{padding:2px 6px 2px 4px;font-size:14px;line-height:1.25;white-space:normal;text-wrap:balance}
+  .sv .sv-nv1 a[aria-current]{text-decoration-thickness:2px;text-underline-offset:2px}
+  .sv .sv-nv1 li:first-child a{max-width:6em}
+  .sv .sv-nv1 li+li a{max-width:11em}
+  /* --sv-fixo-w: largura do grupo preso e, a mesma, a margem que o navegador deixa ao rolar até um link focado */
+  .sv-perg{--sv-fixo-w:7.25rem;scroll-padding-inline-end:var(--sv-fixo-w)}
+  .sv-nv2{display:contents}
+  .sv .sv-nv2 a{flex:none;white-space:nowrap;font-size:13px;font-weight:600;font-stretch:84%}
+  .sv .sv-nv2 a[aria-current]{font-weight:800}
+  /* "Também:" é texto, não link: a ponta dele, cortada pelo grupo preso, mostra que a linha continua. Se a ponta fosse de
+     um link, o navegador não rolaria até ele ao receber foco (já estaria "à vista") e ele ficaria sob o grupo. */
+  .sv-nv2__t{display:flex;flex:none;align-items:center;white-space:nowrap;padding:0 2px 0 4px;border-left:1.5px solid var(--tinta);font-size:13px;color:var(--tinta2)}
+  .sv-fixo{position:sticky;right:0;z-index:1;display:flex;flex:none;align-items:stretch;justify-content:flex-end;min-width:var(--sv-fixo-w);background-color:var(--papel);border-left:1.5px solid var(--tinta)}
+  .sv .sv-fixo a{padding-inline:4px}
 }
 @media (min-width:900px){
   .sv-topo{flex-wrap:nowrap;column-gap:24px}
