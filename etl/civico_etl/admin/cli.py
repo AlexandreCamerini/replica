@@ -1,7 +1,8 @@
 """`civico-etl admin <subcomando>`: administração de coleta (Parte A do plano; replica/admin-coleta-plano.md, seção 4.1).
 
 Subcomandos nesta entrega: `inventario`, `vinculos`, `previa`, `rodada` (abrir, executar, repetir, ver, listar), `relatorio` e, da Parte B, `proposta registrar`,
-`fila` e `pendencia` (detalhe e `reavaliar`; `proposta registrar` e `pendencia reavaliar` gravam só em `adm_propostas`, `adm_pendencias` e `adm_pendencia_propostas`). Os próximos (decidir, aplicar, parecer, candidata, executor) entram em `SUBCOMANDOS` com uma função `configurar` (opções do parser) e uma `executar` (devolve o documento e o texto).
+`fila` e `pendencia` (detalhe e `reavaliar`; `proposta registrar` e `pendencia reavaliar` gravam só em `adm_propostas`, `adm_pendencias` e `adm_pendencia_propostas`),
+`decidir` (grava `adm_decisoes`; só decisão de PESSOA, a de agentes não tem opção de linha de comando) e `aplicar` (escreve nas tabelas de domínio, em `adm_overrides`, `adm_vinculos` e `corrections`). Os próximos (parecer, candidata, executor) entram em `SUBCOMANDOS` com uma função `configurar` (opções do parser) e uma `executar` (devolve o documento e o texto).
 
 Saída: `--json` imprime UM documento JSON em stdout (aceito antes ou depois do subcomando); sem ele, uma tabela. Diagnóstico vai para stderr.
 Códigos: 0 sucesso; 2 erro de uso (argparse) ou subcomando ausente; 1 erro de execução, com a mensagem em stderr e sem traceback. Um subcomando pode
@@ -24,6 +25,8 @@ import psycopg
 
 from .. import db
 from ..catalogo.contrato import Recorte
+from . import aplicar as apl
+from . import decisoes as dec
 from . import inventario as inv
 from . import pendencias as pen
 from . import propostas as prop
@@ -322,6 +325,70 @@ def _run_pendencia(conn: Any, a: argparse.Namespace) -> Resultado:
     return {"reabertas": reabertas, "total": len(reabertas)}, txt, bool(reabertas)
 
 
+# ------------------------------------------------------------------ decidir e aplicar (Parte B, B2)
+
+
+def _cfg_decidir(p: argparse.ArgumentParser) -> None:
+    p.add_argument("id", metavar="PENDENCIA", help="identificador da pendência (veja `admin fila`)")
+    p.add_argument("--acao", required=True, choices=list(dec.ACOES), help="aprovar (o candidato único), corrigir (--valor), descartar ou pedir_confirmacao")
+    p.add_argument("--por", required=True, metavar="NOME", help="nome de quem decide (decisão de pessoa)")
+    p.add_argument("--justificativa", required=True, metavar="TEXTO", help="por que (obrigatória)")
+    p.add_argument("--valor", metavar="JSON", help='corrigir: o valor, em JSON (texto entre aspas; em contato, {"remover": true}); aprovar de duplicata: {"unir": {"de": "ID", "para": "ID"}}')
+    p.add_argument("--aplicar", action="store_true", help="aprovar/corrigir: aplica em seguida (tudo ou nada: se a aplicação falhar, a decisão também não fica registrada)")
+
+
+def _texto_aplicacao(r: dict[str, Any]) -> str:
+    esc = "; ".join(f"{t}: {v}" for t, v in r["escreveu"].items()) or "nenhuma tabela"
+    c = r["corrections"]
+    corr = f"corrections {c['id']}" if c["gravou"] else f"sem corrections ({c['motivo']})"
+    return "\n".join(filter(None, [f"aplicada: {r['classe']}:{r['registro_chave']}:{r['campo']}  {fmt_v(r['valor_anterior'])} -> {fmt_v(r['valor_novo'])}", f"escreveu: {esc}", corr,
+                                  f"observação: {r['observacao']}" if r["observacao"] else None]))
+
+
+def fmt_v(v: Any) -> str:
+    return "sem valor" if v is None else repr(v)
+
+
+def _run_decidir(conn: Any, a: argparse.Namespace) -> Resultado:
+    valor = None
+    if a.valor is not None:
+        try:
+            valor = json.loads(a.valor)
+        except ValueError as e:
+            raise _Uso(f"--valor não é JSON válido: {e}") from None
+    if a.aplicar and a.acao not in dec.ACOES_QUE_APLICAM:
+        raise _Uso(f"--aplicar não vale com {a.acao}: só aprovar e corrigir aplicam")
+    d = dec.decidir(conn, a.id, acao=a.acao, por_tipo="pessoa", por_nome=a.por, justificativa=a.justificativa, valor=valor)
+    doc: dict[str, Any] = {"decisao": {k: d[k] for k in ("id", "pendencia_id", "acao", "decidido_por_tipo", "decidido_por_nome", "justificativa", "campos_afetados", "valor", "aplicada", "criada_em")},
+                           "aplicacao": None}
+    estado = "pendência continua aberta (confirmação pedida)" if a.acao == "pedir_confirmacao" else "pendência decidida"
+    txt = lista_chave_valor([("decisão", str(d["id"])), ("pendência", str(d["pendencia_id"])), ("ação", d["acao"]), ("por", d["decidido_por_nome"]), ("campos afetados", ", ".join(d["campos_afetados"])),
+                             ("valor", fmt_v(d["valor"])), ("efeito", estado), ("aplicada", "não (use `admin aplicar`)" if a.acao in dec.ACOES_QUE_APLICAM and not a.aplicar else "não se aplica" if a.acao not in dec.ACOES_QUE_APLICAM else "sim")])
+    if a.aplicar:
+        r = apl.aplicar(conn, d["id"])
+        doc["aplicacao"] = r
+        doc["decisao"]["aplicada"] = True
+        txt += "\n" + _texto_aplicacao(r)
+    return doc, txt, True
+
+
+def _cfg_aplicar(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--decisao", metavar="ID", help="só esta decisão (padrão: todas as não aplicadas de aprovar e corrigir, em ordem de criação)")
+
+
+def _run_aplicar(conn: Any, a: argparse.Namespace) -> Resultado:
+    itens = apl.aplicar_pendentes(conn, decisao_id=a.decisao)
+    if a.decisao and not itens:
+        d = conn.execute("select acao, aplicada from adm_decisoes where id::text = %s", (a.decisao,)).fetchone()
+        raise ErroAdmin(f"decisão inexistente: {a.decisao}" if d is None else f"a decisão {a.decisao} é {d['acao']} e {'já foi aplicada' if d['aplicada'] else 'não se aplica a tabela nenhuma'}")
+    linhas = [{"decisao": i["decisao_id"], "estado": i["estado"], "alvo": (f"{i['resultado']['classe']}:{i['resultado']['registro_chave']}:{i['resultado']['campo']}" if i["resultado"] else None),
+               "detalhe": (i["resultado"]["observacao"] or "") if i["resultado"] else i["erro"]} for i in itens]
+    ap = sum(1 for i in itens if i["estado"] == "aplicada")
+    ruins = len(itens) - ap
+    txt = tabela((("decisao", "DECISÃO"), ("estado", "ESTADO"), ("alvo", "REGISTRO:CAMPO"), ("detalhe", "OBSERVAÇÃO / ERRO")), linhas, total=f"{ap} aplicadas, {ruins} não aplicadas de {len(itens)}")
+    return {"decisoes": itens, "totais": {"aplicadas": ap, "nao_aplicadas": ruins}}, txt, ap > 0, 1 if ruins else 0
+
+
 class _Uso(Exception):
     """Combinação de opções inválida: sai com 2, como um erro do argparse."""
 
@@ -335,6 +402,8 @@ SUBCOMANDOS: dict[str, Subcomando] = {s.nome: s for s in (
     Subcomando("proposta", "registrar propostas de mudança de um arquivo JSON (recusa o que vem sem URL, trecho ou hash; abre ou reabre pendência)", _cfg_proposta, _run_proposta),
     Subcomando("fila", "pendências abertas na ordem da fila: classe, tipo, vencimento, cobertura do recorte (nunca por pessoa ou partido)", _cfg_fila, _run_fila),
     Subcomando("pendencia", "detalhe de uma pendência (ID) ou `reavaliar` as decididas cujo valor vigente mudou", _cfg_pendencia, _run_pendencia),
+    Subcomando("decidir", "registra a decisão de uma pessoa sobre uma pendência (aprovar, corrigir, descartar, pedir_confirmacao); --aplicar aplica em seguida", _cfg_decidir, _run_decidir),
+    Subcomando("aplicar", "aplica às tabelas de domínio as decisões aprovadas e ainda não aplicadas (agentes só com as duas chaves ligadas)", _cfg_aplicar, _run_aplicar),
 )}
 
 

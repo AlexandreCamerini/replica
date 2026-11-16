@@ -171,7 +171,7 @@ def _preparar(conn: Any, p: Proposta, agora: datetime) -> _Pronta:
     if not c.registro_existe(conn, p.registro_chave):
         raise PropostaRecusada(f"registro inexistente: {p.classe}:{p.registro_chave}")
     if not c.campo_existe(conn, p.registro_chave, p.campo):
-        raise PropostaRecusada(f"campo inexistente neste registro: {p.campo!r} (para contato que ainda não existe use novo:<tipo>)")
+        raise PropostaRecusada(f"campo inexistente neste registro: {p.campo!r} (para contato que ainda não existe use novo:<tipo>:<valor>)")
     ids = None
     if p.alcance == "regra":
         if not _texto(p.regra_criterio):
@@ -210,6 +210,9 @@ def chave_idem(classe: str, chave: str, campo: str, candidato: Any, url: str, sh
 
 def _sha_vigente(v: Any) -> str:
     return sha256_text(canonico(v))
+
+
+sha_vigente = _sha_vigente  # público: quem aplica uma decisão atualiza `vigente_sha` com a mesma função (senão `reavaliar` reabriria a pendência recém-aplicada)
 
 
 def _ultimas_por_url(linhas: list[dict[str, Any]]) -> list[dict[str, Any]]:

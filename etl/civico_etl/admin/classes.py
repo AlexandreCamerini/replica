@@ -33,7 +33,7 @@ COBERTURA_CAMPOS = ("status", "reason", "evidence_url")
 COBERTURA_DATASETS = ("salario_prefeito", "salario_vereadores", "salario_deputados_estaduais", "presenca", "votos", "propostas", "gastos_gabinete", "discursos",
                       "equipe", "emendas", "comissoes", "viagens", "contato")  # check de data_coverage.dataset
 CONTATO_KINDS = ("email", "telefone", "gabinete", "site", "instagram", "facebook", "x", "youtube", "tiktok", "outra_rede")  # check de mandate_contacts.kind
-CONTATO_NOVO = "novo"  # campo `novo:<kind>`: contato que ainda não existe em mandate_contacts
+CONTATO_NOVO = "novo"  # campo `novo:<kind>:<value>`: contato que ainda não existe em mandate_contacts (o valor candidato faz parte do campo)
 IDENTIDADE_STATUS = ("pendente", "aceito", "rejeitado", "nova_pessoa")  # check de identity_match_queue.status
 IDENTIDADE_CAMPOS = ("status",)
 
@@ -83,6 +83,16 @@ def _contato(campo: str) -> tuple[str, str]:
     """`<kind>:<value>` separado no PRIMEIRO `:` (o valor pode ter outros, como em `site:https://...`)."""
     kind, _, valor = campo.partition(":")
     return kind, valor
+
+
+def contato_partes(campo: str) -> tuple[str, str, str]:
+    """(modo, kind, value) de um campo de contato. `novo:<kind>:<value>` -> ("novo", kind, value); `<kind>:<value>` -> ("existente", kind, value).
+    Separa no primeiro `:` e, em `novo:`, no segundo (o valor pode ter outros `:`). Não valida: use `campos_validos`."""
+    a, _, resto = campo.partition(":")
+    if a == CONTATO_NOVO:
+        kind, _, valor = resto.partition(":")
+        return "novo", kind, valor
+    return "existente", a, resto
 
 
 # ------------------------------------------------------------------ pergunta (uma frase, terminada em "?")
@@ -193,26 +203,24 @@ def _cob_desc(campo: str) -> str:
 def _contato_campos_validos(campo: str) -> bool:
     if not isinstance(campo, str):
         return False
-    kind, valor = _contato(campo)
-    if kind == CONTATO_NOVO:
-        return valor in CONTATO_KINDS
+    modo, kind, valor = contato_partes(campo)
     return kind in CONTATO_KINDS and bool(valor.strip()) and valor == valor.strip()
 
 
 def _contato_campo_existe(conn: Any, chave: str, campo: str) -> bool:
-    kind, valor = _contato(campo)
-    if kind == CONTATO_NOVO:
+    modo, kind, valor = contato_partes(campo)
+    if modo == "novo":
         return True
     m = _uuid(chave)
     return bool(m and conn.execute("select 1 from mandate_contacts where mandate_id = %s and kind = %s and value = %s", (m, kind, valor)).fetchone())
 
 
 def _contato_vigente(conn: Any, chave: str, campo: str) -> Any:
-    """Contato existente: o valor vigente é o próprio `value` (se a linha existe). `novo:<kind>`: None."""
+    """Contato existente: o valor vigente é o próprio `value` (se a linha existe). `novo:<kind>:<value>`: None."""
     if not _contato_campos_validos(campo):
         return None
-    kind, valor = _contato(campo)
-    return valor if kind != CONTATO_NOVO and _contato_campo_existe(conn, chave, campo) else None
+    modo, kind, valor = contato_partes(campo)
+    return valor if modo == "existente" and _contato_campo_existe(conn, chave, campo) else None
 
 
 def _contato_territorio(conn: Any, chave: str) -> tuple[dict[str, str] | None, str | None]:
@@ -222,23 +230,28 @@ def _contato_territorio(conn: Any, chave: str) -> tuple[dict[str, str] | None, s
 
 
 def _contato_candidato(campo: str, v: Any) -> str | None:
-    return None if isinstance(v, str) and v.strip() and v == v.strip() else "valor de contato tem de ser texto não vazio, sem espaço nas pontas"
+    if not (isinstance(v, str) and v.strip() and v == v.strip()):
+        return "valor de contato tem de ser texto não vazio, sem espaço nas pontas"
+    modo, kind, valor = contato_partes(campo)
+    if modo == "novo" and v != valor:
+        return f"em contato novo o valor candidato é o do próprio campo (campo {campo!r}, candidato {v!r}): dois contatos novos diferentes são duas propostas, cada uma com o seu campo"
+    return None
 
 
 def _contato_desc(campo: str) -> str:
-    kind, _ = _contato(campo)
-    return f"o contato do tipo {kind} que ainda não consta neste mandato" if kind == CONTATO_NOVO else f"o valor do contato do tipo {kind} deste mandato"
+    modo, kind, valor = contato_partes(campo)
+    return f"o contato do tipo {kind} que ainda não consta neste mandato" if modo == "novo" else f"o valor do contato do tipo {kind} deste mandato"
 
 
 def _contato_desc_real(campo: str) -> str:
-    kind, valor = _contato(campo)
-    return f"o contato do tipo {valor} deste mandato" if kind == CONTATO_NOVO else _contato_desc(campo)
+    modo, kind, valor = contato_partes(campo)
+    return f"o contato do tipo {kind} {fmt(valor)} deste mandato" if modo == "novo" else _contato_desc(campo)
 
 
 def _contato_pergunta(campo: str, vigente: Any, candidato: Any) -> str:
-    kind, valor = _contato(campo)
-    if kind == CONTATO_NOVO:
-        return f"Deve ser cadastrado, neste mandato, o contato do tipo {valor} {fmt(candidato)}?"
+    modo, kind, valor = contato_partes(campo)
+    if modo == "novo":
+        return f"Deve ser cadastrado, neste mandato, o contato do tipo {kind} {fmt(candidato)}?"
     return _pergunta_padrao(_contato_desc(campo), vigente, candidato)
 
 
@@ -356,10 +369,10 @@ CLASSES: dict[str, ClasseDeCampo] = {c.id: c for c in (
         pergunta_=lambda campo, v, c: _pergunta_padrao(_cob_desc(campo), v, c)),
     ClasseDeCampo(
         id="contato_mandato",
-        significado="mandate_contacts: canal oficial do mandato (um campo por contato, <kind>:<value>; novo:<kind> para contato que ainda não existe)",
+        significado="mandate_contacts: canal oficial do mandato (um campo por contato, <kind>:<value>; novo:<kind>:<value> para contato que ainda não existe)",
         fontes_aceitas="página ou API oficial da casa, no bloco do parlamentar (contato de rodapé é da Casa, não do parlamentar)",
         revalidacao_dias=7, chave_estavel="mandates.id",
-        campos="<kind>:<value> de mandate_contacts existente | novo:<kind> (kind em " + ", ".join(CONTATO_KINDS) + ")",
+        campos="<kind>:<value> de mandate_contacts existente | novo:<kind>:<value> (kind em " + ", ".join(CONTATO_KINDS) + ")",
         campos_validos=_contato_campos_validos, campo_existe=_contato_campo_existe, valor_vigente_=_contato_vigente, territorio_com_motivo=_contato_territorio,
         valida_candidato=_contato_candidato, descricao_campo=_contato_desc_real, aceita_override_=_sempre_override,
         pergunta_=_contato_pergunta),

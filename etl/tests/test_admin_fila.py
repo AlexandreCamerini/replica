@@ -220,7 +220,7 @@ def test_criterio_13_o_plano_de_execucao_nao_toca_tabela_de_pessoa_partido_ou_ma
 
 def test_item_da_fila_traz_rotulo_territorio_vigente_de_agora_e_as_propostas_com_evidencia(iso, m):
     r = PR.registrar(iso, P(m, bloco=None, fonte_slug="sapl", fonte_declarada_em=AGORA - timedelta(days=5), trecho="$.status"), agora=AGORA)
-    cont = PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="novo:email", valor_candidato="n@cidade-teste.example", bloco="<li id=v1>",
+    cont = PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="novo:email:n@cidade-teste.example", valor_candidato="n@cidade-teste.example", bloco="<li id=v1>",
                                url="https://c.example/v", conteudo_sha256=H("c")), agora=AGORA)
     ident = PR.registrar(iso, P(m, classe="identidade", registro_chave=str(m["q"]), campo="status", valor_candidato="aceito", url="https://i.example/x", conteudo_sha256=H("i")), agora=AGORA)
     itens = {i["id"]: i for i in PEN.fila(iso)}

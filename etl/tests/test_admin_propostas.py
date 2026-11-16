@@ -183,7 +183,7 @@ def test_valor_vigente_gravado_e_o_do_banco_na_hora(iso, m):
     # contato existente: o valor vigente é o próprio value; contato novo: nulo (SQL NULL, não o JSON 'null')
     c1 = PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="email:vereador@cidade-teste.example", valor_candidato="outro@cidade-teste.example",
                              bloco="<li id=v1>", url="https://c.example/v1", conteudo_sha256=H("c1")), agora=AGORA)
-    c2 = PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="novo:site", valor_candidato="https://vereador.example", bloco="<li id=v1>",
+    c2 = PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="novo:site:https://vereador.example", valor_candidato="https://vereador.example", bloco="<li id=v1>",
                              url="https://c.example/v1", conteudo_sha256=H("c1")), agora=AGORA)
     assert iso.execute("select valor_vigente from adm_propostas where id = %s", (c1.proposta_id,)).fetchone()["valor_vigente"] == "vereador@cidade-teste.example"
     assert iso.execute("select valor_vigente is null as n from adm_propostas where id = %s", (c2.proposta_id,)).fetchone()["n"] is True
@@ -218,9 +218,9 @@ def test_prazo_pergunta_e_tipo_de_cada_classe(iso, m):
         assert pend["vence_em"] == (None if dias is None else AGORA + timedelta(days=dias)), p.classe
         assert vig in pend["pergunta"] and cand in pend["pergunta"] and pend["pergunta"].endswith("?") and pend["pergunta"].count("?") == 1
     # contato que ainda não existe: a pergunta é de cadastro
-    PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="novo:email", valor_candidato="novo@cidade-teste.example", bloco="<li>", url="https://f9.example/x",
+    PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="novo:email:novo@cidade-teste.example", valor_candidato="novo@cidade-teste.example", bloco="<li>", url="https://f9.example/x",
                         conteudo_sha256=H("h9")), agora=AGORA)
-    pend = pendencia(iso, "contato_mandato", str(m["man"]), "novo:email")
+    pend = pendencia(iso, "contato_mandato", str(m["man"]), "novo:email:novo@cidade-teste.example")
     assert "novo@cidade-teste.example" in pend["pergunta"] and pend["pergunta"].endswith("?") and pend["tipo"] == "mudanca"
 
 
@@ -423,14 +423,14 @@ def test_relatorio_da_rodada_com_propostas_de_registrar_tem_zero_sem_pendencia_a
     for i, cand in enumerate(("so_portal", "nao_publica")):  # divergencia
         PR.registrar(iso, P(m, classe="cobertura", registro_chave=f"{IBGE}:propostas", campo="status", valor_candidato=cand, rodada_id=rod, url=f"https://c{i}.example/x",
                             conteudo_sha256=H(f"3{i}")), agora=AGORA)
-    PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="novo:email", valor_candidato="x@cidade-teste.example", bloco="<li>", rodada_id=rod,
+    PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=str(m["man"]), campo="novo:email:x@cidade-teste.example", valor_candidato="x@cidade-teste.example", bloco="<li>", rodada_id=rod,
                         url="https://d.example/x", conteudo_sha256=H("4")), agora=AGORA)  # vigente nulo: pendente
     rev = REL.relatorio(iso, rod)["revisao"]
     assert rev["campos_com_proposta"]["valor"] == 4
     assert rev["pendentes"]["sem_pendencia_aberta"]["valor"] == 0 and rev["pendentes"]["sem_pendencia_aberta"]["ids"] == []
     assert rev["confirmados"]["pela_fonte"]["ids"] == [f"vinculo_sapl:{h}:base_url"] and rev["confirmados"]["por_decisao"]["valor"] == 0
     assert rev["conflitantes"]["ids"] == [f"cobertura:{IBGE}:propostas:status"]
-    assert rev["pendentes"]["ids"] == sorted([f"vinculo_sapl:{h}:status", f"contato_mandato:{m['man']}:novo:email"])
+    assert rev["pendentes"]["ids"] == sorted([f"vinculo_sapl:{h}:status", f"contato_mandato:{m['man']}:novo:email:x@cidade-teste.example"])
     assert rev["pendencias_reabertas"]["valor"] == 0
 
 
@@ -517,3 +517,21 @@ def test_cli_proposta_fila_e_pendencia_codigos_e_json(banco_isolado, monkeypatch
         c.close()
     with psycopg.connect(banco_isolado, row_factory=dict_row) as c2:
         assert c2.execute("select (select count(*) from adm_propostas) + (select count(*) from adm_pendencias) + (select count(*) from sapl_houses) as n").fetchone()["n"] == 0
+
+
+# ------------------------------------------------------------------ B2, ponto F: contato novo leva o valor no campo (`novo:<kind>:<value>`)
+
+
+def test_dois_contatos_novos_do_mesmo_tipo_sao_duas_pendencias_independentes_e_nao_divergencia(iso, m):
+    man = str(m["man"])
+    r1 = PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=man, campo="novo:email:a@cidade-teste.example", valor_candidato="a@cidade-teste.example", bloco="<li id=v1>",
+                             url="https://c.example/v1", conteudo_sha256=H("c1")), agora=AGORA)
+    r2 = PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=man, campo="novo:email:b@cidade-teste.example", valor_candidato="b@cidade-teste.example", bloco="<li id=v1>",
+                             url="https://c.example/v1", conteudo_sha256=H("c1")), agora=AGORA)
+    assert r1.pendencia_id != r2.pendencia_id and (r1.tipo, r2.tipo) == ("mudanca", "mudanca")
+    assert "a@cidade-teste.example" in pendencia(iso, "contato_mandato", man, "novo:email:a@cidade-teste.example")["pergunta"]
+    assert iso.execute("select count(*) as n from adm_pendencias where classe = 'contato_mandato' and tipo = 'divergencia'").fetchone()["n"] == 0
+    # o formato antigo (sem valor no campo) e o candidato que não é o do campo são recusados
+    for campo, cand in (("novo:email", "a@cidade-teste.example"), ("novo:email:a@cidade-teste.example", "b@cidade-teste.example"), ("novo:fax:123", "123"), ("novo:email:", "x")):
+        with pytest.raises(PropostaRecusada):
+            PR.registrar(iso, P(m, classe="contato_mandato", registro_chave=man, campo=campo, valor_candidato=cand, bloco="<li>", url="https://c.example/v2", conteudo_sha256=H("c2")), agora=AGORA)
