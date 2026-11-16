@@ -128,15 +128,16 @@ def importar(conn: Any, rodada_id: str, caminho_log: str | Path, *, urls_entrada
     return res
 
 
-def registrar_robots(conn: Any, rodada_id: str, url: str, tentada_em: datetime) -> None:
+def registrar_robots(conn: Any, rodada_id: str, url: str, tentada_em: datetime, *, entrada: bool = False) -> None:
     """Tentativa `falha`/`robots`: o bloqueio acontece em `assembleias.allowed`, antes de `fetch`, e não aparece no log. Não comita,
-    não toca `adm_evidencias`. Repetir a chamada com a mesma (rodada, url, horário) não duplica."""
+    não toca `adm_evidencias`. Repetir a chamada com a mesma (rodada, url, horário) não duplica.
+    `entrada`: a URL é de entrada da rodada (o importador marca `entrada` pela lista que recebe; aqui quem chama diz)."""
     if tentada_em.tzinfo is None:
         raise ValueError("tentada_em precisa de fuso horário")
     if not url.strip():
         raise ValueError("url vazia")
     t = {"rodada": rodada_id, "url": url, "url_sha": sha256_text(url), "host": urlparse(url).netloc or None, "tentada_em": tentada_em,
-         "resultado": "falha", "http_status": None, "motivo": "robots", "conteudo_sha256": None, "bytes": None, "entrada": False}
+         "resultado": "falha", "http_status": None, "motivo": "robots", "conteudo_sha256": None, "bytes": None, "entrada": bool(entrada)}
     with conn.cursor() as cur:
         cur.execute("select pg_advisory_xact_lock(hashtext(%s))", (f"adm_tentativas:{rodada_id}",))
         cur.execute(_INSERT, t)

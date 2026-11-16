@@ -363,7 +363,7 @@ COLETORES_A: tuple[Coletor, ...] = (
             # as Assembleias: sapl.descobrir cobre municípios (a lista de UF não passa por ele). Logo, "descobrir" e "recoletar" não são separáveis.
             "descobrir": Modo(False, "sapl.ales sempre sonda /api/ e carrega a casa na mesma execução (sapl.py:762, :778); não há comando que só sonde as Assembleias"),
             "recoletar": Modo(True, "sapl.ales: sonda /api/ e robots.txt das UFs do escopo e carrega as casas 'ok' (a fila, load_queue, decide quais)"),
-            "reprocessar": Modo(False, "a carga é incremental por cursor e lê a API com max_age=0: reler o cache não reproduz a rodada"),
+            "reprocessar": Modo(True, "sem rede, refaz só a sondagem das casas (status e cobertura) a partir do cache de robots.txt e /api/; a carga de parlamentares, matérias e sessões só se refaz para casa fora do prazo de recarga de 6 dias (STALE_DAYS) e, nesse caso, depende de as páginas estarem no cache (as consultas incrementais por data mudam a cada dia); URL ausente do cache aborta a execução (SemRedeSemCache); reler o cache não reproduz a rodada original"),
         },
         caracterizado=False,  # test_sapl.py:282-289 só confere house_ids e ALE_SAPL; nenhum teste chama main, discover_ales ou load_house
         tentativas_registradas=True,  # _get -> H.fetch_json -> fetch (sapl.py:146-149)

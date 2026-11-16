@@ -200,5 +200,6 @@ def _sapl_assembleias(c: Coletor, r: Recorte, conn: Any, hoje: date | None) -> P
         partes.append("só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas")
     else:
         partes.append("as URLs da carga dependem do estado de sapl_houses e das respostas: sem banco, só a sondagem é listável")
-    partes.append(_reprocessar(r))
+    if r.modo == "reprocessar":  # não vale a nota padrão (pulo por checksum): o modo sem rede é o ETL_HTTP_OFFLINE, ligado por quem executa (admin rodada)
+        partes.append("reprocessar: " + c.modos["reprocessar"].motivo)
     return "sapl.ales", argv, urls, True, _juntar(*partes), ""

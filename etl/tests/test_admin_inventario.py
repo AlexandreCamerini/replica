@@ -84,7 +84,8 @@ def test_subcomando_desconhecido_e_uso_invalido_saem_com_2(capsys):
 
 
 def test_registro_de_subcomandos_nesta_entrega():
-    assert set(SUBCOMANDOS) == {"inventario", "vinculos"}
+    # o registro cresce a cada tarefa (previa, rodada, ...); os dois desta tarefa têm de continuar lá
+    assert {"inventario", "vinculos"} <= set(SUBCOMANDOS)
 
 
 def test_despacho_real_da_cli_devolve_um_item_por_coletor_e_fonte(banco_isolado, monkeypatch, capsys):

@@ -17,6 +17,7 @@ replica/screens/
 .local/
 etl/.cache/
 etl/.raw/
+etl/admin-rodadas/
 etl/.agenda-logs/
 .venv/
 

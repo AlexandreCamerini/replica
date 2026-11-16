@@ -519,7 +519,10 @@ def test_sapl_assembleias():
     assert EXPLICACOES_A[("sapl.assembleias", "ibge")] in ibge and contrato._EXPLICACOES[("sapl.assembleias", "ibge")] in ibge
     desc = _plano("sapl.assembleias", Recorte(modo="descobrir"))
     assert desc[1] == [] and POR_ID["sapl.assembleias"].modos["descobrir"].motivo in desc[5] and "sempre sonda" in desc[5]
-    assert POR_ID["sapl.assembleias"].modos["reprocessar"].motivo in _plano("sapl.assembleias", Recorte(modo="reprocessar"))[5]
+    # reprocessar passou a ser suportado (sem rede, com o limite escrito no motivo): sem recusa, e o motivo vai para a observação
+    rep = _plano("sapl.assembleias", Recorte(modo="reprocessar"))
+    assert POR_ID["sapl.assembleias"].modos["reprocessar"].suporta is True and rep[5] == "" and rep[1] == ["sapl.ales"]
+    assert POR_ID["sapl.assembleias"].modos["reprocessar"].motivo in rep[4] and "STALE_DAYS" in rep[4] and "SemRedeSemCache" in rep[4]
     conn = ConnFalsa({"sapl_houses": [{"uf": "RO", "status": "ok"}, {"uf": "AC", "status": "sem_api"}]})
     _, argv, urls, est, obs, _ = _plano("sapl.assembleias", Recorte(ufs=("RO", "AC", "PI")), conn=conn)
     assert argv == ["sapl.ales", "--uf", "RO", "--uf", "AC", "--uf", "PI"] and est is True
