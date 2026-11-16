@@ -1,7 +1,7 @@
 """`civico-etl admin <subcomando>`: administração de coleta (Parte A do plano; replica/admin-coleta-plano.md, seção 4.1).
 
-Subcomandos nesta entrega: `inventario`, `vinculos`, `previa` e `rodada` (abrir, executar, repetir, ver, listar). Os próximos (relatorio, fila,
-pendencia, decidir, aplicar, parecer, candidata, executor) entram em `SUBCOMANDOS` com uma função `configurar` (opções do parser) e uma `executar` (devolve o documento e o texto).
+Subcomandos nesta entrega: `inventario`, `vinculos`, `previa`, `rodada` (abrir, executar, repetir, ver, listar), `relatorio` e, da Parte B, `proposta registrar`,
+`fila` e `pendencia` (detalhe e `reavaliar`; `proposta registrar` e `pendencia reavaliar` gravam só em `adm_propostas`, `adm_pendencias` e `adm_pendencia_propostas`). Os próximos (decidir, aplicar, parecer, candidata, executor) entram em `SUBCOMANDOS` com uma função `configurar` (opções do parser) e uma `executar` (devolve o documento e o texto).
 
 Saída: `--json` imprime UM documento JSON em stdout (aceito antes ou depois do subcomando); sem ele, uma tabela. Diagnóstico vai para stderr.
 Códigos: 0 sucesso; 2 erro de uso (argparse) ou subcomando ausente; 1 erro de execução, com a mensagem em stderr e sem traceback. Um subcomando pode
@@ -14,14 +14,19 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import json
 import os
 import sys
 from dataclasses import dataclass
 from typing import Any, Callable
 
+import psycopg
+
 from .. import db
 from ..catalogo.contrato import Recorte
 from . import inventario as inv
+from . import pendencias as pen
+from . import propostas as prop
 from . import relatorio as rel
 from . import rodadas as rod
 from . import vinculos as vin
@@ -239,6 +244,84 @@ def _run_relatorio(conn: Any, a: argparse.Namespace) -> Resultado:
     return doc, rel.texto_relatorio(doc, ids=a.ids), False
 
 
+# ------------------------------------------------------------------ proposta, fila e pendencia (Parte B)
+
+
+def _cfg_proposta(p: argparse.ArgumentParser) -> None:
+    p.add_argument("acao", choices=["registrar"], help="registrar: grava as propostas do arquivo e abre ou reabre as pendências (recusa a que vem sem URL, trecho ou hash)")
+    p.add_argument("--arquivo", required=True, metavar="ARQ.json", help="um objeto ou uma lista de objetos com os campos de Proposta (classe, registro_chave, campo, valor_candidato, url, trecho, conteudo_sha256, lida_em, ...)")
+
+
+def _ler_propostas(caminho: str) -> list[Any]:
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            doc = json.load(f)
+    except OSError as e:
+        raise ErroAdmin(f"não foi possível ler {caminho}: {e.strerror or e}") from None
+    except ValueError as e:
+        raise ErroAdmin(f"{caminho} não é JSON válido: {e}") from None
+    if isinstance(doc, dict):
+        return [doc]
+    if isinstance(doc, list):
+        return doc
+    raise ErroAdmin(f"{caminho}: esperado um objeto ou uma lista de objetos")
+
+
+def _run_proposta(conn: Any, a: argparse.Namespace) -> Resultado:
+    itens = _ler_propostas(a.arquivo)
+    cache: dict[str, Any] = {}
+    res: list[dict[str, Any]] = []
+    for i, d in enumerate(itens, 1):
+        base = {"indice": i, "registro": f"{d.get('classe')}:{d.get('registro_chave')}:{d.get('campo')}" if isinstance(d, dict) else None}
+        try:
+            p = prop.Proposta.de_dict(d)
+            with conn.transaction():  # savepoint: um erro de banco numa proposta não derruba as outras
+                r = prop.registrar(conn, p, cache_recorte=cache)
+            res.append({**base, "resultado": "nova" if r.nova else "repetida", "motivo": None, **r.para_dict()})
+        except prop.PropostaRecusada as e:
+            res.append({**base, "resultado": "recusada", "motivo": str(e)})
+        except psycopg.Error as e:
+            res.append({**base, "resultado": "erro", "motivo": f"erro de banco: {e}"})
+    tot = {k: sum(1 for r in res if r["resultado"] == k) for k in ("nova", "repetida", "recusada", "erro")}
+    falhas = tot["recusada"] + tot["erro"]
+    aviso = (f"{falhas} proposta(s) não entraram; as {tot['nova']} aceitas FORAM gravadas mesmo assim (uma recusa não desfaz as outras)" if falhas and tot["nova"] else None)
+    doc = {"arquivo": a.arquivo, "totais": tot, "resultados": res, "aviso": aviso}
+    linhas = [{**r, "pendencia": (f"{r['pendencia']['acao']} {r['pendencia']['tipo'] or ''}".strip() if r["resultado"] in ("nova", "repetida") else None),
+               "motivo": r["motivo"] or ("campo confirmado pela fonte (sem pendência)" if r.get("confirmada_pela_fonte") else None)} for r in res]
+    txt = tabela((("indice", "#"), ("resultado", "RESULTADO"), ("registro", "REGISTRO:CAMPO"), ("pendencia", "PENDÊNCIA"), ("motivo", "MOTIVO")), linhas,
+                 total=f"{tot['nova']} novas, {tot['repetida']} repetidas, {tot['recusada']} recusadas, {tot['erro']} com erro de banco de {len(res)}" + (f"\n{aviso}" if aviso else ""))
+    return doc, txt, tot["nova"] > 0, 1 if falhas else 0
+
+
+def _cfg_fila(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--classe", choices=list(vin.CLASSES), help="só esta classe de campo")
+    p.add_argument("--limite", type=int, metavar="N", help="só as N primeiras da fila")
+
+
+def _run_fila(conn: Any, a: argparse.Namespace) -> Resultado:
+    if a.limite is not None and a.limite < 1:
+        raise _Uso("--limite espera um inteiro maior que zero")
+    itens = pen.fila(conn, classe=a.classe, limite=a.limite)
+    return itens, pen.texto_fila(itens), False
+
+
+def _cfg_pendencia(p: argparse.ArgumentParser) -> None:
+    p.add_argument("alvo", metavar="ID|reavaliar", help="identificador da pendência (detalhe) ou `reavaliar` (reabre as decididas cujo valor vigente mudou no banco)")
+    p.add_argument("--classe", choices=list(vin.CLASSES), help="reavaliar: só esta classe")
+
+
+def _run_pendencia(conn: Any, a: argparse.Namespace) -> Resultado:
+    if a.alvo != "reavaliar":
+        if a.classe:
+            raise _Uso("--classe só vale em `pendencia reavaliar`")
+        d = pen.detalhe(conn, a.alvo)
+        return d, pen.texto_detalhe(d), False
+    reabertas = prop.reavaliar(conn, classe=a.classe)
+    txt = tabela((("id", "PENDÊNCIA"), ("classe", "CLASSE"), ("registro_chave", "REGISTRO"), ("campo", "CAMPO"), ("tipo", "TIPO")), reabertas,
+                 total=f"{len(reabertas)} pendências reabertas (registro_mudou)")
+    return {"reabertas": reabertas, "total": len(reabertas)}, txt, bool(reabertas)
+
+
 class _Uso(Exception):
     """Combinação de opções inválida: sai com 2, como um erro do argparse."""
 
@@ -249,6 +332,9 @@ SUBCOMANDOS: dict[str, Subcomando] = {s.nome: s for s in (
     Subcomando("previa", "recorte, registros elegíveis, URLs de entrada e quantas serão consultadas, sem rede (estimativas marcadas)", _cfg_previa, _run_previa),
     Subcomando("rodada", "abrir, executar, repetir, ver e listar rodadas de coleta (identificador, parâmetros gravados, repetível)", _cfg_rodada, _run_rodada),
     Subcomando("relatorio", "relatório de uma rodada: estado da coleta e estado da revisão (painéis separados), com denominador e identificadores", _cfg_relatorio, _run_relatorio),
+    Subcomando("proposta", "registrar propostas de mudança de um arquivo JSON (recusa o que vem sem URL, trecho ou hash; abre ou reabre pendência)", _cfg_proposta, _run_proposta),
+    Subcomando("fila", "pendências abertas na ordem da fila: classe, tipo, vencimento, cobertura do recorte (nunca por pessoa ou partido)", _cfg_fila, _run_fila),
+    Subcomando("pendencia", "detalhe de uma pendência (ID) ou `reavaliar` as decididas cujo valor vigente mudou", _cfg_pendencia, _run_pendencia),
 )}
 
 
