@@ -9,10 +9,16 @@ os kwargs (sem banco, sem rede); `db.connect` vira um dublê. Cada comando roda 
 `[passo do comando] + Comando.encadeia`.
 
 Entrada inalterada: o critério supõe que `SkipUnchanged` interrompe a cadeia. Na CLI de hoje isso só acontece se a exceção ESCAPAR do job.
-Todo `run_*` que passa `input_checksum` captura `SkipUnchanged` por dentro (db.run + `except`), então `camara.diario` com entrada inalterada
-AINDA roda `identity.dedupe` e `derive.stats` (cenário a, o comportamento real: o job volta normalmente). O `except db.SkipUnchanged: pass` de
+Os runs que passam `input_checksum` dentro de `camara.diario` e `senado.diario` capturam `SkipUnchanged` na função que os abre
+(BUG-056 lista as linhas), então `camara.diario` com entrada inalterada AINDA roda `identity.dedupe` e `derive.stats` (cenário a, o comportamento real: o job volta normalmente). O `except db.SkipUnchanged: pass` de
 cli.py só atua se o job deixar a exceção sair, e aí nada do que viria depois roda e o código de saída é 0 (cenário b). Os dois cenários são
 fixados aqui, pelos dois caminhos. A frase do critério descreve só o cenário b.
+
+Cenário real: o cenário (a) acima também tem prova com `db.run` de verdade (`test_entrada_inalterada_real_...`). `ibge.populacao` (que
+encadeia `seed` e passa `input_checksum`) roda duas vezes com a mesma entrada fabricada, num banco isolado e sem rede, pela CLI e pelo contrato:
+na 2ª rodada o run do dataset fica `skipped_unchanged` e o passo encadeado roda mesmo assim. `camara.diario` e `senado.diario` não foram
+exercitados assim: a entrada deles é grande (diretório de deputados e senadores, votações, proposições e cota por ano, mais seus detalhes) e fabricá-la
+com fidelidade custa muito mais que o ganho; para eles o cenário (a) fica provado só com o gravador.
 
 Fora do teste do parser principal: `sapl.*`, `sancoes.*` e `transparencia.emendas` têm main e parser próprios (despachados antes do argparse
 principal, cli.py:51-67) e não encadeiam nada (Comando.encadeia vazio); os `ale.*` têm `ale_cli.main`, que encadeia `run_derive`, e são
@@ -27,7 +33,12 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+import psycopg
 import pytest
+from banco_isolado import banco_isolado  # noqa: F401  (fixture de sessão; não vive no conftest)
+from caracterizacao import rodar_cli
+from psycopg.rows import dict_row
+from test_caracterizacao import R5_POP, R5_POP_PERIODOS, _r5_apagar, _r5_conta_url, _r5_contagens, _r5_corpo, _r5_foto, _r5_ultimo
 
 from civico_etl import db
 from civico_etl import http as H
@@ -315,3 +326,85 @@ def test_executar_com_runner_subprocesso_entrega_o_argv_do_contrato(monkeypatch)
     monkeypatch.setattr(contrato, "subprocess", SimpleNamespace(run=lambda cmd, **kw: (chamadas.append(list(cmd)), SimpleNamespace(returncode=0))[1], TimeoutExpired=subprocess.TimeoutExpired))
     assert executar("senado.diario", Recorte(anos=(2024, 2025)), runner=runner_subprocesso) == 0
     assert chamadas[0][2:] == ["civico_etl.cli", "senado.diario", "--year", "2024", "--year", "2025"]
+
+
+# ---------------------------------------------------------------- 7. entrada inalterada com db.run de verdade (sem gravador, sem rede)
+
+
+def test_entrada_inalterada_real_db_run_pula_por_checksum_e_o_passo_encadeado_roda_pelos_dois_caminhos(banco_isolado, conn, monkeypatch, tmp_path):
+    """`ibge.populacao` (run com checksum + `run_seed` encadeado) duas vezes com a mesma entrada fabricada, banco isolado, HTTP falso. Pelos dois
+    caminhos, `civico_etl.cli.main` e `catalogo.executar` com o runner em processo: rodada 1 = `succeeded`, rodada 2 = `skipped_unchanged`, e o
+    `run_seed` roda nas duas (é o cenário (a): o job volta normalmente, a CLI não interrompe a cadeia). `run_seed` é envolvido por um gravador
+    que chama a função real. O teste limpa o que criou no banco isolado e não grava nada no banco da suíte."""
+    import caracterizacao as CZ
+
+    from civico_etl.jobs import seed as seed_mod
+
+    iso = banco_isolado
+    dataset = "ibge.populacao"
+    antes = _r5_contagens(conn)
+    antes_iso = _r5_foto(iso)
+    antes_iso_n = _r5_conta_url(iso)
+    seed_real = seed_mod.run_seed
+    seed_chamadas: list[int] = []
+
+    def seed_gravador(*a, **k):
+        seed_chamadas.append(1)
+        return seed_real(*a, **k)
+
+    monkeypatch.setattr(seed_mod, "run_seed", seed_gravador)  # cli.py importa `run_seed` de dentro do despacho: pega o gravador
+
+    def respostas(req):
+        path = req.url.path
+        if path == "/api/v3/agregados/6579/periodos":
+            obj = R5_POP_PERIODOS
+        elif path == "/api/v3/agregados/6579/periodos/2025/variaveis/9324":
+            nivel = req.url.params.get("localidades")
+            assert nivel in R5_POP, f"localidades não previstas: {nivel}"
+            obj = [{"resultados": [{"series": R5_POP[nivel]}]}]
+        else:
+            raise AssertionError(f"URL não prevista: {req.url}")
+        return 200, {"content-type": "application/json"}, _r5_corpo(obj)
+
+    def pela_cli() -> int:
+        return rodar_cli([dataset], url_banco=iso, respostas=respostas, monkeypatch=monkeypatch, tmp_path=tmp_path)
+
+    def pelo_contrato() -> int:
+        # rodar_cli prepara banco, HTTP e cache e chama `cli.main`; aqui a chamada final vira `executar(...)`, que usa o runner em processo
+        # (e este chama o `cli.main` verdadeiro, pois só o nome `cli` do módulo auxiliar é trocado).
+        fake = SimpleNamespace(main=lambda argv=None: executar("ibge.populacao", Recorte()))
+        with monkeypatch.context() as m:
+            m.setattr(CZ, "cli", fake)
+            return rodar_cli([dataset], url_banco=iso, respostas=respostas, monkeypatch=m, tmp_path=tmp_path)
+
+    def duas_rodadas(rodar) -> dict:
+        _r5_apagar(iso, (dataset,))
+        seed_chamadas.clear()
+        cod1 = rodar()
+        st1 = _r5_ultimo(iso, dataset)[0]["status"]
+        n1 = len(seed_chamadas)
+        cod2 = rodar()
+        run_, stamp = _r5_ultimo(iso, dataset)
+        with psycopg.connect(iso, row_factory=dict_row, autocommit=True) as c:
+            status = [r["status"] for r in c.execute("select status from ingest_runs where dataset = %s order by started_at, created_at", (dataset,)).fetchall()]
+        return {"saida": (cod1, cod2), "status_rodada_1": st1, "status_rodada_2": run_["status"], "runs": status,
+                "seed_apos_rodada_1": n1, "seed_apos_rodada_2": len(seed_chamadas), "carimbo_no_run_pulado": stamp == run_["id"]}
+
+    with psycopg.connect(iso, row_factory=dict_row, autocommit=True) as c:
+        antes_pop = {r["ibge_code"]: (r["population"], r["population_year"]) for r in c.execute("select ibge_code, population, population_year from places").fetchall()}
+    try:
+        pela_cli_res = duas_rodadas(pela_cli)
+        pelo_contrato_res = duas_rodadas(pelo_contrato)
+    finally:
+        with psycopg.connect(iso, row_factory=dict_row, autocommit=True) as c:
+            for codigo, (pop, ano) in antes_pop.items():
+                c.execute("update places set population = %s, population_year = %s where ibge_code = %s", (pop, ano, codigo))
+        _r5_apagar(iso, (dataset,))
+
+    esperado = {"saida": (0, 0), "status_rodada_1": "succeeded", "status_rodada_2": "skipped_unchanged", "runs": ["succeeded", "skipped_unchanged"],
+                "seed_apos_rodada_1": 1, "seed_apos_rodada_2": 2, "carimbo_no_run_pulado": True}
+    assert pela_cli_res == esperado
+    assert pelo_contrato_res == pela_cli_res  # o contrato roda o mesmo que a CLI, inclusive o seed depois da carga pulada
+    assert _r5_foto(iso) == antes_iso  # banco isolado de volta ao estado inicial
+    assert _r5_conta_url(iso) == antes_iso_n
+    assert _r5_contagens(conn) == antes  # nada foi gravado em `admin_coleta`

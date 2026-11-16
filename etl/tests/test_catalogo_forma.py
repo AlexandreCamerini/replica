@@ -508,6 +508,30 @@ def test_runner_padrao_e_o_main_da_cli_e_systemexit_vira_codigo(monkeypatch):
     assert executar("camara.equipe") == 2
 
 
+def test_runner_em_processo_traduz_systemexit_e_imprime_a_mensagem_em_stderr(monkeypatch, capsys):
+    """Como o interpretador num processo real: SystemExit("texto") sai com código 1 e o texto em stderr; SystemExit(n) devolve n; SystemExit(None), 0."""
+    from civico_etl import cli
+
+    def main_que_sai(valor):
+        def main(argv=None):
+            raise SystemExit(valor)
+
+        return main
+
+    msg = "outro run de camara.equipe em andamento (advisory lock)"
+    monkeypatch.setattr(cli, "main", main_que_sai(msg))
+    capsys.readouterr()
+    assert executar("camara.equipe") == 1
+    saida = capsys.readouterr()
+    assert msg in saida.err and saida.out == ""
+    monkeypatch.setattr(cli, "main", main_que_sai(3))
+    assert executar("camara.equipe") == 3
+    assert capsys.readouterr().err == ""
+    monkeypatch.setattr(cli, "main", main_que_sai(None))
+    assert executar("camara.equipe") == 0
+    assert capsys.readouterr().err == ""
+
+
 def test_runner_subprocesso_roda_a_cli_e_devolve_o_codigo():
     # --help e job inválido saem no argparse, antes de abrir o banco
     assert runner_subprocesso(["--help"], env={"ETL_LOG": "WARNING"}, timeout_s=120) == 0

@@ -32,7 +32,7 @@ _ALE_COMANDO = {"SP": "ale.sp", "MG": "ale.mg"}  # ale_cli.py:20 (ADAPTERS = ("s
 EXPLICACOES_A: dict[tuple[str, str], str] = {
     ("tse.votos", "uf"): "--uf é aceito pelo parser principal mas só é lido em tse.candidatos (cli.py:136); tse.votos o ignora (cli.py:140)",
     ("tse.contas", "uf"): "--uf é aceito pelo parser principal mas só é lido em tse.candidatos (cli.py:136); tse.contas o ignora (cli.py:144)",
-    ("sapl.assembleias", "ibge"): "--ibge é aceito pelo parser do SAPL, mas em sapl.ales o escopo vem só de --uf (sapl.py:761) e --ibge só reordena a fila (sapl.py:781)",
+    ("sapl.assembleias", "ibge"): "--ibge é aceito pelo parser do SAPL, mas em sapl.ales o escopo vem só de --uf (sapl.py:761) e --ibge não escolhe câmaras: com ele, a fila de carga deixa de ser a de load_queue e passa a ser todas as câmaras 'ok' do escopo, na ordem do escopo e cortadas por --lote/--max (sapl.py:781-782), o que ignora a idade mínima de recarga (STALE_DAYS, sapl.py:62) e o backoff (retry_after, sapl.py:257)",
 }
 
 

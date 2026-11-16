@@ -343,7 +343,7 @@ COLETORES_A: tuple[Coletor, ...] = (
                 "vigente e das respostas. A casa só é carregada se a sondagem de {base}/api/ voltar 'ok' naquela execução"
             ),
         ),
-        # --uf é lido (sapl.py:761). --ibge e --escopo são aceitos pelo parser; em sapl.ales o escopo vem só de --uf, e --ibge só reordena a fila (sapl.py:781).
+        # --uf é lido (sapl.py:761). --ibge e --escopo são aceitos pelo parser; em sapl.ales o escopo vem só de --uf, e --ibge troca a fila de carga por todas as casas 'ok' do escopo, ignorando a idade mínima de recarga e o backoff (sapl.py:781-782).
         recortes_aceitos=("uf",),
         recortes_nao_aceitos=("ano", "casa", "ibge"),
         tabelas=(

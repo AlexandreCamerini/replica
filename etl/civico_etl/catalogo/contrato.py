@@ -182,7 +182,7 @@ def _camara_diario(c: Coletor, r: Recorte, conn: Any, hoje: date | None) -> Plan
     return "camara.diario", ["camara.diario", *_anos_flags(anos if r.anos else [])], tuple(urls), True, _juntar(*partes), ""
 
 
-_PAGINA_SAPL = 100  # sapl.py:56 (PAGE)
+_PAGINA_SAPL = 100  # sapl.py:58 (PAGE)
 _REGISTRO_SAPL = "https://www12.senado.leg.br/interlegis/orgaosatendidos"  # sapl.py:69
 
 
@@ -269,17 +269,26 @@ def descrever(coletor_id: str, recorte: Recorte | None = None, *, conn: Any = No
 
 
 def _runner_em_processo(argv: list[str]) -> int:
-    """`civico_etl.cli.main` (o despacho da CLI, com os passos encadeados). SystemExit vira código de saída, como no processo."""
+    """`civico_etl.cli.main` (o despacho da CLI, com os passos encadeados). SystemExit vira código de saída, como no processo; o texto de
+    `SystemExit("texto")` vai para stderr, que é o que o interpretador faz num processo real."""
     from civico_etl.cli import main  # dentro da função: importar o catálogo não importa a CLI
 
     try:
         return int(main(argv))
     except SystemExit as e:
-        return e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        if isinstance(e.code, int):
+            return e.code
+        if e.code is None:
+            return 0
+        print(e.code, file=sys.stderr)
+        return 1
 
 
 def executar(coletor_id: str, recorte: Recorte | None = None, *, runner: Callable[[list[str]], int] | None = None) -> int:
-    """Executa o recorte pelo despacho da CLI. `ValueError` se `descrever` marca o recorte como não suportado."""
+    """Executa o recorte pelo despacho da CLI. `ValueError` se `descrever` marca o recorte como não suportado.
+
+    O runner padrão roda em processo e deixa neste processo o estado global que os jobs alteram no import (`http.RATE`, alterado por
+    `jobs/sapl.py` e `jobs/assembleias.py`). Quem executa mais de um coletor no mesmo processo deve preferir `runner_subprocesso`."""
     d = descrever(coletor_id, recorte)
     if d.nao_suportado:
         raise ValueError(f"recorte não suportado por {coletor_id}: {d.nao_suportado}")

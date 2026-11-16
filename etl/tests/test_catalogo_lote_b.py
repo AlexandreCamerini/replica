@@ -563,3 +563,15 @@ def test_adaptadores_nao_fazem_rede(monkeypatch):
     assert all(s.lstrip().lower().startswith("select") for s in conn.sqls)
     with pytest.raises(AssertionError):  # o cerco funciona: tocar o cliente falha
         H.client().get("https://example.invalid")
+
+
+def test_camara_presenca_com_modelo_de_url_nao_expandido_levanta_runtimeerror_e_nao_assert():
+    """Era `assert not pendentes` (some com `python -O`). Um modelo com placeholder que o adaptador não expande tem de falhar sempre, nomeando o coletor."""
+    import dataclasses
+
+    from civico_etl.catalogo import Entradas
+
+    c = POR_ID["camara.presenca"]
+    ruim = dataclasses.replace(c, entradas=Entradas(c.entradas.tipo, urls=(*c.entradas.urls, "https://exemplo.invalid/{xyz}/{ano}.csv"), depende_de=c.entradas.depende_de))
+    with pytest.raises(RuntimeError, match=r"camara\.presenca.*\{xyz\}"):
+        contrato.ADAPTADORES["camara.presenca"](ruim, Recorte(), None, HOJE)

@@ -514,7 +514,7 @@ def test_sapl_assembleias():
     assert sp[1] == [] and "ALE_SAPL" in sp[5] and "RO, AC, AM, PI, PB" in sp[5]
     assert _plano("sapl.assembleias", Recorte(ufs=("RO", "SP")))[5]
     assert "'ano'" in _plano("sapl.assembleias", Recorte(anos=(2025,)))[5]
-    # integrado: --ibge usa a explicação de EXPLICACOES_A (correta pelo código: sapl.py:761 define o escopo só por --uf; :781 só reordena a fila)
+    # integrado: --ibge usa a explicação de EXPLICACOES_A (correta pelo código: sapl.py:761 define o escopo só por --uf; :781-782 trocam a fila de load_queue pelas câmaras ok do escopo, sem STALE_DAYS nem backoff)
     ibge = _plano("sapl.assembleias", Recorte(ibges=("1100205",)))[5]
     assert EXPLICACOES_A[("sapl.assembleias", "ibge")] in ibge and contrato._EXPLICACOES[("sapl.assembleias", "ibge")] in ibge
     desc = _plano("sapl.assembleias", Recorte(modo="descobrir"))

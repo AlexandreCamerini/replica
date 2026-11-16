@@ -226,7 +226,8 @@ def _camara_presenca(c: Coletor, r: Recorte, conn: Any, hoje: date | None) -> Pl
     modelos = [u for u in c.entradas.urls if "{leg}" not in u]
     roster = [u for u in c.entradas.urls if "{leg}" in u]
     urls, pendentes = _expandir(modelos, anos)
-    assert not pendentes
+    if pendentes:
+        raise RuntimeError(f"{c.id}: modelos de URL do catálogo sem expandir (placeholder além de {{ano}} e {{leg}}): {list(pendentes)}")
     legs = list(dict.fromkeys(n for a in anos for n in _legislaturas_do_ano(a)))
     urls = _unicas([*urls, *(_sub(m, leg=str(n)) for m in roster for n in legs)])
     partes = [
