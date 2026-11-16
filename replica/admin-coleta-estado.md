@@ -65,12 +65,12 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 | R9 entradas simples (IBGE, governos, receita) | Haiku | aceita; devolveu duas perguntas antes de escrever, respondidas | 0 | `ee9b3a9` |
 | Integração dos três lotes em `COLETORES` | orquestrador | feita | | `ee9b3a9` |
 | R10 testes de R-5 e R-7 e ajuste de 7 testes da própria entrega | Sonnet | aceita | 0 | `ee9b3a9` |
-| R11 documentação, BUG-056 a BUG-060, D324 | Haiku | aceita | 0 | `2743a74` |
+| R11 documentação, BUG-056 a BUG-060, D325 | Haiku | aceita | 0 | `2743a74` |
 | Verificador da Parte R | Sonnet | em voo, só leitura; relatório em `verificacao/parte-r.md` (pasta de notas) | | |
 
 - Suíte ao fim da construção da fase R: `991 passed, 33 skipped, 4 xfailed` (linha de base: 767, 33, 4).
 - Critérios com prova, antes do verificador: R-1 (nenhum teste antigo alterado), R-2 (sete comandos caracterizados; cinco módulos declarados sem caracterização e não tocados), R-3, R-4, R-5 (com AC-04), R-6, R-7 (comportamento real fixado; BUG-056), R-8, R-9 (`git diff --stat 39ee3ec..ee9b3a9 -- etl/civico_etl` só acrescenta `catalogo/`), R-10 (mesmos 7 problemas).
-- Decisões: AC-01 a AC-07. `replica/decisions.md`: D324 (AC-02) gravada; a do item 2 do plano (AC-03) entra com a migração, na fase A. Última migração existente: `0142`; nenhuma criada.
+- Decisões: AC-01 a AC-07. `replica/decisions.md`: D325 (AC-02) gravada; a do item 2 do plano (AC-03) entra com a migração, na fase A. Última migração existente: `0142`; nenhuma criada.
 - Pontos em aberto para a fase A: (1) `sapl.assembleias` está com `reprocessar` não suportado no catálogo (carga por cursor), e o passo 5 da primeira rodada pede reprocessamento sem rede nesse recorte: decidir em A5, lendo `--full` em `jobs/sapl.py`; (2) `reprocessar` hoje usa o mesmo argv de `recoletar`: o executor decide se acrescenta `--force` onde o comando aceita.
 - Achados dos testes de caracterização a levar para `replica/bugs.md` na R11 (comportamento real, não corrigido): `camara.equipe` apaga toda a equipe se o CSV vier sem linha válida e não registra `rows_read` nem `rows_deleted`; `parlamento.extras` apaga contato de fonte `camara` ou `senado` em qualquer mandato com contato na rodada, contra o que a docstring diz, e o nome de comissão depende da ordem sem `order by`; `receita.arrecadacao` e `governos.indicadores` validam fora do `run()`, então falha de validação não deixa run `failed`; `governos.indicadores` não carimba `governos.bcb` na rodada pulada; `ibge.places` faz cada região pai de si mesma; `cli.py` tem `except SkipUnchanged` que nunca atua para job com checksum.
 
