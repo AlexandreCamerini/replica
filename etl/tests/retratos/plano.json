@@ -1,0 +1,1844 @@
+{
+  "janela_camara_aberta | sem_filtro": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 720 h (>= 168 h)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 30 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 192 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 192 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 24 h (>= 20 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2400 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 0.3 h (< 1 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 240 h)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 24 h)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 2 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 1.0 h (< 5 h)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 24 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 1.0 h (< 5 h)"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 240 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  },
+  "janela_camara_aberta | include_sapl_todas": {
+    "plano": [
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 24 h (>= 20 h)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "janela_camara_aberta | exclude_sapl_todas": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 720 h (>= 168 h)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 30 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 192 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 192 h (>= 144 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2400 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 0.3 h (< 1 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 240 h)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 24 h)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 2 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 1.0 h (< 5 h)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 24 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 1.0 h (< 5 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "skipped",
+        "motivo": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar",
+        "motivo_bruto": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 240 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  },
+  "janela_camara_aberta | include_e_exclude": {
+    "plano": [
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 192 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 1.0 h (< 5 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "skipped",
+        "motivo": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar",
+        "motivo_bruto": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "janela_camara_aberta | only_camara_diario": {
+    "plano": [
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 30 h (>= 20 h)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "janela_camara_aberta | only_camara_diario_force": {
+    "plano": [
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "forçada",
+        "motivo_bruto": "forçada"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "janela_camara_aberta | only_tse_force_sem_repairs": {
+    "plano": [
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "forçada",
+        "motivo_bruto": "forçada"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "janela_camara_aberta | sem_repairs": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 30 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 192 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 192 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 24 h (>= 20 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2400 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 0.3 h (< 1 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 240 h)"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 2 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 1.0 h (< 5 h)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 24 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "skipped",
+        "motivo": "última tentativa há <n> h (< <n> h)",
+        "motivo_bruto": "última tentativa há 1.0 h (< 5 h)"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 240 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  },
+  "fora_de_janela | sem_filtro": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 05:00 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 726 h (>= 168 h)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 36 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 198 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 198 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 36 h (>= 20 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 30 h (>= 20 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2406 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 246 h)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 30 h)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 8 h)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 30 h)"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 246 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  },
+  "fora_de_janela | include_sapl_todas": {
+    "plano": [
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 30 h (>= 20 h)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "fora_de_janela | exclude_sapl_todas": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 05:00 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 726 h (>= 168 h)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 36 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 198 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 198 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 36 h (>= 20 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2406 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 246 h)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 30 h)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 8 h)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 30 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "skipped",
+        "motivo": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar",
+        "motivo_bruto": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 246 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  },
+  "fora_de_janela | include_e_exclude": {
+    "plano": [
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 198 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 36 h (>= 20 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "skipped",
+        "motivo": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar",
+        "motivo_bruto": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "fora_de_janela | only_camara_diario": {
+    "plano": [
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 36 h (>= 20 h)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "fora_de_janela | only_camara_diario_force": {
+    "plano": [
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "forçada",
+        "motivo_bruto": "forçada"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "fora_de_janela | only_tse_force_sem_repairs": {
+    "plano": [
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "forçada",
+        "motivo_bruto": "forçada"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "fora_de_janela | sem_repairs": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 04/11 05:00 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 36 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 198 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 198 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 36 h (>= 20 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 30 h (>= 20 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2406 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 246 h)"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 8 h)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 30 h)"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 246 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  },
+  "domingo | sem_filtro": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 07/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 07/11 05:00 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 816 h (>= 168 h)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 126 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 98 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 288 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 288 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 126 h (>= 20 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 120 h (>= 20 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2496 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 336 h)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 120 h)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 120 h)"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 336 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  },
+  "domingo | include_sapl_todas": {
+    "plano": [
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 120 h (>= 20 h)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "domingo | exclude_sapl_todas": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 07/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 07/11 05:00 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 816 h (>= 168 h)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 126 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 98 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 288 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 288 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 126 h (>= 20 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2496 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 336 h)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 120 h)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 120 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "skipped",
+        "motivo": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar",
+        "motivo_bruto": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 336 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  },
+  "domingo | include_e_exclude": {
+    "plano": [
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 288 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 126 h (>= 20 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "skipped",
+        "motivo": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar",
+        "motivo_bruto": "fora desta chamada (ETL_TASKS_EXCLUDE): roda em outro lugar"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "domingo | only_camara_diario": {
+    "plano": [
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 126 h (>= 20 h)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "domingo | only_camara_diario_force": {
+    "plano": [
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "forçada",
+        "motivo_bruto": "forçada"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.votos",
+      "tse.contas",
+      "camara.presenca",
+      "camara.equipe",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "domingo | only_tse_force_sem_repairs": {
+    "plano": [
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "forçada",
+        "motivo_bruto": "forçada"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      }
+    ],
+    "ausentes": [
+      "senado.noturna",
+      "camara.noturna",
+      "ibge.places",
+      "ibge.populacao",
+      "ibge.malhas",
+      "tse.candidatos.recentes",
+      "tse.contas",
+      "camara.diario",
+      "camara.presenca",
+      "senado.diario",
+      "senado.secretas",
+      "agenda.congresso",
+      "parlamento.extras",
+      "ale.todas",
+      "sapl.ales",
+      "sapl.todas",
+      "sancoes.tcu",
+      "transparencia.emendas",
+      "sancoes.cgu",
+      "receita.arrecadacao",
+      "governos.indicadores"
+    ]
+  },
+  "domingo | sem_repairs": {
+    "plano": [
+      {
+        "tarefa": "senado.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 07/11 00:30 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "camara.noturna",
+        "situacao": "due",
+        "motivo": "reposição: a janela das <data-hora> BRT fechou sem leitura",
+        "motivo_bruto": "reposição: a janela das 07/11 05:00 BRT fechou sem leitura"
+      },
+      {
+        "tarefa": "ibge.populacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ibge.malhas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "camara.diario",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 126 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.presenca",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 98 h (>= 20 h)"
+      },
+      {
+        "tarefa": "camara.equipe",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 288 h (>= 168 h)"
+      },
+      {
+        "tarefa": "senado.diario",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "senado.secretas",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "agenda.congresso",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "ale.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 288 h (>= 144 h)"
+      },
+      {
+        "tarefa": "sapl.ales",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 126 h (>= 20 h)"
+      },
+      {
+        "tarefa": "sapl.todas",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 120 h (>= 20 h)"
+      },
+      {
+        "tarefa": "receita.arrecadacao",
+        "situacao": "due",
+        "motivo": "nunca carregada",
+        "motivo_bruto": "nunca carregada"
+      },
+      {
+        "tarefa": "governos.indicadores",
+        "situacao": "due",
+        "motivo": "carimbo há <n> h (>= <n> h)",
+        "motivo_bruto": "carimbo há 2496 h (>= 1920 h)"
+      },
+      {
+        "tarefa": "ibge.places",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 336 h)"
+      },
+      {
+        "tarefa": "tse.candidatos.recentes",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "tse.votos",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "tse.contas",
+        "situacao": "skipped",
+        "motivo": "aguarda identity.repairs (a recarga do TSE depende dos reparos)",
+        "motivo_bruto": "aguarda identity.repairs (a recarga do TSE depende dos reparos)"
+      },
+      {
+        "tarefa": "parlamento.extras",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 120 h)"
+      },
+      {
+        "tarefa": "sancoes.tcu",
+        "situacao": "skipped",
+        "motivo": "em dia (carimbo há <n> h)",
+        "motivo_bruto": "em dia (carimbo há 336 h)"
+      },
+      {
+        "tarefa": "transparencia.emendas",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      },
+      {
+        "tarefa": "sancoes.cgu",
+        "situacao": "skipped",
+        "motivo": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)",
+        "motivo_bruto": "aguarda TRANSPARENCIA_API_KEY (rode etl/deploy/transparencia-key.sh)"
+      }
+    ],
+    "ausentes": []
+  }
+}
