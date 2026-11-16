@@ -1,0 +1,866 @@
+{
+  "tasks": [
+    {
+      "name": "senado.noturna",
+      "every_h": 24,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 1,
+      "missing_ok": false,
+      "derives": false,
+      "window": {
+        "start": "00:30",
+        "end": "02:00",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 1,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "senado.noturna"
+          ],
+          "families": [
+            "senado.noturna."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "senado.noturna"
+          ],
+          "families": [
+            "senado.noturna."
+          ]
+        }
+      }
+    },
+    {
+      "name": "camara.noturna",
+      "every_h": 24,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 1,
+      "missing_ok": false,
+      "derives": false,
+      "window": {
+        "start": "05:00",
+        "end": "07:00",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 1,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "camara.noturna"
+          ],
+          "families": [
+            "camara.noturna."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "camara.noturna"
+          ],
+          "families": [
+            "camara.noturna."
+          ]
+        }
+      }
+    },
+    {
+      "name": "ibge.places",
+      "every_h": 8760,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "ibge.places"
+          ],
+          "families": [
+            "ibge.places"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "ibge.places"
+          ],
+          "families": [
+            "ibge.places"
+          ]
+        }
+      }
+    },
+    {
+      "name": "ibge.populacao",
+      "every_h": 8760,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "ibge.populacao"
+          ],
+          "families": [
+            "ibge.populacao"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "ibge.populacao"
+          ],
+          "families": [
+            "ibge.populacao"
+          ]
+        }
+      }
+    },
+    {
+      "name": "ibge.malhas",
+      "every_h": 8760,
+      "timeout_h": 2,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "ibge.malhas"
+          ],
+          "families": [
+            "ibge.malhas"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "ibge.malhas"
+          ],
+          "families": [
+            "ibge.malhas"
+          ]
+        }
+      }
+    },
+    {
+      "name": "tse.candidatos.recentes",
+      "every_h": 168,
+      "timeout_h": 5,
+      "people": true,
+      "needs_repairs": true,
+      "retry_h": 0,
+      "missing_ok": true,
+      "derives": true,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "tse.candidatos",
+            "--all",
+            "--year",
+            "2024",
+            "--year",
+            "2026"
+          ],
+          "families": [
+            "tse.candidatos.2024",
+            "tse.candidatos.2026"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "tse.candidatos",
+            "--all",
+            "--year",
+            "2024",
+            "--year",
+            "2026"
+          ],
+          "families": [
+            "tse.candidatos.2024",
+            "tse.candidatos.2026"
+          ]
+        }
+      }
+    },
+    {
+      "name": "tse.votos",
+      "every_h": 720,
+      "timeout_h": 4,
+      "people": true,
+      "needs_repairs": true,
+      "retry_h": 0,
+      "missing_ok": true,
+      "derives": true,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "tse.votos",
+            "--year",
+            "2024",
+            "--year",
+            "2026"
+          ],
+          "families": [
+            "tse.votos.2024",
+            "tse.votos.2026"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "tse.votos",
+            "--year",
+            "2024",
+            "--year",
+            "2026"
+          ],
+          "families": [
+            "tse.votos.2024",
+            "tse.votos.2026"
+          ]
+        }
+      }
+    },
+    {
+      "name": "tse.contas",
+      "every_h": 720,
+      "timeout_h": 4,
+      "people": false,
+      "needs_repairs": true,
+      "retry_h": 0,
+      "missing_ok": true,
+      "derives": true,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "tse.contas",
+            "--year",
+            "2024",
+            "--year",
+            "2026"
+          ],
+          "families": [
+            "tse.contas.2024",
+            "tse.contas.2026"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "tse.contas",
+            "--year",
+            "2024",
+            "--year",
+            "2026"
+          ],
+          "families": [
+            "tse.contas.2024",
+            "tse.contas.2026"
+          ]
+        }
+      }
+    },
+    {
+      "name": "camara.diario",
+      "every_h": 20,
+      "timeout_h": 4,
+      "people": true,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": true,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 5,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "camara.diario"
+          ],
+          "families": [
+            "camara.deputados",
+            "camara.votacoes.",
+            "camara.proposicoes.",
+            "camara.despesas."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "camara.diario"
+          ],
+          "families": [
+            "camara.deputados",
+            "camara.votacoes.",
+            "camara.proposicoes.",
+            "camara.despesas."
+          ]
+        }
+      }
+    },
+    {
+      "name": "camara.presenca",
+      "every_h": 20,
+      "timeout_h": 2,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": true,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 5,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "camara.presenca"
+          ],
+          "families": [
+            "camara.presenca."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "camara.presenca"
+          ],
+          "families": [
+            "camara.presenca."
+          ]
+        }
+      }
+    },
+    {
+      "name": "camara.equipe",
+      "every_h": 168,
+      "timeout_h": 2,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "camara.equipe"
+          ],
+          "families": [
+            "camara.equipe"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "camara.equipe"
+          ],
+          "families": [
+            "camara.equipe"
+          ]
+        }
+      }
+    },
+    {
+      "name": "senado.diario",
+      "every_h": 20,
+      "timeout_h": 3,
+      "people": true,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": true,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 5,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "senado.diario"
+          ],
+          "families": [
+            "senado.senadores",
+            "senado.votacoes.",
+            "senado.despesas.",
+            "senado.autorias"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "senado.diario"
+          ],
+          "families": [
+            "senado.senadores",
+            "senado.votacoes.",
+            "senado.despesas.",
+            "senado.autorias"
+          ]
+        }
+      }
+    },
+    {
+      "name": "senado.secretas",
+      "every_h": 20,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 5,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "senado.secretas",
+            "--year",
+            "2026"
+          ],
+          "families": [
+            "senado.secretas."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "senado.secretas",
+            "--year",
+            "2027"
+          ],
+          "families": [
+            "senado.secretas."
+          ]
+        }
+      }
+    },
+    {
+      "name": "agenda.congresso",
+      "every_h": 20,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 5,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "agenda.congresso"
+          ],
+          "families": [
+            "agenda."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "agenda.congresso"
+          ],
+          "families": [
+            "agenda."
+          ]
+        }
+      }
+    },
+    {
+      "name": "parlamento.extras",
+      "every_h": 168,
+      "timeout_h": 2,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": true,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "parlamento.extras"
+          ],
+          "families": [
+            "parlamento.extras"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "parlamento.extras"
+          ],
+          "families": [
+            "parlamento.extras"
+          ]
+        }
+      }
+    },
+    {
+      "name": "ale.todas",
+      "every_h": 144,
+      "timeout_h": 4,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "ale.todas",
+            "--no-derive"
+          ],
+          "families": [
+            "alesp.",
+            "alemg."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "ale.todas",
+            "--no-derive"
+          ],
+          "families": [
+            "alesp.",
+            "alemg."
+          ]
+        }
+      }
+    },
+    {
+      "name": "sapl.ales",
+      "every_h": 20,
+      "timeout_h": 2,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": true,
+      "window": null,
+      "source": "sapl-ale",
+      "needs_env": null,
+      "retry_efetivo": 5,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "sapl.ales",
+            "--workers",
+            "5",
+            "--casa-max-min",
+            "40"
+          ],
+          "families": [
+            "sapl-ale."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "sapl.ales",
+            "--workers",
+            "5",
+            "--casa-max-min",
+            "40"
+          ],
+          "families": [
+            "sapl-ale."
+          ]
+        }
+      }
+    },
+    {
+      "name": "sapl.todas",
+      "every_h": 20,
+      "timeout_h": 3,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": true,
+      "window": null,
+      "source": "sapl",
+      "needs_env": null,
+      "retry_efetivo": 5,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "sapl.todas",
+            "--escopo",
+            "todas",
+            "--lote",
+            "150",
+            "--lote-descoberta",
+            "400",
+            "--max-pendentes",
+            "300",
+            "--orcamento-min",
+            "150",
+            "--workers",
+            "4"
+          ],
+          "families": [
+            "sapl."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "sapl.todas",
+            "--escopo",
+            "todas",
+            "--lote",
+            "150",
+            "--lote-descoberta",
+            "400",
+            "--max-pendentes",
+            "300",
+            "--orcamento-min",
+            "150",
+            "--workers",
+            "4"
+          ],
+          "families": [
+            "sapl."
+          ]
+        }
+      }
+    },
+    {
+      "name": "sancoes.tcu",
+      "every_h": 672,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "sancoes.tcu"
+          ],
+          "families": [
+            "sancoes."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "sancoes.tcu"
+          ],
+          "families": [
+            "sancoes."
+          ]
+        }
+      }
+    },
+    {
+      "name": "transparencia.emendas",
+      "every_h": 168,
+      "timeout_h": 3,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": "TRANSPARENCIA_API_KEY",
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "transparencia.emendas"
+          ],
+          "families": [
+            "transparencia.emendas."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "transparencia.emendas"
+          ],
+          "families": [
+            "transparencia.emendas."
+          ]
+        }
+      }
+    },
+    {
+      "name": "sancoes.cgu",
+      "every_h": 168,
+      "timeout_h": 2,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": "TRANSPARENCIA_API_KEY",
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "sancoes.cgu"
+          ],
+          "families": [
+            "cgu.ceis",
+            "cgu.cnep"
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "sancoes.cgu"
+          ],
+          "families": [
+            "cgu.ceis",
+            "cgu.cnep"
+          ]
+        }
+      }
+    },
+    {
+      "name": "receita.arrecadacao",
+      "every_h": 672,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "receita.arrecadacao"
+          ],
+          "families": [
+            "receita."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "receita.arrecadacao"
+          ],
+          "families": [
+            "receita."
+          ]
+        }
+      }
+    },
+    {
+      "name": "governos.indicadores",
+      "every_h": 1920,
+      "timeout_h": 1,
+      "people": false,
+      "needs_repairs": false,
+      "retry_h": 0,
+      "missing_ok": false,
+      "derives": false,
+      "window": null,
+      "source": null,
+      "needs_env": null,
+      "retry_efetivo": 24,
+      "por_data": {
+        "2026-10-04": {
+          "argv": [
+            "governos.indicadores"
+          ],
+          "families": [
+            "governos."
+          ]
+        },
+        "2027-03-10": {
+          "argv": [
+            "governos.indicadores"
+          ],
+          "families": [
+            "governos."
+          ]
+        }
+      }
+    }
+  ],
+  "max_age_h": {
+    "alemg": 192,
+    "alesp": 192,
+    "bcb-sgs": 2880,
+    "camara": 36,
+    "cgu": 336,
+    "ibge": 9600,
+    "ibge-sidra": 2880,
+    "receita-federal": 1440,
+    "sapl": 192,
+    "sapl-ale": 192,
+    "senado": 36,
+    "tcu": 840,
+    "transparencia": 336,
+    "tse": 1440
+  },
+  "source_env": {
+    "cgu": "TRANSPARENCIA_API_KEY",
+    "transparencia": "TRANSPARENCIA_API_KEY"
+  }
+}
