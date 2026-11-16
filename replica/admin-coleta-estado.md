@@ -42,28 +42,27 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
   - use server não citado: `web/src/app/(sv)/ajustes/actions.ts`;
   - caminho inexistente: `web/src/app/mcp/page.tsx:22-37` e `web/src/app/p/[slug]/opengraph-image.tsx:10-14`.
 - `web/`: `npx eslint src` código 0; `npx tsc --noEmit` código 0; `npm run test:unit` 82 passam, 0 falham, 0 pulam.
-- `next build` nas condições do CI e conjunto ponta a ponta público: ainda não rodados (próximo passo).
+- `next build` nas condições do CI: código 0. Conjunto ponta a ponta público: não roda nesta sessão (AC-05).
+- `civico-etl check` no `admin_coleta` (migração + seed + `base.sql`): código 1, 5 invariantes quebradas por falta de carga real: "câmara: exatamente 513 em exercício", "senado: exatamente 81 em exercício", "cota: amostra fixa", "UF: exatamente 1 governador titular", "UF: governador e vice em exercício = lista conferida". Saída em `linha-de-base/base-check.txt`. Critério 14 é medido contra isso (AC-07).
 
 ## Fase e tarefas
 
-- `next build` nas condições do CI: passa (linha de base). Playwright não roda nesta sessão (AC-05).
-- Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a`. Reprovado nas duas verificações; achados corrigidos; sem terceira verificação (AC-06). Relatórios em `verificacao/plano-v1.md` e `plano-v2.md`, na pasta de notas.
-- Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-06. Último `AC-NN`: AC-06. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
-- Fase: R, recém-iniciada. Nenhum código de produto escrito. Nenhum critério avaliado.
-- Subagentes lançados: 8 antes das fases (1 consulta de sandbox, 5 levantamentos, 2 verificadores do plano); fase R: 3 de 16.
+- Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a` (AC-06).
+- Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
+- Fase: R. Subagentes da fase: 4 de 16 (R1 a R3 foram retomadas depois da parada por limite de uso, sem novo lançamento).
 
-Tarefas da fase R em voo quando a sessão parou por limite de uso (2026-11-15). Nenhuma foi conferida nem commitada:
+| Tarefa | Modelo | Situação | Reprovações | Commit |
+| --- | --- | --- | --- | --- |
+| R1 retratos da agenda (R-3) | Haiku | aceita | 0 | `2d4591b` |
+| R2 retrato do plano e códigos de saída (R-6, R-8) | Sonnet | aceita | 0 | `1ae2c68` |
+| R3 orquestradores (R-4) | Sonnet | aceita | 0 | `91e67f4` |
+| R4 banco isolado e caracterização de `camara.equipe` | Sonnet | em voo: `etl/tests/{banco_isolado,caracterizacao,test_caracterizacao}.py`, `etl/tests/retratos/camara_equipe.json` | 0 | |
 
-| Tarefa | Modelo | Arquivos permitidos | Situação |
-| --- | --- | --- | --- |
-| R1 retratos da agenda | Haiku | `etl/tests/test_retrato_agenda.py`, `etl/tests/retratos/agenda.json` | em voo, não conferida |
-| R2 retrato do plano e códigos de saída | Sonnet | `etl/tests/test_retrato_plano.py`, `etl/tests/retratos/plano.json`, `etl/tests/test_codigos_saida.py` | em voo, não conferida |
-| R3 orquestradores | Sonnet | `etl/tests/test_orquestradores.py` | em voo, não conferida |
-
-Na retomada: esses arquivos podem existir no worktree, completos ou pela metade. Não aproveitar sem conferir: `git status --porcelain` contra a lista acima, ler o teste, rodar o comando de pronto do plano. Se a devolução do subagente não estiver disponível, refazer a tarefa.
+- Suíte depois de R1 a R3: `789 passed, 33 skipped, 4 xfailed`.
+- Critérios com teste passando: R-3, R-4, R-6, R-8. Os demais, não avaliados.
 
 ## Próximo passo
 
-1. Conferir e commitar R1, R2 e R3 (ou refazer).
-2. R4 (banco isolado e caracterização de `camara.equipe`), depois R5 e R6; só então R7 em diante (catálogo).
+1. Conferir e commitar R4; depois R5 (Haiku) e R6 (Sonnet), em série.
+2. R7 a R11 (catálogo, contrato, testes, documentação) e o verificador da Parte R.
 3. Seguir o plano, seção 7.

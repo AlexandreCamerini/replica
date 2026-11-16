@@ -66,3 +66,14 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Limite: a versão final do plano não foi lida por verificador independente. O verificador da Parte R é o primeiro a conferir o que ela mudou.
 - Materializa: `replica/admin-coleta-plano.md`; relatórios em `verificacao/plano-v1.md` e `verificacao/plano-v2.md`, na pasta de notas da sessão.
 - Desfazer: não se aplica.
+
+## AC-07 · Critério 14 medido contra a linha de base do `check`
+
+- Data e fase: 2026-11-15, fase R.
+- Em jogo: o critério 14 diz "`civico-etl check` continua passando no banco local". No banco preparado como o prompt manda (migração, seed, `base.sql`), o `check` já sai com código 1 antes de qualquer mudança: 5 invariantes dependem de carga real (513 deputados, 81 senadores, amostra da cota, governadores).
+- Opções: (a) carregar dado real para o `check` passar (rede e horas de carga, fora do recorte); (b) medir "nenhuma invariante quebrada além das 5 da linha de base".
+- Escolha: (b).
+- Motivo: o critério como escrito é impossível neste banco; a intenção é não quebrar invariante nova.
+- Consequência: no relato, o critério 14 original sai como "não atendido" e o substituto ao lado, com a lista das 5.
+- Materializa: `replica/admin-coleta-estado.md`; saída em `linha-de-base/base-check.txt`, na pasta de notas.
+- Desfazer: não se aplica.
