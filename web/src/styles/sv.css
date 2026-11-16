@@ -114,6 +114,21 @@
   .sv-nv2{flex:1 1 auto}
   .sv .sv-nv1 a{min-height:52px}
 }
+/* D326: a partir de 1280px as duas camadas voltam a dividir a mesma linha (o topo volta aos 86px de antes da D324). A linha
+   "Também" fica um pouco mais justa; as perguntas pedem no mínimo 450px (abaixo de 445px a segunda iria a três linhas).
+   A segunda quebra em duas linhas (cada uma com 24px; as duas cabem nos 52px da linha). Quando não há 450px para as
+   perguntas (estado de nome longo com barra de rolagem clássica, zoom só de texto, espaçamento de texto maior), a linha
+   "Também" desce sozinha para baixo, como abaixo de 1280px: a linha quebra, nunca encolhe as perguntas nem estoura.
+   Quem mede: e2e/d324-fase1.spec.ts, com os 27 estados. */
+@media (min-width:1280px){
+  .sv-perg{column-gap:12px}
+  .sv-nv1{flex:1 1 450px}
+  .sv .sv-nv1 li+li a{text-wrap:balance}
+  /* sublinhado da pergunta atual mais perto do texto: em duas linhas, o de 4px a 6px da linha de base tocaria a segunda */
+  .sv .sv-nv1 a[aria-current]{text-decoration-thickness:3px;text-underline-offset:3px}
+  .sv-nv2{flex:1 0 auto;column-gap:6px;padding-left:4px}
+  .sv .sv-nv2 a{padding-inline:4px}
+}
 .sv-demo{font-size:13px;line-height:1.4;font-weight:500;border-bottom:1.5px solid var(--tinta)}
 .sv-demo .sv-wrap{padding-top:6px;padding-bottom:6px}
 

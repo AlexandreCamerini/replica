@@ -95,6 +95,75 @@ test.describe("1. navegação do topo", () => {
     }
   });
 
+  // D326: a partir de 1280px as duas camadas voltam a dividir a mesma linha. O espaço das perguntas depende da largura do
+  // nome do estado no topo: o teste passa por todos.
+  const UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"];
+  const medirLinha = () => {
+    const nav = document.querySelector(".sv-perg")!.getBoundingClientRect();
+    const nv1 = [...document.querySelectorAll(".sv-nv1 a")].map((a) => a.getBoundingClientRect());
+    const nv2 = document.querySelector(".sv-nv2")!.getBoundingClientRect();
+    return {
+      topo: Math.round(document.querySelector(".sv-topo")!.getBoundingClientRect().bottom),
+      alturaPerguntas: Math.max(...nv1.map((r) => Math.round(r.height))),
+      // "Também" ao lado das perguntas: começa na mesma altura que elas e termina à direita delas
+      mesmaLinha: Math.abs(nv2.top - nav.top) < 2 && nv2.left >= Math.max(...nv1.map((r) => r.right)) - 1,
+      estouro: document.documentElement.scrollWidth - window.innerWidth,
+    };
+  };
+
+  test("a partir de 1280px o topo volta a uma linha só (86px), com qualquer estado guardado", async ({ page, context }) => {
+    test.setTimeout(240_000);
+    const falhas: string[] = [];
+    const casos: [string | null, string, number][] = [];
+    for (const uf of [null, ...UFS]) casos.push([uf, "/", 1280]);
+    // a pergunta atual fica em negrito (mais larga): conta nas rotas em que a segunda pergunta ou a linha "Também" é a atual
+    for (const uf of [null, "RN", "MS"]) for (const url of ["/acompanhando", "/decisoes", "/votacoes"]) casos.push([uf, url, 1280]);
+    for (const uf of [null, "RN"]) for (const w of [1440, 1920]) casos.push([uf, "/", w]);
+    for (const [uf, url, width] of casos) {
+      await context.clearCookies();
+      if (uf) await context.addCookies([{ ...SP, value: uf }]);
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(url);
+      if (uf) await expect(page.locator(".sv-uf"), `${uf} aplicado`).toContainText(`(${uf})`);
+      const m = await page.evaluate(medirLinha);
+      if (m.topo > 87 || m.alturaPerguntas > 52 || !m.mesmaLinha || m.estouro > 0) falhas.push(`${uf ?? "sem estado"} ${url} a ${width}px: ${JSON.stringify(m)}`);
+    }
+    expect(falhas).toEqual([]);
+  });
+
+  test("sem espaço para as perguntas, a linha Também desce em vez de espremer ou estourar", async ({ page, context }) => {
+    // 1263px = 1280px menos a barra de rolagem clássica (Windows); zoom só de texto simulado com fonte maior no topo
+    for (const [uf, width, css] of [["RN", 1263, ""], ["SP", 1440, ".sv .sv-nv2 a,.sv .sv-uf,.sv .sv-uf a{font-size:20px}"]] as const) {
+      await context.clearCookies();
+      await context.addCookies([{ ...SP, value: uf }]);
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      await expect(page.locator(".sv-uf")).toContainText(`(${uf})`);
+      if (css) await page.addStyleTag({ content: css });
+      const m = await page.evaluate(medirLinha);
+      expect(m.mesmaLinha, `${uf} ${width}px`).toBe(false);
+      expect(m.alturaPerguntas, `${uf} ${width}px: perguntas em até duas linhas`).toBeLessThanOrEqual(56);
+      expect(m.estouro, `${uf} ${width}px`).toBeLessThanOrEqual(0);
+    }
+  });
+
+  test("abaixo de 1280px a linha Também segue embaixo, sem estourar nem quebrar as perguntas em três linhas", async ({ page, context }) => {
+    for (const uf of [null, "RN"]) {
+      await context.clearCookies();
+      if (uf) await context.addCookies([{ ...SP, value: uf }]);
+      for (const width of [900, 1100, 1200, 1279]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto("/");
+        if (uf) await expect(page.locator(".sv-uf"), `${uf} aplicado`).toContainText(`(${uf})`);
+        const m = await page.evaluate(medirLinha);
+        expect(m.mesmaLinha, `${uf} ${width}px`).toBe(false);
+        expect(m.alturaPerguntas, `${uf} ${width}px`).toBeLessThanOrEqual(56);
+        expect(m.topo, `${uf} ${width}px`).toBeLessThanOrEqual(112);
+        expect(m.estouro, `${uf} ${width}px`).toBeLessThanOrEqual(0);
+      }
+    }
+  });
+
   test("o rodapé continua com Votações, Pessoas e Como funciona", async ({ page }) => {
     await page.goto("/");
     const rod = page.locator("footer.sv-rod");
