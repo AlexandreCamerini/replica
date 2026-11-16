@@ -1,0 +1,363 @@
+{
+  "_nota": "entrada FABRICADA (CSV latin-1 pequeno, 2 UFs, 6 meses de 2023); run_id, horários e created/updated ignorados",
+  "_origem": "FABRICADO",
+  "chamadas_rodada_1": 1,
+  "csv_sha256": "a9b0d3454640dd8de95d5f2c2ec3af0a48ade057d32f3635cb0393b133ce9900",
+  "rodada_1_carga": {
+    "dataset_stamps": [
+      {
+        "dataset": "receita.arrecadacao",
+        "source_id": "receita-federal",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "receita.arrecadacao",
+        "error": null,
+        "input_checksum": "a9b0d3454640dd8de95d5f2c2ec3af0a48ade057d32f3635cb0393b133ce9900",
+        "notes": "2023: 1.2 bi em 6 meses",
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 20,
+        "source_id": "receita-federal",
+        "status": "succeeded",
+        "traceback": null
+      }
+    ],
+    "w4_tax_revenue": [
+      {
+        "amount_cents": 3000000000,
+        "month": 1,
+        "tax": "COFINS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2000000000,
+        "month": 1,
+        "tax": "IRPJ",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 13316537120,
+        "month": 1,
+        "tax": "COFINS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5500000050,
+        "month": 1,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2800000000,
+        "month": 2,
+        "tax": "COFINS - DEMAIS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 1900000000,
+        "month": 2,
+        "tax": "IRPJ",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 12000000000,
+        "month": 2,
+        "tax": "COFINS - DEMAIS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5400000000,
+        "month": 2,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2900000000,
+        "month": 3,
+        "tax": "COFINS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2050000000,
+        "month": 3,
+        "tax": "IRPJ",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 13100000000,
+        "month": 3,
+        "tax": "COFINS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5300000000,
+        "month": 3,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2700000000,
+        "month": 4,
+        "tax": "COFINS - DEMAIS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 11800000000,
+        "month": 4,
+        "tax": "COFINS - DEMAIS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 12900000000,
+        "month": 5,
+        "tax": "COFINS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5200000000,
+        "month": 5,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2800000000,
+        "month": 6,
+        "tax": "COFINS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 1950000000,
+        "month": 6,
+        "tax": "IRPJ",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 9115579800,
+        "month": 6,
+        "tax": "COFINS - DEMAIS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5000000000,
+        "month": 6,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      }
+    ]
+  },
+  "rodada_2_entrada_inalterada": {
+    "dataset_stamps": [
+      {
+        "dataset": "receita.arrecadacao",
+        "source_id": "receita-federal",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "receita.arrecadacao",
+        "error": null,
+        "input_checksum": "a9b0d3454640dd8de95d5f2c2ec3af0a48ade057d32f3635cb0393b133ce9900",
+        "notes": "2023: 1.2 bi em 6 meses",
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 20,
+        "source_id": "receita-federal",
+        "status": "succeeded",
+        "traceback": null
+      },
+      {
+        "dataset": "receita.arrecadacao",
+        "error": null,
+        "input_checksum": "a9b0d3454640dd8de95d5f2c2ec3af0a48ade057d32f3635cb0393b133ce9900",
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 0,
+        "source_id": "receita-federal",
+        "status": "skipped_unchanged",
+        "traceback": null
+      }
+    ],
+    "w4_tax_revenue": [
+      {
+        "amount_cents": 3000000000,
+        "month": 1,
+        "tax": "COFINS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2000000000,
+        "month": 1,
+        "tax": "IRPJ",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 13316537120,
+        "month": 1,
+        "tax": "COFINS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5500000050,
+        "month": 1,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2800000000,
+        "month": 2,
+        "tax": "COFINS - DEMAIS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 1900000000,
+        "month": 2,
+        "tax": "IRPJ",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 12000000000,
+        "month": 2,
+        "tax": "COFINS - DEMAIS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5400000000,
+        "month": 2,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2900000000,
+        "month": 3,
+        "tax": "COFINS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2050000000,
+        "month": 3,
+        "tax": "IRPJ",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 13100000000,
+        "month": 3,
+        "tax": "COFINS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5300000000,
+        "month": 3,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2700000000,
+        "month": 4,
+        "tax": "COFINS - DEMAIS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 11800000000,
+        "month": 4,
+        "tax": "COFINS - DEMAIS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 12900000000,
+        "month": 5,
+        "tax": "COFINS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5200000000,
+        "month": 5,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 2800000000,
+        "month": 6,
+        "tax": "COFINS",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 1950000000,
+        "month": 6,
+        "tax": "IRPJ",
+        "uf": "RJ",
+        "year": 2023
+      },
+      {
+        "amount_cents": 9115579800,
+        "month": 6,
+        "tax": "COFINS - DEMAIS",
+        "uf": "SP",
+        "year": 2023
+      },
+      {
+        "amount_cents": 5000000000,
+        "month": 6,
+        "tax": "IRPJ",
+        "uf": "SP",
+        "year": 2023
+      }
+    ]
+  }
+}

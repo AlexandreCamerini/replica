@@ -1,0 +1,987 @@
+{
+  "_nota": "entrada FABRICADA (3 UFs, 3 regiões, 5 municípios, 1 homônimo); id e created/updated ignorados; parent_id e place_id trocados pelo ibge_code",
+  "_origem": "FABRICADO",
+  "estados_sha256": "7d809c15673038fcb359fd0c01b9550c3072ae90835e06a18ce40f02cb066c05",
+  "municipios_sha256": "acecf4408fb25bdcece080a15e9a96122eb46bf4e6bdcafb7acdbbe5b5216c79",
+  "rodada_1_carga": {
+    "dataset_stamps": [
+      {
+        "dataset": "ibge.places",
+        "source_id": "ibge",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "ibge.places",
+        "error": null,
+        "input_checksum": "7d809c15673038fcb359fd0c01b9550c3072ae90835e06a18ce40f02cb066c05acecf4408fb25bdcece080a15e9a96122eb46bf4e6bdcafb7acdbbe5b5216c79",
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 22,
+        "source_id": "ibge",
+        "status": "succeeded",
+        "traceback": null
+      }
+    ],
+    "legislative_bodies": [
+      {
+        "adapter": "none",
+        "kind": "assembleia",
+        "name": "Assembleia Legislativa de Rondônia",
+        "open_data_url": null,
+        "place_id": "11"
+      },
+      {
+        "adapter": "none",
+        "kind": "assembleia",
+        "name": "Assembleia Legislativa de São Paulo",
+        "open_data_url": null,
+        "place_id": "35"
+      },
+      {
+        "adapter": "camara_api",
+        "kind": "camara_deputados",
+        "name": "Câmara dos Deputados",
+        "open_data_url": null,
+        "place_id": "BR"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_legislativa_df",
+        "name": "Câmara Legislativa do Distrito Federal",
+        "open_data_url": null,
+        "place_id": "53"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de Alta Floresta D'Oeste",
+        "open_data_url": null,
+        "place_id": "1100015"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de Campinas",
+        "open_data_url": null,
+        "place_id": "3509502"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de Nova Esperança",
+        "open_data_url": null,
+        "place_id": "1100098"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de Nova Esperança",
+        "open_data_url": null,
+        "place_id": "1100106"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de São Paulo",
+        "open_data_url": null,
+        "place_id": "3550308"
+      },
+      {
+        "adapter": "senado_api",
+        "kind": "senado",
+        "name": "Senado Federal",
+        "open_data_url": null,
+        "place_id": "BR"
+      }
+    ],
+    "places": [
+      {
+        "ibge_code": "1",
+        "kind": "regiao",
+        "name": "Norte",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "norte",
+        "uf": null
+      },
+      {
+        "ibge_code": "11",
+        "kind": "uf",
+        "name": "Rondônia",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "rondonia",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "1100015",
+        "kind": "municipio",
+        "name": "Alta Floresta D'Oeste",
+        "parent_id": "11",
+        "population": null,
+        "population_year": null,
+        "slug": "alta-floresta-d-oeste-ro",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "1100098",
+        "kind": "municipio",
+        "name": "Nova Esperança",
+        "parent_id": "11",
+        "population": null,
+        "population_year": null,
+        "slug": "nova-esperanca-ro",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "1100106",
+        "kind": "municipio",
+        "name": "Nova Esperança",
+        "parent_id": "11",
+        "population": null,
+        "population_year": null,
+        "slug": "nova-esperanca-ro-1100106",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "12",
+        "kind": "uf",
+        "name": "Acre",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "acre",
+        "uf": "AC"
+      },
+      {
+        "ibge_code": "13",
+        "kind": "uf",
+        "name": "Amazonas",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "amazonas",
+        "uf": "AM"
+      },
+      {
+        "ibge_code": "14",
+        "kind": "uf",
+        "name": "Roraima",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "roraima",
+        "uf": "RR"
+      },
+      {
+        "ibge_code": "15",
+        "kind": "uf",
+        "name": "Pará",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "para",
+        "uf": "PA"
+      },
+      {
+        "ibge_code": "16",
+        "kind": "uf",
+        "name": "Amapá",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "amapa",
+        "uf": "AP"
+      },
+      {
+        "ibge_code": "17",
+        "kind": "uf",
+        "name": "Tocantins",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "tocantins",
+        "uf": "TO"
+      },
+      {
+        "ibge_code": "2",
+        "kind": "regiao",
+        "name": "Nordeste",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "nordeste",
+        "uf": null
+      },
+      {
+        "ibge_code": "21",
+        "kind": "uf",
+        "name": "Maranhão",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "maranhao",
+        "uf": "MA"
+      },
+      {
+        "ibge_code": "22",
+        "kind": "uf",
+        "name": "Piauí",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "piaui",
+        "uf": "PI"
+      },
+      {
+        "ibge_code": "23",
+        "kind": "uf",
+        "name": "Ceará",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "ceara",
+        "uf": "CE"
+      },
+      {
+        "ibge_code": "24",
+        "kind": "uf",
+        "name": "Rio Grande do Norte",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "rio-grande-do-norte",
+        "uf": "RN"
+      },
+      {
+        "ibge_code": "25",
+        "kind": "uf",
+        "name": "Paraíba",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "paraiba",
+        "uf": "PB"
+      },
+      {
+        "ibge_code": "26",
+        "kind": "uf",
+        "name": "Pernambuco",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "pernambuco",
+        "uf": "PE"
+      },
+      {
+        "ibge_code": "27",
+        "kind": "uf",
+        "name": "Alagoas",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "alagoas",
+        "uf": "AL"
+      },
+      {
+        "ibge_code": "28",
+        "kind": "uf",
+        "name": "Sergipe",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "sergipe",
+        "uf": "SE"
+      },
+      {
+        "ibge_code": "29",
+        "kind": "uf",
+        "name": "Bahia",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "bahia",
+        "uf": "BA"
+      },
+      {
+        "ibge_code": "3",
+        "kind": "regiao",
+        "name": "Sudeste",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "sudeste",
+        "uf": null
+      },
+      {
+        "ibge_code": "31",
+        "kind": "uf",
+        "name": "Minas Gerais",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "minas-gerais",
+        "uf": "MG"
+      },
+      {
+        "ibge_code": "32",
+        "kind": "uf",
+        "name": "Espírito Santo",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "espirito-santo",
+        "uf": "ES"
+      },
+      {
+        "ibge_code": "33",
+        "kind": "uf",
+        "name": "Rio de Janeiro",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "rio-de-janeiro",
+        "uf": "RJ"
+      },
+      {
+        "ibge_code": "35",
+        "kind": "uf",
+        "name": "São Paulo",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "sao-paulo",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "3509502",
+        "kind": "municipio",
+        "name": "Campinas",
+        "parent_id": "35",
+        "population": null,
+        "population_year": null,
+        "slug": "campinas-sp",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "3550308",
+        "kind": "municipio",
+        "name": "São Paulo",
+        "parent_id": "35",
+        "population": null,
+        "population_year": null,
+        "slug": "sao-paulo-sp",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "4",
+        "kind": "regiao",
+        "name": "Sul",
+        "parent_id": "4",
+        "population": null,
+        "population_year": null,
+        "slug": "sul",
+        "uf": null
+      },
+      {
+        "ibge_code": "41",
+        "kind": "uf",
+        "name": "Paraná",
+        "parent_id": "4",
+        "population": null,
+        "population_year": null,
+        "slug": "parana",
+        "uf": "PR"
+      },
+      {
+        "ibge_code": "42",
+        "kind": "uf",
+        "name": "Santa Catarina",
+        "parent_id": "4",
+        "population": null,
+        "population_year": null,
+        "slug": "santa-catarina",
+        "uf": "SC"
+      },
+      {
+        "ibge_code": "43",
+        "kind": "uf",
+        "name": "Rio Grande do Sul",
+        "parent_id": "4",
+        "population": null,
+        "population_year": null,
+        "slug": "rio-grande-do-sul",
+        "uf": "RS"
+      },
+      {
+        "ibge_code": "5",
+        "kind": "regiao",
+        "name": "Centro-Oeste",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "centro-oeste",
+        "uf": null
+      },
+      {
+        "ibge_code": "50",
+        "kind": "uf",
+        "name": "Mato Grosso do Sul",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "mato-grosso-do-sul",
+        "uf": "MS"
+      },
+      {
+        "ibge_code": "51",
+        "kind": "uf",
+        "name": "Mato Grosso",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "mato-grosso",
+        "uf": "MT"
+      },
+      {
+        "ibge_code": "52",
+        "kind": "uf",
+        "name": "Goiás",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "goias",
+        "uf": "GO"
+      },
+      {
+        "ibge_code": "53",
+        "kind": "uf",
+        "name": "Distrito Federal",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "distrito-federal",
+        "uf": "DF"
+      },
+      {
+        "ibge_code": "BR",
+        "kind": "pais",
+        "name": "Brasil",
+        "parent_id": null,
+        "population": null,
+        "population_year": null,
+        "slug": "brasil",
+        "uf": null
+      }
+    ]
+  },
+  "rodada_2_entrada_inalterada": {
+    "dataset_stamps": [
+      {
+        "dataset": "ibge.places",
+        "source_id": "ibge",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "ibge.places",
+        "error": null,
+        "input_checksum": "7d809c15673038fcb359fd0c01b9550c3072ae90835e06a18ce40f02cb066c05acecf4408fb25bdcece080a15e9a96122eb46bf4e6bdcafb7acdbbe5b5216c79",
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 22,
+        "source_id": "ibge",
+        "status": "succeeded",
+        "traceback": null
+      },
+      {
+        "dataset": "ibge.places",
+        "error": null,
+        "input_checksum": "7d809c15673038fcb359fd0c01b9550c3072ae90835e06a18ce40f02cb066c05acecf4408fb25bdcece080a15e9a96122eb46bf4e6bdcafb7acdbbe5b5216c79",
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 0,
+        "source_id": "ibge",
+        "status": "skipped_unchanged",
+        "traceback": null
+      }
+    ],
+    "legislative_bodies": [
+      {
+        "adapter": "none",
+        "kind": "assembleia",
+        "name": "Assembleia Legislativa de Rondônia",
+        "open_data_url": null,
+        "place_id": "11"
+      },
+      {
+        "adapter": "none",
+        "kind": "assembleia",
+        "name": "Assembleia Legislativa de São Paulo",
+        "open_data_url": null,
+        "place_id": "35"
+      },
+      {
+        "adapter": "camara_api",
+        "kind": "camara_deputados",
+        "name": "Câmara dos Deputados",
+        "open_data_url": null,
+        "place_id": "BR"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_legislativa_df",
+        "name": "Câmara Legislativa do Distrito Federal",
+        "open_data_url": null,
+        "place_id": "53"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de Alta Floresta D'Oeste",
+        "open_data_url": null,
+        "place_id": "1100015"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de Campinas",
+        "open_data_url": null,
+        "place_id": "3509502"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de Nova Esperança",
+        "open_data_url": null,
+        "place_id": "1100098"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de Nova Esperança",
+        "open_data_url": null,
+        "place_id": "1100106"
+      },
+      {
+        "adapter": "none",
+        "kind": "camara_municipal",
+        "name": "Câmara Municipal de São Paulo",
+        "open_data_url": null,
+        "place_id": "3550308"
+      },
+      {
+        "adapter": "senado_api",
+        "kind": "senado",
+        "name": "Senado Federal",
+        "open_data_url": null,
+        "place_id": "BR"
+      }
+    ],
+    "places": [
+      {
+        "ibge_code": "1",
+        "kind": "regiao",
+        "name": "Norte",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "norte",
+        "uf": null
+      },
+      {
+        "ibge_code": "11",
+        "kind": "uf",
+        "name": "Rondônia",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "rondonia",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "1100015",
+        "kind": "municipio",
+        "name": "Alta Floresta D'Oeste",
+        "parent_id": "11",
+        "population": null,
+        "population_year": null,
+        "slug": "alta-floresta-d-oeste-ro",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "1100098",
+        "kind": "municipio",
+        "name": "Nova Esperança",
+        "parent_id": "11",
+        "population": null,
+        "population_year": null,
+        "slug": "nova-esperanca-ro",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "1100106",
+        "kind": "municipio",
+        "name": "Nova Esperança",
+        "parent_id": "11",
+        "population": null,
+        "population_year": null,
+        "slug": "nova-esperanca-ro-1100106",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "12",
+        "kind": "uf",
+        "name": "Acre",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "acre",
+        "uf": "AC"
+      },
+      {
+        "ibge_code": "13",
+        "kind": "uf",
+        "name": "Amazonas",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "amazonas",
+        "uf": "AM"
+      },
+      {
+        "ibge_code": "14",
+        "kind": "uf",
+        "name": "Roraima",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "roraima",
+        "uf": "RR"
+      },
+      {
+        "ibge_code": "15",
+        "kind": "uf",
+        "name": "Pará",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "para",
+        "uf": "PA"
+      },
+      {
+        "ibge_code": "16",
+        "kind": "uf",
+        "name": "Amapá",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "amapa",
+        "uf": "AP"
+      },
+      {
+        "ibge_code": "17",
+        "kind": "uf",
+        "name": "Tocantins",
+        "parent_id": "1",
+        "population": null,
+        "population_year": null,
+        "slug": "tocantins",
+        "uf": "TO"
+      },
+      {
+        "ibge_code": "2",
+        "kind": "regiao",
+        "name": "Nordeste",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "nordeste",
+        "uf": null
+      },
+      {
+        "ibge_code": "21",
+        "kind": "uf",
+        "name": "Maranhão",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "maranhao",
+        "uf": "MA"
+      },
+      {
+        "ibge_code": "22",
+        "kind": "uf",
+        "name": "Piauí",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "piaui",
+        "uf": "PI"
+      },
+      {
+        "ibge_code": "23",
+        "kind": "uf",
+        "name": "Ceará",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "ceara",
+        "uf": "CE"
+      },
+      {
+        "ibge_code": "24",
+        "kind": "uf",
+        "name": "Rio Grande do Norte",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "rio-grande-do-norte",
+        "uf": "RN"
+      },
+      {
+        "ibge_code": "25",
+        "kind": "uf",
+        "name": "Paraíba",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "paraiba",
+        "uf": "PB"
+      },
+      {
+        "ibge_code": "26",
+        "kind": "uf",
+        "name": "Pernambuco",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "pernambuco",
+        "uf": "PE"
+      },
+      {
+        "ibge_code": "27",
+        "kind": "uf",
+        "name": "Alagoas",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "alagoas",
+        "uf": "AL"
+      },
+      {
+        "ibge_code": "28",
+        "kind": "uf",
+        "name": "Sergipe",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "sergipe",
+        "uf": "SE"
+      },
+      {
+        "ibge_code": "29",
+        "kind": "uf",
+        "name": "Bahia",
+        "parent_id": "2",
+        "population": null,
+        "population_year": null,
+        "slug": "bahia",
+        "uf": "BA"
+      },
+      {
+        "ibge_code": "3",
+        "kind": "regiao",
+        "name": "Sudeste",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "sudeste",
+        "uf": null
+      },
+      {
+        "ibge_code": "31",
+        "kind": "uf",
+        "name": "Minas Gerais",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "minas-gerais",
+        "uf": "MG"
+      },
+      {
+        "ibge_code": "32",
+        "kind": "uf",
+        "name": "Espírito Santo",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "espirito-santo",
+        "uf": "ES"
+      },
+      {
+        "ibge_code": "33",
+        "kind": "uf",
+        "name": "Rio de Janeiro",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "rio-de-janeiro",
+        "uf": "RJ"
+      },
+      {
+        "ibge_code": "35",
+        "kind": "uf",
+        "name": "São Paulo",
+        "parent_id": "3",
+        "population": null,
+        "population_year": null,
+        "slug": "sao-paulo",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "3509502",
+        "kind": "municipio",
+        "name": "Campinas",
+        "parent_id": "35",
+        "population": null,
+        "population_year": null,
+        "slug": "campinas-sp",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "3550308",
+        "kind": "municipio",
+        "name": "São Paulo",
+        "parent_id": "35",
+        "population": null,
+        "population_year": null,
+        "slug": "sao-paulo-sp",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "4",
+        "kind": "regiao",
+        "name": "Sul",
+        "parent_id": "4",
+        "population": null,
+        "population_year": null,
+        "slug": "sul",
+        "uf": null
+      },
+      {
+        "ibge_code": "41",
+        "kind": "uf",
+        "name": "Paraná",
+        "parent_id": "4",
+        "population": null,
+        "population_year": null,
+        "slug": "parana",
+        "uf": "PR"
+      },
+      {
+        "ibge_code": "42",
+        "kind": "uf",
+        "name": "Santa Catarina",
+        "parent_id": "4",
+        "population": null,
+        "population_year": null,
+        "slug": "santa-catarina",
+        "uf": "SC"
+      },
+      {
+        "ibge_code": "43",
+        "kind": "uf",
+        "name": "Rio Grande do Sul",
+        "parent_id": "4",
+        "population": null,
+        "population_year": null,
+        "slug": "rio-grande-do-sul",
+        "uf": "RS"
+      },
+      {
+        "ibge_code": "5",
+        "kind": "regiao",
+        "name": "Centro-Oeste",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "centro-oeste",
+        "uf": null
+      },
+      {
+        "ibge_code": "50",
+        "kind": "uf",
+        "name": "Mato Grosso do Sul",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "mato-grosso-do-sul",
+        "uf": "MS"
+      },
+      {
+        "ibge_code": "51",
+        "kind": "uf",
+        "name": "Mato Grosso",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "mato-grosso",
+        "uf": "MT"
+      },
+      {
+        "ibge_code": "52",
+        "kind": "uf",
+        "name": "Goiás",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "goias",
+        "uf": "GO"
+      },
+      {
+        "ibge_code": "53",
+        "kind": "uf",
+        "name": "Distrito Federal",
+        "parent_id": "5",
+        "population": null,
+        "population_year": null,
+        "slug": "distrito-federal",
+        "uf": "DF"
+      },
+      {
+        "ibge_code": "BR",
+        "kind": "pais",
+        "name": "Brasil",
+        "parent_id": null,
+        "population": null,
+        "population_year": null,
+        "slug": "brasil",
+        "uf": null
+      }
+    ]
+  }
+}

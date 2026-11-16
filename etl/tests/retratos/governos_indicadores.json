@@ -1,0 +1,652 @@
+{
+  "_nota": "entrada FABRICADA (séries SIDRA e SGS curtas); data fixada em 2026-11-15; run_id e horários ignorados",
+  "_origem": "FABRICADO",
+  "chamadas_total": 31,
+  "rodada_1_carga": {
+    "dataset_stamps": [
+      {
+        "dataset": "governos.bcb",
+        "source_id": "bcb-sgs",
+        "source_updated_at": null
+      },
+      {
+        "dataset": "governos.indicadores",
+        "source_id": "ibge-sidra",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "governos.indicadores",
+        "error": null,
+        "input_checksum": "2026:35:desemprego_media2023=8.0,desemprego_media2024=6.6,ipca_acumulado2021=10.06,ipca_acumulado2022=5.79,ipca_acumulado2023=4.62,pib_variacao2021=4.8,pib_variacao2022=3.0,pib_variacao2023=2.9,pib_variacao2024=3.4,selic_meta_fim_ano1999=10.5,selic_meta_fim_ano2000=10.5,selic_meta_fim_ano2001=10.5,selic_meta_fim_ano2002=10.5,selic_meta_fim_ano2003=10.5,selic_meta_fim_ano2004=10.5,selic_meta_fim_ano2005=10.5,selic_meta_fim_ano2006=10.5,selic_meta_fim_ano2007=10.5,selic_meta_fim_ano2008=10.5,selic_meta_fim_ano2009=10.5,selic_meta_fim_ano2010=10.5,selic_meta_fim_ano2011=10.5,selic_meta_fim_ano2012=10.5,selic_meta_fim_ano2013=10.5,selic_meta_fim_ano2014=10.5,selic_meta_fim_ano2015=10.5,selic_meta_fim_ano2016=10.5,selic_meta_fim_ano2017=10.5,selic_meta_fim_ano2018=10.5,selic_meta_fim_ano2019=10.5,selic_meta_fim_ano2020=10.5,selic_meta_fim_ano2021=10.5,selic_meta_fim_ano2022=13.75,selic_meta_fim_ano2024=10.5,selic_meta_fim_ano2025=10.5",
+        "notes": "PIB 2023: tabela anual ainda sem o ano; usado o 4º trimestre acumulado\nPIB 2024: tabela anual ainda sem o ano; usado o 4º trimestre acumulado\nSelic 2023: sem observação em dezembro",
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 35,
+        "source_id": "ibge-sidra",
+        "status": "succeeded",
+        "traceback": null
+      }
+    ],
+    "w4_yearly_indicators": [
+      {
+        "indicator": "desemprego_media",
+        "series_ref": "SIDRA 10379 v4099 (taxa média anual, total)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "8.0",
+        "year": 2023
+      },
+      {
+        "indicator": "desemprego_media",
+        "series_ref": "SIDRA 10379 v4099 (taxa média anual, total)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "6.6",
+        "year": 2024
+      },
+      {
+        "indicator": "ipca_acumulado",
+        "series_ref": "SIDRA 1737 v2265 (acumulado em 12 meses, dezembro)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "10.06",
+        "year": 2021
+      },
+      {
+        "indicator": "ipca_acumulado",
+        "series_ref": "SIDRA 1737 v2265 (acumulado em 12 meses, dezembro)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "5.79",
+        "year": 2022
+      },
+      {
+        "indicator": "ipca_acumulado",
+        "series_ref": "SIDRA 1737 v2265 (acumulado em 12 meses, dezembro)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "4.62",
+        "year": 2023
+      },
+      {
+        "indicator": "pib_variacao",
+        "series_ref": "SIDRA 6784 v9810 (anual)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "4.8",
+        "year": 2021
+      },
+      {
+        "indicator": "pib_variacao",
+        "series_ref": "SIDRA 6784 v9810 (anual)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "3.0",
+        "year": 2022
+      },
+      {
+        "indicator": "pib_variacao",
+        "series_ref": "SIDRA 5932 v6562 (4º trimestre, acumulado em 4 trimestres; sujeito a revisão)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "2.9",
+        "year": 2023
+      },
+      {
+        "indicator": "pib_variacao",
+        "series_ref": "SIDRA 5932 v6562 (4º trimestre, acumulado em 4 trimestres; sujeito a revisão)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "3.4",
+        "year": 2024
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 1999
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2000
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2001
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2002
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2003
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2004
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2005
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2006
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2007
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2008
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2009
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2010
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2011
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2012
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2013
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2014
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2015
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2016
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2017
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2018
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2019
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2020
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2021
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "13.75",
+        "year": 2022
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2024
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2025
+      }
+    ]
+  },
+  "rodada_2_entrada_inalterada": {
+    "dataset_stamps": [
+      {
+        "dataset": "governos.bcb",
+        "source_id": "bcb-sgs",
+        "source_updated_at": null
+      },
+      {
+        "dataset": "governos.indicadores",
+        "source_id": "ibge-sidra",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "governos.indicadores",
+        "error": null,
+        "input_checksum": "2026:35:desemprego_media2023=8.0,desemprego_media2024=6.6,ipca_acumulado2021=10.06,ipca_acumulado2022=5.79,ipca_acumulado2023=4.62,pib_variacao2021=4.8,pib_variacao2022=3.0,pib_variacao2023=2.9,pib_variacao2024=3.4,selic_meta_fim_ano1999=10.5,selic_meta_fim_ano2000=10.5,selic_meta_fim_ano2001=10.5,selic_meta_fim_ano2002=10.5,selic_meta_fim_ano2003=10.5,selic_meta_fim_ano2004=10.5,selic_meta_fim_ano2005=10.5,selic_meta_fim_ano2006=10.5,selic_meta_fim_ano2007=10.5,selic_meta_fim_ano2008=10.5,selic_meta_fim_ano2009=10.5,selic_meta_fim_ano2010=10.5,selic_meta_fim_ano2011=10.5,selic_meta_fim_ano2012=10.5,selic_meta_fim_ano2013=10.5,selic_meta_fim_ano2014=10.5,selic_meta_fim_ano2015=10.5,selic_meta_fim_ano2016=10.5,selic_meta_fim_ano2017=10.5,selic_meta_fim_ano2018=10.5,selic_meta_fim_ano2019=10.5,selic_meta_fim_ano2020=10.5,selic_meta_fim_ano2021=10.5,selic_meta_fim_ano2022=13.75,selic_meta_fim_ano2024=10.5,selic_meta_fim_ano2025=10.5",
+        "notes": "PIB 2023: tabela anual ainda sem o ano; usado o 4º trimestre acumulado\nPIB 2024: tabela anual ainda sem o ano; usado o 4º trimestre acumulado\nSelic 2023: sem observação em dezembro",
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 35,
+        "source_id": "ibge-sidra",
+        "status": "succeeded",
+        "traceback": null
+      },
+      {
+        "dataset": "governos.indicadores",
+        "error": null,
+        "input_checksum": "2026:35:desemprego_media2023=8.0,desemprego_media2024=6.6,ipca_acumulado2021=10.06,ipca_acumulado2022=5.79,ipca_acumulado2023=4.62,pib_variacao2021=4.8,pib_variacao2022=3.0,pib_variacao2023=2.9,pib_variacao2024=3.4,selic_meta_fim_ano1999=10.5,selic_meta_fim_ano2000=10.5,selic_meta_fim_ano2001=10.5,selic_meta_fim_ano2002=10.5,selic_meta_fim_ano2003=10.5,selic_meta_fim_ano2004=10.5,selic_meta_fim_ano2005=10.5,selic_meta_fim_ano2006=10.5,selic_meta_fim_ano2007=10.5,selic_meta_fim_ano2008=10.5,selic_meta_fim_ano2009=10.5,selic_meta_fim_ano2010=10.5,selic_meta_fim_ano2011=10.5,selic_meta_fim_ano2012=10.5,selic_meta_fim_ano2013=10.5,selic_meta_fim_ano2014=10.5,selic_meta_fim_ano2015=10.5,selic_meta_fim_ano2016=10.5,selic_meta_fim_ano2017=10.5,selic_meta_fim_ano2018=10.5,selic_meta_fim_ano2019=10.5,selic_meta_fim_ano2020=10.5,selic_meta_fim_ano2021=10.5,selic_meta_fim_ano2022=13.75,selic_meta_fim_ano2024=10.5,selic_meta_fim_ano2025=10.5",
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 0,
+        "source_id": "ibge-sidra",
+        "status": "skipped_unchanged",
+        "traceback": null
+      }
+    ],
+    "w4_yearly_indicators": [
+      {
+        "indicator": "desemprego_media",
+        "series_ref": "SIDRA 10379 v4099 (taxa média anual, total)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "8.0",
+        "year": 2023
+      },
+      {
+        "indicator": "desemprego_media",
+        "series_ref": "SIDRA 10379 v4099 (taxa média anual, total)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "6.6",
+        "year": 2024
+      },
+      {
+        "indicator": "ipca_acumulado",
+        "series_ref": "SIDRA 1737 v2265 (acumulado em 12 meses, dezembro)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "10.06",
+        "year": 2021
+      },
+      {
+        "indicator": "ipca_acumulado",
+        "series_ref": "SIDRA 1737 v2265 (acumulado em 12 meses, dezembro)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "5.79",
+        "year": 2022
+      },
+      {
+        "indicator": "ipca_acumulado",
+        "series_ref": "SIDRA 1737 v2265 (acumulado em 12 meses, dezembro)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "4.62",
+        "year": 2023
+      },
+      {
+        "indicator": "pib_variacao",
+        "series_ref": "SIDRA 6784 v9810 (anual)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "4.8",
+        "year": 2021
+      },
+      {
+        "indicator": "pib_variacao",
+        "series_ref": "SIDRA 6784 v9810 (anual)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "3.0",
+        "year": 2022
+      },
+      {
+        "indicator": "pib_variacao",
+        "series_ref": "SIDRA 5932 v6562 (4º trimestre, acumulado em 4 trimestres; sujeito a revisão)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "2.9",
+        "year": 2023
+      },
+      {
+        "indicator": "pib_variacao",
+        "series_ref": "SIDRA 5932 v6562 (4º trimestre, acumulado em 4 trimestres; sujeito a revisão)",
+        "source_id": "ibge-sidra",
+        "unit": "%",
+        "value": "3.4",
+        "year": 2024
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 1999
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2000
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2001
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2002
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2003
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2004
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2005
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2006
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2007
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2008
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2009
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2010
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2011
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2012
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2013
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2014
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2015
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2016
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2017
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2018
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2019
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2020
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2021
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "13.75",
+        "year": 2022
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2024
+      },
+      {
+        "indicator": "selic_meta_fim_ano",
+        "series_ref": "SGS 432 (meta Selic, última observação de dezembro)",
+        "source_id": "bcb-sgs",
+        "unit": "% a.a.",
+        "value": "10.5",
+        "year": 2025
+      }
+    ]
+  }
+}
