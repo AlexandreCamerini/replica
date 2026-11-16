@@ -104,3 +104,14 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Por que não parei: a lista de parada, item 2, trata de ação a fazer; esta já tinha acontecido, o banco atingido estava vazio e não há o que desfazer. Fica relatado aqui e no relato final. Se este cluster não fosse novo, o `civico` seria a cópia de trabalho do dono e o caso seria de parada.
 - Correção de conduta: daqui em diante todo briefing diz, por extenso, que o prefixo de banco é escrito literalmente em cada linha de comando, sem variável de shell intermediária, e que a primeira linha da saída do pytest (`database=`) tem de ser conferida antes de seguir.
 - Desfazer: não se aplica.
+
+## AC-10 · Reprocessar nas Assembleias do SAPL refaz a sondagem, não a carga
+
+- Data e fase: 2026-11-15, fase A, tarefa A5.
+- Em jogo: o passo 5 da primeira rodada pede "reprocessamento sem rede do bruto salvo" no recorte das Assembleias. A tarefa A4 fixou por teste como `sapl.ales` se comporta: `robots.txt` e `/api/` ficam em cache por um dia; casa `ok` carregada há menos de 6 dias fica fora da fila de recarga; `--full` não força recarga; `--ibge` refaz a fila com todas as casas `ok`, por efeito colateral do parser; as consultas incrementais levam a data do dia na URL.
+- Opções: (a) declarar `reprocessar` não suportado, como o catálogo dizia; (b) forçar a recarga com `--ibge`, explorando o efeito colateral; (c) suportar com o limite escrito: sem rede, refaz a sondagem (status e cobertura) a partir do cache, e a carga só é refeita para casa fora do prazo de recarga.
+- Escolha: (c). O catálogo passa a declarar o modo com esse limite no motivo.
+- Motivo: (a) deixaria o passo 5 sem execução; (b) apoia o módulo num comportamento que ninguém desenhou e que `sapl.descobrir` nem documenta. (c) diz a verdade sobre o que o material salvo permite reproduzir.
+- Consequência: no relato, o passo 5 da primeira rodada é marcado com esse limite. Reprocessar a carga de matérias de uma casa exigiria um argumento novo no job, que a Parte R proíbe.
+- Materializa: `etl/civico_etl/catalogo/coletores_a.py` e `adaptadores_a.py` (tarefa A5).
+- Desfazer: `git revert` do commit da A5 devolve o modo a "não suportado".
