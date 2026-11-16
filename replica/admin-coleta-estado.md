@@ -49,20 +49,24 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 - Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a` (AC-06).
 - Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
-- Fase: R. Subagentes da fase: 4 de 16 (R1 a R3 foram retomadas depois da parada por limite de uso, sem novo lançamento).
+- Fase: R. Subagentes da fase: 7 de 16.
 
 | Tarefa | Modelo | Situação | Reprovações | Commit |
 | --- | --- | --- | --- | --- |
 | R1 retratos da agenda (R-3) | Haiku | aceita | 0 | `2d4591b` |
 | R2 retrato do plano e códigos de saída (R-6, R-8) | Sonnet | aceita | 0 | `1ae2c68` |
 | R3 orquestradores (R-4) | Sonnet | aceita | 0 | `91e67f4` |
-| R4 banco isolado e caracterização de `camara.equipe` | Sonnet | em voo: `etl/tests/{banco_isolado,caracterizacao,test_caracterizacao}.py`, `etl/tests/retratos/camara_equipe.json` | 0 | |
+| R4 banco isolado e caracterização de `camara.equipe` | Sonnet | aceita | 0 | `7fc21fa` |
+| R5 caracterização de `receita.arrecadacao`, `ibge.places`, `ibge.populacao`, `governos.indicadores` | Haiku | aceita | 0 | `34152c0` |
+| R6 caracterização de `parlamento.extras` e `ale.cobertura` | Sonnet | aceita | 0 | `491fc5a` |
+| R7 catálogo: modelo, contrato, quatro exemplos, teste de forma | Sonnet | em voo: `etl/civico_etl/catalogo/*`, `etl/tests/test_catalogo_forma.py` | 0 | |
 
-- Suíte depois de R1 a R3: `789 passed, 33 skipped, 4 xfailed`.
-- Critérios com teste passando: R-3, R-4, R-6, R-8. Os demais, não avaliados.
+- Suíte depois de R6: `796 passed, 33 skipped, 4 xfailed`. Banco isolado de teste acrescenta cerca de 3 s.
+- Critérios com teste passando: R-2 (sete comandos caracterizados), R-3, R-4, R-6, R-8. Os demais, não avaliados.
+- Achados dos testes de caracterização a levar para `replica/bugs.md` na R11 (comportamento real, não corrigido): `camara.equipe` apaga toda a equipe se o CSV vier sem linha válida e não registra `rows_read` nem `rows_deleted`; `parlamento.extras` apaga contato de fonte `camara` ou `senado` em qualquer mandato com contato na rodada, contra o que a docstring diz, e o nome de comissão depende da ordem sem `order by`; `receita.arrecadacao` e `governos.indicadores` validam fora do `run()`, então falha de validação não deixa run `failed`; `governos.indicadores` não carimba `governos.bcb` na rodada pulada; `ibge.places` faz cada região pai de si mesma; `cli.py` tem `except SkipUnchanged` que nunca atua para job com checksum.
 
 ## Próximo passo
 
-1. Conferir e commitar R4; depois R5 (Haiku) e R6 (Sonnet), em série.
-2. R7 a R11 (catálogo, contrato, testes, documentação) e o verificador da Parte R.
-3. Seguir o plano, seção 7.
+1. Conferir e commitar R7; depois R8 (Sonnet, entradas irregulares), R9 (Haiku, simples), R10 (testes R-5 e R-7), R11 (documentação, `bugs.md`, R-10).
+2. Verificador da Parte R (Sonnet).
+3. Fase A, seção 7 do plano.
