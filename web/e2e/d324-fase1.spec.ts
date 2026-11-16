@@ -98,27 +98,40 @@ test.describe("1. navegação do topo", () => {
   // D326: a partir de 1280px as duas camadas voltam a dividir a mesma linha. O espaço das perguntas depende da largura do
   // nome do estado no topo: o teste passa por todos.
   const UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"];
-  const medirLinha = () => {
+  const medirLinha = async () => {
+    await document.fonts.ready; // sem isto a medida pode sair com a fonte de reserva
     const nav = document.querySelector(".sv-perg")!.getBoundingClientRect();
+    const ul = document.querySelector(".sv-nv1")!;
     const nv1 = [...document.querySelectorAll(".sv-nv1 a")].map((a) => a.getBoundingClientRect());
     const nv2 = document.querySelector(".sv-nv2")!.getBoundingClientRect();
+    const mesmaLinha = Math.abs(nv2.top - nav.top) < 2 && nv2.left >= Math.max(...nv1.map((r) => r.right)) - 1;
     return {
       topo: Math.round(document.querySelector(".sv-topo")!.getBoundingClientRect().bottom),
       alturaPerguntas: Math.max(...nv1.map((r) => Math.round(r.height))),
       // "Também" ao lado das perguntas: começa na mesma altura que elas e termina à direita delas
-      mesmaLinha: Math.abs(nv2.top - nav.top) < 2 && nv2.left >= Math.max(...nv1.map((r) => r.right)) - 1,
+      mesmaLinha,
       estouro: document.documentElement.scrollWidth - window.innerWidth,
+      // Espaço livre da linha, em px: o que sobra depois do mínimo das perguntas (flex-basis) e da linha "Também". As duas
+      // crescem por igual (flex-grow 1), então o livre é o dobro do que as perguntas ganharam. Só vale com as duas na mesma
+      // linha; com a linha "Também" embaixo não há o que medir (-1).
+      livre: mesmaLinha ? Math.floor((ul.getBoundingClientRect().width - parseFloat(getComputedStyle(ul).flexBasis)) * 2) : -1,
+      base: getComputedStyle(ul).flexBasis,
     };
   };
+  // Espaço livre mínimo exigido onde a linha tem de caber. Com menos de 1px (primeira versão da D326) o teste passava no
+  // Chrome do macOS e a linha descia no Chromium do Linux, que mede o texto um pouco mais largo: exigir a sobra pega isso nos dois.
+  const LIVRE_MIN = 12;
 
   test("a partir de 1280px o topo volta a uma linha só (86px), com qualquer estado guardado", async ({ page, context }) => {
     test.setTimeout(240_000);
     const falhas: string[] = [];
+    let menor = { livre: Infinity, caso: "" };
     const casos: [string | null, string, number][] = [];
     for (const uf of [null, ...UFS]) casos.push([uf, "/", 1280]);
-    // a pergunta atual fica em negrito (mais larga): conta nas rotas em que a segunda pergunta ou a linha "Também" é a atual
-    for (const uf of [null, "RN", "MS"]) for (const url of ["/acompanhando", "/decisoes", "/votacoes"]) casos.push([uf, url, 1280]);
-    for (const uf of [null, "RN"]) for (const w of [1440, 1920]) casos.push([uf, "/", w]);
+    // o link atual fica em negrito (mais largo): conta nas rotas em que a segunda pergunta ou um link da linha "Também" é o atual
+    for (const uf of [null, "RN", "MS"]) for (const url of ["/acompanhando", "/decisoes", "/temas", "/votacoes"]) casos.push([uf, url, 1280]);
+    // o conteúdo tem teto de 1232px: em tela mais larga a conta é a mesma, e o pior caso (RN em /decisoes) também
+    for (const uf of [null, "RN"]) for (const w of [1440, 1920]) for (const url of ["/", "/decisoes"]) casos.push([uf, url, w]);
     for (const [uf, url, width] of casos) {
       await context.clearCookies();
       if (uf) await context.addCookies([{ ...SP, value: uf }]);
@@ -126,24 +139,55 @@ test.describe("1. navegação do topo", () => {
       await page.goto(url);
       if (uf) await expect(page.locator(".sv-uf"), `${uf} aplicado`).toContainText(`(${uf})`);
       const m = await page.evaluate(medirLinha);
-      if (m.topo > 87 || m.alturaPerguntas > 52 || !m.mesmaLinha || m.estouro > 0) falhas.push(`${uf ?? "sem estado"} ${url} a ${width}px: ${JSON.stringify(m)}`);
+      const caso = `${uf ?? "sem estado"} ${url} a ${width}px`;
+      if (m.mesmaLinha && m.livre < menor.livre) menor = { livre: m.livre, caso };
+      if (m.topo > 87 || m.alturaPerguntas > 52 || !m.mesmaLinha || m.estouro > 0 || m.livre < LIVRE_MIN) falhas.push(`${caso}: ${JSON.stringify(m)}`);
     }
+    // fica no log do ci: é a única medida da sobra no Chromium do Linux
+    console.log(`D326: menor espaço livre do topo = ${menor.livre}px (${menor.caso}); mínimo exigido ${LIVRE_MIN}px`);
     expect(falhas).toEqual([]);
   });
 
-  test("sem espaço para as perguntas, a linha Também desce em vez de espremer ou estourar", async ({ page, context }) => {
-    // 1263px = 1280px menos a barra de rolagem clássica (Windows); zoom só de texto simulado com fonte maior no topo
-    for (const [uf, width, css] of [["RN", 1263, ""], ["SP", 1440, ".sv .sv-nv2 a,.sv .sv-uf,.sv .sv-uf a{font-size:20px}"]] as const) {
+  test("com a barra de rolagem clássica (17px a menos de conteúdo) a linha ainda cabe; sem espaço, a linha Também desce sem estourar", async ({ page, context }) => {
+    // A barra clássica (Windows) não muda a media query, só tira largura do conteúdo. O Chromium do teste esconde a barra:
+    // o aperto é simulado com margem no html, numa janela de 1280px. 17px cabem na sobra; 80px, não.
+    for (const [aperto, cabe] of [[17, true], [80, false]] as const) {
       await context.clearCookies();
-      await context.addCookies([{ ...SP, value: uf }]);
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto("/");
-      await expect(page.locator(".sv-uf")).toContainText(`(${uf})`);
-      if (css) await page.addStyleTag({ content: css });
+      await context.addCookies([{ ...SP, value: "RN" }]);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto("/decisoes");
+      await expect(page.locator(".sv-uf")).toContainText("(RN)");
+      await page.addStyleTag({ content: `html{margin-right:${aperto}px}` });
       const m = await page.evaluate(medirLinha);
-      expect(m.mesmaLinha, `${uf} ${width}px`).toBe(false);
-      expect(m.alturaPerguntas, `${uf} ${width}px: perguntas em até duas linhas`).toBeLessThanOrEqual(56);
-      expect(m.estouro, `${uf} ${width}px`).toBeLessThanOrEqual(0);
+      expect(m.mesmaLinha, `RN com ${aperto}px a menos`).toBe(cabe);
+      expect(m.alturaPerguntas, `RN com ${aperto}px a menos: perguntas em até duas linhas`).toBeLessThanOrEqual(56);
+      expect(m.estouro, `RN com ${aperto}px a menos`).toBeLessThanOrEqual(aperto);
+      expect(m.topo, `RN com ${aperto}px a menos`).toBeLessThanOrEqual(cabe ? 87 : 112);
+    }
+  });
+
+  test("com o texto do topo maior (zoom só de texto) nada estoura, e até 130% as perguntas seguem em até duas linhas", async ({ page, context }) => {
+    // Zoom só de texto (Firefox, Safari) aumenta toda fonte e não a janela. Simulado com as fontes do topo multiplicadas:
+    // perguntas (21px), linha "Também" e estado (14px), marca (26px). A largura mínima das perguntas está em em e cresce junto.
+    for (const fator of [1.15, 1.3, 2]) {
+      const px = (n: number) => `${(n * fator).toFixed(2)}px`;
+      const css = `.sv .sv-nv1,.sv .sv-nv1 a{font-size:${px(21)}}.sv .sv-nv2,.sv .sv-nv2 a,.sv .sv-uf,.sv .sv-uf a{font-size:${px(14)}}.sv .sv-marca{font-size:${px(26)}}`;
+      for (const uf of [null, "RN"]) {
+        await context.clearCookies();
+        if (uf) await context.addCookies([{ ...SP, value: uf }]);
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto("/decisoes");
+        if (uf) await expect(page.locator(".sv-uf")).toContainText(`(${uf})`);
+        await page.addStyleTag({ content: css });
+        const m = await page.evaluate(medirLinha);
+        const caso = `${uf ?? "sem estado"} com texto a ${Math.round(fator * 100)}%`;
+        // duas linhas de 1,15 da fonte, mais 4px de respiro do link e 2px de arredondamento; nunca menos que os 52px da linha
+        // A 200% não há largura para duas linhas nem com a linha inteira (a coluna da marca e do estado também cresce): as
+        // perguntas quebram em mais linhas, sozinhas na linha, e o que se exige é não estourar.
+        if (fator < 2) expect(m.alturaPerguntas, `${caso}: perguntas em até duas linhas (${JSON.stringify(m)})`).toBeLessThanOrEqual(Math.max(52, Math.ceil(2 * 21 * fator * 1.15) + 6));
+        else expect(m.mesmaLinha, `${caso}: a linha Também não fica ao lado das perguntas (${JSON.stringify(m)})`).toBe(false);
+        expect(m.estouro, `${caso}: sem estouro (${JSON.stringify(m)})`).toBeLessThanOrEqual(0);
+      }
     }
   });
 
