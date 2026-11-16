@@ -12,6 +12,13 @@ async function semJs(browser: Browser, info: TestInfo) {
   return browser.newContext({ baseURL: info.project.use.baseURL as string, javaScriptEnabled: false, locale: "pt-BR", viewport: { width: 1280, height: 900 } });
 }
 
+/** O ponto central do elemento cai nele mesmo (nada o cobre). */
+const visivelNoCentro = (el: Element) => {
+  const r = el.getBoundingClientRect();
+  const no = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return !!no && (no === el || el.contains(no));
+};
+
 // ---------------------------------------------------------------------------------------------------------------------
 // 1. Navegação: "Pessoas" e "Votações" no topo
 // ---------------------------------------------------------------------------------------------------------------------
@@ -28,9 +35,9 @@ test.describe("1. navegação do topo", () => {
       ] as const) {
         await page.goto(url);
         const link = nav.getByRole("link", { name: nome, exact: true });
-        // a 390px a linha rola na horizontal: o link existe e fica à vista depois de rolar até ele
-        await link.scrollIntoViewIfNeeded();
+        // D325: à vista ao abrir a página, sem rolar a linha (a 390px os dois ficam presos à borda direita dela)
         await expect(link, `${url}: ${nome}`).toBeInViewport({ ratio: 1 });
+        expect(await link.evaluate(visivelNoCentro), `${url}: ${nome} não está coberto`).toBe(true);
         await expect(link, `${url}: ${nome}`).toHaveAttribute("aria-current", atual);
         // o outro link está lá, sem marca de atual; e só um item da navegação fica marcado
         const outro = nav.getByRole("link", { name: nome === "Pessoas" ? "Votações" : "Pessoas", exact: true });
@@ -43,6 +50,50 @@ test.describe("1. navegação do topo", () => {
       await expect(nav.getByRole("link", { name: "Pessoas", exact: true })).not.toHaveAttribute("aria-current", /.+/);
       await expect(nav.getByRole("link", { name: "O que está rolando?" })).toHaveAttribute("aria-current", "page");
     });
+
+  test("a 390px, Pessoas e Votações à vista sem rolar; pelo teclado, nenhum link da linha fica escondido", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const url of ["/", "/acompanhando", "/temas"]) {
+      await page.goto(url);
+      const nav = page.getByRole("navigation", { name: "Perguntas" });
+      expect(await page.locator(".sv-perg").evaluate((n) => n.scrollLeft), `${url}: a linha começa do início`).toBe(0);
+      for (const nome of ["Pessoas", "Votações"]) {
+        const link = nav.getByRole("link", { name: nome, exact: true });
+        await expect(link, `${url}: ${nome}`).toBeInViewport({ ratio: 1 });
+        expect(await link.evaluate(visivelNoCentro), `${url}: ${nome}`).toBe(true);
+      }
+      // a primeira pergunta continua à vista, inteira
+      await expect(nav.getByRole("link", { name: "O que está rolando?" })).toBeInViewport({ ratio: 1 });
+      // Tab por todos os links da navegação, na ordem do DOM: o focado nunca fica sob o grupo preso (WCAG 2.4.11)
+      const links = await nav.getByRole("link").all();
+      expect(links.length).toBe(7);
+      await page.locator(".sv-marca").focus();
+      await page.keyboard.press("Tab"); // UF ou "Escolha seu estado"
+      for (const link of links) {
+        await page.keyboard.press("Tab");
+        await expect(link).toBeFocused();
+        const nome = (await link.innerText()).trim();
+        // a pergunta mais longa é mais larga que o espaço livre a 390px: ela não cabe inteira, mas a maior parte e o centro ficam à vista
+        await expect(link, `${url}: ${nome} focado`).toBeInViewport({ ratio: 0.6 });
+        expect(await link.evaluate(visivelNoCentro), `${url}: ${nome} focado e coberto`).toBe(true);
+      }
+    }
+    // com espaçamento de texto WCAG 1.4.12 a linha continua sem estourar a página
+    await page.addStyleTag({ content: "*{letter-spacing:.12em !important;word-spacing:.16em !important}" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  });
+
+  test("a partir de 900px o grupo de Pessoas e Votações não existe na tela: a linha Também é a mesma", async ({ page }) => {
+    for (const width of [900, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      expect(await page.locator(".sv-fixo").evaluate((e) => getComputedStyle(e).display), `${width}px`).toBe("contents");
+      // os cinco links da linha "Também" seguem na mesma linha, na ordem de antes
+      const r = await page.locator(".sv-nv2 a").evaluateAll((as) => as.map((a) => ({ t: (a.textContent ?? "").trim(), y: Math.round(a.getBoundingClientRect().top) })));
+      expect(r.map((x) => x.t), `${width}px`).toEqual(["O que mexe comigo?", "O que está em jogo?", "Pessoas", "Votações", "Ajustes"]);
+      expect(new Set(r.map((x) => x.y)).size, `${width}px: uma linha só`).toBe(1);
+    }
+  });
 
   test("o rodapé continua com Votações, Pessoas e Como funciona", async ({ page }) => {
     await page.goto("/");
