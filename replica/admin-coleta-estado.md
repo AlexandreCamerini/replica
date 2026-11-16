@@ -50,7 +50,9 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 - Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a` (AC-06).
 - Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
 - Fase R: concluída e verificada (AC-08). 16 subagentes de um teto de 16. A linha da R11 abaixo cita o commit em que a decisão ainda se chamava D324; ela foi renumerada para D325 em `97c7930`.
-- Fase A: iniciada. Subagentes da fase: 1 de 14 (A1, migração `0150`, em voo: `db/migrations/0150_admin_coleta.sql`, `etl/tests/test_admin_migracao.py`, `replica/fluxo-de-dados.md`).
+- Fase A: em andamento. Subagentes da fase: 3 de 14. A1 (migração `0150`, critério 1) aceita, commit `068e2c6`; migração aplicada em `admin_coleta` (39 migrações). A2 (`http.py`, tentativas, critério 6) aceita, commit `9085621`. A3 (CLI `admin`, inventário, vínculos) em voo: `etl/civico_etl/cli.py`, `etl/civico_etl/admin/{cli,inventario,vinculos,saida}.py`, `etl/tests/test_admin_{inventario,vinculos}.py`, e possivelmente `etl/civico_etl/catalogo/comandos.py` e três testes de catálogo.
+- Incidente AC-09: duas rodadas de teste da A2 caíram no banco `civico` (vazio, 0 tabelas, sem dano). Todo briefing passa a exigir o prefixo de banco literal em cada linha.
+- Suíte depois da A2: `1048 passed, 33 skipped, 4 xfailed`. `civico-etl check`: as mesmas 5 invariantes da linha de base.
 
 | Tarefa | Modelo | Situação | Reprovações | Commit |
 | --- | --- | --- | --- | --- |
@@ -79,5 +81,6 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 ## Próximo passo
 
-1. A1: ler a migração `0150` por inteiro, aplicar em `admin_coleta` (`db/migrate.sh --local`, com o prefixo e a conferência de `current_database()`), rodar a suíte e `fluxo_confere.py`, commitar. Gravar a decisão do item 2 do plano (AC-03) em `replica/decisions.md` com o próximo número livre (conferir o `main`).
-2. A2 (`http.py` e tentativas), A3 (CLI `admin`, inventário, vínculos), A4 (fixture SAPL e lançador simulado), A5 (prévia e rodadas), A6 (relatório). Tudo em série.
+1. Conferir e commitar A3.
+2. A4 (fixture SAPL das Assembleias e de uma Câmara, lançador simulado), A5 (prévia, rodada, repetição, reprocessamento: critérios 3, 4, 5), A6 (relatório). Em série.
+3. Fase B.
