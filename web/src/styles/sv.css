@@ -114,6 +114,28 @@
   .sv-nv2{flex:1 1 auto}
   .sv .sv-nv1 a{min-height:52px}
 }
+/* D326: a partir de 1280px as duas camadas voltam a dividir a mesma linha (o topo volta aos 86px de antes da D324). A linha
+   "Também" fica mais justa; as perguntas pedem no mínimo 450px (abaixo de 445px a segunda iria a três linhas). A medida
+   está em em sobre a fonte das perguntas (21,43em de 21px), para crescer junto com o zoom só de texto: em px fixo, o texto
+   crescia, o mínimo não, e a segunda pergunta ia a três linhas ao lado da linha "Também".
+   A segunda pergunta quebra em duas linhas (cada uma com 24px; as duas cabem nos 52px da linha). Quando não há esse
+   espaço (zoom só de texto, espaçamento de texto maior, janela com conteúdo mais estreito), a linha "Também" desce sozinha
+   para baixo, como abaixo de 1280px, e as perguntas ficam com a linha inteira. Sozinha, a linha "Também" pode encolher e
+   quebrar os links dentro dela (flex-shrink 1): não estoura a página.
+   Folga: o conteúdo tem teto de 1232px, então a conta é a mesma em qualquer tela a partir de 1280px. Com o estado de nome
+   mais longo (RN) e o link atual em negrito sobrava menos de 1px, e o Chromium do Linux mede o texto um pouco mais largo:
+   a linha descia. O espaço entre a marca e as perguntas (16px) e entre os links de "Também" (3px) deixa perto de 23px
+   livres no pior caso; o teste exige pelo menos 12px. Quem mede: e2e/d324-fase1.spec.ts, com os 27 estados. */
+@media (min-width:1280px){
+  .sv-topo{column-gap:16px}
+  .sv-perg{column-gap:12px}
+  .sv-nv1{font-size:21px;flex:1 1 21.43em}
+  .sv .sv-nv1 li+li a{text-wrap:balance}
+  /* sublinhado da pergunta atual mais perto do texto: em duas linhas, o de 4px a 6px da linha de base tocaria a segunda */
+  .sv .sv-nv1 a[aria-current]{text-decoration-thickness:3px;text-underline-offset:3px}
+  .sv-nv2{flex:1 1 auto;column-gap:3px;padding-left:4px}
+  .sv .sv-nv2 a{padding-inline:4px}
+}
 .sv-demo{font-size:13px;line-height:1.4;font-weight:500;border-bottom:1.5px solid var(--tinta)}
 .sv-demo .sv-wrap{padding-top:6px;padding-bottom:6px}
 
