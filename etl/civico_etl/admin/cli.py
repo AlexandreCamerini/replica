@@ -28,6 +28,7 @@ from ..catalogo.contrato import Recorte
 from . import aplicar as apl
 from . import decisoes as dec
 from . import inventario as inv
+from . import parecer as par
 from . import pendencias as pen
 from . import proponentes as pro
 from . import propostas as prop
@@ -409,6 +410,41 @@ def _run_identidade(conn: Any, a: argparse.Namespace) -> Resultado:
     return d, txt, True, 1 if r.recusadas else 0
 
 
+# ------------------------------------------------------------------ parecer (B4): parecer de IA em modo ensaio
+
+
+def _cfg_parecer(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--pendencia", metavar="ID", help="gera o parecer desta pendência")
+    p.add_argument("--rodada", metavar="ID", help="gera um parecer por pendência aberta ligada a propostas desta rodada, na ordem da fila")
+    p.add_argument("--real", action="store_true", help="usa o modelo só se a variável da chave da API estiver no ambiente e o teto de pareceres reais não tiver sido atingido; senão cai no motor local e diz por quê")
+
+
+def _texto_parecer(docs: list[dict[str, Any]]) -> str:
+    out = ["ENSAIO: parecer não aplica nada"]
+    if any(d["simulado"] for d in docs):
+        out.append("SIMULADO: motor de ensaio local, sem chamada a modelo")
+    for d in docs:
+        nota = d["saida"]["motor"]["nota"]
+        out += ["", lista_chave_valor([("parecer", d["id"]), ("pendência", d["pendencia_id"]), ("motor", f"{d['modelo']}{' (simulado)' if d['simulado'] else ''}")] + ([("motivo do motor", nota)] if nota else [])),
+                tabela((("campo", "CAMPO"), ("proposta", "PROPOSTA"), ("trecho", "TRECHO USADO"), ("url", "URL"), ("falta_confirmar", "FALTA CONFIRMAR")),
+                       [{"campo": c["campo"], "proposta": c.get("proposta"), "trecho": c.get("trecho"), "url": c.get("url"), "falta_confirmar": c.get("falta_confirmar") or "-",
+                         "desconhecidos": {k: "falta confirmar" for k in ("proposta", "trecho", "url") if c.get(k) is None}} for c in d["saida"]["campos"]], largura_max=160)]
+    if len(docs) != 1:
+        out += ["", f"{len(docs)} pareceres gravados em adm_pareceres (modo ensaio); nenhuma decisão criada, nenhuma tabela de domínio tocada"]
+    return "\n".join(out)
+
+
+def _run_parecer(conn: Any, a: argparse.Namespace) -> Resultado:
+    if bool(a.pendencia) == bool(a.rodada):
+        raise _Uso("parecer: informe exatamente um entre --pendencia e --rodada")
+    if a.pendencia:
+        docs = [par.gerar(conn, a.pendencia, motor=par.escolher_motor(conn, real=a.real))]
+    else:
+        docs = par.gerar_da_rodada(conn, a.rodada, real=a.real)
+    doc = {"modo": "ensaio", "aviso": "parecer não aplica nada", "pareceres": [{k: d[k] for k in ("id", "pendencia_id", "modelo", "simulado", "versao_verificador", "modo", "criada_em", "saida")} for d in docs]}
+    return doc, _texto_parecer(docs) if docs else "ENSAIO: parecer não aplica nada\nnenhuma pendência aberta ligada a propostas da rodada", bool(docs)
+
+
 class _Uso(Exception):
     """Combinação de opções inválida: sai com 2, como um erro do argparse."""
 
@@ -424,6 +460,7 @@ SUBCOMANDOS: dict[str, Subcomando] = {s.nome: s for s in (
     Subcomando("pendencia", "detalhe de uma pendência (ID) ou `reavaliar` as decididas cujo valor vigente mudou", _cfg_pendencia, _run_pendencia),
     Subcomando("decidir", "registra a decisão de uma pessoa sobre uma pendência (aprovar, corrigir, descartar, pedir_confirmacao); --aplicar aplica em seguida", _cfg_decidir, _run_decidir),
     Subcomando("identidade", "leva à revisão os itens pendentes da fila de identidade que têm pessoa candidata (`identidade propor`); a decisão e a aplicação são `decidir` e `aplicar`", _cfg_identidade, _run_identidade),
+    Subcomando("parecer", "parecer de IA em modo ENSAIO de uma pendência (--pendencia) ou de uma rodada (--rodada): proposta por campo com o trecho usado, ou \"falta confirmar\"; não aplica nada", _cfg_parecer, _run_parecer),
     Subcomando("aplicar", "aplica às tabelas de domínio as decisões aprovadas e ainda não aplicadas (agentes só com as duas chaves ligadas)", _cfg_aplicar, _run_aplicar),
 )}
 
