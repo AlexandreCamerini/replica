@@ -5,8 +5,8 @@ Mesma regra de `contrato.py`: `descrever` nunca usa rede; o argv é exatamente o
 `--no-derive`, `--all` nem `--votes` por conta própria (o argv da tarefa agendada é assunto de schedule.py). Só biblioteca padrão e o
 próprio pacote `catalogo`: nenhum `civico_etl.jobs.*` nem `civico_etl.cli`.
 
-Importar este módulo registra os oito adaptadores em `contrato.ADAPTADORES`. Ele ainda não está ligado em `catalogo/__init__.py`
-(a integração é feita depois); `EXPLICACOES_A` também precisa entrar em `contrato._EXPLICACOES` nessa hora.
+Importar este módulo registra os oito adaptadores em `contrato.ADAPTADORES`. `catalogo/__init__.py` importa este módulo
+e soma `EXPLICACOES_A` a `contrato._EXPLICACOES`.
 """
 
 from __future__ import annotations

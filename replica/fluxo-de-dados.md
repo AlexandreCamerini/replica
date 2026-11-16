@@ -397,6 +397,8 @@ Um arquivo por linha. "Agendado" indica se alguma execução recorrente chama o 
 
 Transversais: `etl/civico_etl/http.py` (cache em disco em `etl/.cache`, até 5 tentativas com espera dobrando até 60 s; `etl/civico_etl/http.py:75-136`), `etl/civico_etl/remotezip.py` (zip remoto por faixa, sem cópia do bruto; `etl/civico_etl/remotezip.py:54-63`), `etl/civico_etl/transparencia.py` (paginação com chave; `etl/civico_etl/transparencia.py:100-134`), `etl/civico_etl/rawstore.py` (cópia do bruto, desligada por padrão; `etl/civico_etl/rawstore.py:127-143`), `etl/civico_etl/drafting.py` e `etl/civico_etl/verification.py` (prompt, validação e árbitro do fluxo de IA).
 
+Desde a Parte R existe um catálogo declarativo em código em `etl/civico_etl/catalogo/`. Ele lista os comandos da CLI (`etl/civico_etl/catalogo/comandos.py`), os coletores (`etl/civico_etl/catalogo/coletores.py`), a classe de cada arquivo do ETL (`etl/civico_etl/catalogo/modelo.py`) e o contrato `descrever` e `executar` (`etl/civico_etl/catalogo/contrato.py`). Testes conferem o catálogo contra `etl/civico_etl/cli.py` e `etl/civico_etl/schedule.py`. O catálogo descreve o que já existe e não muda a execução, que continua no despacho de `etl/civico_etl/cli.py`. Os detalhes estão em `replica/admin-coleta.md`.
+
 ## 6. Agenda
 
 Uma linha por execução agendada. Secrets aparecem só pelo nome.
