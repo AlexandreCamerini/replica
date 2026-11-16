@@ -49,7 +49,8 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 - Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a` (AC-06).
 - Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
-- Fase: R, construção concluída; verificador da Parte R em voo. Subagentes da fase: 13 de 16 (11 de construção, 1 retomada por pergunta, 1 verificador).
+- Fase R: concluída e verificada (AC-08). 16 subagentes de um teto de 16. A linha da R11 abaixo cita o commit em que a decisão ainda se chamava D324; ela foi renumerada para D325 em `97c7930`.
+- Fase A: iniciada. Subagentes da fase: 1 de 14 (A1, migração `0150`, em voo: `db/migrations/0150_admin_coleta.sql`, `etl/tests/test_admin_migracao.py`, `replica/fluxo-de-dados.md`).
 
 | Tarefa | Modelo | Situação | Reprovações | Commit |
 | --- | --- | --- | --- | --- |
@@ -66,9 +67,11 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 | Integração dos três lotes em `COLETORES` | orquestrador | feita | | `ee9b3a9` |
 | R10 testes de R-5 e R-7 e ajuste de 7 testes da própria entrega | Sonnet | aceita | 0 | `ee9b3a9` |
 | R11 documentação, BUG-056 a BUG-060, D325 | Haiku | aceita | 0 | `2743a74` |
-| Verificador da Parte R | Sonnet | em voo, só leitura; relatório em `verificacao/parte-r.md` (pasta de notas) | | |
+| Verificador da Parte R | Sonnet | concluído: sem mudança de comportamento; 8 achados menores | | relatório `verificacao/parte-r.md` |
+| R12 correções do verificador | Sonnet | aceita | 0 | `3758712` |
+| Reverificador da Parte R | Sonnet | concluído: achados resolvidos, salvo os mantidos em AC-08 | | relatório `verificacao/parte-r-v2.md` |
 
-- Suíte ao fim da construção da fase R: `991 passed, 33 skipped, 4 xfailed` (linha de base: 767, 33, 4).
+- Suíte ao fim da fase R: `994 passed, 33 skipped, 4 xfailed` (linha de base: 767, 33, 4).
 - Critérios com prova, antes do verificador: R-1 (nenhum teste antigo alterado), R-2 (sete comandos caracterizados; cinco módulos declarados sem caracterização e não tocados), R-3, R-4, R-5 (com AC-04), R-6, R-7 (comportamento real fixado; BUG-056), R-8, R-9 (`git diff --stat 39ee3ec..ee9b3a9 -- etl/civico_etl` só acrescenta `catalogo/`), R-10 (mesmos 7 problemas).
 - Decisões: AC-01 a AC-07. `replica/decisions.md`: D325 (AC-02) gravada; a do item 2 do plano (AC-03) entra com a migração, na fase A. Última migração existente: `0142`; nenhuma criada.
 - Pontos em aberto para a fase A: (1) `sapl.assembleias` está com `reprocessar` não suportado no catálogo (carga por cursor), e o passo 5 da primeira rodada pede reprocessamento sem rede nesse recorte: decidir em A5, lendo `--full` em `jobs/sapl.py`; (2) `reprocessar` hoje usa o mesmo argv de `recoletar`: o executor decide se acrescenta `--force` onde o comando aceita.
@@ -76,5 +79,5 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 ## Próximo passo
 
-1. Ler o relatório do verificador da Parte R; corrigir o que proceder e reverificar uma vez com outro agente.
-2. Fase A: A1 (migração 0150 e medição do gatilho), A2 (`http.py` e tentativas), A3 (CLI `admin`, inventário, vínculos), A4 (fixture SAPL e lançador simulado), A5 (prévia e rodadas), A6 (relatório). Tudo em série.
+1. A1: ler a migração `0150` por inteiro, aplicar em `admin_coleta` (`db/migrate.sh --local`, com o prefixo e a conferência de `current_database()`), rodar a suíte e `fluxo_confere.py`, commitar. Gravar a decisão do item 2 do plano (AC-03) em `replica/decisions.md` com o próximo número livre (conferir o `main`).
+2. A2 (`http.py` e tentativas), A3 (CLI `admin`, inventário, vínculos), A4 (fixture SAPL e lançador simulado), A5 (prévia e rodadas), A6 (relatório). Tudo em série.
