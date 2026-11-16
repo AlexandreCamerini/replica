@@ -180,7 +180,7 @@ def test_pendentes_sao_os_ids_citados_sem_entrada():
     ids = {c.id for c in COLETORES}
     assert COLETORES_PENDENTES == citados - ids
     assert not (COLETORES_PENDENTES & ids)
-    assert ids == set(QUATRO)
+    assert set(QUATRO) <= ids  # desde a integração dos lotes, o catálogo tem todos os coletores
 
 
 def test_encadeia_dos_comandos_do_parser_principal():
@@ -263,11 +263,12 @@ def test_acesso_so_usa_valores_fechados():
 
 
 def test_acessores_de_nome_levantam_keyerror_para_o_que_nao_tem_entrada():
-    for nome in ("tse.votos", "nao.existe"):
+    for nome in ("nao.existe", "tse.votos.inventado"):  # integrado: tse.votos agora tem entrada; o que protege é o id sem entrada
         with pytest.raises(KeyError):
             coletor(nome)
+    assert coletor("tse.votos").id == "tse.votos"
     with pytest.raises(KeyError):
-        por_comando("tse.votos")
+        por_comando("nao.existe")
     with pytest.raises(KeyError):
         por_tarefa("nao.existe")
     with pytest.raises(KeyError):
@@ -432,7 +433,7 @@ def test_coletor_sem_adaptador_e_id_desconhecido(monkeypatch):
     with pytest.raises(ValueError):
         executar("camara.equipe", runner=lambda a: 0)
     with pytest.raises(KeyError):
-        descrever("tse.votos")
+        descrever("id.inventado")  # integrado: tse.votos tem entrada; id sem entrada continua KeyError
 
 
 def test_adaptadores_das_quatro_entradas_estao_registrados():

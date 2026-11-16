@@ -177,6 +177,15 @@ COLETORES: tuple[Coletor, ...] = (
 )
 
 
+# Integração dos lotes (R8a, R8b, R9). Os módulos de lote não importam este, então não há ciclo.
+from .coletores_a import COLETORES_A  # noqa: E402
+from .coletores_b import COLETORES_B  # noqa: E402
+from .coletores_c import COLETORES_C  # noqa: E402
+
+COLETORES_BASE: tuple[Coletor, ...] = COLETORES
+COLETORES = COLETORES_BASE + COLETORES_A + COLETORES_B + COLETORES_C
+
+
 def _indice(chave) -> dict[str, Coletor]:
     out: dict[str, Coletor] = {}
     for c in COLETORES:

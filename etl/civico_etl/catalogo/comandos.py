@@ -85,16 +85,7 @@ COMANDOS: tuple[Comando, ...] = (
 
 # Coletores que o catálogo de comandos já cita e que ainda não têm entrada em coletores.py (tarefas R8 e R9). Os ids são os que o plano prevê;
 # onde o plano não nomeia (ale.custom, sapl.assembleias) o id é uma proposta, a confirmar na R8.
-COLETORES_PENDENTES: frozenset[str] = frozenset({
-    "ibge.places", "ibge.populacao", "ibge.malhas",
-    "tse.candidatos", "tse.votos", "tse.contas",
-    "camara.presenca",
-    "senado.diario", "senado.noturna", "senado.secretas",
-    "agenda.congresso", "parlamento.extras", "pauta",
-    "ale.custom", "sapl.assembleias",
-    "sancoes.tcu", "sancoes.cgu", "transparencia.emendas",
-    "governos.indicadores", "receita.arrecadacao",
-})
+COLETORES_PENDENTES: frozenset[str] = frozenset()  # vazio desde a integração dos lotes R8a, R8b e R9: todo comando de coleta tem coletor
 
 _POR_NOME = {c.nome: c for c in COMANDOS}
 
