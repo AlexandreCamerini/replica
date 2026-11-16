@@ -49,7 +49,7 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 - Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a` (AC-06).
 - Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
-- Fase: R. Subagentes da fase: 7 de 16.
+- Fase: R, construção concluída; verificador da Parte R em voo. Subagentes da fase: 13 de 16 (11 de construção, 1 retomada por pergunta, 1 verificador).
 
 | Tarefa | Modelo | Situação | Reprovações | Commit |
 | --- | --- | --- | --- | --- |
@@ -57,16 +57,24 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 | R2 retrato do plano e códigos de saída (R-6, R-8) | Sonnet | aceita | 0 | `1ae2c68` |
 | R3 orquestradores (R-4) | Sonnet | aceita | 0 | `91e67f4` |
 | R4 banco isolado e caracterização de `camara.equipe` | Sonnet | aceita | 0 | `7fc21fa` |
-| R5 caracterização de `receita.arrecadacao`, `ibge.places`, `ibge.populacao`, `governos.indicadores` | Haiku | aceita | 0 | `34152c0` |
+| R5 caracterização de quatro coletores simples | Haiku | aceita | 0 | `34152c0` |
 | R6 caracterização de `parlamento.extras` e `ale.cobertura` | Sonnet | aceita | 0 | `491fc5a` |
-| R7 catálogo: modelo, contrato, quatro exemplos, teste de forma | Sonnet | em voo: `etl/civico_etl/catalogo/*`, `etl/tests/test_catalogo_forma.py` | 0 | |
+| R7 catálogo: modelo, contrato, quatro exemplos | Sonnet | aceita | 0 | `a1614da` |
+| R8a entradas de TSE, sanções, transparência, ALE, SAPL das Assembleias | Sonnet | aceita | 0 | `ee9b3a9` |
+| R8b entradas de Senado, agenda, pauta, extras, presença | Sonnet | aceita | 0 | `ee9b3a9` |
+| R9 entradas simples (IBGE, governos, receita) | Haiku | aceita; devolveu duas perguntas antes de escrever, respondidas | 0 | `ee9b3a9` |
+| Integração dos três lotes em `COLETORES` | orquestrador | feita | | `ee9b3a9` |
+| R10 testes de R-5 e R-7 e ajuste de 7 testes da própria entrega | Sonnet | aceita | 0 | `ee9b3a9` |
+| R11 documentação, BUG-056 a BUG-060, D324 | Haiku | aceita | 0 | `2743a74` |
+| Verificador da Parte R | Sonnet | em voo, só leitura; relatório em `verificacao/parte-r.md` (pasta de notas) | | |
 
-- Suíte depois de R6: `796 passed, 33 skipped, 4 xfailed`. Banco isolado de teste acrescenta cerca de 3 s.
-- Critérios com teste passando: R-2 (sete comandos caracterizados), R-3, R-4, R-6, R-8. Os demais, não avaliados.
+- Suíte ao fim da construção da fase R: `991 passed, 33 skipped, 4 xfailed` (linha de base: 767, 33, 4).
+- Critérios com prova, antes do verificador: R-1 (nenhum teste antigo alterado), R-2 (sete comandos caracterizados; cinco módulos declarados sem caracterização e não tocados), R-3, R-4, R-5 (com AC-04), R-6, R-7 (comportamento real fixado; BUG-056), R-8, R-9 (`git diff --stat 39ee3ec..ee9b3a9 -- etl/civico_etl` só acrescenta `catalogo/`), R-10 (mesmos 7 problemas).
+- Decisões: AC-01 a AC-07. `replica/decisions.md`: D324 (AC-02) gravada; a do item 2 do plano (AC-03) entra com a migração, na fase A. Última migração existente: `0142`; nenhuma criada.
+- Pontos em aberto para a fase A: (1) `sapl.assembleias` está com `reprocessar` não suportado no catálogo (carga por cursor), e o passo 5 da primeira rodada pede reprocessamento sem rede nesse recorte: decidir em A5, lendo `--full` em `jobs/sapl.py`; (2) `reprocessar` hoje usa o mesmo argv de `recoletar`: o executor decide se acrescenta `--force` onde o comando aceita.
 - Achados dos testes de caracterização a levar para `replica/bugs.md` na R11 (comportamento real, não corrigido): `camara.equipe` apaga toda a equipe se o CSV vier sem linha válida e não registra `rows_read` nem `rows_deleted`; `parlamento.extras` apaga contato de fonte `camara` ou `senado` em qualquer mandato com contato na rodada, contra o que a docstring diz, e o nome de comissão depende da ordem sem `order by`; `receita.arrecadacao` e `governos.indicadores` validam fora do `run()`, então falha de validação não deixa run `failed`; `governos.indicadores` não carimba `governos.bcb` na rodada pulada; `ibge.places` faz cada região pai de si mesma; `cli.py` tem `except SkipUnchanged` que nunca atua para job com checksum.
 
 ## Próximo passo
 
-1. Conferir e commitar R7; depois R8 (Sonnet, entradas irregulares), R9 (Haiku, simples), R10 (testes R-5 e R-7), R11 (documentação, `bugs.md`, R-10).
-2. Verificador da Parte R (Sonnet).
-3. Fase A, seção 7 do plano.
+1. Ler o relatório do verificador da Parte R; corrigir o que proceder e reverificar uma vez com outro agente.
+2. Fase A: A1 (migração 0150 e medição do gatilho), A2 (`http.py` e tentativas), A3 (CLI `admin`, inventário, vínculos), A4 (fixture SAPL e lançador simulado), A5 (prévia e rodadas), A6 (relatório). Tudo em série.
