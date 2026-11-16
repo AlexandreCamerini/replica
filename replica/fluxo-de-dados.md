@@ -351,6 +351,24 @@ Uma linha por tabela ou view viva ao fim das migrações. "Role de escrita do ET
 
 **20 tabelas sem escritor nem leitor no repositório:** `activity_events`, `asset_items`, `bloc_members`, `corporate_card_expenses`, `corrections`, `digest_deliveries`, `gov_plan_excerpts`, `government_terms`, `live_count_snapshots`, `mandate_periods`, `page_view_hourly`, `page_views`, `session_agenda_items`, `speech_topics`, `stf_case_events`, `stf_cases`, `stf_ministers`, `tax_revenues`, `trips`, `yearly_indicators`.
 
+### 4.1 Administração de coleta (migração `db/migrations/0150_admin_coleta.sql`)
+
+Onze tabelas internas, com RLS ligada, sem policy e sem grant a `web_reader`, `web_writer`, `anon` e `authenticated`. Ninguém no site as lê. Quem escreve é a CLI `civico-etl admin` (fase A em diante); até lá ficam vazias. O desenho está em `replica/admin-coleta-plano.md`.
+
+- `adm_rodadas`: uma rodada de coleta com parâmetros, repetível; estado travado por gatilho.
+- `adm_tentativas`: uma linha por tentativa de URL, com resultado e motivo da falha.
+- `adm_evidencias`: a última evidência válida por URL; só leitura bem-sucedida a regrava.
+- `adm_vinculos`: URL ou fonte ligada a um registro, com origem e histórico.
+- `adm_propostas`: valor candidato com URL, trecho e hash do conteúdo.
+- `adm_pendencias`: uma pergunta aberta por (classe, registro, campo); a ordem da fila não usa pessoa, partido nem popularidade.
+- `adm_pendencia_propostas`: liga cada pendência às suas propostas.
+- `adm_decisoes`: trilha de decisão só de acréscimo; decisão de agentes só se aplica com `pipeline_switches.admin_coleta_agentes = 'on'`.
+- `adm_overrides`: o valor que uma decisão fixou, lido pelos gatilhos abaixo.
+- `adm_pareceres`: parecer de IA guardado (nesta entrega, só motor de ensaio, com `simulado`).
+- `adm_pedidos`: fila entre a central e o executor, com `chave_idem` única enquanto o pedido está ativo.
+
+Gatilhos novos em tabelas existentes, sem coluna nova: `adm_override` em `sapl_houses` (`base_url`, `status`), em `data_coverage` (`status`, `reason`, `evidence_url`) e em `mandate_contacts` (descarta o insert de contato suprimido). Sem linha vigente em `adm_overrides`, o que o job grava não muda. A fonte `curadoria` entra em `sources` pela mesma migração, para contatos corrigidos à mão.
+
 ## 5. Catálogo de jobs
 
 Um arquivo por linha. "Agendado" indica se alguma execução recorrente chama o job.

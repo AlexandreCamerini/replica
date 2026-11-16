@@ -31,7 +31,9 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Escolha: (d), com (c) quando o erro é o vínculo. Para contato: linha com fonte própria `curadoria`, que o delete do job não alcança, e supressão do valor descartado por gatilho `before insert`.
 - Motivo: (a) e (b) editam três coletores por dentro e não valem para o Mac em versão antiga. (d) não toca coletor e, sem linha em `adm_overrides`, grava o mesmo que hoje.
 - Risco assumido: é o ponto mais discutível contra a restrição 4 ("só aditiva"). O gatilho não altera coluna nem dado existente, mas passa a reescrever valor de job em tabela existente quando há override. O custo por linha é medido na tarefa A1.
-- Materializa: seção 2 do plano; migração `0150` (fase A).
+- Materializa: seção 2 do plano; migração `db/migrations/0150_admin_coleta.sql` (commit da tarefa A1); D326 em `replica/decisions.md`.
+- Custo medido na A1 (33 mil linhas de `data_coverage`, `on conflict do nothing`, melhor de 3): sem override, 49 ms sem gatilho e 115 ms com gatilho quando as linhas já existem (o caso de `derive.stats`), e 288 ms contra 337 ms com linhas novas; com um override vigente de cobertura, 268 ms e 533 ms.
+- Limite achado na A1: o gatilho roda com o privilégio de quem grava e lê `adm_overrides`. Hoje só o dono do banco grava nessas três tabelas. Um role sem leitura em `adm_overrides` que passe a gravar nelas faria o gatilho falhar.
 - Desfazer: `drop trigger` nas três tabelas e `git revert` da migração. Migração já aplicada no banco local não volta só com o revert.
 
 ## AC-04 · Critério R-5 substituído na parte das fontes
