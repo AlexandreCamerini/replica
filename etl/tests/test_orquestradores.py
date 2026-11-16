@@ -170,7 +170,7 @@ def test_comandos_obrigatorios_fora_do_catalogo_existem():
 
 def test_comandos_da_cli_tem_tamanho_esperado():
     cli = comandos_da_cli()
-    assert len(cli) == 48, f"{len(cli)} comandos na CLI: {sorted(cli)}"
+    assert len(cli) == 49, f"{len(cli)} comandos na CLI: {sorted(cli)}"
     assert {"purge-raw", "run-due", "ale.sp", "ale.todas", "sapl.ales", "sancoes.cgu", "transparencia.ping"} <= cli
 
 

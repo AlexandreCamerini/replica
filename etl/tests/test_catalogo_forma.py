@@ -1,6 +1,6 @@
 """R7: forma do catálogo (civico_etl.catalogo) e do contrato comum de coletor. Sem banco, sem rede.
 
-Cobre R1 (modelo declarativo), R3 (descrever/executar) e R4 (classe de cada arquivo) na parte entregue nesta tarefa: o modelo, os 48
+Cobre R1 (modelo declarativo), R3 (descrever/executar) e R4 (classe de cada arquivo) na parte entregue nesta tarefa: o modelo, os 49
 comandos e as quatro primeiras entradas (camara.equipe, sapl.camaras, camara.diario, camara.noturna). As demais entradas e os testes de
 cobertura total (R-5, R-7) são das tarefas seguintes.
 """
@@ -150,7 +150,7 @@ def test_classes_conhecidas_da_tabela_0_1():
 
 def test_comandos_sao_exatamente_os_da_cli():
     nomes = [c.nome for c in COMANDOS]
-    assert len(nomes) == len(set(nomes)) == 48
+    assert len(nomes) == len(set(nomes)) == 49
     assert set(nomes) == comandos_da_cli()
 
 

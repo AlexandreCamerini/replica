@@ -68,7 +68,7 @@ def test_comandos_do_catalogo_sao_exatamente_os_da_cli():
     na_cli = comandos_da_cli()
     nos_comandos = {c.nome for c in COMANDOS}
     assert nos_comandos == na_cli, (sorted(na_cli - nos_comandos), sorted(nos_comandos - na_cli))
-    assert len(COMANDOS) == len(na_cli) == 48
+    assert len(COMANDOS) == len(na_cli) == 49
 
 
 def test_todo_comando_de_coleta_tem_coletor_que_o_lista():

@@ -1,7 +1,7 @@
 """Catálogo de comandos (R1, nível 1): TODO nome que a CLI aceita, classificado.
 
 Fonte de verdade do que a CLI aceita: `choices=` de cada parser (cli.py:87; jobs/ale_cli.py:25; jobs/sapl.py:739; jobs/sancoes.py:299;
-transparencia.py:156; schedule.py:656) mais `purge-raw`, tratado antes do argparse (cli.py:53). test_catalogo_forma.py confere os 48 nomes
+transparencia.py:156; schedule.py:656) mais `purge-raw` e `admin`, tratados antes do argparse (cli.py:54 e :67). test_catalogo_forma.py confere os 49 nomes
 contra o código por AST (`comandos_da_cli()` de test_orquestradores.py).
 
 `argumentos` é por comando (o que o bloco do comando lê), não por parser: o parser principal aceita `--year` para qualquer job, mas só
@@ -81,6 +81,9 @@ COMANDOS: tuple[Comando, ...] = (
     # ---- schedule.py:656 (cli.py:66) e comando inline (cli.py:53)
     Comando("run-due", C.ROTINA_DE_AGENDA, "schedule.py", "schedule", ("--only", "--dry-run", "--force"), (), None),
     Comando("purge-raw", C.MANUTENCAO, "cli.py", "inline", (), (), None),
+    # desvio inline de cli.py (`args[0] == "admin"`) para civico_etl/admin/cli.py, que tem parser próprio (subparsers). O modelo não tem parser "admin":
+    # "inline" é o mais próximo (sem conferência de flags) e MANUTENCAO a classe mais próxima (lê o banco e só grava em adm_*).
+    Comando("admin", C.MANUTENCAO, "admin/cli.py", "inline", (), (), None),
 )
 
 # Coletores que o catálogo de comandos já cita e que ainda não têm entrada em coletores.py (tarefas R8 e R9). Os ids são os que o plano prevê;
