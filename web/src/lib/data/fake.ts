@@ -15,6 +15,7 @@ import {
   topicName,
 } from "./reference";
 import type {
+  CommitteeItem,
   AnswerClaim,
   AssemblyInfo,
   PublishedAnswers,
@@ -601,6 +602,18 @@ function entradaDemo(personId: string): EntradaCobertura {
   };
 }
 
+/** Deputado federal da demonstração que tem comissões (D327). Nenhuma outra pessoa da demonstração tem. */
+export const DEMO_COMISSOES_SLUG = "alvaro-barros";
+const COMISSOES_DEMO: CommitteeItem[] = [
+  ["CE", "Comissão de Educação", "Titular"],
+  ["CSAUDE", "Comissão de Saúde", "Titular"],
+  ["CVT", "Comissão de Viação e Transportes", "Suplente"],
+  ["CMADS", "Comissão de Meio Ambiente e Desenvolvimento Sustentável", "Suplente"],
+  ["CCULT", "Comissão de Cultura", "Titular"],
+  ["CESPO", "Comissão do Esporte", "Suplente"],
+  ["CTUR", "Comissão de Turismo", "Suplente"],
+].map(([acronym, name, role]) => ({ acronym, name, role, from: "2025-03-12", to: null, body: "camara" as const }));
+
 // ---------- implementação ----------
 export const fakeSource: DataSource = {
   isDemo: true,
@@ -1037,8 +1050,10 @@ export const fakeSource: DataSource = {
   async listLaws() {
     return { items: [], nextCursor: null, total: 0, years: [] }; // a demo não simula leis
   },
-  async getCommittees() {
-    return [];
+  // Comissões: a demonstração não simula, com uma exceção (D327): uma pessoa com sete, para a tela ter o caso de mais de
+  // cinco (cinco à vista e o resto num <details>) com teste de tela. As demais seguem sem comissão, com o motivo.
+  async getCommittees(personId) {
+    return store().personById.get(personId)?.slug === DEMO_COMISSOES_SLUG ? COMISSOES_DEMO : [];
   },
   async listSpeeches() {
     return { items: [], nextCursor: null, total: 0 };
@@ -1055,8 +1070,9 @@ export const fakeSource: DataSource = {
     return [];
   },
   async getStamp(dataset) {
-    const src = dataset.startsWith("camara") ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;
-    const refreshedAt = dataset.startsWith("camara") || dataset.startsWith("senado") ? "2026-11-01T06:10:00-03:00" : dataset.startsWith("ibge") ? "2026-01-15T03:00:00-03:00" : "2026-10-31T05:40:00-03:00";
+    // parlamento.extras (comissões e contatos) é carimbado com a fonte da Câmara, como na carga real
+    const src = dataset.startsWith("camara") || dataset === "parlamento.extras" ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;
+    const refreshedAt = dataset.startsWith("camara") || dataset.startsWith("senado") || dataset === "parlamento.extras" ? "2026-11-01T06:10:00-03:00" : dataset.startsWith("ibge") ? "2026-01-15T03:00:00-03:00" : "2026-10-31T05:40:00-03:00";
     return { dataset, source: src.name, sourceUrl: src.url, refreshedAt };
   },
   async listSourceStatus() {

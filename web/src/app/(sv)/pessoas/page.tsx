@@ -7,6 +7,7 @@ import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA } from "@/components/sv/estados";
 import { fmtInt } from "@/components/sv/fmt";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
+import { contarMarcados } from "@/components/sv/marcados";
 import { ListaPessoas, Marcados } from "@/components/sv/pessoas-lista";
 import { readPrefs } from "@/components/sv/prefs";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
@@ -41,7 +42,8 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
   const marcados = parseFollows(jar.get(FOLLOW_COOKIE)?.value);
   // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
   const falhar = simulacao(raw.simular) === "erro";
-  const stamp = await data.getStamp("tse.candidatos").catch(() => null);
+  // quantas dessas marcações são pessoas que existem hoje (D327): slug de pessoa que sumiu ou foi fundida não conta
+  const [stamp, marcacoes] = await Promise.all([data.getStamp("tse.candidatos").catch(() => null), contarMarcados(marcados, (fn) => lerOuFalhar(falhar, fn))]);
   const fonte = `Fonte: ${FONTE}${fraseLida(stamp)}.`;
 
   // Vindo de um lugar: as pessoas de um grupo (ex.: vereadores) de uma cidade.
@@ -90,8 +92,8 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
               <Lacuna motivo="Ninguém foi carregado para este grupo.">Ainda não temos esse dado.</Lacuna>
             ) : (
               <>
-                <Marcados n={marcados.length} />
-                <ListaPessoas items={group.people} marcados={marcados} />
+                <Marcados guardadas={marcacoes.guardadas} pessoas={marcacoes.pessoas} sobrando={marcacoes.sobrando} />
+                <ListaPessoas items={group.people} marcados={marcados} porPessoa={marcacoes.porPessoa} />
               </>
             )}
           </Quadro>
@@ -123,6 +125,9 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
   if (ufPedida) next.set("uf", uf ?? "");
   if (page?.nextCursor) next.set("pagina", page.nextCursor);
   const filtrou = !!(q || office || uf);
+  // Sigla de duas letras que não é de nenhum estado (D327): a tela diz que a sigla não existe, em vez de "nenhuma pessoa".
+  // Só dá para afirmar isso com a lista de estados lida; sem ela, a tela segue como antes.
+  const ufInexistente = ufPedida && !!uf && ufs !== null && !ufs.some((u) => u.uf === uf) ? uf : null;
   // só o estado guardado filtra a lista: a tela nomeia o estado em vez de dizer "com esses filtros"
   const soEstadoGuardado = ufDoCookie !== null && !q && !office;
   // "ver todos os estados": tira só o estado, mantém nome e cargo
@@ -222,6 +227,13 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
           <Lacuna motivo="A lista de pessoas não pôde ser lida. Tente de novo em alguns minutos.">{FALHOU_LEITURA}</Lacuna>
         ) : n === 0 && pagina && page.total > 0 ? (
           <Lacuna motivo={`A lista tem ${fmtInt(page.total)} pessoas.`}>Esta página fica depois do fim da lista.</Lacuna>
+        ) : ufInexistente ? (
+          <>
+            <Lacuna motivo="Nenhuma pessoa foi listada. Escolha um estado no campo acima ou veja todos os estados.">A sigla “{ufInexistente}” não é de nenhum estado.</Lacuna>
+            <Link className="sv-lk" href={`/pessoas?${todos.toString()}`}>
+              Ver todos os estados <span aria-hidden="true">&nbsp;→</span>
+            </Link>
+          </>
         ) : n === 0 ? (
           <Lacuna>{filtrou ? "Nenhuma pessoa encontrada com esses filtros." : "Ninguém carregado ainda."}</Lacuna>
         ) : (
@@ -236,8 +248,8 @@ export default async function PessoasPage({ searchParams }: { searchParams: Prom
                 Esta página mostra {fmtInt(n)} de {fmtInt(page.total)}.
               </p>
             )}
-            <Marcados n={marcados.length} />
-            <ListaPessoas items={page.items} marcados={marcados} />
+            <Marcados guardadas={marcacoes.guardadas} pessoas={marcacoes.pessoas} sobrando={marcacoes.sobrando} />
+            <ListaPessoas items={page.items} marcados={marcados} porPessoa={marcacoes.porPessoa} />
             {page.nextCursor && (
               <Link className="sv-lk" href={`/pessoas?${next.toString()}`}>
                 Próximas {POR_PAGINA} <span aria-hidden="true">→</span>

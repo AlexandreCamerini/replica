@@ -8,8 +8,10 @@ import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA } from "@/components/sv/estados";
 import { fmtInt } from "@/components/sv/fmt";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
+import { contarMarcados } from "@/components/sv/marcados";
 import { ListaPessoas, Marcados } from "@/components/sv/pessoas-lista";
 import { COOKIE_TEXTO, readPrefs, ufOptions, type Prefs } from "@/components/sv/prefs";
+import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Notice, Quadro, Resposta } from "@/components/sv/ui";
 import { data, type OfficeSlug, type Place } from "@/lib/data";
 import { salvarUf } from "../ajustes/actions";
@@ -35,9 +37,14 @@ function Passos({ atual }: { atual: 1 | 2 }) {
   );
 }
 
-async function Passo1({ prefs, erro }: { prefs: Prefs; erro: boolean }) {
+async function Passo1({ prefs, erro, falhar }: { prefs: Prefs; erro: boolean; /** `?simular=erro` (só na demonstração): a leitura das cidades falha */ falhar: boolean }) {
   const { uf, esferas } = prefs;
-  const [ufsLidas, cidades] = await Promise.all([ufOptions().catch(() => null), uf ? data.listMunicipalities(uf.sigla).catch((): Place[] => []) : Promise.resolve([] as Place[])]);
+  // null = a leitura das cidades falhou; lista vazia = a fonte respondeu e não traz cidade desse estado. São avisos diferentes (D327).
+  const [stampIbge, ufsLidas, cidades] = await Promise.all([
+    uf ? data.getStamp("ibge.places").catch(() => null) : null,
+    ufOptions().catch(() => null),
+    uf ? lerOuFalhar(falhar, () => data.listMunicipalities(uf.sigla)).catch((): Place[] | null => null) : Promise.resolve<Place[] | null>([]),
+  ]);
   return (
     <div className="sv-pg sv-pg--comecar">
       <div className="sv-folio sv-folio--dom">
@@ -82,9 +89,11 @@ async function Passo1({ prefs, erro }: { prefs: Prefs; erro: boolean }) {
       </Quadro>
 
       {uf && (
-        <Quadro id="cm-cidade" pergunta="E a sua cidade? (opcional)">
+        <Quadro id="cm-cidade" pergunta="E a sua cidade? (opcional)" prova={cidades !== null && cidades.length === 0 ? `Fonte: IBGE, lista de municípios${fraseLida(stampIbge)}.` : undefined}>
           <p className="sv-t">Com a cidade, você também acompanha a Câmara Municipal. Só lemos as câmaras que publicam num sistema aberto.</p>
-          {cidades.length > 0 ? (
+          {cidades === null ? (
+            <Lacuna motivo="A lista de cidades não pôde ser lida. Tente de novo em alguns minutos ou escolha a cidade depois, em Ajustes.">Não conseguimos listar as cidades de {uf.sigla} agora.</Lacuna>
+          ) : cidades.length > 0 ? (
             <form action={salvarCidadeDoComeco} className="sv-form-d2 sv-cm-f">
               <label className="sv-aj-rot" htmlFor="cm-cid">
                 Cidade
@@ -102,7 +111,7 @@ async function Passo1({ prefs, erro }: { prefs: Prefs; erro: boolean }) {
               </button>
             </form>
           ) : (
-            <Lacuna motivo="Você pode escolher a cidade depois, em Ajustes.">Não conseguimos listar as cidades de {uf.sigla} agora.</Lacuna>
+            <Lacuna motivo={`A lista de municípios que o site carregou não traz nenhum de ${uf.sigla}. Sem cidade, você segue com o estado e o Congresso.`}>Ainda não temos cidades de {uf.sigla} para escolher.</Lacuna>
           )}
         </Quadro>
       )}
@@ -122,13 +131,14 @@ async function Passo1({ prefs, erro }: { prefs: Prefs; erro: boolean }) {
   );
 }
 
-async function Passo2({ prefs, marcados, sp, erro }: { prefs: Prefs; marcados: string[]; sp: { nome?: string; cargo?: string; pagina?: string }; /** a cidade do passo 1 não pôde ser guardada */ erro: boolean }) {
+async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; marcados: string[]; /** `?simular=erro` (só na demonstração): a conferência das marcações falha */ falhar: boolean; sp: { nome?: string; cargo?: string; pagina?: string }; /** a cidade do passo 1 não pôde ser guardada */ erro: boolean }) {
   const { uf } = prefs;
   // mesmas regras de entrada de /pessoas: `pagina` só inteiro de até 6 dígitos; cargo só da lista; nome até 80 caracteres
   const pagina = sp.pagina && /^\d{1,6}$/.test(sp.pagina) ? sp.pagina : undefined;
   const q = (sp.nome ?? "").trim().slice(0, 80);
   const office = isOffice(sp.cargo) ? sp.cargo : undefined;
-  const [offices, page, stamp] = await Promise.all([
+  const [marcacoes, offices, page, stamp] = await Promise.all([
+    contarMarcados(marcados, (fn) => lerOuFalhar(falhar, fn)),
     data.listOffices().catch(() => null),
     data.listPeople({ q: q || undefined, office, uf: uf?.sigla, cursor: pagina, limit: POR_PAGINA }).catch(() => null),
     data.getStamp("tse.candidatos").catch(() => null),
@@ -204,13 +214,13 @@ async function Passo2({ prefs, marcados, sp, erro }: { prefs: Prefs; marcados: s
           <Lacuna>{filtrou ? "Nenhuma pessoa encontrada com esses filtros." : "Ninguém carregado ainda."}</Lacuna>
         ) : (
           <>
-            <Marcados n={marcados.length} />
+            <Marcados guardadas={marcacoes.guardadas} pessoas={marcacoes.pessoas} sobrando={marcacoes.sobrando} />
             {n < page.total && (
               <p className="sv-t">
                 Esta página mostra {fmtInt(n)} de {fmtInt(page.total)}. Use o nome ou o cargo para achar mais rápido.
               </p>
             )}
-            <ListaPessoas items={page.items} marcados={marcados} />
+            <ListaPessoas items={page.items} marcados={marcados} porPessoa={marcacoes.porPessoa} />
             {page.nextCursor && (
               <Link className="sv-lk" href={`/comecar?${next.toString()}`}>
                 Próximas {POR_PAGINA} <span aria-hidden="true">→</span>
@@ -244,11 +254,13 @@ async function Passo2({ prefs, marcados, sp, erro }: { prefs: Prefs; marcados: s
   );
 }
 
-export default async function Comecar({ searchParams }: { searchParams: Promise<{ passo?: string | string[]; nome?: string | string[]; cargo?: string | string[]; pagina?: string | string[]; erro?: string | string[] }> }) {
+export default async function Comecar({ searchParams }: { searchParams: Promise<{ passo?: string | string[]; nome?: string | string[]; cargo?: string | string[]; pagina?: string | string[]; erro?: string | string[]; simular?: string | string[] }> }) {
   const raw = await searchParams;
   // parâmetro repetido chega como array: só string vale, o resto é ignorado (nunca erro 500)
   const so = (v: unknown) => (typeof v === "string" ? v : undefined);
   const [prefs, jar] = await Promise.all([readPrefs(), cookies()]);
-  if (so(raw.passo) === "2") return <Passo2 prefs={prefs} marcados={parseFollows(jar.get(FOLLOW_COOKIE)?.value)} sp={{ nome: so(raw.nome), cargo: so(raw.cargo), pagina: so(raw.pagina) }} erro={raw.erro === "leitura"} />;
-  return <Passo1 prefs={prefs} erro={raw.erro === "leitura"} />;
+  // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
+  const falhar = simulacao(raw.simular) === "erro";
+  if (so(raw.passo) === "2") return <Passo2 falhar={falhar} prefs={prefs} marcados={parseFollows(jar.get(FOLLOW_COOKIE)?.value)} sp={{ nome: so(raw.nome), cargo: so(raw.cargo), pagina: so(raw.pagina) }} erro={raw.erro === "leitura"} />;
+  return <Passo1 prefs={prefs} erro={raw.erro === "leitura"} falhar={falhar} />;
 }
