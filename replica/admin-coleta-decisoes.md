@@ -145,3 +145,16 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
   - Correção de premissa do prompt: `sapl_houses.base_url` tem leitor no site (`getCityCouncil` e `getPeopleCoverage` em `web/src/lib/data/pg.ts`). Só `getAssembly` não a lê.
 - Materializa: commits `565c687` (B2) e o da B3a; `db/migrations/0151_admin_coleta_colisoes.sql`.
 - Desfazer: `git revert` desses commits. A `0151` aplicada no banco local não volta só com o revert: `alter table adm_overrides drop column tentou_valor, drop column tentou_em, drop column tentou_vezes` e reaplicar as duas funções da `0150`.
+
+## AC-13 · Proponentes: o que a rodada propõe, o que não propõe, e a duplicata de pessoa
+
+- Data e fase: 2026-11-16, fase B, tarefas B3a e B3b.
+- Divergência anotada fora de uma rodada: o proponente considera todo override vigente cujo valor tentado pelo job difere do decidido, qualquer que seja a data da anotação, desde que a rodada tenha uma tentativa que sustente a proposta. Em produção o job agendado roda antes de alguém abrir rodada, e exigir anotação feita dentro da rodada deixaria esse caso sem proposta.
+- Evidência de leitura que falhou: o hash é o do registro da tentativa (URL, resultado, motivo e status HTTP), sem o horário. Com o horário, uma falha que persiste reabriria a pendência decidida a cada rodada. O briefing original mandava incluir o horário; estava errado.
+- `cobertura.reason` não é proposto sozinho: o texto é gerado pelo job e embute contagens que mudam a cada carga. Só entra junto com mudança de `status` ou `evidence_url` da mesma linha. Proposta manual pela CLI continua valendo.
+- Contato do mandato: valor que apareceu vira proposta (`novo:<tipo>:<valor>`); valor que sumiu não vira proposta (o módulo não propõe ausência) e fica contado no resumo da rodada; valor suprimido por decisão que a fonte voltou a trazer não é conferido, porque o gatilho descarta a inserção sem registro e conferir exigiria repetir o parser do job.
+- Comportamento a conhecer: descartar a pendência de um contato novo não remove o contato que o job já inseriu. Ele continua na tabela e público. Para tirar, a decisão é `corrigir` com remoção, que hoje só vale para o campo de contato existente.
+- Identidade: cada item pendente da fila com candidato vira proposta `aceito`, com o registro bruto e o candidato como evidência (os dois entram no hash, para a pendência reabrir se o job trocar o candidato). Item sem candidato não vira proposta. O módulo nunca decide que um registro é de alguém.
+- Duplicata de pessoa: NÃO há abertura automática de pendência. A única regra existente (`identity_dedupe.PAIRS_SQL`) já é unida sozinha pelo `run_dedupe`, encadeado em `camara.diario`, `senado.diario` e `all`. Detectar outros pares exigiria regra de identidade nova, que a restrição 8 proíbe. O modelo também não comporta: a chave da classe é uma linha da fila, e um par de pessoas não é. A aplicação por `merge_person` depois de decisão existe e é testada com pendência fabricada. No relato, o item "possível duplicata: registre indícios e vínculo proposto" sai como entregue em parte.
+- Materializa: commits `ab55781` (B3a) e `538be3a` (B3b).
+- Desfazer: `git revert` desses commits.
