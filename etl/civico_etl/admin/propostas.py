@@ -2,7 +2,7 @@
 
 Cada proposta carrega: chave do registro, campo, valor vigente, valor candidato, URL, trecho (ou caminho no documento), hash do conteúdo, data de leitura,
 data declarada pela fonte e alcance (do registro, ou regra compartilhada com critério e lista de ids). `valor_vigente` NÃO é informado por quem propõe: é lido da
-tabela de domínio no momento do registro (`classes.valor_vigente`), assim ninguém inventa o vigente. Em página de diretório o bloco do registro é obrigatório
+tabela de domínio no momento do registro (`classes.valor_vigente`), assim ninguém inventa o vigente (único desvio: `registrar(vigente_antes=)`, parâmetro do SISTEMA que nem `Proposta` nem a CLI aceitam; ver `registrar`). Em página de diretório o bloco do registro é obrigatório
 para `contato_mandato` (contato de rodapé é da Casa, não do parlamentar).
 
 TRANSAÇÃO: nenhuma função deste módulo comita nem faz rollback por conta própria; quem chama decide (a CLI usa um savepoint por proposta e comita no fim).
@@ -276,8 +276,17 @@ def _reabrir(conn: Any, pend: dict[str, Any], motivo: str, tipo: str, pergunta: 
         (motivo, tipo, pergunta, evidencia_sha, _sha_vigente(vigente), _vence(pend["classe"], agora), com_recorte, recorte, pend["id"]))
 
 
-def registrar(conn: Any, p: Proposta, *, agora: datetime | None = None, cache_recorte: dict[str, Any] | None = None) -> Resultado:
+NAO_INFORMADO: Any = object()  # sentinela de `registrar(vigente_antes=...)`: None é um valor vigente legítimo ("sem valor"), então não serve de padrão
+
+
+def registrar(conn: Any, p: Proposta, *, agora: datetime | None = None, cache_recorte: dict[str, Any] | None = None, vigente_antes: Any = NAO_INFORMADO) -> Resultado:
     """Valida e grava a proposta e resolve a pendência do campo (regras 1 a 4 no docstring do módulo). NÃO comita.
+
+    `vigente_antes` é EXCLUSIVO do sistema (a rodada de coleta, `proponentes.py`): quando o job já gravou o valor novo, o vigente que a pergunta e a proposta
+    citam é o de ANTES da rodada, informado pela comparação das fotos do registro, e substitui a leitura do banco SÓ na comparação candidato x vigente, em
+    `valor_vigente` da proposta e na pergunta. O `vigente_sha` da pendência e o teste de `registro_mudou` continuam a usar o valor que está na tabela AGORA (é com ele
+    que `reavaliar` compara; usar o de antes reabriria toda pendência decidida sem aplicar). NÃO é campo de `Proposta` e a CLI (`admin proposta registrar`) não o aceita:
+    a chave num arquivo de propostas é recusada como campo desconhecido. Sem ele, o vigente é lido do banco, como sempre.
 
     Repetir a mesma proposta (mesma chave de idempotência) devolve a existente com `nova=False` e não cria nem altera nada. `cache_recorte` (opcional) guarda
     a cobertura por rodada entre chamadas de um mesmo lote."""
@@ -291,7 +300,8 @@ def registrar(conn: Any, p: Proposta, *, agora: datetime | None = None, cache_re
         lig = conn.execute("select pendencia_id from adm_pendencia_propostas where proposta_id = %s limit 1", (ja["id"],)).fetchone()
         return Resultado(nova=False, proposta_id=str(ja["id"]), pendencia_id=str(lig["pendencia_id"]) if lig else None)
 
-    vigente = c.valor_vigente(conn, p.registro_chave, p.campo)
+    vigente_banco = c.valor_vigente(conn, p.registro_chave, p.campo)
+    vigente = vigente_banco if vigente_antes is NAO_INFORMADO else vigente_antes  # só para `confirma`, `valor_vigente` e a pergunta; o sha é sempre do banco
     pid = str(conn.execute(
         "insert into adm_propostas (classe, registro_chave, campo, valor_vigente, valor_candidato, url, trecho, conteudo_sha256, lida_em, fonte_declarada_em, alcance, "
         "regra_criterio, regra_ids, fonte_slug, bloco, rodada_id, chave_idem) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
@@ -315,7 +325,7 @@ def registrar(conn: Any, p: Proposta, *, agora: datetime | None = None, cache_re
         recorte = _cobertura_recorte(conn, p.rodada_id, cache_recorte)
         penid = str(conn.execute(
             "insert into adm_pendencias (classe, registro_chave, campo, pergunta, tipo, evidencia_sha, vigente_sha, vence_em, cobertura_recorte) values (%s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
-            (p.classe, p.registro_chave, p.campo, pergunta, tipo, n.sha, _sha_vigente(vigente), _vence(p.classe, agora), recorte)).fetchone()["id"])
+            (p.classe, p.registro_chave, p.campo, pergunta, tipo, n.sha, _sha_vigente(vigente_banco), _vence(p.classe, agora), recorte)).fetchone()["id"])
         for l in ligadas:
             conn.execute("insert into adm_pendencia_propostas (pendencia_id, proposta_id) values (%s, %s)", (penid, l["id"]))
         return Resultado(nova=True, proposta_id=pid, pendencia_id=penid, pendencia_acao="criada", tipo=tipo)
@@ -325,14 +335,14 @@ def registrar(conn: Any, p: Proposta, *, agora: datetime | None = None, cache_re
     conn.execute("insert into adm_pendencia_propostas (pendencia_id, proposta_id) values (%s, %s)", (penid, pid))
     if pend["status"] == "aberta":
         tipo, pergunta = _tipo_e_pergunta(conn, p.classe, p.registro_chave, p.campo, pend["tipo"], vigente, ligadas)
-        conn.execute("update adm_pendencias set tipo = %s, pergunta = %s, evidencia_sha = %s, vigente_sha = %s where id = %s", (tipo, pergunta, n.sha, _sha_vigente(vigente), penid))
+        conn.execute("update adm_pendencias set tipo = %s, pergunta = %s, evidencia_sha = %s, vigente_sha = %s where id = %s", (tipo, pergunta, n.sha, _sha_vigente(vigente_banco), penid))
         return Resultado(nova=True, proposta_id=pid, pendencia_id=penid, pendencia_acao="ligada", tipo=tipo)
 
-    motivo = "evidencia_mudou" if pend["evidencia_sha"] != n.sha else ("registro_mudou" if pend["vigente_sha"] != _sha_vigente(vigente) else None)
+    motivo = "evidencia_mudou" if pend["evidencia_sha"] != n.sha else ("registro_mudou" if pend["vigente_sha"] != _sha_vigente(vigente_banco) else None)
     if motivo is None:
         return Resultado(nova=True, proposta_id=pid, pendencia_id=penid, pendencia_acao="ligada_decidida", tipo=pend["tipo"])
     tipo, pergunta = _tipo_e_pergunta(conn, p.classe, p.registro_chave, p.campo, pend["tipo"], vigente, ligadas)
-    _reabrir(conn, pend, motivo, tipo, pergunta, n.sha, vigente, agora, _cobertura_recorte(conn, p.rodada_id, cache_recorte), com_recorte=p.rodada_id is not None)
+    _reabrir(conn, pend, motivo, tipo, pergunta, n.sha, vigente_banco, agora, _cobertura_recorte(conn, p.rodada_id, cache_recorte), com_recorte=p.rodada_id is not None)
     return Resultado(nova=True, proposta_id=pid, pendencia_id=penid, pendencia_acao="reaberta", tipo=tipo, motivo_reabertura=motivo)
 
 

@@ -44,6 +44,11 @@ Desfecho do coletor -> status da rodada (a mesma tabela vai em `resultado.regra`
 `concluida` e `falhou` são finais (a repetição abre outra rodada); `interrompida` é retomada na MESMA linha. Em qualquer desfecho o que o
 coletor já registrou é importado, as tentativas por robots são registradas e os vínculos são sincronizados.
 
+Propostas (B3a, `proponentes.py`): `executar` tira uma foto dos registros das classes do coletor (`sapl_houses`, `data_coverage`, `adm_overrides`) logo antes de rodar o coletor
+e outra depois de importar as tentativas e sincronizar os vínculos; `proponentes.propor` compara as duas e registra as propostas de mudança com evidência da rodada. O resumo vai em
+`previa.resultado.propostas`. Se a foto ou o proponente falha, a rodada NÃO perde o que coletou (tentativas e vínculos já foram comitados): `resultado.propostas = {executado: false,
+erro: ...}` e a rodada termina com o status que teria sem ele. Rodada `interrompida` propõe o que já mudou; a repetição completa o resto sem duplicar (`chave_idem`).
+
 Onde fica o resultado: `adm_rodadas.previa` (JSON; não há coluna de erro e a migração não muda). `previa.resultado` = a última execução;
 `previa.execucoes` = todas, em ordem (a rodada interrompida é reexecutada na mesma linha). O resto de `previa` é a prévia congelada.
 """
@@ -394,7 +399,18 @@ def _registrar_robots(conn: Any, rodada_id: str, coletor_id: str, urls_entrada: 
     if not apis:
         return []
     feitos: list[str] = []
-    for h in conn.execute("select base_url, checked_at from sapl_houses where status = 'robots_bloqueia' and base_url || '/api/' = any(%s) and checked_at >= %s order by base_url", (apis, inicio)).fetchall():
+    # Com override em `status` a tabela guarda o DECIDIDO: o bloqueio que o job viu está em `adm_overrides.tentou_valor` (0151; anotado pelo gatilho). Casa com override vigente de
+    # status vale pelo `tentou_valor`, não pelo `status` da tabela (um decidido 'robots_bloqueia' não prova que esta rodada foi bloqueada).
+    from . import proponentes as PRO  # import tardio (ver `_foto`)
+
+    com_anotacao = PRO._tem_anotacao(conn)
+    ov = ("exists (select 1 from adm_overrides o where o.vigente and o.classe = 'vinculo_sapl' and o.registro_chave = h.id::text and o.campo = 'status')"
+          if com_anotacao else "false")
+    bloqueada = ("exists (select 1 from adm_overrides o where o.vigente and o.classe = 'vinculo_sapl' and o.registro_chave = h.id::text and o.campo = 'status' "
+                 "and o.tentou_valor = '\"robots_bloqueia\"'::jsonb)" if com_anotacao else "false")
+    sql = (f"select h.base_url, h.checked_at from sapl_houses h where case when {ov} then {bloqueada} else h.status = 'robots_bloqueia' end "  # noqa: S608 (fragmentos fixos)
+           "and h.base_url || '/api/' = any(%s) and h.checked_at >= %s order by h.base_url")
+    for h in conn.execute(sql, (apis, inicio)).fetchall():
         url = h["base_url"] + "/api/"
         if conn.execute("select 1 from adm_tentativas where rodada_id = %s and url_sha = %s and motivo is distinct from 'robots' limit 1", (rodada_id, sha256_text(url))).fetchone():
             continue  # a URL passou por fetch nesta rodada: não é bloqueio por robots
@@ -430,6 +446,42 @@ def _finalizar(conn: Any, rodada_id: str, status: str, resultado: dict[str, Any]
 
 def _entrada_tentadas(conn: Any, rodada_id: str) -> list[str]:
     return [x["url"] for x in conn.execute("select distinct url from adm_tentativas where rodada_id = %s and entrada order by url", (rodada_id,)).fetchall()]
+
+
+def _foto(conn: Any, coletor_id: str, recorte: Recorte, elegiveis: Any) -> tuple[PRO.Foto | None, str | None]:
+    """Foto de ANTES do coletor (proponentes.fotografar). Falha da foto não impede a rodada: devolve (None, erro) e `_propor` registra o erro."""
+    try:
+        from . import proponentes as PRO  # import tardio: proponentes -> propostas -> relatorio -> rodadas
+
+        foto = PRO.fotografar(conn, coletor_id, recorte, elegiveis)
+        conn.commit()  # só leu; não deixa transação aberta enquanto o coletor roda
+        return foto, None
+    except Exception as e:  # noqa: BLE001
+        conn.rollback()
+        return None, f"foto de antes: {type(e).__name__}: {e}"[:500]
+
+
+def _propor(conn: Any, rid: str, coletor_id: str, antes: PRO.Foto | None, erro_foto: str | None, recorte: Recorte, elegiveis: Any) -> dict[str, Any]:
+    """Foto de DEPOIS e propostas (B3a). Roda num savepoint e comita sozinha: o que o coletor já coletou (tentativas, vínculos) JÁ foi comitado antes daqui e
+    NUNCA se perde se o proponente falha. Falha = `{"executado": False, "erro": ...}` em `resultado.propostas`, e a rodada termina com o status que teria sem o proponente.
+    Rodada `interrompida` também propõe o que já mudou (a repetição completa o resto; `chave_idem` impede duplicar)."""
+    if antes is None and erro_foto is None:
+        return {"executado": False, "erro": "sem foto de antes"}
+    try:
+        from . import proponentes as PRO  # import tardio (ver `_foto`)
+
+        if erro_foto is not None:
+            raise RuntimeError(erro_foto)
+        if coletor_id not in PRO.COLETORES:
+            return PRO.propor(conn, rid, coletor_id, antes, antes).para_dict()  # type: ignore[arg-type]
+        with conn.transaction():
+            depois = PRO.fotografar(conn, coletor_id, recorte, elegiveis)
+            res = PRO.propor(conn, rid, coletor_id, antes, depois)  # type: ignore[arg-type]
+        conn.commit()
+        return res.para_dict()
+    except Exception as e:  # noqa: BLE001 - o proponente nunca derruba a rodada
+        conn.rollback()
+        return {"executado": False, "erro": f"{type(e).__name__}: {e}"[:500]}
 
 
 def executar(conn: Any, rodada_id: str, *, runner: Callable[[list[str]], int] | None = None, env_extra: dict[str, str] | None = None) -> dict[str, Any]:
@@ -478,6 +530,7 @@ def executar(conn: Any, rodada_id: str, *, runner: Callable[[list[str]], int] | 
         refetch = pasta / f"{rid}-{n_exec}.refetch"
         refetch.write_text("\n".join(forcar) + "\n", encoding="utf-8")
         env["ETL_HTTP_REFETCH"] = str(refetch)
+    antes, erro_foto = _foto(conn, rod["coletor"], r, pv.get("registros_elegiveis"))  # estado dos registros ANTES do coletor (B3a)
     run, tipo_runner = _runner(runner, env, cache_dir)
     resultado["runner"] = tipo_runner
     codigo: int | None = None
@@ -505,8 +558,9 @@ def executar(conn: Any, rodada_id: str, *, runner: Callable[[list[str]], int] | 
     except Exception as e:  # noqa: BLE001 - o registro falhou: a rodada não pode ficar em_andamento
         conn.rollback()
         return encerrar("interrompida", "excecao", erro_registro=f"{type(e).__name__}: {e}"[:500])
+    propostas = _propor(conn, rid, rod["coletor"], antes, erro_foto, r, pv.get("registros_elegiveis"))
     return encerrar(
-        status, regra,
+        status, regra, propostas=propostas,
         # registro do `fetch` + bloqueios por robots (que o `fetch` não vê): `tentadas` e `falhas` somam os dois
         tentativas=({"registradas": True, "tentadas": resumo.tentadas + len(robots), "lidas": resumo.lidas, "reaproveitadas": resumo.reaproveitadas,
                      "falhas": {**resumo.falhas, **({"robots": len(robots)} if robots else {})},
@@ -670,6 +724,14 @@ def texto_resultado(res: dict[str, Any]) -> str:
     v = res.get("vinculos")
     if v is not None:
         pares.append(("vínculos", f"{sum(v['criados'].values())} criados, {sum(v['desativados'].values())} desativados, {sum(v['mantidos'].values())} mantidos"))
+    pr = res.get("propostas")
+    if pr is not None:
+        if pr.get("erro"):
+            pares.append(("propostas", f"não executado: {pr['erro']}"))
+        elif pr.get("executado"):
+            pares += [("propostas novas", pr["novas"]), ("propostas repetidas", pr["repetidas"]), ("propostas recusadas", len(pr["recusadas"])),
+                      ("primeiros preenchimentos", pr["primeiros_preenchimentos"]), ("sem evidência", len(pr["sem_evidencia"])), ("reason sem proposta", len(pr["reason_sem_proposta"])),
+                      ("pendências abertas", len(pr["pendencias_abertas"])), ("pendências reabertas", len(pr["pendencias_reabertas"]))]
     return lista_chave_valor(pares)
 
 

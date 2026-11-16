@@ -594,3 +594,143 @@ def test_medicao_do_custo_dos_gatilhos_em_data_coverage(db):
     for (rotulo, existentes), (sem, com) in resultado.items():
         teto = max(5 * sem, sem + 1.0) if rotulo == "0 override" else max(15 * sem, sem + 3.0)
         assert com < teto, f"{rotulo}, existentes={existentes}: {com:.3f}s com gatilho contra {sem:.3f}s sem"
+
+
+# ------------------------------------------------------------------ 0151: anotação do que o job tentou gravar (B3a)
+
+
+def _ov(db, oid):
+    return db.one("select valor, tentou_valor, tentou_em, tentou_vezes from adm_overrides where id = %s", (oid,))
+
+
+def test_0151_colunas_novas_nulas_ou_com_default(db):
+    cols = {r["column_name"]: r for r in db.x(
+        "select column_name, data_type, is_nullable, column_default from information_schema.columns where table_name = 'adm_overrides' and column_name like 'tentou%%'").fetchall()}
+    assert set(cols) == {"tentou_valor", "tentou_em", "tentou_vezes"}
+    assert (cols["tentou_valor"]["data_type"], cols["tentou_valor"]["is_nullable"]) == ("jsonb", "YES")
+    assert (cols["tentou_em"]["data_type"], cols["tentou_em"]["is_nullable"]) == ("timestamp with time zone", "YES")
+    assert (cols["tentou_vezes"]["is_nullable"], cols["tentou_vezes"]["column_default"]) == ("NO", "0")
+    assert db.one("select relrowsecurity, (select count(*) from pg_policies where tablename = 'adm_overrides') as pol from pg_class where relname = 'adm_overrides'") == {"relrowsecurity": True, "pol": 0}
+    assert db.one("select count(*) as n from pg_trigger where tgrelid = 'sapl_houses'::regclass and tgname = 'adm_override'")["n"] == 1  # o gatilho da 0150 não foi recriado nem duplicado
+
+
+def test_0151_sapl_houses_anota_o_que_o_job_tentou_e_mantem_o_decidido(db):
+    lugar = db.lugar()
+    h = _casa(db, lugar, "ok", "https://job/sapl")
+    oid = db.override("vinculo_sapl", str(h["id"]), "status", "sem_api")
+    assert _ov(db, oid)["tentou_valor"] is None and _ov(db, oid)["tentou_vezes"] == 0
+    h2 = _casa(db, lugar, "fora_do_ar", "https://job/sapl", note="n1")
+    assert h2["status"] == "sem_api"  # o decidido continua
+    a = _ov(db, oid)
+    assert a["tentou_valor"] == "fora_do_ar" and a["tentou_vezes"] == 1 and a["tentou_em"] is not None and a["valor"] == "sem_api"
+    # segundo upsert idêntico: não conta de novo e não mexe no horário
+    _casa(db, lugar, "fora_do_ar", "https://job/sapl", note="n2")
+    b = _ov(db, oid)
+    assert (b["tentou_valor"], b["tentou_vezes"], b["tentou_em"]) == ("fora_do_ar", 1, a["tentou_em"])
+    # valor novo diferente do decidido e do anotado: conta
+    _casa(db, lugar, "robots_bloqueia", "https://job/sapl", note="n3")
+    c = _ov(db, oid)
+    assert (c["tentou_valor"], c["tentou_vezes"]) == ("robots_bloqueia", 2) and c["tentou_em"] >= a["tentou_em"]
+    # a fonte concorda com o decidido: limpa o valor, mantém contador e horário
+    h4 = _casa(db, lugar, "sem_api", "https://job/sapl", note="n4")
+    d = _ov(db, oid)
+    assert h4["status"] == "sem_api" and d["tentou_valor"] is None and d["tentou_vezes"] == 2 and d["tentou_em"] == c["tentou_em"]
+    # NULL tentado fica anotado como o jsonb 'null' (não confunde com "nunca divergiu")
+    oid2 = db.override("vinculo_sapl", str(h["id"]), "base_url", "https://curadoria/sapl")
+    cx = db.rw()
+    try:
+        cx.execute("update sapl_houses set base_url = null where id = %s", (h["id"],))
+        cx.commit()
+    finally:
+        cx.close()
+    assert db.one("select base_url from sapl_houses where id = %s", (h["id"],))["base_url"] == "https://curadoria/sapl"
+    assert _ov(db, oid2)["tentou_valor"] is None and db.one("select tentou_valor is not null as marcado, tentou_valor = 'null'::jsonb as e_null from adm_overrides where id = %s", (oid2,)) == {"marcado": True, "e_null": True}
+
+
+def test_0151_sapl_houses_sem_override_nada_e_anotado_e_o_resultado_e_o_mesmo(db):
+    lugar = db.lugar()
+    h = _casa(db, lugar, "ok", "https://job/sapl")
+    outra = db.lugar()
+    ho = _casa(db, outra, "ok", "https://job/outra")
+    oid = db.override("vinculo_sapl", str(ho["id"]), "status", "sem_api")  # override de OUTRA casa
+    h2 = _casa(db, lugar, "fora_do_ar", "https://job/sapl2", note="n")
+    assert (h2["status"], h2["base_url"], h2["note"]) == ("fora_do_ar", "https://job/sapl2", "n")  # idêntico ao que o job gravou
+    assert _ov(db, oid)["tentou_valor"] is None and _ov(db, oid)["tentou_vezes"] == 0  # a anotação não vaza para o override de outra casa
+    db.x("update adm_overrides set vigente = false where id = %s", (oid,))
+    _casa(db, outra, "fora_do_ar", "https://job/outra")
+    assert _ov(db, oid)["tentou_vezes"] == 0  # override desligado não anota
+
+
+def _cob(db, lugar, status, reason, ev="https://job/ev", ds="presenca", checked=HOJE):
+    cx = db.rw()
+    try:
+        upsert(cx, "data_coverage", ["place_id", "dataset", "status", "reason", "evidence_url", "checked_on"], [(lugar["id"], ds, status, reason, ev, checked)], ["place_id", "dataset"])
+        cx.commit()
+    finally:
+        cx.close()
+    return db.one("select status, reason, evidence_url from data_coverage where place_id = %s and dataset = %s", (lugar["id"], ds))
+
+
+def test_0151_data_coverage_upsert_e_update_direto(db):
+    lugar = db.lugar()
+    ibge = lugar["ibge_code"]
+    _cob(db, lugar, "carregando", "job 1")
+    o_reason = db.override("cobertura", f"{ibge}:presenca", "reason", "texto da curadoria")
+    o_status = db.override("cobertura", f"{ibge}:presenca", "status", "nao_publica")
+    # upsert: o job tenta outro status e outro motivo
+    r = _cob(db, lugar, "desconhecido", "job 2", checked=date(2026, 11, 16))
+    assert (r["status"], r["reason"]) == ("nao_publica", "texto da curadoria") and r["evidence_url"] == "https://job/ev"
+    a, b = _ov(db, o_reason), _ov(db, o_status)
+    assert (a["tentou_valor"], a["tentou_vezes"]) == ("job 2", 1) and (b["tentou_valor"], b["tentou_vezes"]) == ("desconhecido", 1)  # UMA vez cada (INSERT e UPDATE do upsert não contam em dobro)
+    # idêntico: não conta (a data muda para o UPDATE acontecer)
+    _cob(db, lugar, "desconhecido", "job 2", checked=date(2026, 11, 17))
+    assert (_ov(db, o_reason)["tentou_vezes"], _ov(db, o_status)["tentou_vezes"], _ov(db, o_reason)["tentou_em"]) == (1, 1, a["tentou_em"])
+    # a fonte concorda no motivo (e discorda no status): só o motivo é limpo
+    _cob(db, lugar, "desconhecido", "texto da curadoria", checked=date(2026, 11, 18))
+    assert _ov(db, o_reason)["tentou_valor"] is None and _ov(db, o_status)["tentou_valor"] == "desconhecido"
+    # update direto (como assembleias.py:376)
+    db.x("update data_coverage set status = 'so_portal', reason = 'direto' where place_id = %s and dataset = 'presenca'", (lugar["id"],))
+    assert db.one("select status, reason from data_coverage where place_id = %s and dataset = 'presenca'", (lugar["id"],)) == {"status": "nao_publica", "reason": "texto da curadoria"}
+    assert (_ov(db, o_status)["tentou_valor"], _ov(db, o_status)["tentou_vezes"]) == ("so_portal", 2) and (_ov(db, o_reason)["tentou_valor"], _ov(db, o_reason)["tentou_vezes"]) == ("direto", 2)
+    db.x("update data_coverage set status = 'nao_publica', reason = 'texto da curadoria' where place_id = %s and dataset = 'presenca'", (lugar["id"],))
+    assert _ov(db, o_status)["tentou_valor"] is None and _ov(db, o_reason)["tentou_valor"] is None  # o update direto igual ao decidido limpa
+    # outro dataset do mesmo lugar e lugar sem override: nada anotado
+    _cob(db, lugar, "carregando", "x", ds="votos")
+    assert _ov(db, o_reason)["tentou_vezes"] == 2
+
+
+def test_0151_data_coverage_insert_on_conflict_do_nothing_nao_anota_mas_insert_que_cria_anota(db):
+    """Decisão: `insert ... on conflict do nothing` sobre chave que já existe NÃO é "o job tentou gravar" (a linha proposta é descartada: é o derive.stats). O INSERT que
+    efetivamente cria a linha (chave ausente) anota, como o UPDATE. Ver regra 3 no cabeçalho da 0151."""
+    lugar = db.lugar()
+    ibge = lugar["ibge_code"]
+    cols = "(place_id, dataset, status, reason, checked_on)"
+    nada = f"insert into data_coverage {cols} values (%s, 'presenca', 'desconhecido', 'padrão do derive', %s) on conflict (place_id, dataset) do nothing"
+    oid = db.override("cobertura", f"{ibge}:presenca", "reason", "texto da curadoria")
+    db.x(nada, (lugar["id"], HOJE))  # a linha não existe: o insert a cria; o override vale e a tentativa é anotada
+    assert db.one("select reason from data_coverage where place_id = %s", (lugar["id"],))["reason"] == "texto da curadoria"
+    assert (_ov(db, oid)["tentou_valor"], _ov(db, oid)["tentou_vezes"]) == ("padrão do derive", 1)
+    db.x("update adm_overrides set tentou_valor = null, tentou_vezes = 0 where id = %s", (oid,))
+    db.x(nada, (lugar["id"], HOJE))  # a linha existe: do nothing; nada é anotado e a tabela não muda
+    assert db.one("select reason from data_coverage where place_id = %s", (lugar["id"],))["reason"] == "texto da curadoria"
+    assert (_ov(db, oid)["tentou_valor"], _ov(db, oid)["tentou_vezes"]) == (None, 0)
+    # com a linha existente, o mesmo insert em forma de do update (set_coverage via db.upsert) anota UMA vez (ver teste do upsert)
+    _cob(db, lugar, "carregando", "do update")
+    assert (_ov(db, oid)["tentou_valor"], _ov(db, oid)["tentou_vezes"]) == ("do update", 1)
+
+
+def test_0151_anotacao_da_mesma_transacao_nao_e_desfeita(db):
+    lugar = db.lugar()
+    ibge = lugar["ibge_code"]
+    _cob(db, lugar, "carregando", "job 1")
+    oid = db.override("cobertura", f"{ibge}:presenca", "reason", "decidido")
+    cx = db.rw()
+    try:
+        cx.execute("update data_coverage set reason = 'tentativa' where place_id = %s and dataset = 'presenca'", (lugar["id"],))
+        cx.execute("update data_coverage set reason = 'decidido' where place_id = %s and dataset = 'presenca'", (lugar["id"],))  # mesma transação: não desfaz
+        cx.commit()
+    finally:
+        cx.close()
+    assert _ov(db, oid)["tentou_valor"] == "tentativa"
+    db.x("update data_coverage set reason = 'decidido' where place_id = %s and dataset = 'presenca'", (lugar["id"],))  # outra transação: limpa
+    assert _ov(db, oid)["tentou_valor"] is None
