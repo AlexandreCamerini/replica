@@ -1,5 +1,5 @@
 {
-  "id": "fc898f71-173d-47be-8571-2ba076e706a4",
+  "id": "f2757252-1210-4443-b2d4-b958736379c0",
   "coletor": "sapl.assembleias",
   "modo": "recoletar",
   "status": "concluida",
@@ -33,10 +33,10 @@
   "forcar_urls": [],
   "so_pendencias": false,
   "repete_id": null,
-  "invocation": "admin:fc898f71-173d-47be-8571-2ba076e706a4",
+  "invocation": "admin:f2757252-1210-4443-b2d4-b958736379c0",
   "cache_dir": "/tmp/claude-501/admin-r1-cache",
-  "iniciada_em": "2026-11-17T18:07:50.630713+00:00",
-  "finalizada_em": "2026-11-17T18:07:50.987704+00:00",
+  "iniciada_em": "2026-11-17T19:08:29.886647+00:00",
+  "finalizada_em": "2026-11-17T19:08:30.247943+00:00",
   "previa": {
     "argv": [
       "sapl.ales",
@@ -76,7 +76,7 @@
       "sapl-ale.{uf}"
     ],
     "cache_dir": "/tmp/claude-501/admin-r1-cache",
-    "gerada_em": "2026-11-17T18:07:50.633492+00:00",
+    "gerada_em": "2026-11-17T19:08:29.889364+00:00",
     "observacao": "sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=sem registro, AC=sem registro, AM=sem registro, PI=sem registro, PB=sem registro | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas",
     "a_consultar": {
       "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
@@ -205,7 +205,7 @@
     "tentativas_registradas": true
   },
   "resultado": {
-    "fim": "2026-11-17T18:07:50.987642+00:00",
+    "fim": "2026-11-17T19:08:30.247884+00:00",
     "regra": {
       "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
       "timeout": "código 124 (timeout) -> interrompida",
@@ -217,7 +217,7 @@
       "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
       "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
     },
-    "inicio": "2026-11-17T18:07:50.637903+00:00",
+    "inicio": "2026-11-17T19:08:29.894857+00:00",
     "motivo": "código 0 -> concluida",
     "runner": "processo",
     "status": "concluida",
@@ -272,7 +272,7 @@
       }
     },
     "sem_cache": [],
-    "invocation": "admin:fc898f71-173d-47be-8571-2ba076e706a4",
+    "invocation": "admin:f2757252-1210-4443-b2d4-b958736379c0",
     "tentativas": {
       "lidas": 77,
       "falhas": {
@@ -312,7 +312,7 @@
   },
   "execucoes": [
     {
-      "fim": "2026-11-17T18:07:50.987642+00:00",
+      "fim": "2026-11-17T19:08:30.247884+00:00",
       "regra": {
         "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
         "timeout": "código 124 (timeout) -> interrompida",
@@ -324,7 +324,7 @@
         "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
         "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
       },
-      "inicio": "2026-11-17T18:07:50.637903+00:00",
+      "inicio": "2026-11-17T19:08:29.894857+00:00",
       "motivo": "código 0 -> concluida",
       "runner": "processo",
       "status": "concluida",
@@ -379,7 +379,7 @@
         }
       },
       "sem_cache": [],
-      "invocation": "admin:fc898f71-173d-47be-8571-2ba076e706a4",
+      "invocation": "admin:f2757252-1210-4443-b2d4-b958736379c0",
       "tentativas": {
         "lidas": 77,
         "falhas": {

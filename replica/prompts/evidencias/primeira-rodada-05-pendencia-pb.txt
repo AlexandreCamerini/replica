@@ -1,7 +1,7 @@
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: 0 URLs pedidas, 0 não previstas
-pendência             01e2b92d-662b-4c9a-afde-a25274af8407
+pendência             8797b0b2-ff1a-4242-8f9f-707f8cf18a83
 status                decidida
 classe                vinculo_sapl
 tipo                  mudanca
@@ -16,12 +16,12 @@ pergunta              O status do SAPL desta casa mudou de 'fora_do_ar' para 'ok
 propostas ligadas:
 CANDIDATO  URL                             TRECHO                              BLOCO         HASH          LIDA               DECLARADA
 ---------  ------------------------------  ----------------------------------  ------------  ------------  -----------------  ------------
-ok         https://sapl.al.pb.leg.br/api/  resposta de https://sapl.al.pb.le…  desconhecido  c7296d22537b  2026-11-17 18:07Z  desconhecido
+ok         https://sapl.al.pb.leg.br/api/  resposta de https://sapl.al.pb.le…  desconhecido  c7296d22537b  2026-11-17 19:08Z  desconhecido
 
 histórico (ordem de leitura):
 CANDIDATO  URL                             TRECHO                              BLOCO         HASH          LIDA               DECLARADA     LIGADA
 ---------  ------------------------------  ----------------------------------  ------------  ------------  -----------------  ------------  ------
-ok         https://sapl.al.pb.leg.br/api/  resposta de https://sapl.al.pb.le…  desconhecido  c7296d22537b  2026-11-17 18:07Z  desconhecido  sim
+ok         https://sapl.al.pb.leg.br/api/  resposta de https://sapl.al.pb.le…  desconhecido  c7296d22537b  2026-11-17 19:08Z  desconhecido  sim
 
 decisões:
-  2026-11-17 18:08Z  aprovar  pessoa  aplicada=sim  a /api/ da casa voltou a responder na leitura de 2026-11-17 (resposta fabricada, cenário v2); ver evidência da proposta
+  2026-11-17 19:08Z  aprovar  pessoa  aplicada=sim  a /api/ da casa voltou a responder na leitura de 2026-11-17 (resposta fabricada, cenário v2); ver evidência da proposta

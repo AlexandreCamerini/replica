@@ -1,23 +1,23 @@
 SIMULADO. conferência em SQL do passo 9 (a decisão pedida pela central, lida no banco)
                   id                  |             pendencia_id             |  acao   | decidido_por_tipo | decidido_por_nome | aplicada |                                   justificativa                                    
 --------------------------------------+--------------------------------------+---------+-------------------+-------------------+----------+------------------------------------------------------------------------------------
- ff71f586-611f-4cc0-bd79-11c002cde144 | a0706dd5-8612-4d85-bb10-a8057860651d | aprovar | pessoa            | Operador local    | f        | conferi a evidência da proposta (resposta fabricada, ensaio SIMULADO); não aplicar
+ ec36631b-81d1-4277-a942-fb0d8ad652bd | e465077b-beb6-45c1-b6bc-3dd333bfb84c | aprovar | pessoa            | Operador local    | f        | conferi a evidência da proposta (resposta fabricada, ensaio SIMULADO); não aplicar
 (1 linha)
 
                   id                  |    classe    | registro_chave |  campo   |  tipo   |  status  
 --------------------------------------+--------------+----------------+----------+---------+----------
- a0706dd5-8612-4d85-bb10-a8057860651d | vinculo_sapl | 20             | base_url | mudanca | decidida
+ e465077b-beb6-45c1-b6bc-3dd333bfb84c | vinculo_sapl | 20             | base_url | mudanca | decidida
 (1 linha)
 
    tipo   |  status   |              rodada_id               
 ----------+-----------+--------------------------------------
- recoleta | concluido | e25eb91f-bed8-4b9a-8095-8fd5aaafec25
+ recoleta | concluido | ed89f869-66ad-42fb-8504-17dc96896305
  parecer  | concluido | 
 (2 linhas)
 
   acao   |    por_nome    | aplicar |  status   |              decisao_id              
 ---------+----------------+---------+-----------+--------------------------------------
- aprovar | Operador local | f       | concluido | ff71f586-611f-4cc0-bd79-11c002cde144
+ aprovar | Operador local | f       | concluido | ec36631b-81d1-4277-a942-fb0d8ad652bd
 (1 linha)
 
  decisoes | de_agentes | overrides | corrections 

@@ -10,23 +10,23 @@
   ],
   "rodadas": [
     {
-      "id": "fc898f71-173d-47be-8571-2ba076e706a4",
+      "id": "f2757252-1210-4443-b2d4-b958736379c0",
       "simulado": "v1"
     },
     {
-      "id": "6358ee82-eb3f-499d-ae31-a64fd1f7e1ca",
+      "id": "2c167770-e8dc-4129-8239-62a5bd254b5d",
       "simulado": "v2"
     },
     {
-      "id": "db114278-d2c4-4e74-85d0-9e8d8fea88cd",
+      "id": "29b55768-464e-4371-94a5-4d733d2c760c",
       "simulado": "v2"
     },
     {
-      "id": "8a91310e-48a1-45a7-945d-6684ade88757",
+      "id": "ba780676-cd94-45c0-bfa0-eb7a65c465e3",
       "simulado": "v2"
     },
     {
-      "id": "0d3d3d90-8b1f-4200-9070-bc7711c07c30",
+      "id": "48e11e09-02ec-4c23-8436-b468855edf02",
       "simulado": "v2"
     }
   ],
@@ -41,7 +41,7 @@
         "ibge_code": "13",
         "nivel": "uf"
       },
-      "pendencia_id": "593788af-eb93-414a-ae70-552aadfed98d",
+      "pendencia_id": "6a93474e-049a-402d-84d6-cf4f7e858db2",
       "pendencia_status": "aberta",
       "pendencia_reaberta": false,
       "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
@@ -53,15 +53,15 @@
           "valor": "robots_bloqueia",
           "ja_e_o_vigente": true,
           "vigente_na_leitura": "ok",
-          "proposta_id": "f32f2efd-f78f-4b82-b58d-14a61165203d",
+          "proposta_id": "9602c74a-3698-4f04-8bc1-d60e65682a6e",
           "url": "https://sapl.al.am.leg.br/robots.txt",
-          "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T18:07:54.754963+00:00)",
+          "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T19:08:33.909474+00:00)",
           "bloco": null,
           "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
-          "lida_em": "2026-11-17T18:07:54.754963+00:00",
+          "lida_em": "2026-11-17T19:08:33.909474+00:00",
           "fonte_declarada_em": null,
           "fonte_slug": "sapl-ale",
-          "rodada_id": "6358ee82-eb3f-499d-ae31-a64fd1f7e1ca"
+          "rodada_id": "2c167770-e8dc-4129-8239-62a5bd254b5d"
         }
       ],
       "confirmam_vigente": 0
@@ -78,20 +78,20 @@
         "ibge_code": "25",
         "nivel": "uf"
       },
-      "pendencia_id": "01e2b92d-662b-4c9a-afde-a25274af8407",
+      "pendencia_id": "8797b0b2-ff1a-4242-8f9f-707f8cf18a83",
       "pendencia_status": "decidida",
       "pendencia_reaberta": false,
       "pergunta": "O status do SAPL desta casa mudou de 'fora_do_ar' para 'ok'?",
       "decisao": {
-        "id": "abbaae41-0840-49c0-adf1-c6348ce6f23e",
+        "id": "fcda4dda-980c-4c23-b31c-c771b7e1537c",
         "acao": "aprovar",
         "por_tipo": "pessoa",
         "por_nome": "Operador local",
         "justificativa": "a /api/ da casa voltou a responder na leitura de 2026-11-17 (resposta fabricada, cenário v2); ver evidência da proposta",
         "valor": "ok",
         "aplicada": true,
-        "aplicada_em": "2026-11-17T18:08:01.790441+00:00",
-        "decidida_em": "2026-11-17T18:08:01.790441+00:00"
+        "aplicada_em": "2026-11-17T19:08:39.523442+00:00",
+        "decidida_em": "2026-11-17T19:08:39.523442+00:00"
       },
       "desconhecidos": {},
       "valor_anterior": "fora_do_ar",
@@ -100,15 +100,15 @@
       "candidatos": [
         {
           "valor": "ok",
-          "proposta_id": "993307c7-3b8b-4c24-a011-142b3ccb8162",
+          "proposta_id": "155c8c5b-e11f-4868-b124-f21c64973c3e",
           "url": "https://sapl.al.pb.leg.br/api/",
-          "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T18:07:54.771526+00:00)",
+          "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T19:08:33.921077+00:00)",
           "bloco": null,
           "conteudo_sha256": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118",
-          "lida_em": "2026-11-17T18:07:54.771526+00:00",
+          "lida_em": "2026-11-17T19:08:33.921077+00:00",
           "fonte_declarada_em": null,
           "fonte_slug": "sapl-ale",
-          "rodada_id": "6358ee82-eb3f-499d-ae31-a64fd1f7e1ca"
+          "rodada_id": "2c167770-e8dc-4129-8239-62a5bd254b5d"
         }
       ]
     }
@@ -116,7 +116,7 @@
   "pendencias_restantes": [
     {
       "posicao": 1,
-      "id": "593788af-eb93-414a-ae70-552aadfed98d",
+      "id": "6a93474e-049a-402d-84d6-cf4f7e858db2",
       "classe": "vinculo_sapl",
       "registro_chave": "3",
       "campo": "status",
@@ -124,7 +124,7 @@
       "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
       "reaberta": false,
       "motivo_reabertura": null,
-      "vence_em": "2026-11-24T18:07:54.890824+00:00",
+      "vence_em": "2026-11-24T19:08:34.022609+00:00",
       "cobertura_recorte": 0.6,
       "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
       "territorio": {
@@ -134,17 +134,17 @@
       "valor_vigente": "robots_bloqueia",
       "propostas": [
         {
-          "id": "f32f2efd-f78f-4b82-b58d-14a61165203d",
+          "id": "9602c74a-3698-4f04-8bc1-d60e65682a6e",
           "valor_vigente_na_leitura": "ok",
           "valor_candidato": "robots_bloqueia",
           "url": "https://sapl.al.am.leg.br/robots.txt",
-          "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T18:07:54.754963+00:00)",
+          "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T19:08:33.909474+00:00)",
           "bloco": null,
           "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
-          "lida_em": "2026-11-17T18:07:54.754963+00:00",
+          "lida_em": "2026-11-17T19:08:33.909474+00:00",
           "fonte_declarada_em": null,
           "fonte_slug": "sapl-ale",
-          "rodada_id": "6358ee82-eb3f-499d-ae31-a64fd1f7e1ca",
+          "rodada_id": "2c167770-e8dc-4129-8239-62a5bd254b5d",
           "alcance": "registro",
           "regra_criterio": null,
           "regra_ids": null

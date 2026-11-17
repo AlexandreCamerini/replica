@@ -3,13 +3,13 @@ SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requis
 SIMULADO: 0 URLs pedidas, 0 não previstas
 SIMULADO: respostas fabricadas (cenário v2); nenhum número abaixo foi lido da fonte
 
-rodada   6358ee82-eb3f-499d-ae31-a64fd1f7e1ca
+rodada   2c167770-e8dc-4129-8239-62a5bd254b5d
 coletor  sapl.assembleias
 modo     recoletar
 recorte  {'ufs': ['RO', 'AC', 'AM', 'PI', 'PB'], 'anos': [], 'modo': 'recoletar', 'casas': [], 'ibges': [], 'extras': {}}
 status   concluida
-início   2026-11-17 18:07:54.674925+00:00
-fim      2026-11-17 18:07:54.908879+00:00
+início   2026-11-17 19:08:33.838143+00:00
+fim      2026-11-17 19:08:34.041902+00:00
 repete   -
 
 COLETA (leitura das URLs; não diz nada sobre revisão)
@@ -127,11 +127,11 @@ REVISÃO (campos com proposta; não diz nada sobre leitura de URL)
   Registros com decisão aplicada (aprovar ou corrigir)  1 de 2
         - vinculo_sapl:5
   Decisões                                              1 de 2
-        - abbaae41-0840-49c0-adf1-c6348ce6f23e
+        - fcda4dda-980c-4c23-b31c-c771b7e1537c
     aplicadas                                           1 de 1
-        - abbaae41-0840-49c0-adf1-c6348ce6f23e
+        - fcda4dda-980c-4c23-b31c-c771b7e1537c
     não aplicadas                                       0 de 1
       ação: aprovar                                     1 de 1
-        - abbaae41-0840-49c0-adf1-c6348ce6f23e
+        - fcda4dda-980c-4c23-b31c-c771b7e1537c
       por: pessoa                                       1 de 1
-        - abbaae41-0840-49c0-adf1-c6348ce6f23e
+        - fcda4dda-980c-4c23-b31c-c771b7e1537c

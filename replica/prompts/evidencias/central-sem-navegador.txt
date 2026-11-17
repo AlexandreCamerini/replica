@@ -1,13 +1,14 @@
 SIMULADO. Provas da central de coleta SEM navegador (C7), pelo HTTP de um `next start` local. Rodadas SIMULADAS: CLI real sobre respostas fabricadas (etl/tests/fixtures/sapl_ale).
-Gerado por: node web/e2e-admin/sem-navegador.mjs --sem-build  em 2026-11-17T18:07:33.013Z  (banco admin_coleta_c7, recriado)
+Gerado por: node web/e2e-admin/sem-navegador.mjs   em 2026-11-17T19:08:20.629Z  (banco admin_coleta_c7, recriado)
 Nenhum número daqui foi lido de fonte real. O Playwright não roda neste ambiente (AC-05): critérios 21 e 26 NÃO são cobertos por este arquivo.
 
         SIMULADO: prova da central sem navegador. Banco admin_coleta_c7 (recriado). Rodadas SIMULADAS (CLI real sobre respostas fabricadas). Nada foi lido de fonte real.
 
 == [0 s] build do SITE (condições do CI: fonte demo, nenhuma ADMIN_*) e da central local (ADMIN_CENTRAL=1)
-ok      --sem-build: reaproveita o .next existente
+ok      next build do SITE (fonte demo, sem ADMIN_*, sem banco) terminou com código 0 em 220 s
+ok      a tabela de rotas do build do SITE não tem nenhuma rota /admin nem a linha de Middleware
 
-== [0 s] AC-29: build do SITE (nenhuma ADMIN_*): /admin* é rota inexistente (404), sem middleware; páginas públicas-chave com os mesmos status de antes
+== [220 s] AC-29: build do SITE (nenhuma ADMIN_*): /admin* é rota inexistente (404), sem middleware; páginas públicas-chave com os mesmos status de antes
 ok      site: GET /admin -> 404, sem cabeçalho de middleware (a rota não existe neste build)
 ok      site: GET /admin/fila -> 404, sem cabeçalho de middleware (a rota não existe neste build)
 ok      site: GET /admin/api/estado -> 404, sem cabeçalho de middleware (a rota não existe neste build)
@@ -43,10 +44,40 @@ ok      site: GET /geo/br.json sem os cabeçalhos da central (nenhum rewrite, he
 ok      site: GET /file.svg -> 200
 ok      site: GET /file.svg sem os cabeçalhos da central (nenhum rewrite, header nem middleware da central no site)
         site, páginas públicas-chave: / 200, /pessoas 200, /votacoes 200, /como-funciona 200, /decisoes 200, /temas 200, /acompanhando 200, /entrar 200, /rota-que-nao-existe 404, /api/me 200, /favicon.ico 200, /geo/br.json 200, /file.svg 200
-ok      --sem-build: reaproveita .next-admin-local
+ok      next build da central local (ADMIN_CENTRAL=1, pasta .next-admin-local) terminou com código 0 em 494 s
+ok      todas as rotas da central aparecem na tabela de rotas do build da central
+ok      a tabela de rotas do build da central só tem /admin* (nenhuma página, rota ou metadado do site)
 
-== [2 s] AC-29: build do projeto admin (ADMIN_CENTRAL=producao, pasta .next-admin-prod) e partição entre o build do site e o da central
-ok      --sem-build: reaproveita .next-admin-prod
+== [494 s] AC-29: build do projeto admin (ADMIN_CENTRAL=producao, pasta .next-admin-prod) e partição entre o build do site e o da central
+ok      next build do projeto admin (ADMIN_CENTRAL=producao) terminou com código 0 em 773 s
+        tabela de rotas do build da central (produção):
+Route (app)                                 Size  First Load JS
+┌ ƒ /_not-found                            993 B         104 kB
+├ ƒ /admin                                   0 B            0 B
+├ ƒ /admin/api/decisoes                      0 B            0 B
+├ ƒ /admin/api/entrar/codigo                 0 B            0 B
+├ ƒ /admin/api/entrar/fator/confirmar        0 B            0 B
+├ ƒ /admin/api/entrar/fator/iniciar          0 B            0 B
+├ ƒ /admin/api/entrar/verificar              0 B            0 B
+├ ƒ /admin/api/estado                        0 B            0 B
+├ ƒ /admin/api/ficha/[classe]/[chave]        0 B            0 B
+├ ƒ /admin/api/fila                          0 B            0 B
+├ ƒ /admin/api/pedidos                       0 B            0 B
+├ ƒ /admin/api/relatorio/[rodada]            0 B            0 B
+├ ƒ /admin/entrar                            0 B            0 B
+├ ƒ /admin/entrar/fator                      0 B            0 B
+├ ƒ /admin/ficha/[classe]/[chave]            0 B            0 B
+├ ƒ /admin/fila                              0 B            0 B
+├ ƒ /admin/registros                         0 B            0 B
+├ ƒ /admin/rodadas                           0 B            0 B
+├ ƒ /admin/rodadas/[id]                      0 B            0 B
+└ ƒ /admin/uf/[uf]                           0 B            0 B
++ First Load JS shared by all             103 kB
+  ├ chunks/255-04dea02e72e68301.js       46.5 kB
+  ├ chunks/4bd1b696-c023c6e3521b1417.js  54.2 kB
+  └ other shared chunks (total)          1.94 kB
+ƒ  (Dynamic)  server-rendered on demand
+
 ok      o build do SITE lista 10 server actions públicas (a lista que o ataque abaixo usa)
 ok      o build da CENTRAL não tem NENHUMA server action (nem as públicas, nem as da central)
 ok      nenhuma server action da central no build do site (as de entrada.ts viraram rotas de API)
@@ -57,12 +88,12 @@ ok      o build da central só tem rotas /admin, mais /_not-found (o da central)
 ok      o build do SITE não tem middleware (nenhum server/middleware.js)
 ok      o build da central tem o middleware (server/middleware.js, de middleware.admin.ts)
 
-== [2 s] banco
+== [773 s] banco
 ok      banco admin_coleta_c7 recriado, 45 migrações aplicadas (db/migrate.sh --local), semente e base mínima carregadas (base.sql, admin_base.sql)
 ok      banco vazio de rodadas e pedidos
 ok      o role admin_central tem login (post_0003, só local)
 
-== [8 s] critério 15: central fechada responde 404 em toda rota (sem a variável; com VERCEL; com VERCEL_ENV)
+== [779 s] critério 15: central fechada responde 404 em toda rota (sem a variável; com VERCEL; com VERCEL_ENV)
         rotas achadas em web/src/app/(admin): 19 (9 páginas, 10 de API); métodos exportados: /admin/api/decisoes [POST] /admin/api/entrar/codigo [POST] /admin/api/entrar/fator/confirmar [POST] /admin/api/entrar/fator/iniciar [POST] /admin/api/entrar/verificar [POST] /admin/api/estado [GET] /admin/api/ficha/x/x [GET] /admin/api/fila [GET] /admin/api/pedidos [POST] /admin/api/relatorio/x [GET]
 ok      nenhuma rota /admin fora do grupo (admin)
 ok      o grupo (admin) não tem loading, template, default, error ou not-found (o 404 não pode sair depois de um stream iniciado; o not-found.admin.tsx é só o da raiz)
@@ -87,7 +118,7 @@ AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (c) ADMIN_CENTRAL
 ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: 114 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
 ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: o 404 da central fechada leva os três cabeçalhos (CSP com frame-ancestors 'none', X-Frame-Options DENY, Referrer-Policy same-origin)
 
-== [12 s] critério 15 (G1-4): central ligada, Host fora de localhost/127.0.0.1/[::1] responde 404 em páginas e GET de API
+== [783 s] critério 15 (G1-4): central ligada, Host fora de localhost/127.0.0.1/[::1] responde 404 em páginas e GET de API
 ok      Host: evil.example.com: 19 GET (todas as páginas e todas as rotas de API) com status 404
 ok      Host: rebind.attacker.test:80: 19 GET (todas as páginas e todas as rotas de API) com status 404
 ok      Host: localhost.evil.example.com: 19 GET (todas as páginas e todas as rotas de API) com status 404
@@ -95,8 +126,8 @@ ok      Host: 127.0.0.1.evil.example.com: 19 GET (todas as páginas e todas as r
 ok      controle positivo: com o Host local (127.0.0.1) a API de estado e a página da fila respondem 200
 ok      controle positivo: Host localhost:porta e [::1]:porta também respondem 200
 
-== [13 s] critério 15 (modo produção, simulado): central fechada para quem não passa pela guarda, em toda rota e método
-        variáveis: ADMIN_CENTRAL=producao VERCEL_ENV=production AUTH_PROVIDER=supabase NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:64832 (porta local FECHADA) NEXT_PUBLIC_SUPABASE_ANON_KEY=x ADMIN_DATABASE_URL=...@127.0.0.1:54329/admin_coleta_c7?sslmode=require
+== [784 s] critério 15 (modo produção, simulado): central fechada para quem não passa pela guarda, em toda rota e método
+        variáveis: ADMIN_CENTRAL=producao VERCEL_ENV=production AUTH_PROVIDER=supabase NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:62964 (porta local FECHADA) NEXT_PUBLIC_SUPABASE_ANON_KEY=x ADMIN_DATABASE_URL=...@127.0.0.1:54329/admin_coleta_c7?sslmode=require
 ok      Host admin.segueovoto.com.br, sem cookie: 176 requisições (18 rotas fora /admin/entrar; GET, RSC, RSC+prefetch, HEAD, OPTIONS, PUT, DELETE, PATCH, POST JSON e POST text/plain) todas 404
 ok      o 404 da guarda não tem corpo (nada a revelar)
 ok      todo 404 da guarda, em qualquer método, leva os três cabeçalhos de segurança (CSP com frame-ancestors 'none', challenges.cloudflare.com como único host e só em /admin/entrar e /admin/entrar/fator, X-Frame-Options, Referrer-Policy)
@@ -121,12 +152,12 @@ ok      /admin/entrar (Host certo, sem cookie): 200 com o formulário de e-mail 
 ok      /admin/entrar leva os cabeçalhos: CSP cita challenges.cloudflare.com (Turnstile só aqui) e nenhum outro host
 ok      /admin/entrar?etapa=codigo (Host certo, sem cookie): 200 com o formulário do código
 ok      /admin/entrar/fator sem sessão: 404 (o cadastro do fator exige sessão de admin com aal1)
-        /admin/entrar, outros métodos sem sessão (o Next trata o POST sem o cabeçalho Next-Action): HEAD 200, OPTIONS 400, PUT 200, DELETE 200, PATCH 200, POST 200, POST text/plain 200
+        /admin/entrar, outros métodos sem sessão (o Next trata o POST sem o cabeçalho Next-Action): HEAD 200, OPTIONS 404, PUT 404, DELETE 404, PATCH 404, POST 404, POST text/plain 404
 ok      /admin/entrar nunca responde 5xx a método estranho
         /admin/entrar/ (barra final): 404
-ok      Host localhost:64833: 19 GET (todas as rotas, /admin/entrar incluída) com 404
-ok      Host 127.0.0.1:64833: 19 GET (todas as rotas, /admin/entrar incluída) com 404
-ok      Host [::1]:64833: 19 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host localhost:62965: 19 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host 127.0.0.1:62965: 19 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host [::1]:62965: 19 GET (todas as rotas, /admin/entrar incluída) com 404
 ok      Host replica-x.vercel.app: 19 GET (todas as rotas, /admin/entrar incluída) com 404
 ok      Host replica-virid-sigma.vercel.app: 19 GET (todas as rotas, /admin/entrar incluída) com 404
 ok      Host admin.segueovoto.com.br.evil.example: 19 GET (todas as rotas, /admin/entrar incluída) com 404
@@ -139,7 +170,7 @@ ok      Host evil.example com x-forwarded-host: admin.segueovoto.com.br: 404 (ca
 ok      Host evil.example com forwarded: admin.segueovoto.com.br: 404 (cabeçalho de proxy não vale)
 ok      Host evil.example com x-original-host: admin.segueovoto.com.br: 404 (cabeçalho de proxy não vale)
 
-== [14 s] AC-29 (ataque obrigatório): o build da central, no Host da central, nunca devolve HTML do site público; todo 404 e toda resposta levam os cabeçalhos
+== [785 s] AC-29 (ataque obrigatório): o build da central, no Host da central, nunca devolve HTML do site público; todo 404 e toda resposta levam os cabeçalhos
 ok      60 caminhos x 2 formas (GET e RSC+Next-Router-Prefetch): todos 404 sem corpo, com os cabeçalhos (exceto os estáticos servidos: as 28 malhas /geo, os 5 SVG e o /favicon.ico, 200), nenhum corpo com html, nav, header, main, footer nem marca do site
         TABELA DO ATAQUE (caminho, status, tamanho do corpo):
   /                                  GET 404      0 B   RSC+prefetch 404      0 B
@@ -210,9 +241,9 @@ ok      POST / com Next-Action: 404 (e com os cabeçalhos)
 ok      /admin/fila/ (barra final, sem sessão): 404 do middleware, sem o 308 que saía antes dos cabeçalhos (skipTrailingSlashRedirect), com os cabeçalhos de segurança
 ok      /admin/entrar/ (barra final, sem sessão): 404 do middleware, sem o 308 que saía antes dos cabeçalhos (skipTrailingSlashRedirect), com os cabeçalhos de segurança
 ok      /admin/ (barra final, sem sessão): 404 do middleware, sem o 308 que saía antes dos cabeçalhos (skipTrailingSlashRedirect), com os cabeçalhos de segurança
-        CSP do 404 de /admin/fila: default-src 'self'; script-src 'self' 'nonce-NDY4NzE4MGMtZWYxYi00Yzk3LTk4OGEtZDBlNWQ2ZDgzN2U0' 'sha256-opRjTqQ1E5eUpc4SE9v3YoU5wuVpgtqT7zsobCj245Q='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'
+        CSP do 404 de /admin/fila: default-src 'self'; script-src 'self' 'nonce-ODZiZGI3MjctNWNkZi00ZTZiLWJiZGYtNzQxNjFmOWM1YzE4' 'sha256-opRjTqQ1E5eUpc4SE9v3YoU5wuVpgtqT7zsobCj245Q='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'
 
-== [15 s] F3-C1 (A13): nenhuma server action roda na central: o id de cada action pública do build, em /, /admin, /admin/fila e /admin/entrar (JSON text/plain e multipart), responde 404 sem efeito
+== [785 s] F3-C1 (A13): nenhuma server action roda na central: o id de cada action pública do build, em /, /admin, /admin/fila e /admin/entrar (JSON text/plain e multipart), responde 404 sem efeito
 ok      o manifesto do build do SITE lista 10 actions públicas
 ok      90 POST (10 ids x páginas x tipos de corpo, mais o envio de formulário sem JavaScript) todos 404
 ok      POST com Next-Action em /geo/*, /favicon.ico e /_next/static/*: nenhuma resposta de action (nem text/x-component nem redirecionamento de action)
@@ -221,7 +252,7 @@ ok      o log do servidor não registra execução de action nem exceção
 ok      GET /_next/data/x.json, /api/me, /api/qualquer, uma imagem OG pública e uma rota inexistente: 404
 ok      controle positivo: no build do site, POST /entrar com o id de sendCode alcança a action (status que não é 404): a sonda é capaz de executar uma action
 
-== [20 s] F3-C1 (A3): entrada da central por rotas de API (JSON, mesma origem), mesma resposta e mesmo tempo para qualquer e-mail
+== [791 s] F3-C1 (A3): entrada da central por rotas de API (JSON, mesma origem), mesma resposta e mesmo tempo para qualquer e-mail
 ok      codigo, e-mail de admin ativo (operador local): 200 com a mesma resposta (proximo = etapa do código)
 ok      codigo, e-mail de admin ativo (operador local): cookie adm_entrar_email HttpOnly, Secure, SameSite=Strict, Path=/admin
 ok      codigo, e-mail de admin ativo (operador local): resposta da API leva os três cabeçalhos, sem Turnstile na CSP
@@ -232,9 +263,9 @@ ok      codigo, outro e-mail que não é admin: 200 com a mesma resposta (proxim
 ok      codigo, outro e-mail que não é admin: cookie adm_entrar_email HttpOnly, Secure, SameSite=Strict, Path=/admin
 ok      codigo, outro e-mail que não é admin: resposta da API leva os três cabeçalhos, sem Turnstile na CSP
 ok      codigo com e-mail malformado: 400
-ok      o tempo de resposta de codigo é o mesmo para admin, não admin e e-mail inválido: piso de 1,5 s (medidas 1755, 1523, 1509, 1514 ms)
+ok      o tempo de resposta de codigo é o mesmo para admin, não admin e e-mail inválido: piso de 1,5 s (medidas 1514, 1512, 1515, 1513 ms)
 ok      verificar: sem cookie, com admin e com não admin respondem 400 com erro neutro, nunca sessão
-ok      verificar com admin e com não admin leva o mesmo tempo (piso de 1,5 s): 1511, 1518, 1513 ms
+ok      verificar com admin e com não admin leva o mesmo tempo (piso de 1,5 s): 1517, 1517, 1514 ms
 ok      verificar: a mensagem para admin e para não admin é a mesma
 ok      codigo sem Origin: 403
 ok      codigo com text/plain (POST simples): 403
@@ -258,7 +289,7 @@ ok      ADMIN_DATABASE_URL com sslmode=disable: Host admin.segueovoto.com.br, 19
 ok      ADMIN_DATABASE_URL ausente: Host admin.segueovoto.com.br, 190 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
 ok      ADMIN_CENTRAL=Producao (valor que não é exato): Host admin.segueovoto.com.br, 190 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
 
-== [42 s] modo produção simulado: provedor de autenticação fora do ar (conexão derrubada; resposta 500) com cookie de sessão presente
+== [813 s] modo produção simulado: provedor de autenticação fora do ar (conexão derrubada; resposta 500) com cookie de sessão presente
 ok      [drop] com cookie de sessão e o Supabase fora do ar: /admin 404, /admin/fila 404, /admin/api/estado 404, /admin/entrar/fator 404, /admin/rodadas 404, POST pedidos 404 (tudo 404)
 ok      [drop] /admin/entrar com o provedor fora do ar: 200 (renderiza o formulário; quem não passa pelo provedor não entra, mas a página abre)
 ok      [drop] A10: cookie com o nome do SITE (sb-127-auth-token) na central: 404 e ZERO conexões ao provedor (a central só lê o cookie de nome próprio)
@@ -272,14 +303,14 @@ ok      [http500] o servidor TENTOU falar com o Supabase falso (47 conexões): a
 ok      [http500] depois de 47 conexões ao provedor falso o servidor continua de pé (404 na central e / também 404 no projeto admin) e o log não tem exceção solta
 ok      [http500] com o provedor fora do ar o 404 sai no prazo (comPrazo, 4 s por chamada ao Auth; /admin/entrar faz até duas): o conjunto em paralelo levou 8.1 s (antes do prazo: ~25 s por requisição e ~51 s em /admin/entrar)
 
-== [52 s] cabeçalhos de segurança em resposta real (fetch, redirect manual): página, API, 404 da central; ausentes no site público
+== [822 s] cabeçalhos de segurança em resposta real (fetch, redirect manual): página, API, 404 da central; ausentes no site público
 ok      página /admin/fila: 200, CSP com frame-ancestors 'none' (sem Turnstile no modo local), X-Frame-Options DENY, Referrer-Policy same-origin
 ok      API /admin/api/estado: 200, CSP com frame-ancestors 'none' (sem Turnstile no modo local), X-Frame-Options DENY, Referrer-Policy same-origin
 ok      404 da central (rota inexistente): 404, CSP com frame-ancestors 'none' (sem Turnstile no modo local), X-Frame-Options DENY, Referrer-Policy same-origin
 ok      `/` no build da central: 404 sem corpo, COM os três cabeçalhos (não há site nesta origem)
 ok      malha /geo/br.json (estático que a central serve): 200 COM os três cabeçalhos
 
-== [53 s] estados de tela com o banco vazio (antes de qualquer rodada)
+== [823 s] estados de tela com o banco vazio (antes de qualquer rodada)
 ok      estado vazio+carregando :: nenhuma rodada: bloco vazio; região viva marcada como carregando no HTML inicial (GET /admin)
 ok      carregando: a região viva sai no HTML inicial com data-regiao=viva e aria-busy=true
 ok      estado territorio_sem_ficha :: UF sem nenhuma ficha (GET /admin/uf/35)
@@ -289,13 +320,13 @@ ok      página /admin/fila com banco vazio responde 200
 ok      página /admin/rodadas com banco vazio responde 200
 ok      relatório de rodada inexistente: 404 com JSON de erro (não é o 404 da guarda)
 
-== [53 s] rodadas simuladas (cenário v1; cenário v2 com releitura forçada de robots.txt e /api/)
-ok      rodada v1 55e82fa1-c5b4-4f8b-a581-16d3041d7889 e rodada v2 0e36da8b-0ade-4cdd-a232-54d0efb14336 (10 URLs com releitura forçada) concluídas em 55 s
+== [823 s] rodadas simuladas (cenário v1; cenário v2 com releitura forçada de robots.txt e /api/)
+ok      rodada v1 f4f42026-eaf8-4360-ad04-ba6cad5af492 e rodada v2 5849d4a5-4829-4e86-b56d-9bd5fe153cac (10 URLs com releitura forçada) concluídas em 825 s
 ok      as duas rodadas terminaram concluida
 ok      a v2 gerou pendências abertas (2: status@casa 3, status@casa 5)
-ok      pendências de status de AM (1506c3eb-9b7d-4ea2-96f3-7934ca246d30) e de PB (91f500e7-378e-47fd-a1aa-c60286df66ce) abertas
+ok      pendências de status de AM (6810cafb-ad6e-44d0-a22b-b25f4c17e728) e de PB (fb424d5f-5a70-409e-a4da-7f74dda80d38) abertas
 
-== [55 s] critério 19: números do painel da central = relatório da CLI (mesma rodada)
+== [825 s] critério 19: números do painel da central = relatório da CLI (mesma rodada)
 ok      19 [v2] relatório obtido pela CLI e pela API
 ok      19 [v2] painel coleta: JSON da API igual ao da CLI (15 totais; valor, de e ids iguais em 15)
 ok      19 [v2] painel revisao: JSON da API igual ao da CLI (14 totais; valor, de e ids iguais em 14)
@@ -309,15 +340,15 @@ ok      19 [v1] marca simulado e id da rodada iguais
 ok      19 [v1] HTML de /admin?rodada= painel coleta: 15 totais escritos "V de D" e "Ver registros (n)", iguais aos da CLI
 ok      19 [v1] HTML de /admin?rodada= painel revisao: 14 totais escritos "V de D" e "Ver registros (n)", iguais aos da CLI
 
-== [57 s] estados de tela com rodadas
-ok      estado rodada_concluida+executor_ok+carregando :: rodada v2 concluída (GET /admin?rodada=0e36da8b-0ade-4cdd-a232-54d0efb14336)
-ok      estado carregando :: UF com fichas (não é território sem ficha) (GET /admin/uf/13?rodada=0e36da8b-0ade-4cdd-a232-54d0efb14336)
+== [826 s] estados de tela com rodadas
+ok      estado rodada_concluida+executor_ok+carregando :: rodada v2 concluída (GET /admin?rodada=5849d4a5-4829-4e86-b56d-9bd5fe153cac)
+ok      estado carregando :: UF com fichas (não é território sem ficha) (GET /admin/uf/13?rodada=5849d4a5-4829-4e86-b56d-9bd5fe153cac)
 ok      estado territorio_sem_ficha :: UF sem ficha continua vazia com banco populado (GET /admin/uf/35)
 ok      estado ficha_sem_evidencia :: ficha sem proposta (RO não mudou entre v1 e v2) (GET /admin/ficha/vinculo_sapl/1)
 ok      estado  :: ficha com proposta (URL, trecho e hash): NÃO é ficha_sem_evidencia (GET /admin/ficha/vinculo_sapl/3)
 ok      API da ficha de AM responde 200 com JSON
 
-== [57 s] critério 24: mapa sem <circle>, território com nome e contagem em texto (parcial sem navegador: ver a nota)
+== [827 s] critério 24: mapa sem <circle>, território com nome e contagem em texto (parcial sem navegador: ver a nota)
 ok      24 fonte da central (tsx, ts, css): nenhum <circle>, tipo "circle" nem elemento de cluster
 ok      24 fonte do mapa: cada território é um link com aria-label e <title> "<nome>: <contagem>" (nome da malha + formatarContagem)
 ok      24 HTML de /admin: nenhum <circle> e nenhum elemento de cluster
@@ -334,9 +365,9 @@ ok      24 /admin/uf/13: a malha local /geo/uf/13.json traz 62 territórios, tod
 ok      24 /admin/uf/13: 1 chunk(s) de JS com o código do mapa, nenhum com tipo "circle" ou cluster
 AVISO   24 limite: o mapa é componente de cliente (a malha /geo/*.json é buscada num useEffect), então o HTML do servidor não traz os <path> dos territórios com aria-label. Provado sem navegador: sem circle/cluster no HTML, nos chunks, no fonte e na malha; contagens no payload e em texto no HTML; nome de cada território na malha; regra do rótulo no fonte. NÃO provado: o rótulo renderizado de cada território no DOM (precisa de navegador).
 
-== [57 s] critério 20: dois cliques em 'Recoletar fichas pendentes' = um pedido só
+== [827 s] critério 20: dois cliques em 'Recoletar fichas pendentes' = um pedido só
 
-== [57 s] CSRF estrito (AC-23): POST sem Origin, sem Sec-Fetch-Site ou cross-site = 403, sem gravar
+== [827 s] CSRF estrito (AC-23): POST sem Origin, sem Sec-Fetch-Site ou cross-site = 403, sem gravar
 ok      POST /admin/api/pedidos sem Origin: 403
 ok      POST /admin/api/decisoes sem Origin: 403
 ok      POST /admin/api/pedidos sem Sec-Fetch-Site: 403
@@ -359,9 +390,9 @@ ok      POST /admin/api/pedidos content-type text/plain (POST simples, sem prefl
 ok      POST /admin/api/decisoes content-type text/plain (POST simples, sem preflight): 403
 ok      nenhuma linha gravada em adm_pedidos nem em adm_pedidos_decisao pelos 20 POST recusados (0|0)
 
-== [57 s] critério 20 (continuação)
+== [827 s] critério 20 (continuação)
 ok      antes: nenhum pedido no banco
-ok      1º POST: 200, novo=true, id db5fa958-4842-49e5-b301-81c5d45f45ff
+ok      1º POST: 200, novo=true, id 064f6e0d-6509-4816-af28-c5adaffed34a
 ok      2º POST igual: mesmo id e novo=false
 ok      mais dois POST simultâneos: mesmo id e novo=false
 ok      select count(*) em adm_pedidos = 1 pedido (ativo, na_fila) para a chave
@@ -372,9 +403,9 @@ AVISO   20/estado pedido_existente: o <p data-estado="pedido_existente"> só é 
 ok      regra estadoDoPedido: novo=false -> pedido_existente (fonte)
 ok      o pedido gravado pela central tem `parametros` jsonb do tipo object (como o da CLI)
 ok      o executor consome o pedido de recoleta gravado pela central (recoleta:concluido) e a fila esvazia
-ok      a recoleta abriu a rodada b42ae5cb-68e4-42a7-bf8e-430a9b8205ed
+ok      a recoleta abriu a rodada 76fc70f8-1427-4163-af74-d8418f6ff99a
 
-== [59 s] critério 22: pedido de parecer com as duas chaves desligadas não altera nenhuma tabela de domínio
+== [829 s] critério 22: pedido de parecer com as duas chaves desligadas não altera nenhuma tabela de domínio
 ok      há pendência aberta para pedir parecer (2)
         [pedido gravado pela central] retrato antes: 104 tabelas (todas do schema public menos adm_pareceres, adm_pedidos, adm_pedidos_decisao); decisões|overrides|corrections|pareceres = 0|0|0|0
 ok      [pedido gravado pela central] pedidos de parecer de uma pendência e de uma rodada gravados na fila
@@ -383,8 +414,8 @@ ok      [pedido gravado pela central] retrato depois idêntico em 104 tabelas (c
 ok      [pedido gravado pela central] nenhuma decisão, override ou correction nova (0|0|0|0 -> 0|0|0|3)
 ok      [pedido gravado pela central] adm_pareceres ganhou 3 linha(s) e todas têm simulado = true
 
-== [61 s] identidade (AC-23): `por` do corpo ignorado; o pedido leva o admin da sessão (local: ADMIN_LOCAL_EMAIL)
-ok      POST decisão com por="Fulano Forjado (SIMULADO)" no corpo: 200, novo (id 9ede1e7f-b022-4567-8cf3-21b8aab7de1f)
+== [831 s] identidade (AC-23): `por` do corpo ignorado; o pedido leva o admin da sessão (local: ADMIN_LOCAL_EMAIL)
+ok      POST decisão com por="Fulano Forjado (SIMULADO)" no corpo: 200, novo (id 8e33927e-d319-4c98-a277-37ba6a8af10b)
 ok      o pedido de decisão gravado tem por_nome = 'Operador local' e por_email = operador.local@segueovoto.invalid (o admin local), não o do corpo
 ok      nenhuma linha em adm_pedidos_decisao carrega o `por` forjado
 ok      exatamente um pedido de decisão novo
@@ -392,20 +423,20 @@ ok      todo pedido gravado pela central (adm_pedidos) tem por_email do admin lo
 ok      o executor consome o pedido (decisao:concluido)
 ok      adm_decisoes: pessoa|Operador local|aplicada=false (não o nome do corpo)
 
-== [63 s] estados de tela montados pelos mecanismos existentes
-ok      rodada aberta e não executada (admin rodada abrir sem --executar): afb10b21-9459-4a09-9bca-0f252a336116
-ok      estado rodada_em_andamento :: rodada aberta (em andamento), totais parciais (GET /admin?rodada=afb10b21-9459-4a09-9bca-0f252a336116)
-ok      rodada interrompida montada por `admin rodada recuperar` (em_andamento sem trava -> interrompida): 8dca12f1-c9c8-4e6a-916f-25f4db0e7e67
-ok      estado rodada_interrompida :: rodada interrompida (pede Repetir) (GET /admin?rodada=8dca12f1-c9c8-4e6a-916f-25f4db0e7e67)
+== [832 s] estados de tela montados pelos mecanismos existentes
+ok      rodada aberta e não executada (admin rodada abrir sem --executar): 82f7fd01-9f57-482f-90b7-f89d42d169af
+ok      estado rodada_em_andamento :: rodada aberta (em andamento), totais parciais (GET /admin?rodada=82f7fd01-9f57-482f-90b7-f89d42d169af)
+ok      rodada interrompida montada por `admin rodada recuperar` (em_andamento sem trava -> interrompida): cd91ccaf-f56b-4ebe-832c-196a45444f2c
+ok      estado rodada_interrompida :: rodada interrompida (pede Repetir) (GET /admin?rodada=cd91ccaf-f56b-4ebe-832c-196a45444f2c)
 ok      lista de rodadas mostra os três estados de rodada em cada item
-ok      pedido de parecer na fila com mais de 60 s (retroagido no banco admin_coleta_c7): 409367be-7b53-4007-be73-8a6a544c89c9
-ok      estado executor_parado :: executor parado com pedido velho na fila (GET /admin?rodada=0e36da8b-0ade-4cdd-a232-54d0efb14336)
+ok      pedido de parecer na fila com mais de 60 s (retroagido no banco admin_coleta_c7): d8fb91cb-be71-46d4-993c-c6b77146c927
+ok      estado executor_parado :: executor parado com pedido velho na fila (GET /admin?rodada=5849d4a5-4829-4e86-b56d-9bd5fe153cac)
 ok      o bloco diz que o executor está parado e o tempo de espera
 ok      GET /admin/api/estado: executor.parado = true
 ok      o executor consome o pedido velho e a fila esvazia (parecer:concluido)
-ok      estado executor_ok :: executor volta a em dia depois de consumir a fila (GET /admin?rodada=0e36da8b-0ade-4cdd-a232-54d0efb14336)
+ok      estado executor_ok :: executor volta a em dia depois de consumir a fila (GET /admin?rodada=5849d4a5-4829-4e86-b56d-9bd5fe153cac)
 
-== [66 s] estado de erro de leitura (banco de pé, identidade ok, leitura negada: admin_central sem select fora de adm_admins e read-only)
+== [835 s] estado de erro de leitura (banco de pé, identidade ok, leitura negada: admin_central sem select fora de adm_admins e read-only)
 ok      o admin_central tem select em 23 tabelas além de adm_admins (será revogado e devolvido)
 ok      estado erro_leitura :: leitura negada pelo banco (GET /admin)
 ok      estado erro_leitura :: leitura negada pelo banco (GET /admin/uf/13)
@@ -418,17 +449,17 @@ ok      grants do admin_central devolvidos como estavam (mesmas tabelas) e a con
 ok      banco inalcançável (porta fechada), modo local: páginas 500 e API 503 com "Não foi possível ler o banco" (nunca 404 "sessão expirou" nem 200)
 ok      o build da central não tem site: `/` segue 404 (sem corpo) com o banco da central fora do ar
 
-== [68 s] controle positivo do critério 15 (central ligada: as mesmas rotas existem no build)
+== [838 s] controle positivo do critério 15 (central ligada: as mesmas rotas existem no build)
 ok      as páginas e as quatro APIs de entrada (/admin/api/entrar/codigo, /admin/api/entrar/fator/confirmar, /admin/api/entrar/fator/iniciar, /admin/api/entrar/verificar, /admin/entrar/fator, /admin/entrar) respondem 404 no modo local (só existem no modo produção)
 ok      POST nas quatro APIs de entrada no modo local: 404 (exigirEntradaApi: só modo produção)
 ok      13 requisições (GET: 200; POST sem corpo válido: 400/403, nunca 404): todas as rotas respondem de fato com a central ligada
 ok      POST com corpo vazio é recusado (400 validação ou 403 origem), não aceito
 ok      com pendências abertas, a página /admin/fila lê o banco sem cair em erro_leitura
 ok      com pendências abertas, a página /admin?visao=revisao lê o banco sem cair em erro_leitura
-ok      com pendências abertas, a página /admin?visao=revisao&rodada=0e36da8b-0ade-4cdd-a232-54d0efb14336 lê o banco sem cair em erro_leitura
+ok      com pendências abertas, a página /admin?visao=revisao&rodada=5849d4a5-4829-4e86-b56d-9bd5fe153cac lê o banco sem cair em erro_leitura
 ok      POST com Origin de outro host: 403 (recusarOrigemExterna)
 
-== [70 s] gatilho de identidade pela API: admin desativado (banco de ensaio, role dono) = nada é gravado
+== [839 s] gatilho de identidade pela API: admin desativado (banco de ensaio, role dono) = nada é gravado
 ok      admin local desativado no banco de ensaio
 ok      POST pedidos com o admin desativado: 404 (a guarda não acha admin ativo; o código nunca chega ao gatilho)
 ok      POST decisões com o admin desativado: 404
@@ -438,7 +469,7 @@ ok      o gatilho adm_pedido_identidade recusa o INSERT do role admin_central pa
 ok      admin local reativado
 ok      reativado, o mesmo POST grava (200, novo): controle positivo
 
-== [70 s] rate limit (AC-23): 21 pedidos distintos em menos de 60 s -> o 21º responde 429 com Retry-After
+== [839 s] rate limit (AC-23): 21 pedidos distintos em menos de 60 s -> o 21º responde 429 com Retry-After
 ok      janela de 60 s limpa antes de começar (esperou 51 s)
 ok      os 21 POST levaram 0.1 s (menos de 60)
 ok      os 20 primeiros foram aceitos (200, novo)
@@ -448,4 +479,4 @@ ok      no banco, 20 pedidos (o 21º não foi gravado)
 ok      fila sem pedido ativo depois da limpeza
         fila ao final: vazia
 
-resultado: tudo passou  (122 s)
+resultado: tudo passou  (892 s)

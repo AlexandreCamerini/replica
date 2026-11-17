@@ -1,7 +1,7 @@
 {
   "simulado": "v2",
   "rodada": {
-    "id": "e25eb91f-bed8-4b9a-8095-8fd5aaafec25",
+    "id": "ed89f869-66ad-42fb-8504-17dc96896305",
     "coletor": "sapl.camaras",
     "modo": "recoletar",
     "recorte": {
@@ -15,8 +15,8 @@
       "extras": {}
     },
     "status": "concluida",
-    "iniciada_em": "2026-11-17T18:08:38.066450+00:00",
-    "finalizada_em": "2026-11-17T18:08:38.202225+00:00",
+    "iniciada_em": "2026-11-17T19:09:11.851490+00:00",
+    "finalizada_em": "2026-11-17T19:09:11.989282+00:00",
     "repete_id": null
   },
   "coleta": {

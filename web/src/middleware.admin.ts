@@ -51,6 +51,11 @@ export async function middleware(req: NextRequest): Promise<Response> {
   if (ehPedidoDeAction(req)) return negar();
   // estático (sem sessão: o navegador carrega os chunks da página de entrada antes de ter sessão): passa, com os cabeçalhos
   if (!rotaDaCentral) return comSeguranca(NextResponse.next());
+  // V3 (verificação v3): páginas da central só respondem GET e HEAD; os outros métodos só nas rotas de API, que tratam o próprio método.
+  const ehApi = pathname === "/admin/api" || pathname.startsWith("/admin/api/");
+  if (!ehApi && req.method !== "GET" && req.method !== "HEAD") return negar();
+  // V1: `Next-Router-Prefetch` sem `RSC` derruba o renderizador do Next (500, exceção no log, sem autenticação); o navegador nunca manda um sem o outro.
+  if (req.headers.has("next-router-prefetch") && !req.headers.has("rsc")) return negar();
 
   // Cabeçalhos da REQUISIÇÃO que o Next repassa às páginas: o CSP (de onde o Next tira o nonce dos seus scripts) e o nonce. A marca de entrada nunca vem do cliente.
   const proxima = (marcarEntrada: boolean): NextResponse => {

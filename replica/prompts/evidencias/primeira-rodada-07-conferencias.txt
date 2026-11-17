@@ -1,5 +1,5 @@
 SIMULADO: conferências do passo 07-repetir (respostas fabricadas)
-  rodada repetida: db114278-d2c4-4e74-85d0-9e8d8fea88cd (repete 6358ee82-eb3f-499d-ae31-a64fd1f7e1ca)
+  rodada repetida: 29b55768-464e-4371-94a5-4d733d2c760c (repete 2c167770-e8dc-4129-8239-62a5bd254b5d)
   [ok] a repetição terminou concluida e repete a rodada v2
   [ok] tentativas reaproveitadas > 0 (cache atravessou os passos)
   [ok] zero linha nova em adm_propostas, adm_pendencias, adm_pendencia_propostas, adm_vinculos, sapl_*, sapl_houses e data_coverage (contagens iguais)

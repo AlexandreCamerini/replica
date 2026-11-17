@@ -4,10 +4,10 @@ SIMULADO: 0 URLs pedidas, 0 não previstas
 ENSAIO: parecer não aplica nada
 SIMULADO: motor de ensaio local, sem chamada a modelo
 
-parecer          75be8cd4-bb0f-4899-b5ab-32bdb6e74764
-pendência        593788af-eb93-414a-ae70-552aadfed98d
+parecer          dd8ff0c7-c6f7-43eb-84a3-6aaff2ac0002
+pendência        6a93474e-049a-402d-84d6-cf4f7e858db2
 motor            ensaio-local (simulado)
 motivo do motor  ensaio local: a opção --real não foi pedida
 CAMPO   PROPOSTA         TRECHO USADO                                                                                                                                                      URL                                   FALTA CONFIRMAR
 ------  ---------------  ----------------------------------------------------------------------------------------------------------------------------------------------------------------  ------------------------------------  ---------------
-status  robots_bloqueia  robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T18:07:54.75496…  https://sapl.al.am.leg.br/robots.txt  -
+status  robots_bloqueia  robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T19:08:33.90947…  https://sapl.al.am.leg.br/robots.txt  -

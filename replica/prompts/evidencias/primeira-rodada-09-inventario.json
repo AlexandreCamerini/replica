@@ -642,27 +642,27 @@
         {
           "dataset": "sapl-ale.ac",
           "runs": 1,
-          "carimbo_em": "2026-11-17T18:07:50.740406+00:00"
+          "carimbo_em": "2026-11-17T19:08:29.998159+00:00"
         },
         {
           "dataset": "sapl-ale.am",
           "runs": 1,
-          "carimbo_em": "2026-11-17T18:07:50.822641+00:00"
+          "carimbo_em": "2026-11-17T19:08:30.084700+00:00"
         },
         {
           "dataset": "sapl-ale.descoberta",
           "runs": 4,
-          "carimbo_em": "2026-11-17T18:08:16.957439+00:00"
+          "carimbo_em": "2026-11-17T19:08:50.968598+00:00"
         },
         {
           "dataset": "sapl-ale.pb",
           "runs": 1,
-          "carimbo_em": "2026-11-17T18:07:54.802087+00:00"
+          "carimbo_em": "2026-11-17T19:08:33.940447+00:00"
         },
         {
           "dataset": "sapl-ale.ro",
           "runs": 1,
-          "carimbo_em": "2026-11-17T18:07:50.899000+00:00"
+          "carimbo_em": "2026-11-17T19:08:30.159887+00:00"
         }
       ],
       "truncado": false
@@ -687,16 +687,16 @@
     ],
     "chave_de_api": "nenhuma",
     "ultimo_run": {
-      "id": "bdbefcaa-72c4-45f8-9157-0a961bcecc97",
+      "id": "85f83607-8273-4a09-a430-b50f5a08b9df",
       "dataset": "sapl-ale.descoberta",
-      "iniciado_em": "2026-11-17T18:08:16.899174+00:00",
-      "finalizado_em": "2026-11-17T18:08:16.957439+00:00",
+      "iniciado_em": "2026-11-17T19:08:50.909571+00:00",
+      "finalizado_em": "2026-11-17T19:08:50.968598+00:00",
       "status": "succeeded",
       "linhas_lidas": null,
       "linhas_gravadas": 4,
       "linhas_rejeitadas": 0,
       "linhas_apagadas": null,
-      "invocation": "admin:8a91310e-48a1-45a7-945d-6684ade88757",
+      "invocation": "admin:ba780676-cd94-45c0-bfa0-eb7a65c465e3",
       "erro": null,
       "desconhecidos": {
         "rows_read": "o job não informou",
@@ -704,7 +704,7 @@
       }
     },
     "ultima_tentativa": null,
-    "carimbo_em": "2026-11-17T18:07:54.802087+00:00",
+    "carimbo_em": "2026-11-17T19:08:33.940447+00:00",
     "idade_h": 0.01,
     "dentro_do_prazo": true,
     "estado": "em_dia",

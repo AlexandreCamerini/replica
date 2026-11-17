@@ -189,3 +189,14 @@ test("comPrazo: promessa que não termina falha no prazo; a que termina antes pa
   assert.ok(Date.now() - inicio < 1000);
   assert.equal(await comPrazo(Promise.resolve(7), 50), 7);
 });
+
+test("V1 e V3: página da central só com GET/HEAD; prefetch sem RSC = 404; API e GET normal seguem", async () => {
+  await comEnv({ ADMIN_CENTRAL: "1", ADMIN_DATABASE_URL: LOCAL }, async () => {
+    for (const m of ["PUT", "DELETE", "PATCH", "POST", "PROPFIND"]) assert.equal((await middleware(pedido("/admin/fila", "localhost:3000", {}, m))).status, 404, `${m} em página`);
+    assert.equal((await middleware(pedido("/admin/fila", "localhost:3000", { "next-router-prefetch": "1" }))).status, 404, "prefetch sem RSC");
+    assert.notEqual((await middleware(pedido("/admin/fila", "localhost:3000", { "next-router-prefetch": "1", rsc: "1" }))).status, 404, "prefetch com RSC segue");
+    assert.notEqual((await middleware(pedido("/admin/fila", "localhost:3000"))).status, 404, "GET segue");
+    assert.notEqual((await middleware(pedido("/admin/fila", "localhost:3000", {}, "HEAD"))).status, 404, "HEAD segue");
+    assert.notEqual((await middleware(pedido("/admin/api/pedidos", "localhost:3000", { "content-type": "application/json" }, "POST"))).status, 404, "POST de API segue ao handler");
+  });
+});
