@@ -397,6 +397,7 @@ def test_rls_ligada_e_policies_exatas(su):
     # conjunto exato das policies do admin_central em todo o schema
     do_role = {(p["tablename"], p["policyname"], p["cmd"]) for p in su.execute("select tablename, policyname, roles::text[] as roles, cmd from pg_policies where %s = any(roles)", (ROLE,)).fetchall()}
     esperadas = {(t, "admin_central_le", "SELECT") for t in SELECT_EM} | {(t, "admin_central_insere", "INSERT") for t in INSERT_EM}
+    esperadas |= {(t, "admin_central_criado_agora", "INSERT") for t in INSERT_EM}  # 0154 (C11, G4-1): restritiva, o cliente não escolhe o relógio do pedido
     assert do_role == esperadas, (do_role ^ esperadas)
     # nenhuma policy `to public` em tabela adm_*
     assert su.execute("select 1 from pg_policies where tablename like 'adm\\_%' and ('public' = any(roles) or roles = '{}')").fetchall() == []
@@ -415,3 +416,17 @@ def test_gatilhos_das_duas_tabelas_de_pedido_nao_disparam_em_insert(su):
     assert {(r["t"], r["tgname"]) for r in rows} == {("adm_pedidos", "adm_pedidos_guard"), ("adm_pedidos_decisao", "adm_pedidos_decisao_guard")}
     for r in rows:
         assert r["tgtype"] & 4 == 0, f"{r['tgname']} dispara em insert"  # bit 4 = INSERT
+
+
+def test_criado_em_do_pedido_so_aceita_agora(central, pendencia):
+    """0154 (G4-1): `criado_em` livre deixava o cliente furar a fila e acender "executor parado". Padrão passa; passado e futuro distantes não."""
+    ped = "insert into adm_pedidos (tipo, chave_idem, criado_em) values ('rodada', %s, {v})"
+    dec = "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem, criado_em) values (%s, 'aprovar', 'Fulana', 'conferi', %s, {v})"
+    assert deve_passar(central, ped.format(v="default") + " returning id", (uuid.uuid4().hex,))
+    assert deve_passar(central, dec.format(v="default") + " returning id", (pendencia, uuid.uuid4().hex))
+    assert deve_passar(central, ped.format(v="now()") + " returning id", (uuid.uuid4().hex,))
+    for v in ("now() - interval '10 minutes'", "now() + interval '10 minutes'", "'2000-01-01'"):
+        e, _ = tentar(central, ped.format(v=v), (uuid.uuid4().hex,))
+        assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"adm_pedidos {v}: {type(e).__name__} {e}"
+        e, _ = tentar(central, dec.format(v=v), (pendencia, uuid.uuid4().hex))
+        assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"adm_pedidos_decisao {v}: {type(e).__name__} {e}"

@@ -135,6 +135,9 @@ VETORES_DE_OURO = (
 # ------------------------------------------------------------------ parâmetros e chave
 
 
+MOTIVO_CHAVE = "chave_idem não confere com os parâmetros"
+
+
 def _json_canonico(o: Any) -> str:
     return json.dumps(o, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
@@ -570,6 +573,8 @@ def _decisao(conn: Any, pedido_id: str) -> dict[str, Any]:
     if row is None:
         return _falhou(f"pedido de decisão {pedido_id} não está em execução")
     p = _pedido_dict("adm_pedidos_decisao", row)
+    if chave_idem(TIPO_DECISAO, p) != p["chave_idem"]:  # a central escolhe a chave ao inserir: o executor não confia nela (G4-1)
+        return _falhou(MOTIVO_CHAVE)
     acao, aplicar = p["acao"], bool(p["aplicar"])
     if aplicar and acao not in dec.ACOES_QUE_APLICAM:
         return _falhou(f"aplicar não vale com {acao}: só aprovar e corrigir aplicam")
@@ -603,6 +608,13 @@ def _despachar(conn: Any, tabela: str, pedido_id: str, runner: Callable[[list[st
         return _falhou(f"pedido {pedido_id} não está em execução")
     p = _pedido_dict("adm_pedidos", row)
     t = p["tipo"]
+    if t in TIPOS:
+        try:
+            normalizados = normalizar(t, p["parametros"])
+        except ErroAdmin:
+            normalizados = None  # parâmetros que não normalizam falham no tipo, com a própria mensagem
+        if normalizados is not None and chave_idem(t, normalizados) != p["chave_idem"]:
+            return _falhou(MOTIVO_CHAVE)
     if t == "rodada":
         return _rodada(conn, p, runner)
     if t == "recoleta":

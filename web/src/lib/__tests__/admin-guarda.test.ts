@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { decidirAcesso } from "../admin/guarda-regra.ts";
+import { decidirAcesso, hostDeRequisicaoLocal } from "../admin/guarda-regra.ts";
 
 const LOCAL = "postgres://admin_central@localhost:5432/civico";
 const ligada = (extra: Record<string, string | undefined> = {}) => ({ ADMIN_CENTRAL: "1", ADMIN_DATABASE_URL: LOCAL, ...extra });
@@ -43,4 +43,31 @@ test("NODE_ENV=production sozinho não bloqueia", () => {
 test("a decisão sempre traz motivo", () => {
   assert.ok(decidirAcesso({}).motivo.length > 0);
   assert.ok(decidirAcesso(ligada()).motivo.length > 0);
+});
+
+test("G1-3: URL com host na query, vários hosts ou protocolo estranho bloqueia, mesmo com o host da URL local", () => {
+  for (const u of [
+    "postgres://u@localhost/db?host=banco.remoto",
+    "postgres://u@localhost/db?HOST=banco.remoto",
+    "postgres://u@localhost/db?Host=127.0.0.1",
+    "postgres://u@localhost/db?hostaddr=10.0.0.5",
+    "postgres://u@localhost/db?HostAddr=10.0.0.5",
+    "postgres://u@localhost/db?service=remoto",
+    "postgres://u@localhost/db?sslmode=disable&host=banco.remoto",
+    "postgres://u@localhost,banco.remoto:5432/db",
+    "postgres://u@localhost:5432,banco.remoto:5432/db",
+    "postgres://u@127.0.0.1,10.0.0.5/db",
+    "http://u@localhost:5432/db",
+    "mysql://u@localhost:3306/db",
+    "file://localhost/db",
+  ])
+    assert.equal(decidirAcesso(ligada({ ADMIN_DATABASE_URL: u })).liberada, false, u);
+  for (const u of ["postgresql://u@localhost:5432/db", "postgres://u:p@localhost/db?sslmode=disable&application_name=central", "postgres://u:p%2C1@localhost/db"])
+    assert.equal(decidirAcesso(ligada({ ADMIN_DATABASE_URL: u })).liberada, true, u);
+});
+
+test("G1-4: Host de requisição só local (localhost, 127.0.0.1, [::1]), com ou sem porta", () => {
+  for (const h of ["localhost", "localhost:3000", "LocalHost:8080", "127.0.0.1", "127.0.0.1:38713", "[::1]", "[::1]:3000", " localhost "]) assert.equal(hostDeRequisicaoLocal(h), true, h);
+  for (const h of [null, undefined, "", "evil.example.com", "evil.example.com:3000", "localhost.evil.example.com", "127.0.0.1.evil.example.com", "mylocalhost", "10.0.0.5", "[::2]", "::1", "localhost:abc", "localhost:3000:1", "[::1", "a@localhost", "localhost/x"])
+    assert.equal(hostDeRequisicaoLocal(h), false, String(h));
 });

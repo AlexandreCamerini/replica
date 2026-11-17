@@ -8,6 +8,7 @@
 // Banco: o modo completo APAGA e RECRIA `admin_coleta_c7` (só ele) a cada execução; as rodadas são SIMULADAS (CLI real sobre respostas fabricadas de etl/tests/fixtures/sapl_ale).
 // O `--fluxo` NÃO recria nada: opera no banco dado. Nada aqui toca `civico` nem `admin_coleta`. Sem rede externa, sem chamada a modelo.
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import * as C from "./comum.mjs";
 
@@ -58,6 +59,40 @@ async function varrer(base, rotas, ex, esperado) {
   return achados;
 }
 
+
+// Requisição crua por node:http: o fetch do Node recusa TRACE e não deixa trocar o Host. Só 127.0.0.1.
+function crua(base, caminho, { metodo = "GET", cabecalhos = {} } = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(caminho, base);
+    if (u.hostname !== "127.0.0.1") return reject(new Error(`recusado: host ${u.hostname} não é 127.0.0.1`));
+    const req = http.request({ host: "127.0.0.1", port: u.port, path: u.pathname + u.search, method: metodo, headers: { connection: "close", ...cabecalhos }, agent: false, timeout: 60_000 }, (res) => {
+      res.resume();
+      res.on("end", () => resolve(res.statusCode));
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+    req.end();
+  });
+}
+const METODOS_ESTRANHOS = ["OPTIONS", "PUT", "DELETE", "HEAD"];
+// TRACE vai à parte: o adaptador de middleware do Next 15.5.28 (nodejs e edge) monta um `Request` com o método e o `Request` do Node recusa TRACE ("'TRACE' HTTP method is unsupported"),
+// então o 500 sai ANTES da função do middleware e não há como responder 404 por ali. Ver o relatório da C11.
+
+async function varrerCrua(base, rotas, ex, { host } = {}) {
+  const achados = [];
+  for (const r of rotas) {
+    const u = urlDe(r, ex);
+    const h = host ? { host } : {};
+    const casos = [["GET+RSC", "GET", { RSC: "1", ...h }], ["GET+RSC+prefetch", "GET", { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-State-Tree": "%5B%22%22%5D", ...h }], ...METODOS_ESTRANHOS.map((m) => [m, m, h])];
+    if (host) casos.length = 0, casos.push(["GET", "GET", h]);
+    for (const [rotulo, metodo, cab] of casos) {
+      const url = rotulo.startsWith("GET+RSC") ? `${u}?_rsc=abc` : u;
+      achados.push({ rotulo, u, status: await crua(base, url, { metodo, cabecalhos: cab }) });
+    }
+  }
+  return achados;
+}
+
 async function criterio15(rotas, extras) {
   R.cabecalho("critério 15: central fechada responde 404 em toda rota (sem a variável; com VERCEL; com VERCEL_ENV)");
   const dentro = rotas.filter((r) => !r.foraDoGrupo);
@@ -79,6 +114,15 @@ async function criterio15(rotas, extras) {
       R.checa(ruins.length === 0, `${nome}: ${a.filter((x) => x.exportado).length} requisições (páginas GET, API nos métodos exportados) todas com status 404`, ruins.map((x) => `${x.m} ${x.u} -> ${x.status}`).join("; "));
       const nao = a.filter((x) => !x.exportado && x.status !== 404);
       R.checa(nao.length === 0, `${nome}: métodos que a rota não usa também respondem 404 (a rota não se revela por um 405)`, nao.map((x) => `${x.m} ${x.u} -> ${x.status}`).join("; "));
+      const trace = [];
+      for (const r of dentro) trace.push({ u: urlDe(r, ex), status: await crua(srv.base, urlDe(r, ex), { metodo: "TRACE" }) });
+      const traceFora = trace.filter((x) => x.status !== 404);
+      const limite = srv.log().includes("'TRACE' HTTP method is unsupported");
+      R.checa(traceFora.length === 0 || (limite && traceFora.every((x) => x.status === 500)), `${nome}: TRACE nas ${trace.length} rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central`, traceFora.map((x) => `${x.u} -> ${x.status}`).join("; "));
+      R.info(`${nome}: TRACE -> ${traceFora.length === 0 ? "404 em todas" : `${traceFora.length} de ${trace.length} com 500 (limite do Next; fora do 404 exigido)`}`);
+      const cru = await varrerCrua(srv.base, dentro, ex);
+      const ruinsCru = cru.filter((x) => x.status !== 404);
+      R.checa(ruinsCru.length === 0, `${nome}: ${cru.length} requisições extras (RSC e RSC+prefetch nas páginas; ${METODOS_ESTRANHOS.join(", ")} em toda rota, páginas e API) todas com status 404`, ruinsCru.map((x) => `${x.rotulo} ${x.u} -> ${x.status}`).join("; "));
       if (nome.startsWith("(a)")) {
         const h = await C.http(srv.base, "/");
         R.checa(h.status === 200, "(a) o site público (/) continua 200", `status ${h.status}`);
@@ -88,6 +132,29 @@ async function criterio15(rotas, extras) {
     } finally {
       await srv.parar();
     }
+  }
+}
+
+// G1-4: com a central LIGADA, Host que não é local = 404 (DNS rebinding); com o Host local a mesma rota responde (controle positivo).
+async function criterio15Host(rotas) {
+  R.cabecalho("critério 15 (G1-4): central ligada, Host fora de localhost/127.0.0.1/[::1] responde 404 em páginas e GET de API");
+  const dentro = rotas.filter((r) => !r.foraDoGrupo);
+  const ex = { classe: "vinculo_sapl", chave: "1", rodada: UUID0, id: UUID0, uf: "35" };
+  const srv = await C.subirNext(C.envCentral(C.BANCO_C7));
+  try {
+    for (const host of ["evil.example.com", "rebind.attacker.test:80", "localhost.evil.example.com", "127.0.0.1.evil.example.com"]) {
+      const a = await varrerCrua(srv.base, dentro, ex, { host });
+      const ruins = a.filter((x) => x.status !== 404);
+      R.checa(ruins.length === 0, `Host: ${host}: ${a.length} GET (todas as páginas e todas as rotas de API) com status 404`, ruins.map((x) => `${x.u} -> ${x.status}`).join("; "));
+    }
+    const ok = await C.http(srv.base, "/admin/api/estado");
+    const okPag = await C.http(srv.base, "/admin/fila");
+    R.checa(ok.status === 200 && okPag.status === 200, "controle positivo: com o Host local (127.0.0.1) a API de estado e a página da fila respondem 200", `estado ${ok.status}, fila ${okPag.status}`);
+    const lh = await crua(srv.base, "/admin/api/estado", { cabecalhos: { host: "localhost:3000" } });
+    const v6 = await crua(srv.base, "/admin/api/estado", { cabecalhos: { host: "[::1]:3000" } });
+    R.checa(lh === 200 && v6 === 200, "controle positivo: Host localhost:porta e [::1]:porta também respondem 200", `localhost ${lh}, [::1] ${v6}`);
+  } finally {
+    await srv.parar();
   }
 }
 
@@ -264,6 +331,7 @@ async function completo() {
   R.checa(C.sql(C.BANCO_C7, "select rolcanlogin from pg_roles where rolname = 'admin_central'") === "t", "o role admin_central tem login (post_0003, só local)");
 
   await criterio15(rotas, extras);
+  await criterio15Host(rotas);
 
   // ---- central ligada
   const central = await C.subirNext(C.envCentral(C.BANCO_C7));

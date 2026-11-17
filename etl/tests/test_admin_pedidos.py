@@ -10,6 +10,7 @@ test_admin_proponentes.py).
 from __future__ import annotations
 
 import json
+import os
 import socket
 import threading
 import time
@@ -30,6 +31,7 @@ from test_admin_proponentes import sapl_base  # noqa: F401  (fixture)
 from civico_etl import cli
 from civico_etl.admin import aplicar as APL
 from civico_etl.admin import executor as EX
+from civico_etl.admin import parecer as PAR
 from civico_etl.admin import propostas as PR
 from civico_etl.admin import rodadas as R
 from civico_etl.admin.saida import ErroAdmin
@@ -65,10 +67,18 @@ def _sem_rede_nem_modelo(monkeypatch):
         vistos.append("socket.connect")
         raise AssertionError("conexão de rede em teste")
 
+    def cliente_proibido(*a, **k):
+        vistos.append("parecer._cliente_real")
+        raise AssertionError("cliente de modelo construído em teste")
+
     monkeypatch.setattr(anthropic, "Anthropic", proibido)
+    monkeypatch.setattr(PAR, "_cliente_real", cliente_proibido)
     monkeypatch.setattr(socket.socket, "connect", sem_socket)
-    for v in ("ANTHROPIC_API_KEY", "ADMIN_COLETA_AGENTES", "VERIFICACAO_AGENTICA"):
+    for v in ("ADMIN_COLETA_AGENTES", "VERIFICACAO_AGENTICA"):
         monkeypatch.delenv(v, raising=False)
+    # G2-1: chave FALSA presente. Sem ela, uma volta a `escolher_motor(real=True)` cairia no motor local em silêncio e o teste passaria sem pegar a regressão;
+    # com ela, o motor real seria escolhido, tentaria construir o cliente e derrubaria o teste (as duas travas acima).
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "chave-falsa-de-teste")
     yield
     assert vistos == []
 
@@ -290,7 +300,11 @@ def test_pedido_de_rodada_o_executor_abre_e_executa(cx, monkeypatch, tmp_path):
     ({"qualquer": "coisa"}, "chave desconhecida"),
 ])
 def test_parametro_invalido_no_pedido_falha_com_o_motivo_sem_executar_nada(cx, par, motivo):
-    pid = inserir_cru(cx, "adm_pedidos", tipo="rodada", parametros=json.dumps(par), chave_idem=EX.chave_idem("rodada", par))
+    try:  # C11: a chave tem de ser a dos parâmetros NORMALIZADOS (o executor a recalcula); o que não normaliza fica com a chave crua e falha no tipo
+        chave = EX.chave_idem("rodada", EX.normalizar("rodada", par))
+    except ErroAdmin:
+        chave = EX.chave_idem("rodada", par)
+    pid = inserir_cru(cx, "adm_pedidos", tipo="rodada", parametros=json.dumps(par), chave_idem=chave)
     cx.commit()
     nr = n(cx, "adm_rodadas")
     r = EX.executar_um(cx)
@@ -355,6 +369,7 @@ def test_recoleta_de_identidade_falha_com_motivo_e_nivel_sem_coletor_tambem(cx, 
 
 def test_criterio_22_pedido_de_parecer_nao_altera_tabela_de_dominio(cx, base, v1_v2, monkeypatch):
     rid1, rid2 = v1_v2
+    assert os.environ.get("ANTHROPIC_API_KEY") == "chave-falsa-de-teste"  # G2-1: a trava de cliente (fixture autouse) está armada com a chave presente
     assert APL.chaves_dos_agentes(cx)["ligadas"] is False  # as duas chaves desligadas
     cx.rollback()
     pb, am = pend_de(cx, "PB"), pend_de(cx, "AM")
@@ -677,3 +692,58 @@ def test_cli_pedido_de_decisao_e_de_parecer_e_idempotente(cx, base, v1_v2, capsy
     assert cli.main(["admin", "executor", "--uma-vez"]) == 0  # a pendência da PB já foi decidida: só a da AM tem parecer
     capsys.readouterr()
     assert n(cx, "adm_pareceres") == 1 and n(cx, "adm_pareceres", "simulado") == 1
+
+
+# ------------------------------------------------------------------ C11: `chave_idem` forjada e relógio do pedido (G4-1)
+
+
+def test_chave_idem_forjada_pela_central_falha_no_executor_sem_efeito(cx, base):
+    par = EX.normalizar("recoleta", recoleta("vinculo_sapl", UF_PB, "uf"))
+    # a central (admin_central) insere como quiser a chave: aqui, uma que não é a dos parâmetros
+    with como_central(base, tcp=False) as c:
+        pid = inserir_cru(c, "adm_pedidos", tipo="recoleta", parametros=json.dumps(par), chave_idem="forjada-0123")
+    cx.commit()
+    nr, nt = n(cx, "adm_rodadas"), n(cx, "adm_tentativas")
+    r = EX.executar_um(cx)
+    cx.rollback()
+    assert r["status"] == "falhou" and r["erro"] == "chave_idem não confere com os parâmetros", r
+    linha = pedido(cx, pid)
+    assert linha["status"] == "falhou" and linha["erro"] == "chave_idem não confere com os parâmetros" and linha["rodada_id"] is None
+    assert n(cx, "adm_rodadas") == nr and n(cx, "adm_tentativas") == nt
+    # com a chave certa, o mesmo pedido passa da checagem (não falha por chave)
+    cx.execute("delete from adm_pedidos where id = %s", (pid,))
+    cx.commit()
+    chave = EX.chave_idem("recoleta", par)
+    assert chave != "forjada-0123"
+
+
+def test_chave_idem_forjada_em_pedido_de_decisao_falha_sem_decidir(cx, base, v1_v2):
+    pend = pend_de(cx, "PB")
+    cx.rollback()
+    with como_central(base, tcp=False) as c:
+        pid = inserir_cru(c, "adm_pedidos_decisao", pendencia_id=pend, acao="aprovar", por_nome="Fulana", justificativa="conferi", aplicar=False, chave_idem="forjada-decisao")
+    nd = n(cx, "adm_decisoes")
+    r = EX.executar_um(cx)
+    cx.rollback()
+    assert r["status"] == "falhou" and r["erro"] == "chave_idem não confere com os parâmetros", r
+    assert pedido(cx, pid, "adm_pedidos_decisao")["status"] == "falhou" and n(cx, "adm_decisoes") == nd
+
+
+def test_pedido_de_rodada_com_chave_certa_nao_falha_por_chave(cx):
+    par = {"coletor": "nao.existe", "modo": "recoletar", "recorte": {}}
+    pid = inserir_cru(cx, "adm_pedidos", tipo="rodada", parametros=json.dumps(par), chave_idem=EX.chave_idem("rodada", EX.normalizar("rodada", par)))
+    cx.commit()
+    r = EX.executar_um(cx)
+    cx.rollback()
+    assert r["status"] == "falhou" and "chave_idem" not in r["erro"] and "sem entrada no catálogo" in r["erro"], r
+    assert pedido(cx, pid)["status"] == "falhou"
+
+
+def test_criado_em_antigo_pela_central_e_recusado_e_o_padrao_e_aceito(cx, base):
+    par = EX.normalizar("recoleta", recoleta("vinculo_sapl", UF_PB, "uf"))
+    k = EX.chave_idem("recoleta", par)
+    with como_central(base, tcp=False) as c:
+        with pytest.raises(pe.InsufficientPrivilege):
+            c.execute("insert into adm_pedidos (tipo, parametros, chave_idem, criado_em) values ('recoleta', %s, %s, now() - interval '10 minutes')", (json.dumps(par), k))
+        assert c.execute("insert into adm_pedidos (tipo, parametros, chave_idem) values ('recoleta', %s, %s) returning id", (json.dumps(par), k)).fetchone()
+    assert n(cx, "adm_pedidos") == 1

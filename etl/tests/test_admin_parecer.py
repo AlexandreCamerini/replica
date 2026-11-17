@@ -70,10 +70,16 @@ def sem_rede(monkeypatch):
         tentativas.append("socket.connect")
         raise AssertionError("conexão de rede em teste")
 
+    def cliente_proibido(*a, **k):
+        tentativas.append("parecer._cliente_real")
+        raise AssertionError("cliente de modelo construído em teste")
+
     monkeypatch.setattr(anthropic, "Anthropic", proibido)
+    monkeypatch.setattr(PA, "_cliente_real", cliente_proibido)
     monkeypatch.setattr(socket.socket, "connect", sem_socket)
-    for v in (VAR, PA.VARIAVEL_CHAVE_API, "VERIFICACAO_AGENTICA"):
+    for v in (VAR, "VERIFICACAO_AGENTICA"):
         monkeypatch.delenv(v, raising=False)
+    monkeypatch.setenv(PA.VARIAVEL_CHAVE_API, "chave-falsa-de-teste")  # G2-1: chave FALSA presente; construir cliente derruba o teste (nunca há rede)
     yield tentativas
     assert tentativas == [], f"tentativa de rede em teste: {tentativas}"
 
@@ -298,7 +304,8 @@ def test_cli_parecer_de_uma_pendencia_e_de_uma_rodada_nao_altera_nada(mundo_comm
     assert _retrato_externo(url) == antes_chaves and n(c, "adm_decisoes") == 0 and n(c, "adm_pareceres") == 10
 
 
-def test_cli_real_sem_a_variavel_da_chave_da_api_cai_no_motor_local_e_diz_por_que(mundo_commit, capsys, sem_rede):
+def test_cli_real_sem_a_variavel_da_chave_da_api_cai_no_motor_local_e_diz_por_que(mundo_commit, capsys, sem_rede, monkeypatch):
+    monkeypatch.delenv(PA.VARIAVEL_CHAVE_API, raising=False)  # a premissa deste caso é a chave ausente; a fixture autouse a põe FALSA nos demais (G2-1)
     url, c, mm, rod, ids = mundo_commit
     antes = _retrato_externo(url)
     rc, out, err = _cli(capsys, "parecer", "--pendencia", ids["identidade"], "--real", "--json")

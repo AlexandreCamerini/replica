@@ -1,6 +1,6 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import { decidirAcesso } from "./guarda-regra.ts";
+import { decidirAcesso, hostDeRequisicaoLocal } from "./guarda-regra.ts";
 
 // Guarda de acesso da central (plano, seção 4a). A REGRA é pura e mora em guarda-regra.ts (`decidirAcesso`); aqui só se liga a regra ao Next.
 // Quatro pontos de entrada, todos chamam esta guarda ANTES de qualquer outra coisa:
@@ -25,16 +25,13 @@ export function exigirAdminApi(): Response | null {
   return centralLiberada() ? null : new Response(null, { status: 404 });
 }
 
-const HOSTS_LOCAIS = new Set(["localhost", "127.0.0.1", "[::1]"]);
-
 /**
  * POST da central: só aceita requisição feita pela própria página (mesma origem) e em JSON. Sem isto, qualquer site aberto no navegador
  * do dono poderia gravar pedido em `localhost` com um POST `text/plain` (que não exige preflight). `null` = aceita; senão a resposta de recusa.
  */
 export function recusarOrigemExterna(req: Request): Response | null {
   const recusa = () => new Response(JSON.stringify({ erro: "requisição recusada" }), { status: 403, headers: { "content-type": "application/json" } });
-  const host = (req.headers.get("host") ?? "").toLowerCase().replace(/:\d+$/, "").replace(/^(\[::1\]).*$/, "$1");
-  if (!HOSTS_LOCAIS.has(host)) return recusa();
+  if (!hostDeRequisicaoLocal(req.headers.get("host"))) return recusa();
   const site = req.headers.get("sec-fetch-site");
   if (site !== null && site !== "same-origin" && site !== "none") return recusa();
   const origem = req.headers.get("origin");
