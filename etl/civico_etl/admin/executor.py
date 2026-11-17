@@ -563,7 +563,13 @@ def _parecer(conn: Any, p: dict[str, Any]) -> dict[str, Any]:
     return _saida("concluido", andamento=_json({"etapa": "concluido", "mensagem": f"{len(feitos)} pareceres em modo ensaio (simulado); nada foi aplicado", "pareceres": len(feitos), "ids": feitos}))
 
 
-def _decisao(conn: Any, p: dict[str, Any]) -> dict[str, Any]:
+def _decisao(conn: Any, pedido_id: str) -> dict[str, Any]:
+    # Recebe só o id e relê a linha do banco: nenhuma função do caminho até `aplicar` (e daí a `chaves_dos_agentes`) aceita mapeamento como
+    # parâmetro (critério 9; test_admin_chaves.py::test_A). A linha é a do pedido já marcado `em_execucao` por este executor.
+    row = conn.execute("select * from adm_pedidos_decisao where id = %s and status = 'em_execucao'", (pedido_id,)).fetchone()
+    if row is None:
+        return _falhou(f"pedido de decisão {pedido_id} não está em execução")
+    p = _pedido_dict("adm_pedidos_decisao", row)
     acao, aplicar = p["acao"], bool(p["aplicar"])
     if aplicar and acao not in dec.ACOES_QUE_APLICAM:
         return _falhou(f"aplicar não vale com {acao}: só aprovar e corrigir aplicam")
@@ -586,9 +592,16 @@ class _Perdido(Exception):
     """O pedido deixou de estar `em_execucao` (outro executor o declarou interrompido): a decisão não pode ficar gravada."""
 
 
-def _despachar(conn: Any, p: dict[str, Any], runner: Callable[[list[str]], int] | None) -> dict[str, Any]:
-    if p["tabela"] == "adm_pedidos_decisao":
-        return _decisao(conn, p)
+def _despachar(conn: Any, tabela: str, pedido_id: str, runner: Callable[[list[str]], int] | None) -> dict[str, Any]:
+    # Só tabela e id (escalares): o caminho até `aplicar` não aceita mapeamento como parâmetro (critério 9). A linha é relida do banco.
+    if tabela == "adm_pedidos_decisao":
+        return _decisao(conn, pedido_id)
+    if tabela != "adm_pedidos":
+        return _falhou(f"tabela de pedido desconhecida: {tabela!r}")
+    row = conn.execute("select * from adm_pedidos where id = %s and status = 'em_execucao'", (pedido_id,)).fetchone()
+    if row is None:
+        return _falhou(f"pedido {pedido_id} não está em execução")
+    p = _pedido_dict("adm_pedidos", row)
     t = p["tipo"]
     if t == "rodada":
         return _rodada(conn, p, runner)
@@ -615,7 +628,7 @@ def executar_um(conn: Any, *, agora: Any = None, runner: Callable[[list[str]], i
     bat.start()
     try:
         try:
-            s = _despachar(conn, p, runner)
+            s = _despachar(conn, p["tabela"], str(p["id"]), runner)
         except Exception as e:  # noqa: BLE001 - bug ou erro de infraestrutura: o pedido falha com o motivo e o laço continua
             with contextlib.suppress(Exception):
                 conn.rollback()
