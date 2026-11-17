@@ -8,6 +8,8 @@ import "@/styles/sv-pessoa.css";
 import "@/styles/sv-decisao.css";
 import "@/styles/sv-temas.css";
 import "@/styles/sv-ajustes.css";
+import { Suspense } from "react";
+import { AvisoDeCarregamento } from "./carregando";
 import { readPrefs } from "./prefs";
 import { CONTEUDO_ID, Rodape, Topo } from "./shell";
 import { data } from "@/lib/data";
@@ -32,6 +34,11 @@ export async function Casco({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <Rodape />
+      {/* Aviso de troca de página (D330). Depois do rodapé no DOM: não entra na ordem de leitura do conteúdo. O Suspense é
+          exigência do Next para ler os parâmetros do endereço no cliente; o componente não suspende e o HTML sai inteiro. */}
+      <Suspense fallback={null}>
+        <AvisoDeCarregamento />
+      </Suspense>
     </div>
   );
 }

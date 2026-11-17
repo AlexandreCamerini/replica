@@ -136,6 +136,17 @@
   .sv-nv2{flex:1 1 auto;column-gap:3px;padding-left:4px}
   .sv .sv-nv2 a{padding-inline:4px}
 }
+/* D330: estado de carregamento. Texto em tinta sobre papel, sem cor nova e sem animação. Vazio, não aparece nem ocupa lugar. O aviso de troca de página fica preso ao canto de baixo: não empurra o conteúdo nem tira o foco; tem
+   largura contida e texto curto (em janela pequena, quebra em duas linhas). Só existe com JavaScript: sem
+   ele a página chega inteira e o navegador mostra o próprio carregamento. */
+.sv-carga{position:fixed;left:12px;bottom:12px;z-index:20;max-width:min(22rem,calc(100vw - 24px));margin:0;padding:8px 12px;border:2px solid var(--tinta);background:var(--papel);color:var(--tinta);font-size:15px;line-height:1.35;font-weight:700;pointer-events:none}
+/* Vazios, os avisos não aparecem, mas continuam na árvore de acessibilidade (nada de display:none): há leitor de tela que
+   não anuncia uma região de status que nasce já com texto. */
+.sv-carga:empty{padding:0;border:0}
+.sv-envio:empty{margin:0}
+/* com o aviso na tela, o navegador para o elemento focado pelo teclado acima da caixa (WCAG 2.4.11) */
+html:has(.sv-carga:not(:empty)){scroll-padding-bottom:7rem}
+.sv-envio{display:block;margin-top:4px;font-size:14px;line-height:1.35;font-weight:700;color:var(--tinta)}
 .sv-demo{font-size:13px;line-height:1.4;font-weight:500;border-bottom:1.5px solid var(--tinta)}
 .sv-demo .sv-wrap{padding-top:6px;padding-bottom:6px}
 

@@ -18,7 +18,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
     test(`${nome}: slug inexistente e slug antigo de pessoa fundida não contam`, async ({ page, context }) => {
       await context.addCookies([uf("SP"), sigo(MARCADOS)]);
       await page.goto(url);
-      const status = page.locator(".sv-pp__m [role=status]");
+      const status = page.locator(".sv-pp__m > p[role=status]");
       // quatro slugs no cookie, duas pessoas: a que sumiu não conta e a fundida conta uma vez
       await expect(status).toContainText("Você acompanha 2 pessoas.");
       await expect(status).toContainText("Outras 2 marcações guardadas não entram na conta");
@@ -28,13 +28,13 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
   test("só pessoas que existem: a frase não muda", async ({ page, context }) => {
     await context.addCookies([uf("SP"), sigo(["helena-siqueira", "rosana-esteves"])]);
     await page.goto("/pessoas");
-    await expect(page.locator(".sv-pp__m [role=status]")).toHaveText("Você acompanha 2 pessoas. Cabem até 12.");
+    await expect(page.locator(".sv-pp__m > p[role=status]")).toHaveText("Você acompanha 2 pessoas. Cabem até 12.");
   });
 
   test("nenhuma das marcadas existe: a tela não diz zero nem o número de slugs", async ({ page, context }) => {
     await context.addCookies([uf("SP"), sigo(["pessoa-que-sumiu", "outra-que-sumiu"])]);
     await page.goto("/pessoas");
-    const status = page.locator(".sv-pp__m [role=status]");
+    const status = page.locator(".sv-pp__m > p[role=status]");
     await expect(status).toContainText("Nenhuma das 2 pessoas que você marcou aparece nos dados de hoje.");
     await expect(status).not.toContainText(/acompanha \d/);
   });
@@ -42,7 +42,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
   test("a conferência falhou: a tela diz que não conferiu, sem número", async ({ page, context }) => {
     await context.addCookies([uf("SP"), sigo(MARCADOS)]);
     await page.goto("/comecar?passo=2&simular=erro");
-    const status = page.locator(".sv-pp__m [role=status]");
+    const status = page.locator(".sv-pp__m > p[role=status]");
     await expect(status).toContainText("Não conseguimos conferir agora quantas pessoas você acompanha.");
     await expect(status).not.toContainText(/acompanha \d/);
   });
@@ -53,7 +53,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
   test("pessoa fundida só pelo endereço antigo: conta uma, a linha dela aparece marcada e desmarcar tira a marcação", async ({ page, context }) => {
     await context.addCookies([sigo(["slug-antigo-demo"])]);
     await page.goto(ROSANA);
-    const status = page.locator(".sv-pp__m [role=status]");
+    const status = page.locator(".sv-pp__m > p[role=status]");
     await expect(status).toHaveText("Você acompanha 1 pessoa. Cabem até 12.");
     await expect(botaoDaRosana(page)).toHaveAttribute("aria-pressed", "true");
     await botaoDaRosana(page).click();
@@ -65,7 +65,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
   test("pessoa fundida pelos dois endereços: desmarcar tira os dois", async ({ page, context }) => {
     await context.addCookies([sigo(["slug-antigo-demo", "rosana-esteves", "helena-siqueira"])]);
     await page.goto(ROSANA);
-    const status = page.locator(".sv-pp__m [role=status]");
+    const status = page.locator(".sv-pp__m > p[role=status]");
     await expect(status).toContainText("Você acompanha 2 pessoas.");
     await botaoDaRosana(page).click();
     await expect(status).toHaveText("Você acompanha 1 pessoa. Cabem até 12.");
@@ -75,7 +75,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
   test("o botão tira as marcações que não entram na conta e deixa as pessoas que existem", async ({ page, context }) => {
     await context.addCookies([uf("SP"), sigo(MARCADOS)]);
     await page.goto("/pessoas");
-    const status = page.locator(".sv-pp__m [role=status]");
+    const status = page.locator(".sv-pp__m > p[role=status]");
     await page.getByRole("button", { name: "Tirar as 2 marcações que não entram na conta" }).click();
     await expect(status).toHaveText("Você acompanha 2 pessoas. Cabem até 12.");
     await expect(page.getByRole("button", { name: /Tirar .* marcaç/ })).toHaveCount(0);
@@ -87,7 +87,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
     await ctx.addCookies([uf("SP"), sigo(Array.from({ length: 12 }, (_, i) => `pessoa-que-sumiu-${i}`))]);
     const page = await ctx.newPage();
     await page.goto("/pessoas");
-    const status = page.locator(".sv-pp__m [role=status]");
+    const status = page.locator(".sv-pp__m > p[role=status]");
     await expect(status).toContainText("Nenhuma das 12 pessoas que você marcou aparece nos dados de hoje.");
     await expect(status).toContainText("tire as que não entram na conta para abrir lugar");
     await expect(status).not.toContainText("tire alguém");
@@ -101,7 +101,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
   test("marcar uma pessoa na lista soma uma à conta de quem existe", async ({ page, context }) => {
     await context.addCookies([uf("SP"), sigo(["pessoa-que-sumiu"])]);
     await page.goto("/pessoas");
-    const status = page.locator(".sv-pp__m [role=status]");
+    const status = page.locator(".sv-pp__m > p[role=status]");
     await expect(status).toContainText("A pessoa que você marcou não aparece nos dados de hoje.");
     await page.locator(".sv-pp__f button[aria-pressed=false]").first().click();
     await expect(status).toContainText("Você acompanha 1 pessoa.");

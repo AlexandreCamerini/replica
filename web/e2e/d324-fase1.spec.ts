@@ -432,7 +432,7 @@ test.describe("5. marcar direto na lista", () => {
     const n = await linhas.count();
     expect(n).toBeGreaterThan(1);
     await expect(page.locator(".sv-pp > li form button.sv-follow")).toHaveCount(n);
-    await expect(page.locator(".sv-pp__m [role=status]")).toContainText("Você ainda não marcou ninguém.");
+    await expect(page.locator(".sv-pp__m > p[role=status]")).toContainText("Você ainda não marcou ninguém.");
 
     const primeira = linhas.first();
     const nome = (await primeira.locator("a").first().innerText()).trim();
@@ -444,7 +444,7 @@ test.describe("5. marcar direto na lista", () => {
     await primeira.getByRole("button").click();
     await expect(primeira.getByRole("button", { name: `Você acompanha: ${nome}` })).toHaveAttribute("aria-pressed", "true");
     await expect(page).toHaveURL(/\/pessoas\?cargo=senador&uf=SP$/); // continua na lista
-    await expect(page.locator(".sv-pp__m [role=status]")).toContainText("Você acompanha 1 pessoa.");
+    await expect(page.locator(".sv-pp__m > p[role=status]")).toContainText("Você acompanha 1 pessoa.");
     await expect(page.locator(".sv-pp > li button[aria-pressed=true]")).toHaveCount(1);
 
     const cookie = (await context.cookies()).filter((c) => c.name === "sv_sigo");
