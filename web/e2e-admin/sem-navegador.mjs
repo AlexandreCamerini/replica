@@ -119,7 +119,7 @@ async function criterio15(rotas, extras) {
       const traceFora = trace.filter((x) => x.status !== 404);
       const limite = srv.log().includes("'TRACE' HTTP method is unsupported");
       R.checa(traceFora.length === 0 || (limite && traceFora.every((x) => x.status === 500)), `${nome}: TRACE nas ${trace.length} rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central`, traceFora.map((x) => `${x.u} -> ${x.status}`).join("; "));
-      if (traceFora.length > 0) R.aviso(`EXCEÇÃO ao critério 15 (pendente de aprovação do dono, AC-21): ${nome}: TRACE -> ${traceFora.length} de ${trace.length} rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)`);
+      if (traceFora.length > 0) R.aviso(`EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): ${nome}: TRACE -> ${traceFora.length} de ${trace.length} rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)`);
       else R.info(`${nome}: TRACE -> 404 em todas`);
       const cru = await varrerCrua(srv.base, dentro, ex);
       const ruinsCru = cru.filter((x) => x.status !== 404);
