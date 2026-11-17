@@ -1,12 +1,11 @@
 SIMULADO. Provas da central de coleta SEM navegador (C7), pelo HTTP de um `next start` local. Rodadas SIMULADAS: CLI real sobre respostas fabricadas (etl/tests/fixtures/sapl_ale).
-Gerado por: node web/e2e-admin/sem-navegador.mjs   em 2026-11-17T10:53:45.167Z  (banco admin_coleta_c7, recriado)
+Gerado por: node web/e2e-admin/sem-navegador.mjs --sem-build  em 2026-11-17T11:25:16.867Z  (banco admin_coleta_c7, recriado)
 Nenhum número daqui foi lido de fonte real. O Playwright não roda neste ambiente (AC-05): critérios 21 e 26 NÃO são cobertos por este arquivo.
 
         SIMULADO: prova da central sem navegador. Banco admin_coleta_c7 (recriado). Rodadas SIMULADAS (CLI real sobre respostas fabricadas). Nada foi lido de fonte real.
 
 == build
-ok      next build (fonte demo, sem ADMIN_*, sem banco) terminou com código 0 em 81 s
-ok      todas as rotas da central aparecem na tabela de rotas do build
+ok      --sem-build: reaproveita o .next existente
 
 == banco
 ok      banco admin_coleta_c7 recriado, 44 migrações aplicadas (db/migrate.sh --local), semente e base mínima carregadas (base.sql, admin_base.sql)
@@ -20,19 +19,19 @@ ok      o grupo (admin) não tem loading.tsx, template, default, error ou not-fo
 ok      (a) sem ADMIN_CENTRAL: 13 requisições (páginas GET, API nos métodos exportados) todas com status 404
 ok      (a) sem ADMIN_CENTRAL: métodos que a rota não usa também respondem 404 (a rota não se revela por um 405)
 ok      (a) sem ADMIN_CENTRAL: TRACE nas 13 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
-AVISO   EXCEÇÃO ao critério 15 (pendente de aprovação do dono, AC-21): (a) sem ADMIN_CENTRAL: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
+AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (a) sem ADMIN_CENTRAL: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
 ok      (a) sem ADMIN_CENTRAL: 78 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
 ok      (a) o site público (/) continua 200
 ok      (a) variações de caminho (/admin/, ?rodada=, barra final, seguindo o 308 do Next) também 404
 ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: 13 requisições (páginas GET, API nos métodos exportados) todas com status 404
 ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: métodos que a rota não usa também respondem 404 (a rota não se revela por um 405)
 ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: TRACE nas 13 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
-AVISO   EXCEÇÃO ao critério 15 (pendente de aprovação do dono, AC-21): (b) ADMIN_CENTRAL=1 e VERCEL=1: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
+AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (b) ADMIN_CENTRAL=1 e VERCEL=1: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
 ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: 78 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
 ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: 13 requisições (páginas GET, API nos métodos exportados) todas com status 404
 ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: métodos que a rota não usa também respondem 404 (a rota não se revela por um 405)
 ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: TRACE nas 13 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
-AVISO   EXCEÇÃO ao critério 15 (pendente de aprovação do dono, AC-21): (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
+AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
 ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: 78 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
 
 == critério 15 (G1-4): central ligada, Host fora de localhost/127.0.0.1/[::1] responde 404 em páginas e GET de API
@@ -54,10 +53,10 @@ ok      página /admin/rodadas com banco vazio responde 200
 ok      relatório de rodada inexistente: 404 com JSON de erro (não é o 404 da guarda)
 
 == rodadas simuladas (cenário v1; cenário v2 com releitura forçada de robots.txt e /api/)
-ok      rodada v1 49401cf0-cef6-4267-8417-57db8ac20b23 e rodada v2 5054ed8f-4655-4a95-b9bb-e5017503bcf0 (10 URLs com releitura forçada) concluídas em 94 s
+ok      rodada v1 1613fc12-e60f-4b23-899d-9c4cf479c9f4 e rodada v2 b652c67d-762f-4cdd-84a9-5a0ba4e626d4 (10 URLs com releitura forçada) concluídas em 45 s
 ok      as duas rodadas terminaram concluida
 ok      a v2 gerou pendências abertas (2: status@casa 3, status@casa 5)
-ok      pendências de status de AM (e0a8c612-1283-4ddc-bc03-a35da6a6fa64) e de PB (4824ac39-f803-4fa6-97f1-ce35c8cb73da) abertas
+ok      pendências de status de AM (d4e49615-1f31-46e7-8ff2-d1b7e6decbda) e de PB (5849198d-f64e-4ca3-92a7-53e8a28cdcae) abertas
 
 == critério 19: números do painel da central = relatório da CLI (mesma rodada)
 ok      19 [v2] relatório obtido pela CLI e pela API
@@ -74,8 +73,8 @@ ok      19 [v1] HTML de /admin?rodada= painel coleta: 15 totais escritos "V de D
 ok      19 [v1] HTML de /admin?rodada= painel revisao: 14 totais escritos "V de D" e "Ver registros (n)", iguais aos da CLI
 
 == estados de tela com rodadas
-ok      estado rodada_concluida+executor_ok+carregando :: rodada v2 concluída (GET /admin?rodada=5054ed8f-4655-4a95-b9bb-e5017503bcf0)
-ok      estado carregando :: UF com fichas (não é território sem ficha) (GET /admin/uf/13?rodada=5054ed8f-4655-4a95-b9bb-e5017503bcf0)
+ok      estado rodada_concluida+executor_ok+carregando :: rodada v2 concluída (GET /admin?rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4)
+ok      estado carregando :: UF com fichas (não é território sem ficha) (GET /admin/uf/13?rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4)
 ok      estado territorio_sem_ficha :: UF sem ficha continua vazia com banco populado (GET /admin/uf/35)
 ok      estado ficha_sem_evidencia :: ficha sem proposta (RO não mudou entre v1 e v2) (GET /admin/ficha/vinculo_sapl/1)
 ok      estado  :: ficha com proposta (URL, trecho e hash): NÃO é ficha_sem_evidencia (GET /admin/ficha/vinculo_sapl/3)
@@ -100,7 +99,7 @@ AVISO   24 limite: o mapa é componente de cliente (a malha /geo/*.json é busca
 
 == critério 20: dois cliques em 'Recoletar fichas pendentes' = um pedido só
 ok      antes: nenhum pedido no banco
-ok      1º POST: 200, novo=true, id 1a928535-0aa1-4291-8989-36cfed5b7c98
+ok      1º POST: 200, novo=true, id 472b3d56-31d8-422d-bf0c-c38ba9d13600
 ok      2º POST igual: mesmo id e novo=false
 ok      mais dois POST simultâneos: mesmo id e novo=false
 ok      select count(*) em adm_pedidos = 1 pedido (ativo, na_fila) para a chave
@@ -111,7 +110,7 @@ AVISO   20/estado pedido_existente: o <p data-estado="pedido_existente"> só é 
 ok      regra estadoDoPedido: novo=false -> pedido_existente (fonte)
 ok      o pedido gravado pela central tem `parametros` jsonb do tipo object (como o da CLI)
 ok      o executor consome o pedido de recoleta gravado pela central (recoleta:concluido) e a fila esvazia
-ok      a recoleta abriu a rodada a927428b-1443-455f-92cb-777404303951
+ok      a recoleta abriu a rodada 2c3d0d19-faa4-4c6f-9016-22e4f0a1f8b8
 
 == critério 22: pedido de parecer com as duas chaves desligadas não altera nenhuma tabela de domínio
 ok      há pendência aberta para pedir parecer (2)
@@ -123,17 +122,17 @@ ok      [pedido gravado pela central] nenhuma decisão, override ou correction n
 ok      [pedido gravado pela central] adm_pareceres ganhou 3 linha(s) e todas têm simulado = true
 
 == estados de tela montados pelos mecanismos existentes
-ok      rodada aberta e não executada (admin rodada abrir sem --executar): 3123b15f-6341-43a3-a588-d980d13d9913
-ok      estado rodada_em_andamento :: rodada aberta (em andamento), totais parciais (GET /admin?rodada=3123b15f-6341-43a3-a588-d980d13d9913)
-ok      rodada interrompida montada por `admin rodada recuperar` (em_andamento sem trava -> interrompida): 6e021ae2-e02e-4d34-9f13-e2bb1977b05a
-ok      estado rodada_interrompida :: rodada interrompida (pede Repetir) (GET /admin?rodada=6e021ae2-e02e-4d34-9f13-e2bb1977b05a)
+ok      rodada aberta e não executada (admin rodada abrir sem --executar): ba33427c-c1c3-4fcb-b28e-673e6e7c0518
+ok      estado rodada_em_andamento :: rodada aberta (em andamento), totais parciais (GET /admin?rodada=ba33427c-c1c3-4fcb-b28e-673e6e7c0518)
+ok      rodada interrompida montada por `admin rodada recuperar` (em_andamento sem trava -> interrompida): 9be601e3-3bba-472e-a4d1-99fde2018f51
+ok      estado rodada_interrompida :: rodada interrompida (pede Repetir) (GET /admin?rodada=9be601e3-3bba-472e-a4d1-99fde2018f51)
 ok      lista de rodadas mostra os três estados de rodada em cada item
-ok      pedido de parecer na fila com mais de 60 s (retroagido no banco admin_coleta_c7): dd929b68-b0ad-46d6-a93f-fec389966f9a
-ok      estado executor_parado :: executor parado com pedido velho na fila (GET /admin?rodada=5054ed8f-4655-4a95-b9bb-e5017503bcf0)
+ok      pedido de parecer na fila com mais de 60 s (retroagido no banco admin_coleta_c7): a5638301-e330-4913-aec5-e769a813cd32
+ok      estado executor_parado :: executor parado com pedido velho na fila (GET /admin?rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4)
 ok      o bloco diz que o executor está parado e o tempo de espera
 ok      GET /admin/api/estado: executor.parado = true
 ok      o executor consome o pedido velho e a fila esvazia (parecer:concluido)
-ok      estado executor_ok :: executor volta a em dia depois de consumir a fila (GET /admin?rodada=5054ed8f-4655-4a95-b9bb-e5017503bcf0)
+ok      estado executor_ok :: executor volta a em dia depois de consumir a fila (GET /admin?rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4)
 
 == estado de erro de leitura (ADMIN_DATABASE_URL apontando para porta local fechada)
 ok      estado erro_leitura :: banco inalcançável (GET /admin)
@@ -149,8 +148,8 @@ ok      13 requisições (GET: 200; POST sem corpo válido: 400/403, nunca 404):
 ok      POST com corpo vazio é recusado (400 validação ou 403 origem), não aceito
 ok      com pendências abertas, a página /admin/fila lê o banco sem cair em erro_leitura
 ok      com pendências abertas, a página /admin?visao=revisao lê o banco sem cair em erro_leitura
-ok      com pendências abertas, a página /admin?visao=revisao&rodada=5054ed8f-4655-4a95-b9bb-e5017503bcf0 lê o banco sem cair em erro_leitura
+ok      com pendências abertas, a página /admin?visao=revisao&rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4 lê o banco sem cair em erro_leitura
 ok      POST com Origin de outro host: 403 (recusarOrigemExterna)
         fila ao final: vazia
 
-resultado: tudo passou  (104 s)
+resultado: tudo passou  (66 s)

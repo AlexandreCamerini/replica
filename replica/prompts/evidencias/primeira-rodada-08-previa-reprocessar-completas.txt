@@ -17,16 +17,16 @@ observação           sempre sonda {base}/api/ e robots.txt antes de carregar (
 
 URL DE ENTRADA                      CONDIÇÃO                            CACHE     IDADE (h)  HASH
 ----------------------------------  ----------------------------------  --------  ---------  ------------
-https://sapl.al.ro.leg.br/api/      firme                               em_cache  0.0        9c4863cdfaea
-https://sapl.al.ro.leg.br/robots.…  firme                               em_cache  0.0        6f13b5c04f61
-https://sapl.al.ac.leg.br/api/      firme                               em_cache  0.0        c2bcba167146
-https://sapl.al.ac.leg.br/robots.…  firme                               em_cache  0.0        6f13b5c04f61
-https://sapl.al.am.leg.br/api/      firme                               em_cache  0.0        bc154e4aab08
-https://sapl.al.am.leg.br/robots.…  firme                               em_cache  0.0        ab75d28a39d3
-https://sapl.al.pb.leg.br/api/      firme                               em_cache  0.0        c7296d22537b
-https://sapl.al.pb.leg.br/robots.…  firme                               em_cache  0.0        6f13b5c04f61
-https://sapl.al.ro.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.0        181f561a6f4e
-https://sapl.al.ac.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.0        181f561a6f4e
-https://sapl.al.pb.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.0        181f561a6f4e
+https://sapl.al.ro.leg.br/api/      firme                               em_cache  0.01       9c4863cdfaea
+https://sapl.al.ro.leg.br/robots.…  firme                               em_cache  0.01       6f13b5c04f61
+https://sapl.al.ac.leg.br/api/      firme                               em_cache  0.01       c2bcba167146
+https://sapl.al.ac.leg.br/robots.…  firme                               em_cache  0.01       6f13b5c04f61
+https://sapl.al.am.leg.br/api/      firme                               em_cache  0.01       bc154e4aab08
+https://sapl.al.am.leg.br/robots.…  firme                               em_cache  0.01       ab75d28a39d3
+https://sapl.al.pb.leg.br/api/      firme                               em_cache  0.01       c7296d22537b
+https://sapl.al.pb.leg.br/robots.…  firme                               em_cache  0.01       6f13b5c04f61
+https://sapl.al.ro.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.01       181f561a6f4e
+https://sapl.al.ac.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.01       181f561a6f4e
+https://sapl.al.pb.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.01       181f561a6f4e
 
 8 URLs de entrada firmes de 11 listadas

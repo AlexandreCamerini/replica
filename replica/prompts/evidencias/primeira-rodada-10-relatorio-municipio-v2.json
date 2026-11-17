@@ -1,7 +1,7 @@
 {
   "simulado": "v2",
   "rodada": {
-    "id": "da93e6a8-17fe-4c62-9682-e44d9a33ea88",
+    "id": "0198841d-8f3d-47b0-a575-34ec1ff6601d",
     "coletor": "sapl.camaras",
     "modo": "descobrir",
     "recorte": {
@@ -15,8 +15,8 @@
       "extras": {}
     },
     "status": "concluida",
-    "iniciada_em": "2026-11-17T10:01:06.030779+00:00",
-    "finalizada_em": "2026-11-17T10:01:06.110150+00:00",
+    "iniciada_em": "2026-11-17T11:29:03.809933+00:00",
+    "finalizada_em": "2026-11-17T11:29:03.970075+00:00",
     "repete_id": null
   },
   "coleta": {
@@ -220,7 +220,7 @@
       "valor": 1,
       "de": 1,
       "ids": [
-        "08937a94-f4b6-4e17-a271-7060e22ab4c0"
+        "33180e93-7303-4e89-b414-971472396632"
       ]
     },
     "mensagem": null

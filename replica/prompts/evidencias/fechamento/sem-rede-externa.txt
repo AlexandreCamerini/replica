@@ -1,0 +1,139 @@
+        SIMULADO: critério 23 sem navegador. Banco de ensaio admin_coleta_c7 (rodadas fabricadas). Só localhost.
+
+== 1. varredura estática do fonte (src/app/(admin), src/lib/admin, src/components/admin, src/styles/admin.css)
+        36 arquivos varridos
+ok      nenhuma URL absoluta, <script src>, <link href> externo, @import, fonte, imagem ou conexão (WebSocket, XHR, beacon) no fonte da central (0 achados, 0 sem justificativa)
+        chamadas fetch( no fonte da central: 4
+          src/components/admin/enviar.ts:6 fetch(endpoint
+          src/components/admin/mapa-admin.tsx:47 fetch(url
+          src/components/admin/painel-vivo.tsx:71 fetch("/admin/api/estado"
+          src/components/admin/painel-vivo.tsx:80 fetch(`/admin/api/relatorio/${rodadaId}`
+ok      todo fetch com literal é relativo ao site (começa por uma barra, não por duas)
+ok      fetch(endpoint) em src/components/admin/enviar.ts:6 resolvido para caminho relativo: todo endpoint= nos componentes é literal "/admin/api/..." (4 usos: "/admin/api/pedidos", "/admin/api/pedidos", "/admin/api/pedidos", "/admin/api/pedidos")
+ok      fetch(url) em src/components/admin/mapa-admin.tsx:47 resolvido para caminho relativo: url = "/geo/br.json" ou `/geo/uf/${uf}.json` (const url do componente), malhas do próprio repositório em web/public/geo
+ok      as malhas /geo/br.json e /geo/uf/ existem em web/public (servidas pelo próprio site)
+ok      --sem-build: reaproveita o .next existente
+
+== banco de ensaio
+ok      reaproveita admin_coleta_c7: já tem rodadas SIMULADAS concluídas
+        app-build-manifest: 14 entradas da central, 22 arquivos js/css
+
+== 2. central ligada: HTML de cada página e todo recurso que ele referencia
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+        páginas (do sistema de arquivos, com parâmetros reais do banco): /admin/ficha/vinculo_sapl/1  /admin/fila  /admin  /admin/registros  /admin/rodadas/2c3d0d19-faa4-4c6f-9016-22e4f0a1f8b8  /admin/rodadas  /admin/uf/11
+ok      GET /admin/ficha/vinculo_sapl/1 responde 200
+ok      GET /admin/fila responde 200
+ok      GET /admin responde 200
+ok      GET /admin/registros responde 200
+ok      GET /admin/rodadas/2c3d0d19-faa4-4c6f-9016-22e4f0a1f8b8 responde 200
+ok      GET /admin/rodadas responde 200
+ok      GET /admin/uf/11 responde 200
+ok      GET /admin?visao=revisao&rodada=2c3d0d19-faa4-4c6f-9016-22e4f0a1f8b8 responde 200
+ok      GET /admin/uf/11?visao=revisao responde 200
+ok      GET /admin/registros?uf=11 responde 200
+ok      GET /admin/registros?uf=11&municipio=1190099 responde 200
+ok      GET /admin/ficha/vinculo_sapl/5 responde 200
+ok      nenhum <script src>, <link href>, <a href>, <img>, <iframe>, srcset, form action, meta refresh, url() inline ou cabeçalho Link externo em 12 páginas
+        recursos referenciados: 31 (10 só pelo app-build-manifest): 28 js/css, 2 malhas
+ok      todos os 31 recursos baixam com 200
+ok      nenhum recurso (js, css) usa host externo como recurso: sem fetch("http…"), .src=, new URL("http…"), XHR, sendBeacon, WebSocket, EventSource, import() de URL, @import nem url() externo
+        usos que casam o padrão de recurso mas são justificados (new URL em memória no polyfill do core-js, nunca buscado): 4, ex.: /_next/static/chunks/polyfills-42372ed130431b0a.js: new URL("https://… (https://a@b)
+        URLs absolutas que aparecem como texto no HTML e nos recursos: 23 distintas
+          justificada: http://www.w3.org/1998/Math/MathML  em /_next/static/chunks/4bd1b696-100b9d70ed4e49c1.js  -> namespace XML do MathML dentro do react-dom: identificador, nunca buscado
+          justificada: http://www.w3.org/1999/xlink  em /_next/static/chunks/4bd1b696-100b9d70ed4e49c1.js  -> namespace XML do xlink: identificador, nunca buscado
+          justificada: http://www.w3.org/2000/svg  em /_next/static/chunks/4bd1b696-100b9d70ed4e49c1.js  -> namespace XML do SVG (createElementNS e atributo xmlns): identificador, nunca buscado
+          justificada: http://www.w3.org/XML/1998/namespace  em /_next/static/chunks/4bd1b696-100b9d70ed4e49c1.js  -> namespace XML (xml:lang) dentro do react-dom: identificador, nunca buscado
+          justificada: https://a#б  em /_next/static/chunks/polyfills-42372ed130431b0a.js  -> caso de teste do polyfill de URL do core-js (new URL em memória para checar o parser): não é requisição
+          justificada: https://a  em /_next/static/chunks/polyfills-42372ed130431b0a.js  -> caso de teste do polyfill de URL do core-js (new URL em memória para checar o parser): não é requisição
+          justificada: https://a/c%20d?a=1&c=3  em /_next/static/chunks/polyfills-42372ed130431b0a.js  -> caso de teste do polyfill de URL do core-js (new URL em memória para checar o parser): não é requisição
+          justificada: https://a@b  em /_next/static/chunks/polyfills-42372ed130431b0a.js  -> caso de teste do polyfill de URL do core-js (new URL em memória para checar o parser): não é requisição
+          justificada: https://github.com/zloirock/core-js  em /_next/static/chunks/polyfills-42372ed130431b0a.js  -> texto do aviso de licença do core-js dentro do polyfill: não é requisição
+          justificada: https://github.com/zloirock/core-js/blob/v3.38.1/LICENSE  em /_next/static/chunks/polyfills-42372ed130431b0a.js  -> texto do aviso de licença do core-js dentro do polyfill: não é requisição
+          justificada: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparam  em /_next/static/chunks/1255-60d8dc7c8c9309a1.js  -> texto de mensagem de erro ou aviso do Next (link de documentação dentro de string): não é requisição
+          justificada: https://nextjs.org/docs/messages/failed-to-find-server-action  em /_next/static/chunks/1255-60d8dc7c8c9309a1.js  -> texto de mensagem de erro ou aviso do Next (link de documentação dentro de string): não é requisição
+          justificada: https://react.dev/errors/  em /_next/static/chunks/4bd1b696-100b9d70ed4e49c1.js, /_next/static/chunks/1255-60d8dc7c8c9309a1.js  -> texto da mensagem de erro minificada do React (decodificador): só é exibida num console de erro, nunca é buscada
+          justificada: https://sapl.al.am.leg.br/api/  em HTML /admin, HTML /admin/rodadas/2c3d0d19-faa4-4c6f-9016-22e4f0a1f8b8 (+1)  -> URL de fonte (casa SAPL ou evidência da proposta) vinda do banco e escrita como texto na ficha/rodada; o HTML não a usa como href nem src e a página não a busca
+          justificada: https://sapl.al.am.leg.br/robots.txt  em HTML /admin/fila, HTML /admin (+2)  -> URL de fonte (casa SAPL ou evidência da proposta) vinda do banco e escrita como texto na ficha/rodada; o HTML não a usa como href nem src e a página não a busca
+          justificada: https://sapl.al.pb.leg.br  em HTML /admin/ficha/vinculo_sapl/5  -> URL de fonte (casa SAPL ou evidência da proposta) vinda do banco e escrita como texto na ficha/rodada; o HTML não a usa como href nem src e a página não a busca
+          justificada: https://sapl.al.pb.leg.br/api/&quot  em HTML /admin/ficha/vinculo_sapl/5  -> URL de fonte (casa SAPL ou evidência da proposta) vinda do banco e escrita como texto na ficha/rodada; o HTML não a usa como href nem src e a página não a busca
+          justificada: https://sapl.al.pb.leg.br/api/  em HTML /admin/fila, HTML /admin/ficha/vinculo_sapl/5  -> URL de fonte (casa SAPL ou evidência da proposta) vinda do banco e escrita como texto na ficha/rodada; o HTML não a usa como href nem src e a página não a busca
+          justificada: https://sapl.al.pb.leg.br/api/.  em HTML /admin/ficha/vinculo_sapl/5  -> URL de fonte (casa SAPL ou evidência da proposta) vinda do banco e escrita como texto na ficha/rodada; o HTML não a usa como href nem src e a página não a busca
+          justificada: https://sapl.al.ro.leg.br  em HTML /admin/ficha/vinculo_sapl/1  -> URL de fonte (casa SAPL ou evidência da proposta) vinda do banco e escrita como texto na ficha/rodada; o HTML não a usa como href nem src e a página não a busca
+          justificada: https://tailwindcss.com  em /_next/static/css/1f693028f9087959.css  -> comentário de licença do Tailwind no topo do CSS: não é requisição
+          justificada: https://x  em /_next/static/chunks/polyfills-42372ed130431b0a.js  -> caso de teste do polyfill de URL do core-js (new URL em memória para checar o parser): não é requisição
+          justificada: https://тест  em /_next/static/chunks/polyfills-42372ed130431b0a.js  -> caso de teste do polyfill de URL do core-js (new URL em memória para checar o parser): não é requisição
+ok      toda URL absoluta que aparece como texto tem justificativa exata (namespace, mensagem do runtime, comentário), nenhuma é recurso
+        fetch( com argumento variável existe no runtime do Next (prefetch de rotas, RSC) e no mapa/painel da central; todos relativos ao site (provado no fonte, seção 1); nenhum com literal absoluto (varredura acima)
+
+RESULTADO: tudo passou (3 s)

@@ -1,0 +1,6 @@
+psql:local/0000_supabase_stub.sql:8: NOTICE:  schema "auth" already exists, skipping
+psql:local/0000_supabase_stub.sql:9: NOTICE:  relation "users" already exists, skipping
+NOTICE:  relation "schema_migrations" already exists, skipping
+psql:local/post_0002_devauth.sql:2: NOTICE:  schema "devauth" already exists, skipping
+psql:local/post_0002_devauth.sql:9: NOTICE:  relation "codes" already exists, skipping
+ok: 44 migração(ões) aplicada(s)

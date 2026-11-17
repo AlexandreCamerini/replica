@@ -1,0 +1,80 @@
+├ ƒ /_not-found                               244 B         103 kB
+├ ƒ /acervo                                 4.99 kB         191 kB
+├ ƒ /acompanhando                             217 B         106 kB
+├ ƒ /admin                                    195 B         115 kB
+├ ƒ /admin/api/decisoes                       179 B         103 kB
+├ ƒ /admin/api/estado                         179 B         103 kB
+├ ƒ /admin/api/ficha/[classe]/[chave]         179 B         103 kB
+├ ƒ /admin/api/fila                           179 B         103 kB
+├ ƒ /admin/api/pedidos                        179 B         103 kB
+├ ƒ /admin/api/relatorio/[rodada]             179 B         103 kB
+├ ƒ /admin/ficha/[classe]/[chave]           1.46 kB         110 kB
+├ ƒ /admin/fila                               183 B         109 kB
+├ ƒ /admin/registros                          859 B         110 kB
+├ ƒ /admin/rodadas                            183 B         109 kB
+├ ƒ /admin/rodadas/[id]                       195 B         115 kB
+├ ƒ /admin/uf/[uf]                            878 B         116 kB
+├ ƒ /ajudar                                   217 B         106 kB
+├ ƒ /ajustes                                  166 B         106 kB
+├ ƒ /api/compare/agreement                    179 B         103 kB
+├ ƒ /api/cron/vigia                           179 B         103 kB
+├ ƒ /api/health/fontes                        179 B         103 kB
+├ ƒ /api/me                                   179 B         103 kB
+├ ƒ /api/people/[slug]/expenses               179 B         103 kB
+├ ƒ /api/people/[slug]/proposals              179 B         103 kB
+├ ƒ /api/people/[slug]/votes                  179 B         103 kB
+├ ƒ /api/people/search                        179 B         103 kB
+├ ƒ /api/places                               179 B         103 kB
+├ ƒ /api/revalidate                           179 B         103 kB
+├ ƒ /atualizacoes                            1.5 kB         107 kB
+├ ƒ /cargos                                   217 B         106 kB
+├ ƒ /cidades/[letra]                          205 B         156 kB
+├ ƒ /como-escolhemos                          217 B         106 kB
+├ ƒ /como-funciona                            187 B         106 kB
+├ ƒ /comparar                               2.67 kB         188 kB
+├ ƒ /congresso                              2.68 kB         159 kB
+├ ƒ /conta                                  2.06 kB         114 kB
+├ ƒ /correcoes                                217 B         106 kB
+├ ƒ /dados-abertos                          2.05 kB         177 kB
+├ ƒ /decisao/[key]                            217 B         106 kB
+├ ƒ /decisoes                                 187 B         106 kB
+├ ƒ /design                                 12.3 kB         199 kB
+├ ƒ /dicionario                               217 B         106 kB
+├ ƒ /eleicoes                                 205 B         156 kB
+├ ƒ /entrar                                 2.06 kB         114 kB
+├ ƒ /governos                                 205 B         156 kB
+├ ƒ /impostos                                 205 B         156 kB
+├ ƒ /ja-decidido                              217 B         106 kB
+├ ƒ /mcp                                      217 B         106 kB
+├ ƒ /no-seu-bolso                              1 kB         107 kB
+├ ƒ /p/[slug]                               4.59 kB         174 kB
+├ ƒ /p/[slug]/opengraph-image-1lehf8          179 B         103 kB
+├ ƒ /partidos                                 205 B         156 kB
+├ ƒ /pauta                                    506 B         106 kB
+├ ƒ /pessoa/[slug]                            217 B         106 kB
+├ ƒ /pessoa/[slug]/equipe                     217 B         106 kB
+├ ƒ /pessoa/[slug]/gastos                     217 B         106 kB
+├ ƒ /pessoa/[slug]/votos                      217 B         106 kB
+├ ƒ /pessoas                                  187 B         106 kB
+├ ƒ /proposta/[key]                         1.71 kB         124 kB
+├ ƒ /proposta/[key]/opengraph-image-9vgppf    179 B         103 kB
+├ ƒ /propostas                               1.5 kB         107 kB
+├ ƒ /quem                                   1.81 kB         158 kB
+├ ƒ /quem-votei                                1 kB         107 kB
+├ ƒ /representantes                         3.29 kB         189 kB
+├ ƒ /sobre                                    217 B         106 kB
+├ ƒ /sugestoes                              2.06 kB         114 kB
+├ ƒ /tema/[slug]                              185 B         106 kB
+├ ƒ /temas                                    217 B         106 kB
+├ ƒ /v2/[[...resto]]                          179 B         103 kB
+├ ƒ /votacao/[id]                             185 B         106 kB
+├ ƒ /votacoes                                 185 B         106 kB
+└ ƒ /votacoes/[id]                            197 B         156 kB
++ First Load JS shared by all                103 kB
+  ├ chunks/1255-60d8dc7c8c9309a1.js         46.3 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js     54.2 kB
+  └ other shared chunks (total)             2.01 kB
+
+
+ƒ  (Dynamic)  server-rendered on demand
+

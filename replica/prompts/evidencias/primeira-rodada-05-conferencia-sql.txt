@@ -8,19 +8,19 @@ SIMULADO. conferência em SQL do passo 2 (banco admin_coleta_r1)
 -- adm_overrides do campo
                   id                  |    classe    | registro_chave | campo  | valor | suprimir | vigente |              decisao_id              
 --------------------------------------+--------------+----------------+--------+-------+----------+---------+--------------------------------------
- 94cdd30a-177b-4723-be98-6a8b237dcf1e | vinculo_sapl | 5              | status | "ok"  | f        | t       | ba732b1f-005a-44fc-8b47-55cb0e74ce15
+ 3ab33558-196c-43b3-84ca-090e93c0907c | vinculo_sapl | 5              | status | "ok"  | f        | t       | 63f029e3-c526-47d8-ab49-d516760b6679
 (1 linha)
 
 -- adm_decisoes da pendência
                   id                  |             pendencia_id             |  acao   | decidido_por_tipo |       decidido_por_nome       | aplicada |          aplicada_em          |                                                      justificativa                                                      
 --------------------------------------+--------------------------------------+---------+-------------------+-------------------------------+----------+-------------------------------+-------------------------------------------------------------------------------------------------------------------------
- ba732b1f-005a-44fc-8b47-55cb0e74ce15 | 57b8b675-e804-4f63-91fe-db072a59997d | aprovar | pessoa            | Operador de Ensaio (SIMULADO) | t        | 2026-11-17 07:00:48.196391-03 | a /api/ da casa voltou a responder na leitura de 2026-11-17 (resposta fabricada, cenário v2); ver evidência da proposta
+ 63f029e3-c526-47d8-ab49-d516760b6679 | 8734113e-1bc8-4ab5-b004-15ecbc43d1d0 | aprovar | pessoa            | Operador de Ensaio (SIMULADO) | t        | 2026-11-17 08:28:08.323951-03 | a /api/ da casa voltou a responder na leitura de 2026-11-17 (resposta fabricada, cenário v2); ver evidência da proposta
 (1 linha)
 
 -- adm_pendencias
                   id                  |    classe    | registro_chave | campo  |  tipo   |  status  | reaberta 
 --------------------------------------+--------------+----------------+--------+---------+----------+----------
- 57b8b675-e804-4f63-91fe-db072a59997d | vinculo_sapl | 5              | status | mudanca | decidida | f
+ 8734113e-1bc8-4ab5-b004-15ecbc43d1d0 | vinculo_sapl | 5              | status | mudanca | decidida | f
 (1 linha)
 
 -- corrections (linhas: 0)
@@ -31,5 +31,5 @@ SIMULADO. conferência em SQL do passo 2 (banco admin_coleta_r1)
 -- motivo dado pelo resultado da aplicação (saída do comando decidir):
 aplicada         sim
 aplicada: vinculo_sapl:5:status  'ok' -> 'ok'
-escreveu: adm_overrides: ['94cdd30a-177b-4723-be98-6a8b237dcf1e']; sapl_houses: [5]
+escreveu: adm_overrides: ['3ab33558-196c-43b3-84ca-090e93c0907c']; sapl_houses: [5]
 sem corrections (o valor anterior é igual ao novo)

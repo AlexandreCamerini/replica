@@ -1,11 +1,11 @@
 SIMULADO. Parte da saída de `node web/e2e-admin/sem-navegador.mjs --sem-build --fluxo --banco admin_coleta_r1` (API HTTP da central; executor da CLI sobre respostas fabricadas, cenário v2). Nada foi lido de fonte real.
 == passo 4: pedido de decisão (aprovar, sem aplicar)
-ok      POST decisão: id do pedido c59409dd-54b3-4956-a2f9-46ddeefcb1b5
+ok      POST decisão: id do pedido 66d1f2c8-fcc7-4cc2-8de8-2ed924915fbe
 ok      antes do executor não existe decisão: a central só gravou o PEDIDO (AC-19)
 ok      executor (--uma-vez até esvaziar): decisao:concluido [decisão]
 
 == passo 5: a decisão lida pela CLI é a que a API pediu, como pessoa
-ok      admin pendencia 08937a94-f4b6-4e17-a271-7060e22ab4c0 --json traz exatamente 1 decisão
+ok      admin pendencia 33180e93-7303-4e89-b414-971472396632 --json traz exatamente 1 decisão
 ok      CLI: acao=aprovar, por tipo=pessoa, nome="Operador de Ensaio (SIMULADO)", aplicada=false
 ok      SQL em adm_decisoes: aprovar|pessoa|nome|aplicada=false|justificativa, exatamente como pedido pela API
 ok      nenhuma decisão de agentes

@@ -1,14 +1,14 @@
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
-2026-11-17 07:00:55 etl.sapl INFO SAPL Assembleia RO: ok 
-2026-11-17 07:00:55 etl.sapl INFO SAPL Assembleia AC: ok 
-2026-11-17 07:00:55 etl.sapl INFO SAPL Assembleia AM: robots_bloqueia robots.txt bloqueia https://sapl.al.am.leg.br/api/
-2026-11-17 07:00:55 etl.sapl INFO SAPL Assembleia PB: ok 
-2026-11-17 07:00:55 etl.db INFO sapl-ale.descoberta [a7e40ae6]: ok em 0s, 4 upserts, 0 rejeitadas
-2026-11-17 07:00:55 etl.sapl INFO SAPL: nenhuma câmara 'ok' na fila deste lote (em backoff ou já em dia)
-2026-11-17 07:00:55 etl.sapl INFO SAPL: {}
+2026-11-17 08:28:32 etl.sapl INFO SAPL Assembleia RO: ok 
+2026-11-17 08:28:32 etl.sapl INFO SAPL Assembleia AC: ok 
+2026-11-17 08:28:32 etl.sapl INFO SAPL Assembleia AM: robots_bloqueia robots.txt bloqueia https://sapl.al.am.leg.br/api/
+2026-11-17 08:28:32 etl.sapl INFO SAPL Assembleia PB: ok 
+2026-11-17 08:28:32 etl.db INFO sapl-ale.descoberta [cd2d746b]: ok em 0s, 4 upserts, 0 rejeitadas
+2026-11-17 08:28:32 etl.sapl INFO SAPL: nenhuma câmara 'ok' na fila deste lote (em backoff ou já em dia)
+2026-11-17 08:28:32 etl.sapl INFO SAPL: {}
 SIMULADO: 0 URLs pedidas, 0 não previstas
-rodada                    18dc6eef-bcdf-41c2-82e9-4cd00f7ccb7e
+rodada                    2ad4f77d-d92d-4a8d-b16e-e2ff76b5a185
 status                    concluida
 motivo                    código 0 -> concluida
 código de saída           0

@@ -1,7 +1,7 @@
 {
   "simulado": "v2",
   "rodada": {
-    "id": "798e17cd-9b88-48af-ac2b-3b2264293c6c",
+    "id": "39eee101-d59b-4e34-b4e6-003e251d1b6a",
     "coletor": "sapl.assembleias",
     "modo": "recoletar",
     "recorte": {
@@ -19,8 +19,8 @@
       "extras": {}
     },
     "status": "concluida",
-    "iniciada_em": "2026-11-17T10:00:44.531517+00:00",
-    "finalizada_em": "2026-11-17T10:00:44.671115+00:00",
+    "iniciada_em": "2026-11-17T11:27:46.416156+00:00",
+    "finalizada_em": "2026-11-17T11:27:46.772743+00:00",
     "repete_id": null
   },
   "coleta": {
@@ -560,14 +560,14 @@
       "valor": 1,
       "de": 2,
       "ids": [
-        "ba732b1f-005a-44fc-8b47-55cb0e74ce15"
+        "63f029e3-c526-47d8-ab49-d516760b6679"
       ],
       "por_acao": {
         "aprovar": {
           "valor": 1,
           "de": 1,
           "ids": [
-            "ba732b1f-005a-44fc-8b47-55cb0e74ce15"
+            "63f029e3-c526-47d8-ab49-d516760b6679"
           ]
         }
       },
@@ -576,7 +576,7 @@
           "valor": 1,
           "de": 1,
           "ids": [
-            "ba732b1f-005a-44fc-8b47-55cb0e74ce15"
+            "63f029e3-c526-47d8-ab49-d516760b6679"
           ]
         }
       },
@@ -584,7 +584,7 @@
         "valor": 1,
         "de": 1,
         "ids": [
-          "ba732b1f-005a-44fc-8b47-55cb0e74ce15"
+          "63f029e3-c526-47d8-ab49-d516760b6679"
         ]
       },
       "nao_aplicadas": {
@@ -597,8 +597,8 @@
       "valor": 2,
       "de": 2,
       "ids": [
-        "57b8b675-e804-4f63-91fe-db072a59997d",
-        "da115520-8938-42cb-aa05-28e49c25c659"
+        "39943ef8-6bcc-48d1-8e5b-5aeadbd5f581",
+        "8734113e-1bc8-4ab5-b004-15ecbc43d1d0"
       ]
     },
     "mensagem": null

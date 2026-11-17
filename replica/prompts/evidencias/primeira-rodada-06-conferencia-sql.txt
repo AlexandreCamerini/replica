@@ -10,7 +10,7 @@ SIMULADO. nada foi aplicado pelo parecer de ensaio
 
                   id                  | campo  |  tipo   | status |                             pergunta                              
 --------------------------------------+--------+---------+--------+-------------------------------------------------------------------
- da115520-8938-42cb-aa05-28e49c25c659 | status | mudanca | aberta | O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?
+ 39943ef8-6bcc-48d1-8e5b-5aeadbd5f581 | status | mudanca | aberta | O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?
 (1 linha)
 
  decisoes | overrides | corrections | pareceres 

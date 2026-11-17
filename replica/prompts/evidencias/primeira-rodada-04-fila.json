@@ -1,7 +1,7 @@
 [
   {
     "posicao": 1,
-    "id": "da115520-8938-42cb-aa05-28e49c25c659",
+    "id": "39943ef8-6bcc-48d1-8e5b-5aeadbd5f581",
     "classe": "vinculo_sapl",
     "registro_chave": "3",
     "campo": "status",
@@ -9,7 +9,7 @@
     "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
     "reaberta": false,
     "motivo_reabertura": null,
-    "vence_em": "2026-11-24T10:00:44.658984+00:00",
+    "vence_em": "2026-11-24T11:27:46.728881+00:00",
     "cobertura_recorte": 0.6,
     "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
     "territorio": {
@@ -19,17 +19,17 @@
     "valor_vigente": "robots_bloqueia",
     "propostas": [
       {
-        "id": "3c92f9c3-055b-47ff-9bcd-661f34ad3880",
+        "id": "fd51f1b9-60d5-415d-ae35-dff04dac0eef",
         "valor_vigente_na_leitura": "ok",
         "valor_candidato": "robots_bloqueia",
         "url": "https://sapl.al.am.leg.br/robots.txt",
-        "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T10:00:44.582216+00:00)",
+        "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T11:27:46.507440+00:00)",
         "bloco": null,
         "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
-        "lida_em": "2026-11-17T10:00:44.582216+00:00",
+        "lida_em": "2026-11-17T11:27:46.507440+00:00",
         "fonte_declarada_em": null,
         "fonte_slug": "sapl-ale",
-        "rodada_id": "798e17cd-9b88-48af-ac2b-3b2264293c6c",
+        "rodada_id": "39eee101-d59b-4e34-b4e6-003e251d1b6a",
         "alcance": "registro",
         "regra_criterio": null,
         "regra_ids": null
@@ -39,7 +39,7 @@
   },
   {
     "posicao": 2,
-    "id": "57b8b675-e804-4f63-91fe-db072a59997d",
+    "id": "8734113e-1bc8-4ab5-b004-15ecbc43d1d0",
     "classe": "vinculo_sapl",
     "registro_chave": "5",
     "campo": "status",
@@ -47,7 +47,7 @@
     "pergunta": "O status do SAPL desta casa mudou de 'fora_do_ar' para 'ok'?",
     "reaberta": false,
     "motivo_reabertura": null,
-    "vence_em": "2026-11-24T10:00:44.669157+00:00",
+    "vence_em": "2026-11-24T11:27:46.762845+00:00",
     "cobertura_recorte": 0.6,
     "rotulo": "Assembleia Legislativa de Paraíba · Paraíba/PB",
     "territorio": {
@@ -57,17 +57,17 @@
     "valor_vigente": "ok",
     "propostas": [
       {
-        "id": "0c156c4b-569e-4ea6-834d-b7007d356606",
+        "id": "fecebf5b-625e-4777-873b-d6086076b948",
         "valor_vigente_na_leitura": "fora_do_ar",
         "valor_candidato": "ok",
         "url": "https://sapl.al.pb.leg.br/api/",
-        "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T10:00:44.589659+00:00)",
+        "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T11:27:46.521485+00:00)",
         "bloco": null,
         "conteudo_sha256": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118",
-        "lida_em": "2026-11-17T10:00:44.589659+00:00",
+        "lida_em": "2026-11-17T11:27:46.521485+00:00",
         "fonte_declarada_em": null,
         "fonte_slug": "sapl-ale",
-        "rodada_id": "798e17cd-9b88-48af-ac2b-3b2264293c6c",
+        "rodada_id": "39eee101-d59b-4e34-b4e6-003e251d1b6a",
         "alcance": "registro",
         "regra_criterio": null,
         "regra_ids": null

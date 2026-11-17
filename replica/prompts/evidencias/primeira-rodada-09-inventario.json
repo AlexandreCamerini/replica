@@ -642,27 +642,27 @@
         {
           "dataset": "sapl-ale.ac",
           "runs": 1,
-          "carimbo_em": "2026-11-17T10:00:42.062733+00:00"
+          "carimbo_em": "2026-11-17T11:27:37.111711+00:00"
         },
         {
           "dataset": "sapl-ale.am",
           "runs": 1,
-          "carimbo_em": "2026-11-17T10:00:42.114858+00:00"
+          "carimbo_em": "2026-11-17T11:27:37.665890+00:00"
         },
         {
           "dataset": "sapl-ale.descoberta",
           "runs": 4,
-          "carimbo_em": "2026-11-17T10:00:55.789537+00:00"
+          "carimbo_em": "2026-11-17T11:28:32.368314+00:00"
         },
         {
           "dataset": "sapl-ale.pb",
           "runs": 1,
-          "carimbo_em": "2026-11-17T10:00:44.602751+00:00"
+          "carimbo_em": "2026-11-17T11:27:46.553261+00:00"
         },
         {
           "dataset": "sapl-ale.ro",
           "runs": 1,
-          "carimbo_em": "2026-11-17T10:00:42.167445+00:00"
+          "carimbo_em": "2026-11-17T11:27:37.907030+00:00"
         }
       ],
       "truncado": false
@@ -687,16 +687,16 @@
     ],
     "chave_de_api": "nenhuma",
     "ultimo_run": {
-      "id": "a7e40ae6-f65e-4f73-82e0-4fa9d2a5c08b",
+      "id": "cd2d746b-35b2-4e98-837d-2398345229bd",
       "dataset": "sapl-ale.descoberta",
-      "iniciado_em": "2026-11-17T10:00:55.751161+00:00",
-      "finalizado_em": "2026-11-17T10:00:55.789537+00:00",
+      "iniciado_em": "2026-11-17T11:28:32.304080+00:00",
+      "finalizado_em": "2026-11-17T11:28:32.368314+00:00",
       "status": "succeeded",
       "linhas_lidas": null,
       "linhas_gravadas": 4,
       "linhas_rejeitadas": 0,
       "linhas_apagadas": null,
-      "invocation": "admin:18dc6eef-bcdf-41c2-82e9-4cd00f7ccb7e",
+      "invocation": "admin:2ad4f77d-d92d-4a8d-b16e-e2ff76b5a185",
       "erro": null,
       "desconhecidos": {
         "rows_read": "o job não informou",
@@ -704,8 +704,8 @@
       }
     },
     "ultima_tentativa": null,
-    "carimbo_em": "2026-11-17T10:00:44.602751+00:00",
-    "idade_h": 0.0,
+    "carimbo_em": "2026-11-17T11:27:46.553261+00:00",
+    "idade_h": 0.02,
     "dentro_do_prazo": true,
     "estado": "em_dia",
     "estado_motivo": "carimbo há 0 h, dentro do prazo de revalidação",

@@ -1,5 +1,5 @@
 {
-  "id": "18dc6eef-bcdf-41c2-82e9-4cd00f7ccb7e",
+  "id": "2ad4f77d-d92d-4a8d-b16e-e2ff76b5a185",
   "coletor": "sapl.assembleias",
   "modo": "reprocessar",
   "status": "concluida",
@@ -30,10 +30,10 @@
   "forcar_urls": [],
   "so_pendencias": false,
   "repete_id": null,
-  "invocation": "admin:18dc6eef-bcdf-41c2-82e9-4cd00f7ccb7e",
+  "invocation": "admin:2ad4f77d-d92d-4a8d-b16e-e2ff76b5a185",
   "cache_dir": "/tmp/claude-501/admin-r1-cache",
-  "iniciada_em": "2026-11-17T10:00:55.737840+00:00",
-  "finalizada_em": "2026-11-17T10:00:55.799247+00:00",
+  "iniciada_em": "2026-11-17T11:28:32.282901+00:00",
+  "finalizada_em": "2026-11-17T11:28:32.382754+00:00",
   "previa": {
     "argv": [
       "sapl.ales",
@@ -70,7 +70,7 @@
       "sapl-ale.{uf}"
     ],
     "cache_dir": "/tmp/claude-501/admin-r1-cache",
-    "gerada_em": "2026-11-17T10:00:55.739719+00:00",
+    "gerada_em": "2026-11-17T11:28:32.285927+00:00",
     "observacao": "sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=ok, AC=ok, AM=robots_bloqueia, PB=ok | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas | reprocessar: sem rede, refaz só a sondagem das casas (status e cobertura) a partir do cache de robots.txt e /api/; a carga de parlamentares, matérias e sessões só se refaz para casa fora do prazo de recarga de 6 dias (STALE_DAYS) e, nesse caso, depende de as páginas estarem no cache (as consultas incrementais por data mudam a cada dia); URL ausente do cache aborta a execução (SemRedeSemCache); reler o cache não reproduz a rodada original",
     "a_consultar": {
       "base": "modo sem rede (ETL_HTTP_OFFLINE): nenhuma consulta; URL ausente do cache recusa a rodada",
@@ -88,7 +88,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "9c4863cdfaeaf526d83da9b653562fb82807c42f341bd5b222f8c89bbf3ca69b",
-          "idade_horas": 0.0
+          "idade_horas": 0.01
         },
         "condicional": null
       },
@@ -97,7 +97,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
-          "idade_horas": 0.0
+          "idade_horas": 0.01
         },
         "condicional": null
       },
@@ -106,7 +106,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "c2bcba167146c89840b0efbc4bc5eefbc602f361371d175d9819c1381e577f65",
-          "idade_horas": 0.0
+          "idade_horas": 0.01
         },
         "condicional": null
       },
@@ -115,7 +115,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
-          "idade_horas": 0.0
+          "idade_horas": 0.01
         },
         "condicional": null
       },
@@ -124,7 +124,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "bc154e4aab08437b2e4f7221cbc0311707e1781f0e5d95061e05d049855f3896",
-          "idade_horas": 0.0
+          "idade_horas": 0.02
         },
         "condicional": null
       },
@@ -133,7 +133,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
-          "idade_horas": 0.0
+          "idade_horas": 0.01
         },
         "condicional": null
       },
@@ -142,7 +142,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118",
-          "idade_horas": 0.0
+          "idade_horas": 0.01
         },
         "condicional": null
       },
@@ -151,7 +151,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
-          "idade_horas": 0.0
+          "idade_horas": 0.01
         },
         "condicional": null
       },
@@ -160,7 +160,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
-          "idade_horas": 0.0
+          "idade_horas": 0.02
         },
         "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
       },
@@ -169,7 +169,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
-          "idade_horas": 0.0
+          "idade_horas": 0.02
         },
         "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
       },
@@ -178,7 +178,7 @@
         "cache": {
           "estado": "em_cache",
           "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
-          "idade_horas": 0.0
+          "idade_horas": 0.01
         },
         "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
       }
@@ -221,7 +221,7 @@
     "condicionais_fora_do_cache": []
   },
   "resultado": {
-    "fim": "2026-11-17T10:00:55.799209+00:00",
+    "fim": "2026-11-17T11:28:32.382693+00:00",
     "regra": {
       "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
       "timeout": "código 124 (timeout) -> interrompida",
@@ -233,7 +233,7 @@
       "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
       "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
     },
-    "inicio": "2026-11-17T10:00:55.743110+00:00",
+    "inicio": "2026-11-17T11:28:32.291062+00:00",
     "motivo": "código 0 -> concluida",
     "runner": "processo",
     "status": "concluida",
@@ -285,7 +285,7 @@
       "primeiros_preenchimentos_por_classe": {}
     },
     "sem_cache": [],
-    "invocation": "admin:18dc6eef-bcdf-41c2-82e9-4cd00f7ccb7e",
+    "invocation": "admin:2ad4f77d-d92d-4a8d-b16e-e2ff76b5a185",
     "tentativas": {
       "lidas": 0,
       "falhas": {
@@ -322,7 +322,7 @@
   },
   "execucoes": [
     {
-      "fim": "2026-11-17T10:00:55.799209+00:00",
+      "fim": "2026-11-17T11:28:32.382693+00:00",
       "regra": {
         "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
         "timeout": "código 124 (timeout) -> interrompida",
@@ -334,7 +334,7 @@
         "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
         "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
       },
-      "inicio": "2026-11-17T10:00:55.743110+00:00",
+      "inicio": "2026-11-17T11:28:32.291062+00:00",
       "motivo": "código 0 -> concluida",
       "runner": "processo",
       "status": "concluida",
@@ -386,7 +386,7 @@
         "primeiros_preenchimentos_por_classe": {}
       },
       "sem_cache": [],
-      "invocation": "admin:18dc6eef-bcdf-41c2-82e9-4cd00f7ccb7e",
+      "invocation": "admin:2ad4f77d-d92d-4a8d-b16e-e2ff76b5a185",
       "tentativas": {
         "lidas": 0,
         "falhas": {

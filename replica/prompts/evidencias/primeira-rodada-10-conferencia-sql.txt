@@ -6,7 +6,7 @@ SIMULADO. município fabricado 1190099 no banco admin_coleta_r1
 
                   id                  |    classe    | registro_chave |  campo   |  tipo   | status 
 --------------------------------------+--------------+----------------+----------+---------+--------
- 08937a94-f4b6-4e17-a271-7060e22ab4c0 | vinculo_sapl | 20             | base_url | mudanca | aberta
- da115520-8938-42cb-aa05-28e49c25c659 | vinculo_sapl | 3              | status   | mudanca | aberta
+ 33180e93-7303-4e89-b414-971472396632 | vinculo_sapl | 20             | base_url | mudanca | aberta
+ 39943ef8-6bcc-48d1-8e5b-5aeadbd5f581 | vinculo_sapl | 3              | status   | mudanca | aberta
 (2 linhas)
 

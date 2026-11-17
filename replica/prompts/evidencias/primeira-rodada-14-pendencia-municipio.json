@@ -1,5 +1,5 @@
 {
-  "id": "08937a94-f4b6-4e17-a271-7060e22ab4c0",
+  "id": "33180e93-7303-4e89-b414-971472396632",
   "classe": "vinculo_sapl",
   "registro_chave": "20",
   "campo": "base_url",
@@ -7,7 +7,7 @@
   "pergunta": "O endereço do SAPL desta casa mudou de 'https://sapl.camara-fabricada.invalid' para 'https://sapl.camara-fabricada-nova.invalid'?",
   "reaberta": false,
   "motivo_reabertura": null,
-  "vence_em": "2026-11-24T10:01:06.100893+00:00",
+  "vence_em": "2026-11-24T11:29:03.946779+00:00",
   "cobertura_recorte": 1.0,
   "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
   "territorio": {
@@ -17,17 +17,17 @@
   "valor_vigente": "https://sapl.camara-fabricada-nova.invalid",
   "propostas": [
     {
-      "id": "7a01e7bb-02a9-4ef9-b022-c2ec960509c9",
+      "id": "a182bbe7-d8dd-498d-8adb-d88509b23f69",
       "valor_vigente_na_leitura": "https://sapl.camara-fabricada.invalid",
       "valor_candidato": "https://sapl.camara-fabricada-nova.invalid",
       "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
-      "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T10:01:06.082053+00:00)",
+      "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T11:29:03.897749+00:00)",
       "bloco": null,
       "conteudo_sha256": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
-      "lida_em": "2026-11-17T10:01:06.082053+00:00",
+      "lida_em": "2026-11-17T11:29:03.897749+00:00",
       "fonte_declarada_em": null,
       "fonte_slug": "sapl",
-      "rodada_id": "da93e6a8-17fe-4c62-9682-e44d9a33ea88",
+      "rodada_id": "0198841d-8f3d-47b0-a575-34ec1ff6601d",
       "alcance": "registro",
       "regra_criterio": null,
       "regra_ids": null
@@ -37,10 +37,10 @@
   "status": "decidida",
   "evidencia_sha": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
   "vigente_sha": "365b39fc0baf22fe4a17167b3289b5e02380a44770181d0feb3e535c693f5291",
-  "criada_em": "2026-11-17T10:01:06.098739+00:00",
+  "criada_em": "2026-11-17T11:29:03.941951+00:00",
   "decisoes": [
     {
-      "id": "e4311be6-e0d2-4932-bf8e-ba6dc1701e24",
+      "id": "f48e504f-3ad8-4717-8d27-b092e0ca1b93",
       "acao": "aprovar",
       "decidido_por_tipo": "pessoa",
       "decidido_por_nome": "Operador de Ensaio (SIMULADO)",
@@ -51,22 +51,22 @@
       ],
       "aplicada": false,
       "aplicada_em": null,
-      "criada_em": "2026-11-17T10:01:11.392041+00:00"
+      "criada_em": "2026-11-17T11:29:16.807632+00:00"
     }
   ],
   "historico": [
     {
-      "id": "7a01e7bb-02a9-4ef9-b022-c2ec960509c9",
+      "id": "a182bbe7-d8dd-498d-8adb-d88509b23f69",
       "valor_vigente_na_leitura": "https://sapl.camara-fabricada.invalid",
       "valor_candidato": "https://sapl.camara-fabricada-nova.invalid",
       "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
-      "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T10:01:06.082053+00:00)",
+      "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T11:29:03.897749+00:00)",
       "bloco": null,
       "conteudo_sha256": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
-      "lida_em": "2026-11-17T10:01:06.082053+00:00",
+      "lida_em": "2026-11-17T11:29:03.897749+00:00",
       "fonte_declarada_em": null,
       "fonte_slug": "sapl",
-      "rodada_id": "da93e6a8-17fe-4c62-9682-e44d9a33ea88",
+      "rodada_id": "0198841d-8f3d-47b0-a575-34ec1ff6601d",
       "alcance": "registro",
       "regra_criterio": null,
       "regra_ids": null,

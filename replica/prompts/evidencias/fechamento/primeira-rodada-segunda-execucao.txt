@@ -1,0 +1,40 @@
+  [ok] o banco tem 2 decisões (PB do passo 2, município do passo 9), 0 de agentes, 1 override (o de PB) e 0 corrections
+
+== passo 15-fechamento-central
+  gravado primeira-rodada-15-check.txt (código 1)
+  gravado primeira-rodada-15-fila.txt (código 0)
+  gravado primeira-rodada-15-fila.json (código 0)
+  gravado primeira-rodada-15-vinculos-municipio.txt (código 0)
+  gravado primeira-rodada-15-vinculos-municipio.json (código 0)
+    SIMULADO. invariantes quebradas depois do fluxo da central (banco admin_coleta_r1) contra as do passo 09
+      - UF: exatamente 1 governador titular em exercício (salvo exceção listada com motivo) (25)
+      - UF: governador e vice em exercício = lista conferida na fonte oficial (GOVERNO_POR_UF), e vaga com motivo (54)
+      - cota: amostra fixa de deputados e anos = total da Câmara (±0,5%) (20)
+      - câmara: exatamente 513 em exercício, todos com partido vigente (513)
+      - município: exatamente 1 prefeito titular em exercício (salvo exceção listada com motivo) (1)
+      - senado: exatamente 81 em exercício, todos com partido vigente (81)
+    iguais às do passo 09: sim
+    RESULTADO: IGUAL_PASSO_09=sim
+  [ok] o check depois do fluxo da central quebra as mesmas invariantes que no passo 09 (o município e a recoleta não quebraram nada novo)
+  pendências abertas: 1
+  [ok] a fila final tem a pendência de AM e não tem a do município (decidida)
+
+SIMULADO: resumo da primeira rodada (respostas fabricadas; nada foi lido da fonte)
+  00-preparo               ok
+  01-inventario            ok
+  02-previa                ok
+  03-rodada-v1             ok
+  04-mudanca-v2            ok
+  05-decisao-aplicada      ok
+  06-pendencia-aberta      ok
+  07-repetir               ok
+  08-reprocessar           ok
+  09-fechamento            ok
+  10-municipio             ok
+  11-passo6-mapa           ok
+  12-passo7-recoleta       ok
+  13-passo8-parecer        ok
+  14-passo9-decisao        ok
+  15-fechamento-central    ok
+  RESSALVA critério 14: além das 5 invariantes da linha de base, 'município: exatamente 1 prefeito titular' (1) está quebrada ANTES e DEPOIS da rodada, porque admin_base.sql cria o município fabricado 1190099 sem prefeito; não é efeito da rodada
+resultado: tudo passou

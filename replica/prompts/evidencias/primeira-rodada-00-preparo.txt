@@ -6,7 +6,7 @@ SIMULADO. preparo do banco admin_coleta_r1 (recriado do zero)
 
  migracoes_aplicadas 
 ---------------------
-                  42
+                  44
 (1 linha)
 
  uf |                name                |    kind    
