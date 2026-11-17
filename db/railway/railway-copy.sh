@@ -198,7 +198,7 @@ if [[ $REFAZER == 1 ]]; then
   fi
   EXISTS=f
 fi
-if [[ "$EXISTS" != t ]]; then psql "$ADMIN" "${Q[@]}" -c "create database \"$DB\""
+if [[ "$EXISTS" != t ]]; then psql "$ADMIN" "${Q[@]}" -c "create database \"$DB\"" -c "comment on database \"$DB\" is 'segueovoto'"  # marca já na criação: falha no bootstrap não deixa sobra sem dono
 else
   N="$(psql "$DESTINO" "${Q[@]}" -c "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname in ('public','login') and c.relkind in ('r','p')")"
   [[ "$N" == 0 ]] || confirmar "O database '$DB' já tem $N tabela(s) em public/login: serão APAGADAS antes do restore." "$DB"
