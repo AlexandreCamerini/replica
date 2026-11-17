@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { agregarPais } from "./agregacao.ts";
 import { sqlAdmin } from "./db.ts";
 import { exigirAdmin } from "./guarda.ts";
+import { operadorAtual } from "./sessao.ts";
 import {
   ErroPedidoInvalido,
   SQL_CAMPOS_COM_PROPOSTA,
@@ -80,6 +81,20 @@ export class ErroGravacaoBanco extends ErroDaCentral {
     this.name = "ErroGravacaoBanco";
   }
 }
+/** O gatilho de ritmo do banco (migração 0156, SQLSTATE 54000, "pedido recusado: ...") recusou o pedido: 20 por minuto por admin. Vira 429. */
+export class ErroRitmo extends ErroDaCentral {
+  constructor() {
+    super("Muitos pedidos em pouco tempo. Espere cerca de um minuto e tente de novo.");
+    this.name = "ErroRitmo";
+  }
+}
+/** O gatilho de identidade do banco (SQLSTATE 42501, "pedido recusado: ...") recusou o operador (fora de `adm_admins`, inativo ou `user_id` diferente). Vira 403. */
+export class ErroOperadorRecusado extends ErroDaCentral {
+  constructor() {
+    super("pedido recusado: este operador não tem permissão para pedir");
+    this.name = "ErroOperadorRecusado";
+  }
+}
 export class ErroNaoEncontrado extends ErroDaCentral {
   constructor(o: string) {
     super(`${o} não encontrada`);
@@ -107,6 +122,8 @@ const consultaDe =
     (await sql.unsafe(texto, params as never)) as unknown as T[];
 
 const codigoDe = (e: unknown): string => (e && typeof e === "object" && "code" in e && typeof (e as { code: unknown }).code === "string" ? (e as { code: string }).code : "sem_codigo");
+
+const mensagemDe = (e: unknown): string => (e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string" ? (e as { message: string }).message : "");
 
 /** Roda `fn` com o pool da central. `instantaneo`: uma transação só de leitura com um único retrato do banco (as somas do relatório precisam disso). */
 async function lendo<T>(fn: (q: Consulta) => Promise<T>, instantaneo = false): Promise<T> {
@@ -151,7 +168,7 @@ function paraFicha(l: LinhaFicha): Ficha {
 
 /** As fichas das quatro classes (alimenta agregacao.ts: mapa, contagens, "Ver registros"). Uma por classe+chave; duplicata de chave é unificada por agregacao.ts. */
 export async function fichas(): Promise<Ficha[]> {
-  exigirAdmin();
+  await exigirAdmin();
   const linhas = await lendo((q) => q<LinhaFicha>(SQL_FICHAS));
   return linhas.map(paraFicha);
 }
@@ -319,7 +336,7 @@ type LinhaRodada = {
  * Diferença declarada: `tentativas_registradas` vem da prévia gravada na rodada, não do catálogo do ETL.
  */
 export async function relatorioDaRodada(id: string): Promise<RelatorioRodada> {
-  exigirAdmin();
+  await exigirAdmin();
   if (!ehUuid(id)) throw new ErroNaoEncontrado("rodada");
   const rid = id.toLowerCase();
   return lendo(async (q) => {
@@ -359,7 +376,7 @@ type LinhaProposta = { pendencia_id: string } & Linha;
  * O rótulo, o território e as propostas são buscados DEPOIS, em consultas separadas, e não reordenam nada.
  */
 export async function fila(classe?: string, limite?: number) {
-  exigirAdmin();
+  await exigirAdmin();
   if (classe !== undefined && !ehClasse(classe)) throw new ErroPedidoInvalido("classe inválida");
   if (limite !== undefined && (!Number.isInteger(limite) || limite < 1 || limite > 1000)) throw new ErroPedidoInvalido("limite tem de ser um inteiro de 1 a 1000");
   return lendo(async (q) => {
@@ -436,7 +453,7 @@ type PorCampo = { campo: string } & Linha;
 
 /** A ficha: identificação e território; por campo, o valor vigente de AGORA (tabela de domínio), as propostas com evidência, a pendência com a pergunta, os pareceres e o histórico de decisões. */
 export async function ficha(classe: string, chave: string) {
-  exigirAdmin();
+  await exigirAdmin();
   if (!ehClasse(classe) || !chaveValida(classe, chave)) throw new ErroNaoEncontrado("ficha");
   return lendo(async (q) => {
     const base = (await q<LinhaFicha>(SQL_FICHA_BASE, [classe, chave]))[0];
@@ -475,14 +492,14 @@ export async function ficha(classe: string, chave: string) {
 // ---------------------------------------------------------------------------------------------------------------------------- rodadas
 
 export async function rodadas(limite = 50) {
-  exigirAdmin();
+  await exigirAdmin();
   if (!Number.isInteger(limite) || limite < 1 || limite > 200) throw new ErroPedidoInvalido("limite tem de ser um inteiro de 1 a 200");
   return lendo((q) => q(SQL_RODADAS, [limite]));
 }
 
 /** Cabeçalho da rodada (recorte, prévia, status) e os pedidos da fila ligados a ela. Os totais estão em `relatorioDaRodada`. */
 export async function rodada(id: string) {
-  exigirAdmin();
+  await exigirAdmin();
   if (!ehUuid(id)) throw new ErroNaoEncontrado("rodada");
   return lendo(async (q) => {
     const r = (await q<LinhaRodada>(SQL_RODADA, [id.toLowerCase()]))[0];
@@ -498,7 +515,7 @@ export const LIMITE_FILA_S = 60;
 export const LIMITE_BATIMENTO_S = 120;
 
 export async function estadoDoExecutor() {
-  exigirAdmin();
+  await exigirAdmin();
   return lendo(async (q) => {
     const e = (
       await q<{ na_fila: number; em_execucao: number; fila_mais_antiga_s: number | null; batimento_mais_antigo_s: number | null; ultimo_batimento_s: number | null; agora: unknown }>(
@@ -530,7 +547,7 @@ export async function estadoDoExecutor() {
 
 /** Contagens do mapa (por UF, sem território, conflitos), da MESMA agregação que desenha o mapa: sem unificação própria. */
 export async function contagensDoMapa() {
-  exigirAdmin();
+  await exigirAdmin();
   const ag = agregarPais(await fichas());
   return {
     total: ag.total,
@@ -552,6 +569,8 @@ async function gravando(fn: (q: Consulta) => Promise<PedidoGravado>): Promise<Pe
     const codigo = codigoDe(e);
     console.error("[admin] erro ao gravar pedido:", codigo);
     if (codigo === "23503") throw new ErroPedidoInvalido("a pendência não existe");
+    if (codigo === "54000" && mensagemDe(e).startsWith("pedido recusado:")) throw new ErroRitmo();
+    if (codigo === "42501" && mensagemDe(e).startsWith("pedido recusado:")) throw new ErroOperadorRecusado();
     throw new ErroGravacaoBanco();
   }
 }
@@ -572,25 +591,34 @@ async function inserirOuExistente(q: Consulta, inserir: string, existente: strin
   throw new ErroGravacaoBanco();
 }
 
-/** Pedido de rodada, recoleta ou parecer. Parâmetros validados e normalizados; nada é aplicado aqui: o executor consome. Dois iguais enquanto o primeiro está ativo = mesmo id. */
+/**
+ * Pedido de rodada, recoleta ou parecer. Parâmetros validados e normalizados; nada é aplicado aqui: o executor consome. Dois iguais enquanto o primeiro está ativo = mesmo id.
+ * Quem pede é o `operadorAtual()` (sessão), gravado em `por_user_id` e `por_email`; a `chave_idem` não leva a pessoa (dois admins pedindo o mesmo = um pedido só, como na CLI).
+ */
 export async function pedir(tipo: string, parametros: unknown): Promise<PedidoGravado> {
-  exigirAdmin();
+  await exigirAdmin();
   const p = validarPedido(tipo, parametros);
+  const op = await operadorAtual();
   const chave = chaveIdemPedido(p.tipo, p.parametros);
-  return gravando((q) => inserirOuExistente(q, SQL_PEDIDO_INSERIR, SQL_PEDIDO_EXISTENTE, [p.tipo, jsonCanonico(p.parametros), chave], chave));
+  return gravando((q) => inserirOuExistente(q, SQL_PEDIDO_INSERIR, SQL_PEDIDO_EXISTENTE, [p.tipo, jsonCanonico(p.parametros), chave, op.userId, op.email], chave));
 }
 
-/** Pedido de decisão (nunca a decisão: o executor valida e grava com `decisoes.decidir`). Exige `por` e `justificativa` não vazios. */
+/**
+ * Pedido de decisão (nunca a decisão: o executor valida e grava com `decisoes.decidir`). Exige `justificativa` não vazia; o `por` do corpo é ignorado.
+ * Quem decide é o `operadorAtual()`: `por_user_id` e `por_email` da sessão; `por_nome` = o NOME DO ADMIN em `adm_admins`, que é o que o gatilho do banco grava e o que o executor
+ * relê da linha para recalcular a `chave_idem` (CHAVE_DECISAO inclui `por_nome`). Mandar o nome da tabela faz as duas chaves coincidirem.
+ */
 export async function pedirDecisao(corpo: unknown): Promise<PedidoGravado> {
-  exigirAdmin();
+  await exigirAdmin();
   const d = validarDecisao(corpo);
-  const chave = chaveIdemDecisao(d);
+  const op = await operadorAtual();
+  const chave = chaveIdemDecisao({ ...d, por_nome: op.nome });
   return gravando((q) =>
     inserirOuExistente(
       q,
       SQL_PEDIDO_DECISAO_INSERIR,
       SQL_PEDIDO_DECISAO_EXISTENTE,
-      [d.pendencia_id, d.acao, d.por_nome, d.justificativa, d.valor === undefined ? null : jsonCanonico(d.valor), d.aplicar, chave],
+      [d.pendencia_id, d.acao, op.nome, d.justificativa, d.valor === undefined ? null : jsonCanonico(d.valor), d.aplicar, chave, op.userId, op.email],
       chave,
     ),
   );
@@ -605,6 +633,8 @@ const isControleDoNext = (e: unknown): boolean =>
 export function respostaDeErro(e: unknown): Response {
   if (isControleDoNext(e)) throw e;
   if (e instanceof ErroPedidoInvalido) return NextResponse.json({ erro: e.message }, { status: 400 });
+  if (e instanceof ErroRitmo) return NextResponse.json({ erro: e.message }, { status: 429, headers: { "Retry-After": "60" } });
+  if (e instanceof ErroOperadorRecusado) return NextResponse.json({ erro: e.message }, { status: 403 });
   if (e instanceof ErroNaoEncontrado) return NextResponse.json({ erro: e.message }, { status: 404 });
   if (e instanceof ErroInvariante) return NextResponse.json({ erro: "os totais da rodada não fecham (rodada em andamento ou dado inconsistente)" }, { status: 409 });
   if (e instanceof ErroLeituraBanco || e instanceof ErroGravacaoBanco) return NextResponse.json({ erro: e.message }, { status: 503 });

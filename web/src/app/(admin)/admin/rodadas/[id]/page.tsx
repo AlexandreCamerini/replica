@@ -10,7 +10,7 @@ import { exigirAdmin } from "@/lib/admin/guarda";
 export const dynamic = "force-dynamic";
 
 export default async function PaginaRodada({ params }: { params: Promise<{ id: string }> }) {
-  exigirAdmin();
+  await exigirAdmin();
   const { id } = await params;
   try {
     const [r, executor, todas] = await Promise.all([rodada(id), estadoDoExecutor(), fichas()]);

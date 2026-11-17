@@ -34,10 +34,11 @@ test("o grupo (admin) existe: layout e as seis rotas de API", () => {
   assert.deepEqual(rotas, [...esperadas].sort());
 });
 
-test("a primeira instrução do layout é exigirAdmin(), antes de qualquer JSX", () => {
+test("a primeira instrução do layout é `await exigirAdminOuEntrada()` (AC-23: guarda assíncrona, com await), antes de qualquer JSX", () => {
   const src = semComentarios(ler(layout));
-  assert.match(src, /export default (?:async )?function \w*\([^)]*\)\s*(?::[^{]+)?\{\s*exigirAdmin\(\);/);
-  assert.match(src, /import \{ exigirAdmin \} from "@\/lib\/admin\/guarda";/);
+  // sem o `await`, o notFound() vira promessa rejeitada solta e o layout renderiza: o await é parte da regra, não opcional
+  assert.match(src, /export default async function \w*\([^)]*\)\s*(?::[^{]+)?\{\s*await exigirAdminOuEntrada\(\);/);
+  assert.match(src, /import \{ exigirAdminOuEntrada \} from "@\/lib\/admin\/guarda";/);
   assert.match(src, /export const dynamic = "force-dynamic";/);
   assert.match(src, /robots:\s*\{\s*index:\s*false,\s*follow:\s*false/);
   assert.match(src, /title:\s*\{\s*absolute:/);
@@ -59,7 +60,7 @@ test("todo route handler chama exigirAdminApi() na primeira instrução de cada 
     const src = semComentarios(ler(f));
     const metodos = [...src.matchAll(/export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/g)];
     assert.ok(metodos.length >= 1, `${rel(f)} não exporta método`);
-    const comGuarda = [...src.matchAll(/export\s+(?:async\s+)?function\s+(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*\([^)]*\)[^{]*\{\s*const negado = exigirAdminApi\(\);\s*if \(negado\) return negado;/g)];
+    const comGuarda = [...src.matchAll(/export\s+async\s+function\s+(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*\([^)]*\)[^{]*\{\s*const negado = await exigirAdminApi\(\);\s*if \(negado\) return negado;/g)];
     assert.equal(comGuarda.length, metodos.length, `${rel(f)}: método sem a guarda na primeira instrução`);
     assert.ok(!/export\s+(?:const|let)\s+(GET|POST|PUT|PATCH|DELETE)\b/.test(src), `${rel(f)}: handler como const escapa deste teste`);
     assert.match(src, /export const dynamic = "force-dynamic";/, `${rel(f)} sem force-dynamic`);
@@ -68,16 +69,20 @@ test("todo route handler chama exigirAdminApi() na primeira instrução de cada 
 });
 
 test("os POST recusam origem externa logo depois da guarda", () => {
-  for (const f of rotas.filter((r) => /export\s+async\s+function\s+POST\b/.test(ler(r)))) {
+  // os stubs de "método não usado" (405) agora são `async` por causa do await da guarda: um POST que NÃO é o stub exato de 405 tem de recusar a origem
+  const stub405 = /POST\s*\([^)]*\)\s*\{\s*const negado = await exigirAdminApi\(\);\s*if \(negado\) return negado;\s*return new Response\(null, \{ status: 405 \}\);\s*\}/;
+  const comPost = rotas.filter((r) => /export\s+async\s+function\s+POST\b/.test(ler(r)));
+  assert.ok(comPost.some((r) => !stub405.test(semComentarios(ler(r)))), "esperava ao menos um POST real (pedidos, decisoes)");
+  for (const f of comPost.filter((r) => !stub405.test(semComentarios(ler(r))))) {
     const src = semComentarios(ler(f));
-    assert.match(src, /POST\s*\([^)]*\)\s*\{\s*const negado = exigirAdminApi\(\);\s*if \(negado\) return negado;\s*const recusado = recusarOrigemExterna\(req\);\s*if \(recusado\) return recusado;/, rel(f));
+    assert.match(src, /POST\s*\([^)]*\)\s*\{\s*const negado = await exigirAdminApi\(\);\s*if \(negado\) return negado;\s*const recusado = recusarOrigemExterna\(req\);\s*if \(recusado\) return recusado;/, rel(f));
   }
 });
 
 test("toda função de consulta exportada começa por exigirAdmin()", () => {
   const src = semComentarios(ler(join(LIB, "consultas.ts")));
   const todas = [...src.matchAll(/export\s+async\s+function\s+(\w+)/g)].map((m) => m[1]);
-  const guardadas = [...src.matchAll(/export\s+async\s+function\s+(\w+)\s*\([^)]*\)[^{]*\{\s*exigirAdmin\(\);/g)].map((m) => m[1]);
+  const guardadas = [...src.matchAll(/export\s+async\s+function\s+(\w+)\s*\([^)]*\)[^{]*\{\s*await exigirAdmin\(\);/g)].map((m) => m[1]);
   assert.ok(todas.length >= 9, "esperava as consultas da central");
   assert.deepEqual(guardadas, todas);
   assert.ok(!/export\s+(?:const|let)\s+\w+\s*=\s*(?:async\s*)?\(/.test(src), "função exportada como const escapa deste teste");
@@ -97,8 +102,8 @@ test("sqlAdmin() recusa com a central fechada e só cria o pool dentro da funç�
 });
 
 test("guarda, db e consultas são server-only; sql e as regras puras não importam Next", () => {
-  for (const n of ["guarda.ts", "db.ts", "consultas.ts"]) assert.match(ler(join(LIB, n)), /^import "server-only";/, n);
-  for (const n of ["sql.ts", "guarda-regra.ts", "tipos.ts", "agregacao.ts"]) {
+  for (const n of ["guarda.ts", "db.ts", "consultas.ts", "sessao.ts", "cliente-auth.ts"]) assert.match(ler(join(LIB, n)), /^import "server-only";/, n);
+  for (const n of ["sql.ts", "guarda-regra.ts", "tipos.ts", "agregacao.ts", "cabecalhos.ts"]) {
     const src = semComentarios(ler(join(LIB, n)));
     assert.ok(!/server-only|from "next|from "react|from "@\//.test(src), `${n} é puro: não importa server-only, Next, React nem alias`);
   }
@@ -111,6 +116,33 @@ test("nada do grupo nem de lib/admin importa lib/data, lib/db/writer ou unstable
       assert.ok(!/(^|\/)data(\/|$)/.test(m[1]) && !/(^|\/)db\/writer/.test(m[1]) && !/lib\/(data|db)\b/.test(m[1]), `${rel(f)} importa ${m[1]}`);
     }
     assert.ok(!/unstable_cache|fonteSemCache|__pgPool|__pgWriter/.test(src), `${rel(f)} usa o cache de dados ou o pool do site`);
+  }
+});
+
+test("a central não importa as páginas públicas (AC-23): nada de @/app/, nada fora de (admin) por caminho relativo", () => {
+  for (const f of codigo) {
+    const src = semComentarios(ler(f));
+    for (const m of src.matchAll(/(?:from\s+|import\s*\(\s*|require\s*\(\s*)["']([^"']+)["']/g)) {
+      assert.ok(!/^@\/app\//.test(m[1]), `${rel(f)} importa ${m[1]}`);
+      if (m[1].startsWith(".")) {
+        const alvo = join(f, "..", m[1]);
+        assert.ok(alvo.startsWith(GRUPO) || alvo.startsWith(LIB), `${rel(f)} importa ${m[1]}, que sai de (admin) e de lib/admin`);
+      }
+      // o que a central pode pedir ao resto do código: React, Next, o Supabase SSR, o driver, os módulos próprios, os componentes admin* e o widget Turnstile do site (sem dado)
+      if (m[1].startsWith("@/")) assert.ok(/^@\/(lib\/admin\/|components\/admin\/|components\/admin-entrada\/|components\/account\/turnstile$|styles\/admin\.css$)/.test(m[1]), `${rel(f)} importa ${m[1]}`);
+    }
+  }
+  for (const f of arquivos(join(WEB, "src/components/admin-entrada")).filter((x) => /\.tsx?$/.test(x))) {
+    for (const m of semComentarios(ler(f)).matchAll(/(?:from\s+)["']([^"']+)["']/g)) {
+      if (m[1].startsWith("@/")) assert.ok(/^@\/(lib\/admin\/|components\/account\/turnstile$)/.test(m[1]), `${rel(f)} importa ${m[1]}`);
+    }
+  }
+});
+
+test("a central inteira (menos o widget Turnstile) não carrega nada de fora: nenhum domínio absoluto em lib/admin, no grupo e em components/admin-entrada", () => {
+  for (const f of arquivos(join(WEB, "src/components/admin-entrada")).filter((x) => /\.tsx?$/.test(x))) {
+    const src = semComentarios(ler(f));
+    assert.ok(!/https?:\/\//i.test(src) && !/\bfetch\s*\(/.test(src), `${rel(f)} tem URL absoluta ou fetch`);
   }
 });
 
@@ -135,14 +167,22 @@ test("nada do grupo escreve fora do pedido: sem SQL no grupo (só lib/admin) e s
 test("toda página do grupo chama exigirAdmin() na primeira instrução, antes de qualquer await", () => {
   const paginas = doGrupo.filter((f) => /\/page\.tsx$/.test(f));
   const esperadas = ["", "uf/[uf]", "fila", "ficha/[classe]/[chave]", "rodadas", "rodadas/[id]", "registros"].map((p) => join(GRUPO, "admin", p, "page.tsx"));
-  assert.deepEqual(paginas, [...esperadas].sort());
-  for (const f of paginas) {
+  const entrada = ["entrar", "entrar/fator"].map((p) => join(GRUPO, "admin", p, "page.tsx"));
+  assert.deepEqual(paginas, [...esperadas, ...entrada].sort());
+  for (const f of entrada) {
+    // as duas páginas de entrada são as ÚNICAS sem exigirAdmin (quem entra ainda não tem sessão): a guarda delas é exigirEntrada(), na primeira instrução, com await
     const src = semComentarios(ler(f));
-    assert.match(src, /export default async function \w+\([^)]*\)\s*(?::[^{]+)?\{\s*exigirAdmin\(\);/, `${rel(f)}: primeira instrução não é exigirAdmin()`);
+    assert.match(src, /export default async function \w+\([^)]*\)\s*(?::[^{]+)?\{\s*await exigirEntrada\(\);/, `${rel(f)}: primeira instrução não é await exigirEntrada()`);
+    assert.match(src, /export const dynamic = "force-dynamic";/, `${rel(f)} sem force-dynamic`);
+    assert.ok(!/\bsqlAdmin\b|from "postgres"/.test(src), `${rel(f)} fala com o banco sem passar por lib/admin`);
+  }
+  for (const f of paginas.filter((p) => !entrada.includes(p))) {
+    const src = semComentarios(ler(f));
+    assert.match(src, /export default async function \w+\([^)]*\)\s*(?::[^{]+)?\{\s*await exigirAdmin\(\);/, `${rel(f)}: primeira instrução não é await exigirAdmin()`);
     assert.match(src, /import \{ exigirAdmin \} from "@\/lib\/admin\/guarda";/, rel(f));
     assert.match(src, /export const dynamic = "force-dynamic";/, `${rel(f)} sem force-dynamic`);
     const corpo = src.slice(src.search(/export default async function/));
-    assert.ok(corpo.indexOf("exigirAdmin();") < corpo.indexOf("await"), `${rel(f)}: há await antes da guarda`);
+    assert.equal(corpo.indexOf("await"), corpo.indexOf("await exigirAdmin();"), `${rel(f)}: há await antes da guarda`);
     assert.ok(!/\bsqlAdmin\b|from "postgres"/.test(src), `${rel(f)} fala com o banco sem passar por consultas.ts`);
   }
 });

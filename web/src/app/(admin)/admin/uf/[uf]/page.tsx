@@ -13,7 +13,7 @@ import { estadosDoMapa } from "@/lib/admin/mapa-dados";
 export const dynamic = "force-dynamic";
 
 export default async function PaginaUf({ params, searchParams }: { params: Promise<{ uf: string }>; searchParams: Promise<{ visao?: string; rodada?: string }> }) {
-  exigirAdmin();
+  await exigirAdmin();
   const { uf } = await params;
   const sp = await searchParams;
   if (!/^\d{2}$/.test(uf)) notFound();

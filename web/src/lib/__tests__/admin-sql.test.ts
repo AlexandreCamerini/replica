@@ -88,6 +88,15 @@ test("toda constante SQL_* do ETL (relatório e fila) está copiada: nenhuma fic
   assert.deepEqual(faltam, [], `constante do ETL sem cópia na central: ${faltam.join(", ")}`);
 });
 
+test("SQL_ADMIN_ATIVO só lê adm_admins (email, nome, user_id, ativo) e os insert de pedido gravam a identidade da sessão (AC-23)", () => {
+  assert.match(CONSULTAS_PROPRIAS.SQL_ADMIN_ATIVO, /^select email, nome, user_id::text as user_id, ativo from adm_admins where lower\(email\) = lower\(\$1::text\) and ativo limit 1\s*$/);
+  assert.match(CONSULTAS_PROPRIAS.SQL_PEDIDO_INSERIR, /\(tipo, parametros, chave_idem, por_user_id, por_email\)/);
+  assert.match(CONSULTAS_PROPRIAS.SQL_PEDIDO_DECISAO_INSERIR, /\(pendencia_id, acao, por_nome, justificativa, valor, aplicar, chave_idem, por_user_id, por_email\)/);
+  assert.match(CONSULTAS_PROPRIAS.SQL_PEDIDO_DECISAO_INSERIR, /\$8::uuid, \$9::text/);
+  // nenhuma consulta de leitura da central toca adm_admins_log nem escreve em adm_admins
+  for (const [nome, sql] of Object.entries(CONSULTAS_PROPRIAS)) assert.ok(!/adm_admins_log|(insert into|update)\s+adm_admins\b/i.test(sql), nome);
+});
+
 test("nenhuma consulta da central escreve fora de adm_pedidos e adm_pedidos_decisao", () => {
   const todas: Record<string, string> = { ...CONSULTAS_PROPRIAS, ...Object.fromEntries(COPIADAS_DO_ETL.map((c) => [c.python, c.sql])) };
   assert.ok(Object.keys(todas).length > 40);
@@ -151,7 +160,8 @@ test("chave_idem da central = vetores de ouro do executor (pedidos e decisão), 
     assert.equal(chaveIdemPedido(v.tipo, v.parametros), esperado, tipo);
   }
   const d = validarDecisao({ pendencia_id: "0a1b2c3d-0000-4000-8000-000000000001", acao: "corrigir", valor: "São João", por: "Maria", justificativa: "x", aplicar: true });
-  assert.equal(chaveIdemDecisao(d), "67c059df8cb2dfea16a5768cb7006727e3d569d07694e1a944062279bf4300d4");
+  // AC-23: o `por_nome` não vem mais do corpo (validarDecisao o descarta); quem chama põe o nome do admin na tabela `adm_admins`, o mesmo que o gatilho grava e o executor relê.
+  assert.equal(chaveIdemDecisao({ ...d, por_nome: "Maria" }), "67c059df8cb2dfea16a5768cb7006727e3d569d07694e1a944062279bf4300d4");
 });
 
 test("os vetores de ouro copiados são os do executor.py", () => {
@@ -200,12 +210,17 @@ test("validarPedido: tipo e parâmetros inválidos são recusados; o válido sai
   assert.deepEqual(validarPedido("parecer", { pendencia_id: "AAAAAAAA-1111-1111-1111-111111111111" }).parametros, { pendencia_id: "aaaaaaaa-1111-1111-1111-111111111111" });
 });
 
-test("validarDecisao: por e justificativa não vazios; corrigir exige valor; só aprovar e corrigir se aplicam", () => {
+test("validarDecisao: justificativa não vazia; corrigir exige valor; só aprovar e corrigir se aplicam; `por` do corpo é aceito e DESCARTADO (AC-23)", () => {
   const ok = { pendencia_id: "11111111-1111-1111-1111-111111111111", acao: "aprovar", por: " Ana ", justificativa: " confere com a fonte " };
-  assert.deepEqual(validarDecisao(ok), { pendencia_id: ok.pendencia_id, acao: "aprovar", por_nome: "Ana", justificativa: "confere com a fonte", valor: undefined, aplicar: false });
+  assert.deepEqual(validarDecisao(ok), { pendencia_id: ok.pendencia_id, acao: "aprovar", justificativa: "confere com a fonte", valor: undefined, aplicar: false });
+  // sem `por`, com `por` vazio, com `por` de outro tipo ou enorme: o resultado é o mesmo, e nenhuma chave `por`/`por_nome` sai
+  const semPor = { pendencia_id: ok.pendencia_id, acao: "aprovar", justificativa: " confere com a fonte " };
+  for (const por of [undefined, "", "  ", "Bia", "x".repeat(500), 42, null, { a: 1 }]) {
+    const v = validarDecisao({ ...semPor, por });
+    assert.deepEqual(v, validarDecisao(semPor));
+    assert.ok(!("por" in v) && !("por_nome" in v), `por=${JSON.stringify(por)} vazou para a decisão validada`);
+  }
   const recusa = (x: Record<string, unknown>) => assert.throws(() => validarDecisao({ ...ok, ...x }), ErroPedidoInvalido);
-  recusa({ por: "  " });
-  recusa({ por: undefined });
   recusa({ justificativa: "" });
   recusa({ justificativa: "   " });
   recusa({ acao: "apagar" });

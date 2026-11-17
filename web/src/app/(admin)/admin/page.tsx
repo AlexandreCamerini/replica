@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 type Busca = { rodada?: string; visao?: string };
 
 export default async function PaginaInicial({ searchParams }: { searchParams: Promise<Busca> }) {
-  exigirAdmin();
+  await exigirAdmin();
   const sp = await searchParams;
   const visao = visaoDe(sp.visao);
   try {

@@ -8,7 +8,7 @@ import { ErroPedidoInvalido } from "@/lib/admin/sql";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const negado = exigirAdminApi();
+  const negado = await exigirAdminApi();
   if (negado) return negado;
   const recusado = recusarOrigemExterna(req);
   if (recusado) return recusado;
@@ -28,33 +28,33 @@ export async function POST(req: Request) {
 }
 
 // Métodos que esta rota não usa: com a central fechada respondem 404 como o resto (critério 15: a rota não se revela por um 405); aberta, 405.
-export function GET() {
-  const negado = exigirAdminApi();
+export async function GET() {
+  const negado = await exigirAdminApi();
   if (negado) return negado;
   return new Response(null, { status: 405 });
 }
-export function PUT() {
-  const negado = exigirAdminApi();
+export async function PUT() {
+  const negado = await exigirAdminApi();
   if (negado) return negado;
   return new Response(null, { status: 405 });
 }
-export function PATCH() {
-  const negado = exigirAdminApi();
+export async function PATCH() {
+  const negado = await exigirAdminApi();
   if (negado) return negado;
   return new Response(null, { status: 405 });
 }
-export function DELETE() {
-  const negado = exigirAdminApi();
+export async function DELETE() {
+  const negado = await exigirAdminApi();
   if (negado) return negado;
   return new Response(null, { status: 405 });
 }
-export function OPTIONS() {
-  const negado = exigirAdminApi();
+export async function OPTIONS() {
+  const negado = await exigirAdminApi();
   if (negado) return negado;
   return new Response(null, { status: 405 });
 }
-export function HEAD() {
-  const negado = exigirAdminApi();
+export async function HEAD() {
+  const negado = await exigirAdminApi();
   if (negado) return negado;
   return new Response(null, { status: 405 });
 }

@@ -34,3 +34,4 @@ replica/diffs/*.png
 web/.next-e2e-*/
 web/test-results-*/
 etl/.state/
+web/.next-admin/

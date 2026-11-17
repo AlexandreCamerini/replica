@@ -560,18 +560,24 @@ export const SQL_PENDENCIAS_ABERTAS_POR_CLASSE = `select classe, count(*)::int a
 // (o role não tem `update`; a corrida entre dois insert simultâneos cai no índice único parcial: o chamador trata o erro 23505 e lê o existente).
 // ============================================================================================================================
 
-/** $1 tipo, $2 parametros (JSON), $3 chave_idem. Devolve o id novo, ou nenhuma linha se já há pedido ativo com a chave. */
-export const SQL_PEDIDO_INSERIR = `insert into adm_pedidos (tipo, parametros, chave_idem)
-select $1::text, $2::text::jsonb, $3::text
+/**
+ * $1 tipo, $2 parametros (JSON), $3 chave_idem, $4 por_user_id (uuid do Supabase Auth ou nulo), $5 por_email (da sessão, nunca do corpo). Devolve o id novo, ou nenhuma linha se já há
+ * pedido ativo com a chave. O gatilho `adm_pedido_identidade` (migração 0156) confere `por_email` em `adm_admins` e `por_user_id` (se o admin tem `user_id`) e freia o ritmo.
+ */
+export const SQL_PEDIDO_INSERIR = `insert into adm_pedidos (tipo, parametros, chave_idem, por_user_id, por_email)
+select $1::text, $2::text::jsonb, $3::text, $4::uuid, $5::text
 where not exists (select 1 from adm_pedidos where chave_idem = $3::text and status in ('na_fila', 'em_execucao'))
 returning id::text as id
 `;
 /** $1 chave_idem. O pedido ativo (na_fila ou em_execucao) com a chave. */
 export const SQL_PEDIDO_EXISTENTE = `select id::text as id from adm_pedidos where chave_idem = $1::text and status in ('na_fila', 'em_execucao') order by criado_em desc, id limit 1
 `;
-/** $1 pendencia_id, $2 acao, $3 por_nome, $4 justificativa, $5 valor (JSON ou nulo), $6 aplicar, $7 chave_idem. */
-export const SQL_PEDIDO_DECISAO_INSERIR = `insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, valor, aplicar, chave_idem)
-select $1::uuid, $2::text, $3::text, $4::text, $5::text::jsonb, $6::boolean, $7::text
+/**
+ * $1 pendencia_id, $2 acao, $3 por_nome (o NOME DA TABELA DE ADMINS, o mesmo que o gatilho grava: a chave_idem o inclui e o executor a recalcula com o por_nome da linha), $4 justificativa,
+ * $5 valor (JSON ou nulo), $6 aplicar, $7 chave_idem, $8 por_user_id (uuid ou nulo), $9 por_email.
+ */
+export const SQL_PEDIDO_DECISAO_INSERIR = `insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, valor, aplicar, chave_idem, por_user_id, por_email)
+select $1::uuid, $2::text, $3::text, $4::text, $5::text::jsonb, $6::boolean, $7::text, $8::uuid, $9::text
 where not exists (select 1 from adm_pedidos_decisao where chave_idem = $7::text and status in ('na_fila', 'em_execucao'))
 returning id::text as id
 `;
@@ -579,11 +585,19 @@ returning id::text as id
 export const SQL_PEDIDO_DECISAO_EXISTENTE = `select id::text as id from adm_pedidos_decisao where chave_idem = $1::text and status in ('na_fila', 'em_execucao') order by criado_em desc, id limit 1
 `;
 
+// ============================================================================================================================
+// Identidade: só leitura de `adm_admins` (migração 0156; o `admin_central` tem `select`). Comparação em minúsculas dos dois lados (a tabela já guarda minúsculas).
+// ============================================================================================================================
+
+/** $1 e-mail. O admin ATIVO com esse e-mail: colunas email, nome, user_id (uuid em texto), ativo. Zero linhas = não é admin (ou está inativo). */
+export const SQL_ADMIN_ATIVO = `select email, nome, user_id::text as user_id, ativo from adm_admins where lower(email) = lower($1::text) and ativo limit 1
+`;
+
 /** Toda consulta própria da central (parte 2 e 3), para o teste conferir que nenhuma escreve fora dos dois pedidos. As copiadas estão em COPIADAS_DO_ETL. */
 export const CONSULTAS_PROPRIAS: Readonly<Record<string, string>> = {
   SQL_FICHAS, SQL_FICHA_BASE, SQL_FICHAS_POR_CHAVES, SQL_FILA_PROPOSTAS, SQL_VIGENTE_SAPL, SQL_VIGENTE_COBERTURA, SQL_VIGENTE_CONTATOS, SQL_VIGENTE_IDENTIDADE,
   SQL_FICHA_PENDENCIAS, SQL_FICHA_PROPOSTAS, SQL_FICHA_DECISOES, SQL_FICHA_PARECERES, SQL_FICHA_PEDIDOS_DECISAO, SQL_RODADAS, SQL_RODADA, SQL_RODADA_PEDIDOS, SQL_EXECUTOR_ESTADO,
-  SQL_PEDIDOS_RECENTES, SQL_RODADAS_EM_CURSO, SQL_PENDENCIAS_ABERTAS_POR_CLASSE, SQL_PEDIDO_INSERIR, SQL_PEDIDO_EXISTENTE, SQL_PEDIDO_DECISAO_INSERIR, SQL_PEDIDO_DECISAO_EXISTENTE,
+  SQL_PEDIDOS_RECENTES, SQL_RODADAS_EM_CURSO, SQL_PENDENCIAS_ABERTAS_POR_CLASSE, SQL_PEDIDO_INSERIR, SQL_PEDIDO_EXISTENTE, SQL_PEDIDO_DECISAO_INSERIR, SQL_PEDIDO_DECISAO_EXISTENTE, SQL_ADMIN_ATIVO,
 };
 
 // ============================================================================================================================
@@ -683,24 +697,24 @@ export function validarPedido(tipo: unknown, parametros: unknown): { tipo: TipoP
   return { tipo: tipo as TipoPedido, parametros: out };
 }
 
-export type DecisaoValidada = { pendencia_id: string; acao: AcaoDecisao; por_nome: string; justificativa: string; valor: unknown; aplicar: boolean };
+export type DecisaoValidada = { pendencia_id: string; acao: AcaoDecisao; justificativa: string; valor: unknown; aplicar: boolean };
 
-/** Corpo de POST /admin/api/decisoes: { pendencia_id, acao, por, justificativa, valor?, aplicar? }. `por` e `justificativa` não vazios. */
+/**
+ * Corpo de POST /admin/api/decisoes: { pendencia_id, acao, justificativa, valor?, aplicar?, por? }. `justificativa` não vazia. `por` é ACEITO e DESCARTADO (cliente antigo não quebra):
+ * quem decide vem da sessão (`operadorAtual()`), nunca do corpo (AC-23). O `por_nome` da chave_idem é o nome do admin na tabela `adm_admins`, posto por quem chama.
+ */
 export function validarDecisao(corpo: unknown): DecisaoValidada {
   const c = objeto(corpo, "corpo");
   soChaves(c, ["pendencia_id", "acao", "por", "justificativa", "valor", "aplicar"], "decisão");
   if (!ehUuid(c.pendencia_id)) invalido("pendencia_id tem de ser um uuid");
   if (typeof c.acao !== "string" || !(ACOES_DECISAO as readonly string[]).includes(c.acao)) return invalido("acao inválida (esperado aprovar, corrigir, descartar ou pedir_confirmacao)");
   const acao = c.acao as AcaoDecisao;
-  if (typeof c.por !== "string" || c.por.trim() === "") invalido("informe quem decide (por)");
   if (typeof c.justificativa !== "string" || c.justificativa.trim() === "") invalido("a justificativa é obrigatória");
-  const por_nome = (c.por as string).trim();
   const justificativa = (c.justificativa as string).trim();
-  if (por_nome.length > 120) invalido("por: no máximo 120 caracteres");
   if (justificativa.length > 4000) invalido("justificativa: no máximo 4000 caracteres");
   if (acao === "corrigir" && c.valor === undefined) invalido("corrigir exige o valor");
   if (c.valor !== undefined && jsonCanonico(c.valor).length > 8000) invalido("valor grande demais");
   if (c.aplicar !== undefined && typeof c.aplicar !== "boolean") invalido("aplicar tem de ser verdadeiro ou falso");
   if (c.aplicar === true && acao !== "aprovar" && acao !== "corrigir") invalido("só aprovar e corrigir se aplicam");
-  return { pendencia_id: (c.pendencia_id as string).toLowerCase(), acao, por_nome, justificativa, valor: c.valor, aplicar: c.aplicar === true };
+  return { pendencia_id: (c.pendencia_id as string).toLowerCase(), acao, justificativa, valor: c.valor, aplicar: c.aplicar === true };
 }

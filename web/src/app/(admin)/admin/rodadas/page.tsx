@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const NOME_ESTADO = { rodada_em_andamento: "em andamento", rodada_interrompida: "interrompida", rodada_concluida: "concluída" } as const;
 
 export default async function PaginaRodadas() {
-  exigirAdmin();
+  await exigirAdmin();
   try {
     const lista = await rodadas(100);
     return (

@@ -15,7 +15,6 @@ const ACOES = [
 export function FormDecisao({ pendenciaId, campo }: { pendenciaId: string; campo: string }) {
   const uid = useId();
   const [acao, setAcao] = useState<(typeof ACOES)[number]["v"]>("aprovar");
-  const [por, setPor] = useState("");
   const [justificativa, setJustificativa] = useState("");
   const [valor, setValor] = useState("");
   const [aplicar, setAplicar] = useState(false);
@@ -28,13 +27,13 @@ export function FormDecisao({ pendenciaId, campo }: { pendenciaId: string; campo
   const enviar = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (trava.current) return;
-    if (por.trim() === "" || justificativa.trim() === "") return setAviso("Informe quem decide e a justificativa: os dois são obrigatórios.");
+    if (justificativa.trim() === "") return setAviso("A justificativa é obrigatória.");
     if (acao === "corrigir" && valor.trim() === "") return setAviso("Corrigir exige o valor.");
     setAviso(null);
     trava.current = true;
     setEmVoo(true);
     setR(null);
-    const corpo: Record<string, unknown> = { pendencia_id: pendenciaId, acao, por: por.trim(), justificativa: justificativa.trim() };
+    const corpo: Record<string, unknown> = { pendencia_id: pendenciaId, acao, justificativa: justificativa.trim() };
     if (valor.trim() !== "") corpo.valor = valor.trim();
     if (aplicavel && aplicar) corpo.aplicar = true;
     setR(await enviarPedido("/admin/api/decisoes", corpo));
@@ -53,10 +52,6 @@ export function FormDecisao({ pendenciaId, campo }: { pendenciaId: string; campo
             </option>
           ))}
         </select>
-      </div>
-      <div className="adm-campo">
-        <label htmlFor={`${uid}-por`}>Por (quem decide, obrigatório)</label>
-        <input id={`${uid}-por`} type="text" value={por} onChange={(e) => setPor(e.target.value)} required maxLength={120} autoComplete="off" />
       </div>
       <div className="adm-campo">
         <label htmlFor={`${uid}-just`}>Justificativa (obrigatória)</label>

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const NOME_CLASSE: Record<string, string> = { vinculo_sapl: "Vínculo SAPL", cobertura: "Cobertura", contato_mandato: "Contato do mandato", identidade: "Identidade" };
 
 export default async function PaginaFila({ searchParams }: { searchParams: Promise<{ classe?: string }> }) {
-  exigirAdmin();
+  await exigirAdmin();
   const sp = await searchParams;
   const classe = typeof sp.classe === "string" && sp.classe !== "" ? sp.classe : undefined;
   try {

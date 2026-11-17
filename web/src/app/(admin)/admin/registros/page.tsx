@@ -10,7 +10,7 @@ import type { FiltroRegistros } from "@/lib/admin/tipos";
 export const dynamic = "force-dynamic";
 
 export default async function PaginaRegistros({ searchParams }: { searchParams: Promise<{ uf?: string; municipio?: string }> }) {
-  exigirAdmin();
+  await exigirAdmin();
   const sp = await searchParams;
   const uf = typeof sp.uf === "string" && /^\d{2}$/.test(sp.uf) ? sp.uf : null;
   const municipio = typeof sp.municipio === "string" && /^\d{7}$/.test(sp.municipio) ? sp.municipio : null;

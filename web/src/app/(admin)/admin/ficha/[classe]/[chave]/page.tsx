@@ -20,7 +20,7 @@ const decodifica = (s: string): string => {
 };
 
 export default async function PaginaFicha({ params }: { params: Promise<{ classe: string; chave: string }> }) {
-  exigirAdmin();
+  await exigirAdmin();
   const p = await params;
   const classe = decodifica(p.classe);
   const chave = decodifica(p.chave);
