@@ -216,3 +216,9 @@ test("validarDecisao: por e justificativa não vazios; corrigir exige valor; só
   assert.equal(validarDecisao({ ...ok, acao: "corrigir", valor: "texto", aplicar: true }).aplicar, true);
   assert.throws(() => validarDecisao(null), ErroPedidoInvalido);
 });
+
+// Defeito D1 (prova C7): com postgres.js e `prepare: false`, `$n::jsonb` sobre texto JSON grava um jsonb ESCALAR de texto (dupla codificação) e o
+// executor recusa o pedido. Toda consulta própria da central passa o JSON como `$n::text::jsonb`.
+test("nenhuma consulta própria usa $n::jsonb direto (só $n::text::jsonb)", () => {
+  for (const [nome, sql] of Object.entries(CONSULTAS_PROPRIAS)) assert.ok(!/\$\d+::jsonb/.test(sql), `${nome}: use $n::text::jsonb`);
+});

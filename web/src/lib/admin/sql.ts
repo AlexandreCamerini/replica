@@ -15,7 +15,8 @@
 //   Dois pedidos iguais enquanto o primeiro está na_fila/em_execucao dão o mesmo id (índice único parcial da tabela + `where not exists` abaixo).
 //
 // Parâmetros ($1, $2...) sempre com cast explícito: o driver manda tipo desconhecido e o Postgres infere pelo cast. Lista de valores vai
-// como texto JSON (`$n::jsonb`), nunca como array do driver.
+// como texto JSON (`$n::text::jsonb`), nunca como array do driver. NUNCA `$n::jsonb` direto: com postgres.js e `prepare: false` o texto JSON
+// vira um jsonb ESCALAR de texto (dupla codificação; defeito D1 da prova C7) e o executor recusa o pedido.
 import { createHash } from "node:crypto";
 
 /** JSON canônico: chaves ordenadas em todos os níveis, sem espaços. Não aceita `undefined`, função nem número não finito. */
@@ -470,14 +471,14 @@ export const SQL_FICHAS = FICHAS_COM_FONTES("");
 export const SQL_FICHA_BASE = FICHAS_COM_FONTES("where f.classe = $1::text and f.chave = $2::text\n");
 /** Fichas de uma lista de pares: $1 = JSON `[{"classe": "...", "chave": "..."}]` (rótulo e território dos itens da fila, sem N consultas). */
 export const SQL_FICHAS_POR_CHAVES = FICHAS_COM_FONTES(
-  "where (f.classe, f.chave) in (select x.classe, x.chave from jsonb_to_recordset($1::jsonb) as x(classe text, chave text))\n",
+  "where (f.classe, f.chave) in (select x.classe, x.chave from jsonb_to_recordset($1::text::jsonb) as x(classe text, chave text))\n",
 );
 
 // Propostas ligadas às pendências da fila ($1 = JSON `["uuid", ...]`). Mesma leitura de `_itens` em etl/civico_etl/admin/pendencias.py (consulta inline lá, constante aqui).
 export const SQL_FILA_PROPOSTAS = `select pp.pendencia_id::text as pendencia_id, pr.id::text as id, pr.classe, pr.registro_chave, pr.campo, pr.valor_vigente, pr.valor_candidato,
        pr.url, pr.trecho, pr.bloco, pr.conteudo_sha256, pr.lida_em, pr.fonte_declarada_em, pr.fonte_slug, pr.rodada_id::text as rodada_id, pr.alcance, pr.regra_criterio, pr.regra_ids, pr.criada_em
 from adm_pendencia_propostas pp join adm_propostas pr on pr.id = pp.proposta_id
-where pp.pendencia_id in (select x::uuid from jsonb_array_elements_text($1::jsonb) as x)
+where pp.pendencia_id in (select x::uuid from jsonb_array_elements_text($1::text::jsonb) as x)
 order by pr.lida_em nulls first, pr.criada_em, pr.id
 `;
 
@@ -561,7 +562,7 @@ export const SQL_PENDENCIAS_ABERTAS_POR_CLASSE = `select classe, count(*)::int a
 
 /** $1 tipo, $2 parametros (JSON), $3 chave_idem. Devolve o id novo, ou nenhuma linha se já há pedido ativo com a chave. */
 export const SQL_PEDIDO_INSERIR = `insert into adm_pedidos (tipo, parametros, chave_idem)
-select $1::text, $2::jsonb, $3::text
+select $1::text, $2::text::jsonb, $3::text
 where not exists (select 1 from adm_pedidos where chave_idem = $3::text and status in ('na_fila', 'em_execucao'))
 returning id::text as id
 `;
@@ -570,7 +571,7 @@ export const SQL_PEDIDO_EXISTENTE = `select id::text as id from adm_pedidos wher
 `;
 /** $1 pendencia_id, $2 acao, $3 por_nome, $4 justificativa, $5 valor (JSON ou nulo), $6 aplicar, $7 chave_idem. */
 export const SQL_PEDIDO_DECISAO_INSERIR = `insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, valor, aplicar, chave_idem)
-select $1::uuid, $2::text, $3::text, $4::text, $5::jsonb, $6::boolean, $7::text
+select $1::uuid, $2::text, $3::text, $4::text, $5::text::jsonb, $6::boolean, $7::text
 where not exists (select 1 from adm_pedidos_decisao where chave_idem = $7::text and status in ('na_fila', 'em_execucao'))
 returning id::text as id
 `;

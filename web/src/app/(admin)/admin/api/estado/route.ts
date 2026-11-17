@@ -15,3 +15,30 @@ export async function GET() {
     return respostaDeErro(e);
   }
 }
+
+// Métodos que esta rota não usa: com a central fechada respondem 404 como o resto (critério 15: a rota não se revela por um 405); aberta, 405.
+export function POST() {
+  const negado = exigirAdminApi();
+  if (negado) return negado;
+  return new Response(null, { status: 405 });
+}
+export function PUT() {
+  const negado = exigirAdminApi();
+  if (negado) return negado;
+  return new Response(null, { status: 405 });
+}
+export function PATCH() {
+  const negado = exigirAdminApi();
+  if (negado) return negado;
+  return new Response(null, { status: 405 });
+}
+export function DELETE() {
+  const negado = exigirAdminApi();
+  if (negado) return negado;
+  return new Response(null, { status: 405 });
+}
+export function OPTIONS() {
+  const negado = exigirAdminApi();
+  if (negado) return negado;
+  return new Response(null, { status: 405 });
+}
