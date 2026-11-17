@@ -6,6 +6,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
+import nodeHttp from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -67,7 +68,8 @@ export function bancoExiste(banco) {
   return psqlManutencao(`select 1 from pg_database where datname = '${banco}'`) === "1";
 }
 
-const envEtl = (banco, extra = {}) => envLimpa({ DATABASE_URL: urlDono(banco), ETL_DATABASE_URL: urlDono(banco), ...extra });
+// PYTHONPATH com o resolvedor de DNS falso (dns-falso/sitecustomize.py): `.invalid` resolve para um IP público fixo, só nos processos do ETL deste ensaio sem rede (ver o arquivo).
+const envEtl = (banco, extra = {}) => envLimpa({ DATABASE_URL: urlDono(banco), ETL_DATABASE_URL: urlDono(banco), PYTHONPATH: path.join(AQUI, "dns-falso"), ...extra });
 
 /** Recria `admin_coleta_c7` do zero (o único banco que este código apaga), migra, semeia e carrega a base mínima (como o roteiro da primeira rodada). SEM rodada. */
 export function recriarC7() {
@@ -181,7 +183,27 @@ export async function subirNext(env) {
   };
 }
 
-export const envCentral = (banco, extra = {}) => envCi({ ADMIN_CENTRAL: "1", ADMIN_DATABASE_URL: urlCentral(banco), ...extra });
+// Modo local da central (AC-23): a identidade é ADMIN_LOCAL_EMAIL, que tem de ser admin ATIVO em adm_admins (o admin local nasce em db/local/post_0004_admin_local.sql, que `db/migrate.sh --local` roda).
+export const ADMIN_LOCAL_EMAIL = "operador.local@segueovoto.invalid";
+export const ADMIN_LOCAL_NOME = "Operador local";
+export const envCentral = (banco, extra = {}) => envCi({ ADMIN_CENTRAL: "1", ADMIN_DATABASE_URL: urlCentral(banco), ADMIN_LOCAL_EMAIL, ...extra });
+
+// Modo produção SIMULADO (AC-23): o `next start` local com as variáveis do projeto admin. O Supabase é FALSO: aponta para uma porta local FECHADA (nenhuma requisição sai da máquina);
+// o provedor fora do ar tem de dar 404, nunca derrubar o servidor. O banco é o de ensaio com `sslmode=require` (a guarda só confere o formato; nada consulta o banco antes da sessão).
+export const HOST_PRODUCAO = "admin.segueovoto.com.br";
+export async function envProducao(banco, extra = {}) {
+  const fechada = await portaLivre(); // livre agora = fechada: ninguém escuta
+  const base = urlCentral(banco).replace("@localhost:", "@127.0.0.1:");
+  return envCi({
+    ADMIN_CENTRAL: "producao",
+    VERCEL_ENV: "production",
+    AUTH_PROVIDER: "supabase",
+    NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${fechada}`,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "x",
+    ADMIN_DATABASE_URL: `${base}?sslmode=require`,
+    ...extra,
+  });
+}
 
 // ------------------------------------------------------------------ HTTP (só 127.0.0.1)
 
@@ -191,10 +213,14 @@ export async function http(base, caminho, { metodo = "GET", corpo, cabecalhos = 
   const h = { connection: "close", ...cabecalhos };
   let body;
   if (metodo !== "GET" && metodo !== "HEAD") {
-    h["content-type"] ??= "application/json";
-    h.origin ??= new URL(base).origin;
+    // como a página faz (AC-23): Origin da própria central e Sec-Fetch-Site same-origin. Um cabeçalho passado como `null` é REMOVIDO (para provar a recusa de POST sem ele).
+    // (não use `??=`: um valor `null` passado de propósito tem de ficar `null` e ser removido, não trocado pelo padrão)
+    if (!("content-type" in h)) h["content-type"] = "application/json";
+    if (!("origin" in h)) h.origin = new URL(base).origin;
+    if (!("sec-fetch-site" in h)) h["sec-fetch-site"] = "same-origin";
     body = typeof corpo === "string" ? corpo : JSON.stringify(corpo ?? {});
   }
+  for (const k of Object.keys(h)) if (h[k] === null) delete h[k];
   const r = await fetch(url, { method: metodo, headers: h, body, redirect: seguir ? "follow" : "manual", signal: AbortSignal.timeout(90_000) });
   const texto = await r.text();
   let json;
@@ -204,8 +230,41 @@ export async function http(base, caminho, { metodo = "GET", corpo, cabecalhos = 
   return { status: r.status, texto, json, cabecalhos: r.headers };
 }
 
+/** Requisição crua por node:http (o fetch recusa TRACE e não deixa trocar o Host). Só 127.0.0.1. Devolve { status, cabecalhos (minúsculos), texto }. */
+export function crua(base, caminho, { metodo = "GET", cabecalhos = {}, corpo } = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(caminho, base);
+    if (u.hostname !== "127.0.0.1") return reject(new Error(`recusado: host ${u.hostname} não é 127.0.0.1`));
+    const req = nodeHttp.request({ host: "127.0.0.1", port: u.port, path: u.pathname + u.search, method: metodo, headers: { connection: "close", ...cabecalhos }, agent: false, timeout: 60_000 }, (res) => {
+      let texto = "";
+      res.setEncoding("utf8");
+      res.on("data", (d) => (texto += d));
+      res.on("end", () => resolve({ status: res.statusCode, cabecalhos: res.headers, texto }));
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+    if (corpo !== undefined) req.write(corpo);
+    req.end();
+  });
+}
+
+/** Servidor TCP local que faz de Supabase: `drop` derruba a conexão, `http500` responde 500. Conta as conexões. Só 127.0.0.1. */
+export function supabaseFalso(modo) {
+  return new Promise((res) => {
+    let conexoes = 0;
+    const srv = net.createServer((sock) => {
+      conexoes++;
+      sock.on("error", () => {});
+      if (modo === "drop") sock.destroy();
+      else sock.once("data", () => sock.end("HTTP/1.1 500 Internal Server Error\r\ncontent-type: text/plain\r\ncontent-length: 2\r\nconnection: close\r\n\r\nxx"));
+    });
+    srv.listen(0, "127.0.0.1", () => res({ porta: srv.address().port, conexoes: () => conexoes, fechar: () => srv.close() }));
+  });
+}
+
 // ------------------------------------------------------------------ relato
 
+const T_INICIO = Date.now();
 export function criarRelato() {
   const linhas = [];
   let falhas = 0;
@@ -222,7 +281,7 @@ export function criarRelato() {
     },
     aviso: (d) => p(`AVISO   ${d}`),
     info: (d) => p(`        ${d}`),
-    cabecalho: (d) => p(`\n== ${d}`),
+    cabecalho: (d) => p(`\n== [${Math.round((Date.now() - T_INICIO) / 1000)} s] ${d}`),
     checa(cond, d, detalhe = "") {
       if (cond) this.ok(d);
       else this.falha(`${d}${detalhe ? ` :: ${detalhe}` : ""}`);

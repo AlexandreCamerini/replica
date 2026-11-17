@@ -1,14 +1,14 @@
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: 0 URLs pedidas, 0 não previstas
-decisão          63f029e3-c526-47d8-ab49-d516760b6679
-pendência        8734113e-1bc8-4ab5-b004-15ecbc43d1d0
+decisão          81649c27-3f79-4254-b6bf-4354e278d7e4
+pendência        a899db95-7ebe-48a6-9ed1-19592959c0c2
 ação             aprovar
-por              Operador de Ensaio (SIMULADO)
+por              Operador local
 campos afetados  vinculo_sapl:5:status
 valor            'ok'
 efeito           pendência decidida
 aplicada         sim
 aplicada: vinculo_sapl:5:status  'ok' -> 'ok'
-escreveu: adm_overrides: ['3ab33558-196c-43b3-84ca-090e93c0907c']; sapl_houses: [5]
+escreveu: adm_overrides: ['4f07444d-3fdf-4238-bd80-b5ff1adffa1c']; sapl_houses: [5]
 sem corrections (o valor anterior é igual ao novo)

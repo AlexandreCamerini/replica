@@ -1,48 +1,109 @@
 SIMULADO. Provas da central de coleta SEM navegador (C7), pelo HTTP de um `next start` local. Rodadas SIMULADAS: CLI real sobre respostas fabricadas (etl/tests/fixtures/sapl_ale).
-Gerado por: node web/e2e-admin/sem-navegador.mjs --sem-build  em 2026-11-17T11:25:16.867Z  (banco admin_coleta_c7, recriado)
+Gerado por: node web/e2e-admin/sem-navegador.mjs   em 2026-11-17T15:20:35.867Z  (banco admin_coleta_c7, recriado)
 Nenhum número daqui foi lido de fonte real. O Playwright não roda neste ambiente (AC-05): critérios 21 e 26 NÃO são cobertos por este arquivo.
 
         SIMULADO: prova da central sem navegador. Banco admin_coleta_c7 (recriado). Rodadas SIMULADAS (CLI real sobre respostas fabricadas). Nada foi lido de fonte real.
 
-== build
-ok      --sem-build: reaproveita o .next existente
+== [0 s] build
+ok      next build (fonte demo, sem ADMIN_*, sem banco) terminou com código 0 em 19 s
+ok      todas as rotas da central aparecem na tabela de rotas do build
 
-== banco
-ok      banco admin_coleta_c7 recriado, 44 migrações aplicadas (db/migrate.sh --local), semente e base mínima carregadas (base.sql, admin_base.sql)
+== [19 s] banco
+ok      banco admin_coleta_c7 recriado, 45 migrações aplicadas (db/migrate.sh --local), semente e base mínima carregadas (base.sql, admin_base.sql)
 ok      banco vazio de rodadas e pedidos
 ok      o role admin_central tem login (post_0003, só local)
 
-== critério 15: central fechada responde 404 em toda rota (sem a variável; com VERCEL; com VERCEL_ENV)
-        rotas achadas em web/src/app/(admin): 13 (7 páginas, 6 de API); métodos exportados: /admin/api/decisoes [POST] /admin/api/estado [GET] /admin/api/ficha/x/x [GET] /admin/api/fila [GET] /admin/api/pedidos [POST] /admin/api/relatorio/x [GET]
+== [23 s] critério 15: central fechada responde 404 em toda rota (sem a variável; com VERCEL; com VERCEL_ENV)
+        rotas achadas em web/src/app/(admin): 15 (9 páginas, 6 de API); métodos exportados: /admin/api/decisoes [POST] /admin/api/estado [GET] /admin/api/ficha/x/x [GET] /admin/api/fila [GET] /admin/api/pedidos [POST] /admin/api/relatorio/x [GET]
 ok      nenhuma rota /admin fora do grupo (admin)
 ok      o grupo (admin) não tem loading.tsx, template, default, error ou not-found (o 404 não pode sair depois de um stream iniciado)
-ok      (a) sem ADMIN_CENTRAL: 13 requisições (páginas GET, API nos métodos exportados) todas com status 404
+ok      (a) sem ADMIN_CENTRAL: 15 requisições (páginas GET, API nos métodos exportados) todas com status 404
 ok      (a) sem ADMIN_CENTRAL: métodos que a rota não usa também respondem 404 (a rota não se revela por um 405)
-ok      (a) sem ADMIN_CENTRAL: TRACE nas 13 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
-AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (a) sem ADMIN_CENTRAL: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
-ok      (a) sem ADMIN_CENTRAL: 78 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
+ok      (a) sem ADMIN_CENTRAL: TRACE nas 15 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
+AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (a) sem ADMIN_CENTRAL: TRACE -> 15 de 15 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
+ok      (a) sem ADMIN_CENTRAL: 90 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
+ok      (a) sem ADMIN_CENTRAL: o 404 da central fechada leva os três cabeçalhos (CSP com frame-ancestors 'none', X-Frame-Options DENY, Referrer-Policy same-origin)
 ok      (a) o site público (/) continua 200
 ok      (a) variações de caminho (/admin/, ?rodada=, barra final, seguindo o 308 do Next) também 404
-ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: 13 requisições (páginas GET, API nos métodos exportados) todas com status 404
+ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: 15 requisições (páginas GET, API nos métodos exportados) todas com status 404
 ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: métodos que a rota não usa também respondem 404 (a rota não se revela por um 405)
-ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: TRACE nas 13 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
-AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (b) ADMIN_CENTRAL=1 e VERCEL=1: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
-ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: 78 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
-ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: 13 requisições (páginas GET, API nos métodos exportados) todas com status 404
+ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: TRACE nas 15 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
+AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (b) ADMIN_CENTRAL=1 e VERCEL=1: TRACE -> 15 de 15 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
+ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: 90 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
+ok      (b) ADMIN_CENTRAL=1 e VERCEL=1: o 404 da central fechada leva os três cabeçalhos (CSP com frame-ancestors 'none', X-Frame-Options DENY, Referrer-Policy same-origin)
+ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: 15 requisições (páginas GET, API nos métodos exportados) todas com status 404
 ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: métodos que a rota não usa também respondem 404 (a rota não se revela por um 405)
-ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: TRACE nas 13 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
-AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: TRACE -> 13 de 13 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
-ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: 78 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
+ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: TRACE nas 15 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
+AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: TRACE -> 15 de 15 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
+ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: 90 requisições extras (RSC e RSC+prefetch nas páginas; OPTIONS, PUT, DELETE, HEAD em toda rota, páginas e API) todas com status 404
+ok      (c) ADMIN_CENTRAL=1 e VERCEL_ENV=preview: o 404 da central fechada leva os três cabeçalhos (CSP com frame-ancestors 'none', X-Frame-Options DENY, Referrer-Policy same-origin)
 
-== critério 15 (G1-4): central ligada, Host fora de localhost/127.0.0.1/[::1] responde 404 em páginas e GET de API
-ok      Host: evil.example.com: 13 GET (todas as páginas e todas as rotas de API) com status 404
-ok      Host: rebind.attacker.test:80: 13 GET (todas as páginas e todas as rotas de API) com status 404
-ok      Host: localhost.evil.example.com: 13 GET (todas as páginas e todas as rotas de API) com status 404
-ok      Host: 127.0.0.1.evil.example.com: 13 GET (todas as páginas e todas as rotas de API) com status 404
+== [26 s] critério 15 (G1-4): central ligada, Host fora de localhost/127.0.0.1/[::1] responde 404 em páginas e GET de API
+ok      Host: evil.example.com: 15 GET (todas as páginas e todas as rotas de API) com status 404
+ok      Host: rebind.attacker.test:80: 15 GET (todas as páginas e todas as rotas de API) com status 404
+ok      Host: localhost.evil.example.com: 15 GET (todas as páginas e todas as rotas de API) com status 404
+ok      Host: 127.0.0.1.evil.example.com: 15 GET (todas as páginas e todas as rotas de API) com status 404
 ok      controle positivo: com o Host local (127.0.0.1) a API de estado e a página da fila respondem 200
 ok      controle positivo: Host localhost:porta e [::1]:porta também respondem 200
 
-== estados de tela com o banco vazio (antes de qualquer rodada)
+== [27 s] critério 15 (modo produção, simulado): central fechada para quem não passa pela guarda, em toda rota e método
+        variáveis: ADMIN_CENTRAL=producao VERCEL_ENV=production AUTH_PROVIDER=supabase NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:52046 (porta local FECHADA) NEXT_PUBLIC_SUPABASE_ANON_KEY=x ADMIN_DATABASE_URL=...@127.0.0.1:54329/admin_coleta_c7?sslmode=require
+ok      Host admin.segueovoto.com.br, sem cookie: 140 requisições (14 rotas fora /admin/entrar; GET, RSC, RSC+prefetch, HEAD, OPTIONS, PUT, DELETE, PATCH, POST JSON e POST text/plain) todas 404
+ok      o 404 da guarda não tem corpo (nada a revelar)
+ok      todo 404 da guarda, em qualquer método, leva os três cabeçalhos de segurança (CSP com frame-ancestors 'none' e só challenges.cloudflare.com como host, X-Frame-Options, Referrer-Policy)
+ok      TRACE nas 15 rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central
+AVISO   EXCEÇÃO ao critério 15 (aprovada pelo dono no AC-22 para a central LOCAL; para a internet é a decisão 5 da seção 7 de reavaliacao-central-e-dominio.md, ainda aberta): TRACE -> 15 de 15 rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)
+ok      /admin/entrar (Host certo, sem cookie): 200 com o formulário de e-mail (a exceção que o middleware abre)
+ok      /admin/entrar leva os cabeçalhos: CSP cita challenges.cloudflare.com (Turnstile só aqui) e nenhum outro host
+ok      /admin/entrar?etapa=codigo (Host certo, sem cookie): 200 com o formulário do código
+ok      /admin/entrar/fator sem sessão: 404 (o cadastro do fator exige sessão de admin com aal1)
+        /admin/entrar, outros métodos sem sessão (o Next trata o POST sem o cabeçalho Next-Action): HEAD 200, OPTIONS 400, PUT 200, DELETE 200, PATCH 200, POST 200, POST text/plain 200
+ok      /admin/entrar nunca responde 5xx a método estranho
+        /admin/entrar/ (barra final): 308
+ok      Host localhost:52047: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host 127.0.0.1:52047: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host [::1]:52047: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host replica-x.vercel.app: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host replica-virid-sigma.vercel.app: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host admin.segueovoto.com.br.evil.example: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host evil-admin.segueovoto.com.br: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host admin.segueovoto.com.br:8443: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      Host evil.example: 15 GET (todas as rotas, /admin/entrar incluída) com 404
+ok      controle positivo: Host ADMIN.SEGUEOVOTO.COM.BR também abre /admin/entrar (200)
+ok      controle positivo: Host admin.segueovoto.com.br:443 também abre /admin/entrar (200)
+ok      Host evil.example com x-forwarded-host: admin.segueovoto.com.br: 404 (cabeçalho de proxy não vale)
+ok      Host evil.example com forwarded: admin.segueovoto.com.br: 404 (cabeçalho de proxy não vale)
+ok      Host evil.example com x-original-host: admin.segueovoto.com.br: 404 (cabeçalho de proxy não vale)
+ok      o site público (/) continua 200 no processo do modo produção (a trava só cobre /admin)
+ok      VERCEL_ENV=preview: Host admin.segueovoto.com.br, 150 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
+ok      VERCEL_ENV=development: Host admin.segueovoto.com.br, 150 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
+ok      VERCEL_ENV ausente: Host admin.segueovoto.com.br, 150 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
+ok      AUTH_PROVIDER=dev: Host admin.segueovoto.com.br, 150 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
+ok      ADMIN_DATABASE_URL sem sslmode: Host admin.segueovoto.com.br, 150 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
+ok      ADMIN_DATABASE_URL com sslmode=disable: Host admin.segueovoto.com.br, 150 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
+ok      ADMIN_DATABASE_URL ausente: Host admin.segueovoto.com.br, 150 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
+ok      ADMIN_CENTRAL=Producao (valor que não é exato): Host admin.segueovoto.com.br, 150 requisições (todas as rotas, /admin/entrar incluída, todos os métodos) com 404
+
+== [37 s] modo produção simulado: provedor de autenticação fora do ar (conexão derrubada; resposta 500) com cookie de sessão presente
+ok      [drop] com cookie de sessão e o Supabase fora do ar: /admin 404, /admin/fila 404, /admin/api/estado 404, /admin/entrar/fator 404, /admin/rodadas 404, POST pedidos 404 (tudo 404)
+ok      [drop] /admin/entrar com o provedor fora do ar: 200 (renderiza o formulário; quem não passa pelo provedor não entra, mas a página abre)
+ok      [drop] o servidor TENTOU falar com o Supabase falso (64 conexões): a prova não passou por um caminho que nem tenta
+ok      [drop] depois de 64 conexões ao provedor falso o servidor continua de pé (404 na central, / 200) e o log não tem exceção solta
+AVISO   ACHADO [drop]: com o provedor fora do ar, o conjunto de requisições em paralelo com cookie de sessão levou 51 s (cada uma ~25 s até o 404 por causa do backoff do supabase-js dentro do middleware, sem prazo; /admin/entrar ~51 s porque a página repete a chamada); sem cookie o 404 é imediato. Relatado, não corrigido (fora do escopo da T5).
+ok      [http500] com cookie de sessão e o Supabase fora do ar: /admin 404, /admin/fila 404, /admin/api/estado 404, /admin/entrar/fator 404, /admin/rodadas 404, POST pedidos 404 (tudo 404)
+ok      [http500] /admin/entrar com o provedor fora do ar: 200 (renderiza o formulário; quem não passa pelo provedor não entra, mas a página abre)
+ok      [http500] o servidor TENTOU falar com o Supabase falso (64 conexões): a prova não passou por um caminho que nem tenta
+ok      [http500] depois de 64 conexões ao provedor falso o servidor continua de pé (404 na central, / 200) e o log não tem exceção solta
+AVISO   ACHADO [http500]: com o provedor fora do ar, o conjunto de requisições em paralelo com cookie de sessão levou 51 s (cada uma ~25 s até o 404 por causa do backoff do supabase-js dentro do middleware, sem prazo; /admin/entrar ~51 s porque a página repete a chamada); sem cookie o 404 é imediato. Relatado, não corrigido (fora do escopo da T5).
+
+== [91 s] cabeçalhos de segurança em resposta real (fetch, redirect manual): página, API, 404 da central; ausentes no site público
+ok      página /admin/fila: 200, CSP com frame-ancestors 'none' (sem Turnstile no modo local), X-Frame-Options DENY, Referrer-Policy same-origin
+ok      API /admin/api/estado: 200, CSP com frame-ancestors 'none' (sem Turnstile no modo local), X-Frame-Options DENY, Referrer-Policy same-origin
+ok      404 da central (rota inexistente): 404, CSP com frame-ancestors 'none' (sem Turnstile no modo local), X-Frame-Options DENY, Referrer-Policy same-origin
+ok      site público (/): sem Content-Security-Policy, X-Frame-Options nem Referrer-Policy (só a central os leva)
+ok      malha pública (/geo/br.json): sem os três cabeçalhos
+
+== [91 s] estados de tela com o banco vazio (antes de qualquer rodada)
 ok      estado vazio+carregando :: nenhuma rodada: bloco vazio; região viva marcada como carregando no HTML inicial (GET /admin)
 ok      carregando: a região viva sai no HTML inicial com data-regiao=viva e aria-busy=true
 ok      estado territorio_sem_ficha :: UF sem nenhuma ficha (GET /admin/uf/35)
@@ -52,13 +113,13 @@ ok      página /admin/fila com banco vazio responde 200
 ok      página /admin/rodadas com banco vazio responde 200
 ok      relatório de rodada inexistente: 404 com JSON de erro (não é o 404 da guarda)
 
-== rodadas simuladas (cenário v1; cenário v2 com releitura forçada de robots.txt e /api/)
-ok      rodada v1 1613fc12-e60f-4b23-899d-9c4cf479c9f4 e rodada v2 b652c67d-762f-4cdd-84a9-5a0ba4e626d4 (10 URLs com releitura forçada) concluídas em 45 s
+== [91 s] rodadas simuladas (cenário v1; cenário v2 com releitura forçada de robots.txt e /api/)
+ok      rodada v1 5d39bdca-11bc-4c56-9362-d3133cd7526c e rodada v2 d0baa2d6-1f0b-438b-a207-54b9ea06839c (10 URLs com releitura forçada) concluídas em 92 s
 ok      as duas rodadas terminaram concluida
 ok      a v2 gerou pendências abertas (2: status@casa 3, status@casa 5)
-ok      pendências de status de AM (d4e49615-1f31-46e7-8ff2-d1b7e6decbda) e de PB (5849198d-f64e-4ca3-92a7-53e8a28cdcae) abertas
+ok      pendências de status de AM (c333fbf4-b8bc-48ea-9773-e52a8f93731a) e de PB (74eab1c6-a491-4954-867c-011532ed5d8d) abertas
 
-== critério 19: números do painel da central = relatório da CLI (mesma rodada)
+== [92 s] critério 19: números do painel da central = relatório da CLI (mesma rodada)
 ok      19 [v2] relatório obtido pela CLI e pela API
 ok      19 [v2] painel coleta: JSON da API igual ao da CLI (15 totais; valor, de e ids iguais em 15)
 ok      19 [v2] painel revisao: JSON da API igual ao da CLI (14 totais; valor, de e ids iguais em 14)
@@ -72,15 +133,15 @@ ok      19 [v1] marca simulado e id da rodada iguais
 ok      19 [v1] HTML de /admin?rodada= painel coleta: 15 totais escritos "V de D" e "Ver registros (n)", iguais aos da CLI
 ok      19 [v1] HTML de /admin?rodada= painel revisao: 14 totais escritos "V de D" e "Ver registros (n)", iguais aos da CLI
 
-== estados de tela com rodadas
-ok      estado rodada_concluida+executor_ok+carregando :: rodada v2 concluída (GET /admin?rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4)
-ok      estado carregando :: UF com fichas (não é território sem ficha) (GET /admin/uf/13?rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4)
+== [93 s] estados de tela com rodadas
+ok      estado rodada_concluida+executor_ok+carregando :: rodada v2 concluída (GET /admin?rodada=d0baa2d6-1f0b-438b-a207-54b9ea06839c)
+ok      estado carregando :: UF com fichas (não é território sem ficha) (GET /admin/uf/13?rodada=d0baa2d6-1f0b-438b-a207-54b9ea06839c)
 ok      estado territorio_sem_ficha :: UF sem ficha continua vazia com banco populado (GET /admin/uf/35)
 ok      estado ficha_sem_evidencia :: ficha sem proposta (RO não mudou entre v1 e v2) (GET /admin/ficha/vinculo_sapl/1)
 ok      estado  :: ficha com proposta (URL, trecho e hash): NÃO é ficha_sem_evidencia (GET /admin/ficha/vinculo_sapl/3)
 ok      API da ficha de AM responde 200 com JSON
 
-== critério 24: mapa sem <circle>, território com nome e contagem em texto (parcial sem navegador: ver a nota)
+== [93 s] critério 24: mapa sem <circle>, território com nome e contagem em texto (parcial sem navegador: ver a nota)
 ok      24 fonte da central (tsx, ts, css): nenhum <circle>, tipo "circle" nem elemento de cluster
 ok      24 fonte do mapa: cada território é um link com aria-label e <title> "<nome>: <contagem>" (nome da malha + formatarContagem)
 ok      24 HTML de /admin: nenhum <circle> e nenhum elemento de cluster
@@ -97,9 +158,34 @@ ok      24 /admin/uf/13: a malha local /geo/uf/13.json traz 62 territórios, tod
 ok      24 /admin/uf/13: 1 chunk(s) de JS com o código do mapa, nenhum com tipo "circle" ou cluster
 AVISO   24 limite: o mapa é componente de cliente (a malha /geo/*.json é buscada num useEffect), então o HTML do servidor não traz os <path> dos territórios com aria-label. Provado sem navegador: sem circle/cluster no HTML, nos chunks, no fonte e na malha; contagens no payload e em texto no HTML; nome de cada território na malha; regra do rótulo no fonte. NÃO provado: o rótulo renderizado de cada território no DOM (precisa de navegador).
 
-== critério 20: dois cliques em 'Recoletar fichas pendentes' = um pedido só
+== [93 s] critério 20: dois cliques em 'Recoletar fichas pendentes' = um pedido só
+
+== [93 s] CSRF estrito (AC-23): POST sem Origin, sem Sec-Fetch-Site ou cross-site = 403, sem gravar
+ok      POST /admin/api/pedidos sem Origin: 403
+ok      POST /admin/api/decisoes sem Origin: 403
+ok      POST /admin/api/pedidos sem Sec-Fetch-Site: 403
+ok      POST /admin/api/decisoes sem Sec-Fetch-Site: 403
+ok      POST /admin/api/pedidos Sec-Fetch-Site: cross-site: 403
+ok      POST /admin/api/decisoes Sec-Fetch-Site: cross-site: 403
+ok      POST /admin/api/pedidos Sec-Fetch-Site: same-site: 403
+ok      POST /admin/api/decisoes Sec-Fetch-Site: same-site: 403
+ok      POST /admin/api/pedidos Sec-Fetch-Site: none: 403
+ok      POST /admin/api/decisoes Sec-Fetch-Site: none: 403
+ok      POST /admin/api/pedidos sem Origin nem Sec-Fetch-Site: 403
+ok      POST /admin/api/decisoes sem Origin nem Sec-Fetch-Site: 403
+ok      POST /admin/api/pedidos Origin de outra origem (evil.example): 403
+ok      POST /admin/api/decisoes Origin de outra origem (evil.example): 403
+ok      POST /admin/api/pedidos Origin do mesmo host com outra porta: 403
+ok      POST /admin/api/decisoes Origin do mesmo host com outra porta: 403
+ok      POST /admin/api/pedidos Origin: null: 403
+ok      POST /admin/api/decisoes Origin: null: 403
+ok      POST /admin/api/pedidos content-type text/plain (POST simples, sem preflight): 403
+ok      POST /admin/api/decisoes content-type text/plain (POST simples, sem preflight): 403
+ok      nenhuma linha gravada em adm_pedidos nem em adm_pedidos_decisao pelos 20 POST recusados (0|0)
+
+== [93 s] critério 20 (continuação)
 ok      antes: nenhum pedido no banco
-ok      1º POST: 200, novo=true, id 472b3d56-31d8-422d-bf0c-c38ba9d13600
+ok      1º POST: 200, novo=true, id dafdc521-1ad0-4b06-ac2e-1795a867c3e1
 ok      2º POST igual: mesmo id e novo=false
 ok      mais dois POST simultâneos: mesmo id e novo=false
 ok      select count(*) em adm_pedidos = 1 pedido (ativo, na_fila) para a chave
@@ -110,46 +196,79 @@ AVISO   20/estado pedido_existente: o <p data-estado="pedido_existente"> só é 
 ok      regra estadoDoPedido: novo=false -> pedido_existente (fonte)
 ok      o pedido gravado pela central tem `parametros` jsonb do tipo object (como o da CLI)
 ok      o executor consome o pedido de recoleta gravado pela central (recoleta:concluido) e a fila esvazia
-ok      a recoleta abriu a rodada 2c3d0d19-faa4-4c6f-9016-22e4f0a1f8b8
+ok      a recoleta abriu a rodada 76e1cece-89ba-41a9-a280-f07861bd7cf7
 
-== critério 22: pedido de parecer com as duas chaves desligadas não altera nenhuma tabela de domínio
+== [94 s] critério 22: pedido de parecer com as duas chaves desligadas não altera nenhuma tabela de domínio
 ok      há pendência aberta para pedir parecer (2)
-        [pedido gravado pela central] retrato antes: 102 tabelas (todas do schema public menos adm_pareceres, adm_pedidos, adm_pedidos_decisao); decisões|overrides|corrections|pareceres = 0|0|0|0
+        [pedido gravado pela central] retrato antes: 104 tabelas (todas do schema public menos adm_pareceres, adm_pedidos, adm_pedidos_decisao); decisões|overrides|corrections|pareceres = 0|0|0|0
 ok      [pedido gravado pela central] pedidos de parecer de uma pendência e de uma rodada gravados na fila
 ok      [pedido gravado pela central] o executor (--uma-vez, até esvaziar) processou 2 pedidos: parecer:concluido, parecer:concluido
-ok      [pedido gravado pela central] retrato depois idêntico em 102 tabelas (contagem e md5 do conteúdo ordenado)
+ok      [pedido gravado pela central] retrato depois idêntico em 104 tabelas (contagem e md5 do conteúdo ordenado)
 ok      [pedido gravado pela central] nenhuma decisão, override ou correction nova (0|0|0|0 -> 0|0|0|3)
 ok      [pedido gravado pela central] adm_pareceres ganhou 3 linha(s) e todas têm simulado = true
 
-== estados de tela montados pelos mecanismos existentes
-ok      rodada aberta e não executada (admin rodada abrir sem --executar): ba33427c-c1c3-4fcb-b28e-673e6e7c0518
-ok      estado rodada_em_andamento :: rodada aberta (em andamento), totais parciais (GET /admin?rodada=ba33427c-c1c3-4fcb-b28e-673e6e7c0518)
-ok      rodada interrompida montada por `admin rodada recuperar` (em_andamento sem trava -> interrompida): 9be601e3-3bba-472e-a4d1-99fde2018f51
-ok      estado rodada_interrompida :: rodada interrompida (pede Repetir) (GET /admin?rodada=9be601e3-3bba-472e-a4d1-99fde2018f51)
+== [96 s] identidade (AC-23): `por` do corpo ignorado; o pedido leva o admin da sessão (local: ADMIN_LOCAL_EMAIL)
+ok      POST decisão com por="Fulano Forjado (SIMULADO)" no corpo: 200, novo (id 8d60effc-8d6f-44f5-aff8-dd0ed22b4e9d)
+ok      o pedido de decisão gravado tem por_nome = 'Operador local' e por_email = operador.local@segueovoto.invalid (o admin local), não o do corpo
+ok      nenhuma linha em adm_pedidos_decisao carrega o `por` forjado
+ok      exatamente um pedido de decisão novo
+ok      todo pedido gravado pela central (adm_pedidos) tem por_email do admin local
+ok      o executor consome o pedido (decisao:concluido)
+ok      adm_decisoes: pessoa|Operador local|aplicada=false (não o nome do corpo)
+
+== [96 s] estados de tela montados pelos mecanismos existentes
+ok      rodada aberta e não executada (admin rodada abrir sem --executar): dd2f374b-d07e-4270-8921-f3e64a74c230
+ok      estado rodada_em_andamento :: rodada aberta (em andamento), totais parciais (GET /admin?rodada=dd2f374b-d07e-4270-8921-f3e64a74c230)
+ok      rodada interrompida montada por `admin rodada recuperar` (em_andamento sem trava -> interrompida): 9ba92cc0-deea-446d-a97d-214c8c1986a3
+ok      estado rodada_interrompida :: rodada interrompida (pede Repetir) (GET /admin?rodada=9ba92cc0-deea-446d-a97d-214c8c1986a3)
 ok      lista de rodadas mostra os três estados de rodada em cada item
-ok      pedido de parecer na fila com mais de 60 s (retroagido no banco admin_coleta_c7): a5638301-e330-4913-aec5-e769a813cd32
-ok      estado executor_parado :: executor parado com pedido velho na fila (GET /admin?rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4)
+ok      pedido de parecer na fila com mais de 60 s (retroagido no banco admin_coleta_c7): 5125b318-b641-4122-a9d3-255ae05be65e
+ok      estado executor_parado :: executor parado com pedido velho na fila (GET /admin?rodada=d0baa2d6-1f0b-438b-a207-54b9ea06839c)
 ok      o bloco diz que o executor está parado e o tempo de espera
 ok      GET /admin/api/estado: executor.parado = true
 ok      o executor consome o pedido velho e a fila esvazia (parecer:concluido)
-ok      estado executor_ok :: executor volta a em dia depois de consumir a fila (GET /admin?rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4)
+ok      estado executor_ok :: executor volta a em dia depois de consumir a fila (GET /admin?rodada=d0baa2d6-1f0b-438b-a207-54b9ea06839c)
 
-== estado de erro de leitura (ADMIN_DATABASE_URL apontando para porta local fechada)
-ok      estado erro_leitura :: banco inalcançável (GET /admin)
-ok      estado erro_leitura :: banco inalcançável (GET /admin/uf/13)
-ok      estado erro_leitura :: banco inalcançável (GET /admin/registros?uf=13)
-ok      estado erro_leitura :: banco inalcançável (GET /admin/fila)
-ok      estado erro_leitura :: banco inalcançável (GET /admin/rodadas)
+== [98 s] estado de erro de leitura (banco de pé, identidade ok, leitura negada: admin_central sem select fora de adm_admins e read-only)
+ok      o admin_central tem select em 23 tabelas além de adm_admins (será revogado e devolvido)
+ok      estado erro_leitura :: leitura negada pelo banco (GET /admin)
+ok      estado erro_leitura :: leitura negada pelo banco (GET /admin/uf/13)
+ok      estado erro_leitura :: leitura negada pelo banco (GET /admin/registros?uf=13)
+ok      estado erro_leitura :: leitura negada pelo banco (GET /admin/fila)
+ok      estado erro_leitura :: leitura negada pelo banco (GET /admin/rodadas)
 ok      GET /admin/api/estado: 503 sem detalhe técnico no corpo
-ok      POST /admin/api/pedidos: 503 (não finge que gravou)
+ok      POST /admin/api/pedidos: 503 (não finge que gravou) e nada gravado
+ok      grants do admin_central devolvidos como estavam (mesmas tabelas) e a configuração read-only removida
+ok      banco inalcançável (porta fechada): 404 em página e API (a API sem corpo; a página com o 404 padrão do Next), porque a identidade não se resolve e a guarda fecha
+ok      o site público continua 200 com o banco da central fora do ar
 
-== controle positivo do critério 15 (central ligada: as mesmas rotas existem no build)
+== [100 s] controle positivo do critério 15 (central ligada: as mesmas rotas existem no build)
+ok      as páginas de entrada (/admin/entrar/fator, /admin/entrar) respondem 404 no modo local (só existem no modo produção)
 ok      13 requisições (GET: 200; POST sem corpo válido: 400/403, nunca 404): todas as rotas respondem de fato com a central ligada
 ok      POST com corpo vazio é recusado (400 validação ou 403 origem), não aceito
 ok      com pendências abertas, a página /admin/fila lê o banco sem cair em erro_leitura
 ok      com pendências abertas, a página /admin?visao=revisao lê o banco sem cair em erro_leitura
-ok      com pendências abertas, a página /admin?visao=revisao&rodada=b652c67d-762f-4cdd-84a9-5a0ba4e626d4 lê o banco sem cair em erro_leitura
+ok      com pendências abertas, a página /admin?visao=revisao&rodada=d0baa2d6-1f0b-438b-a207-54b9ea06839c lê o banco sem cair em erro_leitura
 ok      POST com Origin de outro host: 403 (recusarOrigemExterna)
+
+== [102 s] gatilho de identidade pela API: admin desativado (banco de ensaio, role dono) = nada é gravado
+ok      admin local desativado no banco de ensaio
+ok      POST pedidos com o admin desativado: 404 (a guarda não acha admin ativo; o código nunca chega ao gatilho)
+ok      POST decisões com o admin desativado: 404
+ok      GET /admin, /admin/fila e /admin/api/estado com o admin desativado: 404
+ok      nenhuma linha gravada em adm_pedidos nem em adm_pedidos_decisao
+ok      o gatilho adm_pedido_identidade recusa o INSERT do role admin_central para admin inativo (42501, 'está inativo'): a segunda barreira
+ok      admin local reativado
+ok      reativado, o mesmo POST grava (200, novo): controle positivo
+
+== [102 s] rate limit (AC-23): 21 pedidos distintos em menos de 60 s -> o 21º responde 429 com Retry-After
+ok      janela de 60 s limpa antes de começar (esperou 53 s)
+ok      os 21 POST levaram 0.1 s (menos de 60)
+ok      os 20 primeiros foram aceitos (200, novo)
+ok      o 21º responde 429 com Retry-After: 60
+ok      o corpo do 429 não vaza detalhe do banco
+ok      no banco, 20 pedidos (o 21º não foi gravado)
+ok      fila sem pedido ativo depois da limpeza
         fila ao final: vazia
 
-resultado: tudo passou  (66 s)
+resultado: tudo passou  (156 s)

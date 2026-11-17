@@ -1,7 +1,7 @@
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: 0 URLs pedidas, 0 não previstas
-rodada           35b440f2-c4bf-4fad-922a-8efc00cde0ae
+rodada           00aadb3e-402d-4505-86cc-978df0f33c54
 status           falhou
 motivo           pré-condição do reprocessar falha: coletor não roda -> falhou
 código de saída  desconhecido: o coletor não rodou

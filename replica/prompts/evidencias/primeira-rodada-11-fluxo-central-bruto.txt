@@ -1,59 +1,59 @@
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
-ERROR: failed to copy trust settings of system certificate-25291
         SIMULADO: fluxo da primeira rodada (passos 6 a 9) pela API da central, banco admin_coleta_r1. Executor da CLI sobre respostas fabricadas (cenário v2). Nada é aplicado às tabelas de domínio.
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
+ERROR: failed to copy trust settings of system certificate-25291
 ERROR: failed to copy trust settings of system certificate-25291
 ERROR: failed to copy trust settings of system certificate-25291
 ERROR: failed to copy trust settings of system certificate-25291
@@ -74,36 +74,36 @@ ERROR: failed to copy trust settings of system certificate-25291
 ok      o banco conectado é admin_coleta_r1
 ok      fila de pedidos sem pedido ativo no começo
 
-== passo 1: pendência de coleta pelo mapa
+== [1 s] passo 1: pendência de coleta pelo mapa
 ok      GET /admin/api/estado: mapa com 18 fichas; por UF (ibge): {"11":5,"12":4,"13":4,"22":1,"25":4}
 ok      GET /admin/api/fila?classe=vinculo_sapl responde 200 com a lista (2)
-ok      pendência escolhida: Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO (base_url, id 33180e93-7303-4e89-b414-971472396632, território municipio 1190099)
+ok      pendência escolhida: Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO (base_url, id 034cb1c6-8e95-43cf-b4e7-65db6bda2d98, território municipio 1190099)
 ok      o mapa do país conta 5 ficha(s) na UF 11 do território municipio 1190099
 AVISO   contagem do município 1190099 no mapa da UF: não medida sem navegador (só o Playwright prova)
 
-== passo 2: recoleta das fichas pendentes do território
-ok      POST recoleta vinculo_sapl municipio 1190099: id 2ad0baea-bbe8-49c9-9dfb-ae3e3c2ff5d8
+== [1 s] passo 2: recoleta das fichas pendentes do território
+ok      POST recoleta vinculo_sapl municipio 1190099: id 07193e37-4c20-4af8-bc7c-177d14a3bbea
 ok      executor (--uma-vez até esvaziar): recoleta:concluido [recoleta]
-ok      a recoleta abriu e executou a rodada 49c1296b-195f-4a97-9476-2ca92ada65b0
-ok      a pendência do mesmo registro e campo continua na fila depois da recoleta (id 33180e93-7303-4e89-b414-971472396632, o mesmo)
+ok      a recoleta abriu e executou a rodada e59179fe-4c8b-4df7-81b6-ca3e50be6882
+ok      a pendência do mesmo registro e campo continua na fila depois da recoleta (id 034cb1c6-8e95-43cf-b4e7-65db6bda2d98, o mesmo)
 
-== passo 3: parecer de ensaio da pendência
-ok      POST parecer: id fdefc750-2558-49fe-8b2d-8623c5dc20a5
+== [2 s] passo 3: parecer de ensaio da pendência
+ok      POST parecer: id f3636f04-0303-4a20-a9b9-de5dcd018e8d
 ok      executor (--uma-vez até esvaziar): parecer:concluido [parecer]
 ok      o parecer foi gravado em adm_pareceres com simulado = true
 
-== passo 4: pedido de decisão (aprovar, sem aplicar)
-ok      POST decisão: id do pedido 66d1f2c8-fcc7-4cc2-8de8-2ed924915fbe
+== [3 s] passo 4: pedido de decisão (aprovar, sem aplicar)
+ok      POST decisão: id do pedido 7c8f3cd6-247e-46b3-ad49-5b6f2aa5cd94
 ok      antes do executor não existe decisão: a central só gravou o PEDIDO (AC-19)
 ok      executor (--uma-vez até esvaziar): decisao:concluido [decisão]
 
-== passo 5: a decisão lida pela CLI é a que a API pediu, como pessoa
-ok      admin pendencia 33180e93-7303-4e89-b414-971472396632 --json traz exatamente 1 decisão
-ok      CLI: acao=aprovar, por tipo=pessoa, nome="Operador de Ensaio (SIMULADO)", aplicada=false
+== [3 s] passo 5: a decisão lida pela CLI é a que a API pediu, como pessoa
+ok      admin pendencia 034cb1c6-8e95-43cf-b4e7-65db6bda2d98 --json traz exatamente 1 decisão
+ok      CLI: acao=aprovar, por tipo=pessoa, nome="Operador local", aplicada=false
 ok      SQL em adm_decisoes: aprovar|pessoa|nome|aplicada=false|justificativa, exatamente como pedido pela API
 ok      nenhuma decisão de agentes
         admin fila: a pendência não está mais na fila aberta (status no banco: decidida)
 ok      fila de pedidos vazia no fim
 ok      sem aplicação: adm_overrides (1) e corrections (0) não mudaram
 
-RESULTADO: tudo passou (10 s)
+RESULTADO: tudo passou (4 s)

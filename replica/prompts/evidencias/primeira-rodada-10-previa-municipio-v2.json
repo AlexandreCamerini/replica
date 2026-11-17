@@ -27,7 +27,7 @@
   ],
   "tentativas_registradas": true,
   "cache_dir": "/tmp/claude-501/admin-r1-cache",
-  "gerada_em": "2026-11-17T11:29:02.456285+00:00",
+  "gerada_em": "2026-11-17T15:17:27.969331+00:00",
   "registros_elegiveis": {
     "classe": "vinculo_sapl",
     "valor": 1,
@@ -70,7 +70,7 @@
   "demais_urls": {
     "valor": 2,
     "estimativa": true,
-    "base": "rodada d85ce711-dbcd-40d5-b8cb-a70ca3a7bccd de 2026-11-17",
-    "rodada_base": "d85ce711-dbcd-40d5-b8cb-a70ca3a7bccd"
+    "base": "rodada 358a2989-9832-40a0-b10f-9ae09f337382 de 2026-11-17",
+    "rodada_base": "358a2989-9832-40a0-b10f-9ae09f337382"
   }
 }

@@ -1,6 +1,6 @@
 SIMULADO: conferências do passo 12-passo7-recoleta (respostas fabricadas)
-  POST recoleta vinculo_sapl municipio 1190099: id 2ad0baea-bbe8-49c9-9dfb-ae3e3c2ff5d8
+  POST recoleta vinculo_sapl municipio 1190099: id 07193e37-4c20-4af8-bc7c-177d14a3bbea
   executor (--uma-vez até esvaziar): recoleta:concluido [recoleta]
-  a recoleta abriu e executou a rodada 49c1296b-195f-4a97-9476-2ca92ada65b0
+  a recoleta abriu e executou a rodada e59179fe-4c8b-4df7-81b6-ca3e50be6882
   [ok] a recoleta pela central abriu uma rodada concluida do coletor sapl.camaras sobre o município
   [ok] a pendência do município continua aberta e na fila, com o mesmo registro e campo (conferido pelo fluxo)

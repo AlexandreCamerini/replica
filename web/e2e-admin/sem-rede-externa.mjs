@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// SIMULADO (banco de ensaio). Critério 23: nenhuma requisição da central sai para host externo. Sem navegador: varredura estática do fonte e,
+// SIMULADO (banco de ensaio). Critério 23 (AC-23: hosts permitidos): modo local, nenhum host externo; modo produção, só a própria origem, challenges.cloudflare.com (Turnstile, na entrada)
+// e, do lado do servidor, o Supabase Auth do projeto. Sem navegador: varredura estática do fonte e,
 // com a central ligada num `next start` local, do HTML de cada página e de TODO recurso que ele referencia (js e css de /_next/static, mais os
 // chunks que o app-build-manifest lista para as páginas da central), à procura de host externo usado como recurso.
 //
@@ -15,8 +16,14 @@ const T0 = Date.now();
 
 // ================================================================== 1. varredura estática do fonte
 
-const DIRS = ["src/app/(admin)", "src/lib/admin", "src/components/admin"];
-const ARQS = ["src/styles/admin.css"];
+// Inclui o que a central usa na ENTRADA (AC-23): components/admin-entrada, o widget Turnstile (components/account/turnstile.tsx, o mesmo do site) e o middleware.
+const DIRS = ["src/app/(admin)", "src/lib/admin", "src/components/admin", "src/components/admin-entrada"];
+const ARQS = ["src/styles/admin.css", "src/middleware.ts", "src/components/account/turnstile.tsx"];
+// Hosts externos aceitos no FONTE (critério 23, AC-23): só o Turnstile da Cloudflare, e só nestes arquivos (a CSP o cita; o widget o carrega). O Supabase Auth do projeto vem de variável
+// de ambiente (NEXT_PUBLIC_SUPABASE_URL), nunca de literal, e só o servidor fala com ele. A própria origem da central (admin.segueovoto.com.br) é constante de guarda, não é requisição.
+const HOST_TURNSTILE = "challenges.cloudflare.com";
+const ARQS_COM_TURNSTILE = ["src/lib/admin/cabecalhos.ts", "src/components/account/turnstile.tsx"];
+const HOSTS_PROPRIOS = /^(?:admin\.)?segueovoto\.com\.br$/;
 function arquivos() {
   const lista = [];
   for (const d of DIRS) (function anda(x) { for (const e of fs.readdirSync(x, { withFileTypes: true })) { const p = path.join(x, e.name); if (e.isDirectory()) anda(p); else lista.push(p); } })(path.join(C.WEB, d));
@@ -42,6 +49,7 @@ function estatica() {
     ["<img>, <iframe>, <video>, <audio>, <source>, <embed>, <object>, next/image", /<(?:img|iframe|video|audio|source|embed|object)\b|next\/image/gi],
     ["WebSocket, EventSource, XMLHttpRequest, sendBeacon, importScripts, new Worker", /\b(?:WebSocket|EventSource|XMLHttpRequest|sendBeacon|importScripts|new\s+Worker)\b/g],
     ["import() dinâmico com literal", /\bimport\(\s*["'`]/g],
+    ["host sem esquema (domínio com TLD) em texto de código", /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|br|org|net|io|dev|app|gov|edu|co|ai|cloud)\b/gi],
   ];
   for (const f of lista) {
     const t = fs.readFileSync(f, "utf8");
@@ -51,11 +59,30 @@ function estatica() {
     }
   }
   // justificativas EXATAS (arquivo + regra + trecho); qualquer achado fora delas falha
-  const justificativas = [];
+  const justificativas = [
+    // Turnstile: só em cabecalhos.ts (a CSP o cita) e no widget; a URL do script e o <Script src> são do widget
+    ...ARQS_COM_TURNSTILE.map((arquivo) => ({ arquivo, regra: "host sem esquema (domínio com TLD) em texto de código", trecho: HOST_TURNSTILE })),
+    { arquivo: "src/components/account/turnstile.tsx", regra: "URL absoluta (http, https, ws, wss)", trecho: `https://${HOST_TURNSTILE}/turnstile/v0/api.js` },
+    { arquivo: "src/components/account/turnstile.tsx", regra: "<script src", trecho: "<Script src=" },
+    // QR do cadastro do fator: data URI (SVG) devolvido pelo Supabase; a CSP só aceita `data:` e a própria origem em img-src
+    { arquivo: "src/components/admin-entrada/formularios.tsx", regra: "<img>, <iframe>, <video>, <audio>, <source>, <embed>, <object>, next/image", trecho: "<img" },
+    // a própria origem da central e o alias que a guarda RECUSA (texto de comentário e de constante, nunca requisição)
+    ...["src/lib/admin/guarda-regra.ts", "src/lib/admin/cabecalhos.ts", "src/middleware.ts", "src/app/(admin)/layout.tsx"].flatMap((arquivo) => ["admin.segueovoto.com.br", "segueovoto.com.br"].map((trecho) => ({ arquivo, regra: "host sem esquema (domínio com TLD) em texto de código", trecho }))),
+    { arquivo: "src/lib/admin/guarda-regra.ts", regra: "host sem esquema (domínio com TLD) em texto de código", trecho: "vercel.app" },
+  ];
   const nao = achados.filter((a) => !justificativas.some((j) => j.arquivo === a.arquivo && j.regra === a.regra && a.trecho.includes(j.trecho)));
   for (const a of achados) R.info(`achado${nao.includes(a) ? "" : " (justificado)"}: ${a.arquivo}:${a.linha} [${a.regra}] ${a.trecho}`);
   R.checa(nao.length === 0, `nenhuma URL absoluta, <script src>, <link href> externo, @import, fonte, imagem ou conexão (WebSocket, XHR, beacon) no fonte da central (${achados.length} achados, ${nao.length} sem justificativa)`, nao.map((a) => `${a.arquivo}:${a.linha} ${a.trecho}`).join("; "));
 
+  // challenges.cloudflare.com: dentro da central (as pastas varridas e o middleware), só em cabecalhos.ts e no widget; e nenhum arquivo da central importa lib/captcha.ts
+  // (o fetch server-side ao siteverify da Cloudflare é do cadastro do SITE público; a entrada da central entrega o token ao Supabase Auth, que o verifica)
+  const comTurnstile = lista.filter((f) => /\.(tsx?|css|mjs|js)$/.test(f) && fs.readFileSync(f, "utf8").includes(HOST_TURNSTILE)).map(rel);
+  R.checa(comTurnstile.length > 0 && comTurnstile.every((f) => ARQS_COM_TURNSTILE.includes(f)), `${HOST_TURNSTILE} aparece, nos arquivos da central, só em ${ARQS_COM_TURNSTILE.join(" e ")} (achados: ${comTurnstile.join(", ")})`);
+  const usaCaptcha = lista.filter((f) => /\.(tsx?|mjs|js)$/.test(f) && /lib\/captcha|verifyCaptcha/.test(fs.readFileSync(f, "utf8"))).map(rel);
+  R.checa(usaCaptcha.length === 0, "nenhum arquivo da central usa lib/captcha.ts (o siteverify server-side da Cloudflare é do site público)", usaCaptcha.join(", "));
+  const hostSupabase = [];
+  for (const f of lista.filter((x) => /\.(tsx?|mjs|js)$/.test(x))) if (/supabase\.(?:co|com|in)\b/i.test(fs.readFileSync(f, "utf8"))) hostSupabase.push(rel(f));
+  R.checa(hostSupabase.length === 0, "nenhum literal de host do Supabase no fonte da central: o Auth vem de NEXT_PUBLIC_SUPABASE_URL e só o servidor fala com ele", hostSupabase.join(", "));
   // fetch: todo primeiro argumento tem de ser relativo (literal que começa por "/") ou um identificador cuja origem é provada
   const chamadas = [];
   for (const f of lista.filter((x) => /\.(tsx?|mjs|js)$/.test(x))) {
@@ -103,6 +130,8 @@ const EXCECOES = [
   [/^https:\/\/github\.com\/zloirock\/core-js(?:\/blob\/v[\d.]+\/LICENSE)?$/, /^\/_next\/static\/chunks\/polyfills-/, "texto do aviso de licença do core-js dentro do polyfill: não é requisição"],
   // CSS do Tailwind: comentário de licença /*! ... */ (removido antes da busca de recurso; listado aqui só como texto)
   [/^https:\/\/tailwindcss\.com$/, /^\/_next\/static\/css\//, "comentário de licença do Tailwind no topo do CSS: não é requisição"],
+  // widget Turnstile (components/account/turnstile.tsx, client component): o chunk da página de entrada traz a URL do script como literal; é o host permitido (checado adiante: só nos chunks das páginas de entrada)
+  [/^https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js$/, /^\/_next\/static\/chunks\//, "URL do script do Turnstile no widget (Script src): host permitido, só na página de entrada (conferido contra o app-build-manifest)"],
   // dados do banco exibidos COMO TEXTO nas páginas (URL da casa SAPL e da evidência da proposta): o HTML as escreve em texto, sem href/src (conferido na seção de referências)
   [/^https:\/\/sapl\.al\.[a-z]{2}\.leg\.br(?:\/[^\s]*)?$/, /^HTML /, "URL de fonte (casa SAPL ou evidência da proposta) vinda do banco e escrita como texto na ficha/rodada; o HTML não a usa como href nem src e a página não a busca"],
 ];
@@ -126,7 +155,8 @@ function garantirBanco() {
   R.cabecalho("banco de ensaio");
   let reaproveita = false;
   try {
-    reaproveita = C.bancoExiste(C.BANCO_C7) && Number(C.sql(C.BANCO_C7, "select count(*) from adm_rodadas where status = 'concluida'")) >= 2;
+    // reaproveita só se o banco é da F3 (tem o admin local da 0156/post_0004) E já tem as rodadas simuladas
+    reaproveita = C.bancoExiste(C.BANCO_C7) && C.sql(C.BANCO_C7, `select count(*) from adm_admins where email = '${C.ADMIN_LOCAL_EMAIL}' and ativo`) === "1" && Number(C.sql(C.BANCO_C7, "select count(*) from adm_rodadas where status = 'concluida'")) >= 2;
   } catch {}
   if (reaproveita) R.ok(`reaproveita ${C.BANCO_C7}: já tem rodadas SIMULADAS concluídas`);
   else {
@@ -189,6 +219,11 @@ async function dinamica(ctx, estaticosDoManifest) {
       }
     };
     for (const p of alvos) {
+      if (p === "/admin/entrar" || p === "/admin/entrar/fator") {
+        const r = await C.http(srv.base, p);
+        R.checa(r.status === 404, `GET ${p}: 404 no modo local (as páginas de entrada só existem no modo produção; as de produção são provadas na seção 3)`, `status ${r.status}`);
+        continue;
+      }
       const r = await C.http(srv.base, p);
       if (!R.checa(r.status === 200, `GET ${p} responde 200`, `status ${r.status}`)) continue;
       const lk = r.cabecalhos.get("link");
@@ -242,11 +277,55 @@ async function dinamica(ctx, estaticosDoManifest) {
       R.info(`  ${j ? "justificada" : "SEM JUSTIFICATIVA"}: ${u.slice(0, 90)}  em ${quem}${j ? `  -> ${j}` : ""}`);
       if (!j) injust.push(u);
     }
+    const urlTs = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    if (achadosHost.has(urlTs)) {
+      let paginasDoChunk = null;
+      try {
+        const mf = JSON.parse(fs.readFileSync(path.join(C.WEB, ".next", "app-build-manifest.json"), "utf8")).pages ?? {};
+        const chunks = [...achadosHost.get(urlTs)].filter((o) => o.startsWith("/_next/")).map((o) => o.replace("/_next/", ""));
+        paginasDoChunk = [...new Set(chunks.flatMap((c) => Object.entries(mf).filter(([, v]) => v.includes(c)).map(([k]) => k)))];
+      } catch {}
+      R.checa(paginasDoChunk !== null && paginasDoChunk.length > 0 && paginasDoChunk.every((k) => /^\/\(admin\)\/admin\/entrar\//.test(k)), `o chunk com a URL do Turnstile só é carregado pelas páginas de entrada (app-build-manifest: ${paginasDoChunk?.join(", ")})`);
+    }
     R.checa(injust.length === 0, "toda URL absoluta que aparece como texto tem justificativa exata (namespace, mensagem do runtime, comentário), nenhuma é recurso", injust.slice(0, 6).join("; "));
     // contagem de fetch( dinâmicos no runtime (não resolvíveis no minificado): a prova de que são relativos está na varredura estática
     R.info("fetch( com argumento variável existe no runtime do Next (prefetch de rotas, RSC) e no mapa/painel da central; todos relativos ao site (provado no fonte, seção 1); nenhum com literal absoluto (varredura acima)");
   } finally {
     await srv.parar();
+  }
+}
+
+// ---- 3. modo produção simulado (AC-23): o que a central na internet pode contactar
+async function producaoSimulada() {
+  R.cabecalho("3. modo produção simulado: hosts permitidos (a própria origem; challenges.cloudflare.com só na entrada, na CSP; o Supabase só do lado do servidor)");
+  const falso = await C.supabaseFalso("drop");
+  const srv = await C.subirNext(await C.envProducao(C.BANCO_C7, { NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${falso.porta}` }));
+  const cab = { host: C.HOST_PRODUCAO };
+  try {
+    for (const caminho of ["/admin/entrar", "/admin/entrar?etapa=codigo"]) {
+      const r = await C.crua(srv.base, caminho, { cabecalhos: cab });
+      if (!R.checa(r.status === 200, `GET ${caminho} (Host ${C.HOST_PRODUCAO}, sem cookie) responde 200`, `status ${r.status}`)) continue;
+      const csp = r.cabecalhos["content-security-policy"] ?? "";
+      const hostsCsp = [...new Set((csp.match(/(?:^|[\s;])(?:https?:\/\/)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?=[\s;]|$)/gi) ?? []).map((x) => x.trim().replace(/^[;\s]+/, "")))];
+      R.checa(hostsCsp.length === 1 && hostsCsp[0] === "challenges.cloudflare.com" && /frame-ancestors 'none'/.test(csp) && !/'unsafe-eval'/.test(csp), `CSP de ${caminho}: o único host externo é challenges.cloudflare.com; frame-ancestors 'none'; sem unsafe-eval (hosts na política: ${hostsCsp.join(", ") || "nenhum"})`, csp);
+      const ext = refsDoHtml(r.texto).filter((x) => x.tipo !== "a" && ehExterno(x.v));
+      R.checa(ext.every((x) => new URL(x.v.startsWith("//") ? "https:" + x.v : x.v).host === "challenges.cloudflare.com"), `HTML de ${caminho}: nenhuma referência externa além de challenges.cloudflare.com (o widget só aparece com NEXT_PUBLIC_TURNSTILE_SITE_KEY no build; aqui: ${ext.length})`, ext.map((x) => x.v).join("; "));
+      const outrosHosts = (C.semComentarios(r.texto).match(HOST) ?? []).filter((u) => !justificativa(u, "HTML") && !/^https?:\/\/(?:www\.w3\.org|react\.dev|nextjs\.org|challenges\.cloudflare\.com|admin\.segueovoto\.com\.br)/.test(u));
+      R.checa(outrosHosts.length === 0, `HTML de ${caminho}: nenhuma URL absoluta de outro host em texto`, outrosHosts.slice(0, 4).join("; "));
+      const js = [...new Set([...r.texto.matchAll(/\/_next\/static\/[^"'\s]+\.js/g)].map((m) => m[0]))];
+      const usos = [];
+      for (const j of js) {
+        const x = await C.crua(srv.base, j, { cabecalhos: cab });
+        if (x.status !== 200) { usos.push(`${j} -> ${x.status}`); continue; }
+        for (const re of USO_JS) for (const m of x.texto.matchAll(re)) { const alvo = x.texto.slice(m.index, m.index + 160).match(/["'`](https?:\/\/[^"'`]*)/)?.[1]; if (!(alvo && justificativa(alvo, j))) usos.push(`${j}: ${m[0].slice(0, 70)}`); }
+      }
+      R.checa(usos.length === 0, `${js.length} chunks de JS de ${caminho}: nenhum usa host externo como recurso (fetch, .src, XHR, beacon, WebSocket, import de URL)`, usos.slice(0, 4).join("; "));
+    }
+    R.checa(falso.conexoes() === 0, "as páginas de entrada, sem cookie de sessão, não abriram nenhuma conexão com o Supabase (o provedor só é chamado com sessão ou por server action)", `${falso.conexoes()} conexões`);
+    R.info("NÃO provado sem Supabase real e sem navegador: o widget Turnstile carregando de fato (precisa da chave pública no build), o Supabase Auth do projeto respondendo às server actions (login, código, TOTP). O host do Supabase vem de NEXT_PUBLIC_SUPABASE_URL; a CSP não o cita porque o navegador nunca fala com ele.");
+  } finally {
+    await srv.parar();
+    falso.fechar();
   }
 }
 
@@ -270,6 +349,7 @@ async function dinamica(ctx, estaticosDoManifest) {
         R.aviso(`não deu para ler o app-build-manifest (${e.message}); sigo só com o que o HTML referencia`);
       }
       await dinamica(ctx, est);
+      await producaoSimulada();
     }
   } catch (e) {
     R.falha(`exceção: ${e.stack?.split("\n").slice(0, 4).join(" | ") ?? e}`);

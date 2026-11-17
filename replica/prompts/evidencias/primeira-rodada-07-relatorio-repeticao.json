@@ -1,7 +1,7 @@
 {
   "simulado": "v2",
   "rodada": {
-    "id": "bbcfe320-3817-4bf9-8368-6417ab130fa5",
+    "id": "a2f68a11-71e5-4b36-85a9-692cc1ae1243",
     "coletor": "sapl.assembleias",
     "modo": "recoletar",
     "recorte": {
@@ -19,9 +19,9 @@
       "extras": {}
     },
     "status": "concluida",
-    "iniciada_em": "2026-11-17T11:28:20.625398+00:00",
-    "finalizada_em": "2026-11-17T11:28:20.875647+00:00",
-    "repete_id": "39eee101-d59b-4e34-b4e6-003e251d1b6a"
+    "iniciada_em": "2026-11-17T15:17:15.483576+00:00",
+    "finalizada_em": "2026-11-17T15:17:15.558360+00:00",
+    "repete_id": "e820716a-4f12-4252-9cb0-da1ff0a221de"
   },
   "coleta": {
     "urls_tentadas": {

@@ -185,24 +185,24 @@ A saída esperada é a linha de base de sete problemas, anterior à Parte R, sem
 
 A Parte C põe uma central de administração sobre a coleta da Parte R e as partes A e B. A central é uma tela local, em `web/src/app/(admin)/`. Ela não coleta, não chama modelo e não aplica nada: cada ação grava um pedido em `adm_pedidos` ou `adm_pedidos_decisao` (decisão AC-19, `replica/admin-coleta-decisoes.md`). Quem consome o pedido é o executor da CLI, `civico-etl admin executor`, que usa os mecanismos que já existem (`rodadas`, `decisoes`, `aplicar`, `parecer`). O plano está em `replica/admin-coleta-plano.md`, seções 4a e 4.2 a 4.3.
 
-Estado desta entrega: a central só sobe em ambiente local. Nada dela está publicado. Os passos de produção estão na subseção 5.
+Estado: a central tem dois modos, escolhidos por `ADMIN_CENTRAL`. O modo local (`1`) é o da entrega original, agora com identidade (`ADMIN_LOCAL_EMAIL`). O modo produção (`producao`, F3) está pronto em código para `admin.segueovoto.com.br`, com login por e-mail, MFA e lista de admins; nada dela está publicado nem foi exercitado com Supabase real. Os dois modos estão na subseção 6; os passos de produção do dono estão na subseção 5.
 
 ### 1. Central de administração
 
 **O que é.** Um grupo de rotas do Next.js (`web/src/app/(admin)/`) com seis páginas e seis route handlers em `web/src/app/(admin)/admin/api/`. A leitura vem de `web/src/lib/admin/consultas.ts`; a escrita, só de pedidos, por `web/src/lib/admin/sql.ts` e pelas consultas do pool próprio de `web/src/lib/admin/db.ts`. O pool usa o driver `postgres`, que já é dependência do site, e só é criado sob demanda. O módulo é `server-only` e não importa `lib/data/pg.ts` nem `lib/db/writer.ts`.
 
-**Quando responde.** A guarda está em `web/src/lib/admin/guarda-regra.ts` (regra pura, `decidirAcesso`) e em `web/src/lib/admin/guarda.ts` (ligação ao Next). Ela responde 404 em todas as rotas do grupo, páginas e handlers, se qualquer uma destas for verdadeira, na ordem em que a regra as testa:
+**Quando responde.** A guarda está em `web/src/lib/admin/guarda-regra.ts` (regra pura, `decidirAcesso`), em `web/src/lib/admin/guarda.ts` (ligação ao Next) e em `web/src/middleware.ts` (borda da requisição, só no matcher `/admin`). Em todo método e em toda rota do grupo, páginas e handlers, ela responde 404 sem corpo quando a central está fechada. Modo local (`ADMIN_CENTRAL=1`), na ordem em que a regra testa:
 
-- `ADMIN_CENTRAL` diferente de `1` (valor exato);
 - `VERCEL` definida (qualquer valor, inclusive vazio);
 - `VERCEL_ENV` definida;
-- `ADMIN_DATABASE_URL` ausente ou vazia;
-- `ADMIN_DATABASE_URL` malformada;
-- host de `ADMIN_DATABASE_URL` fora de `localhost`, `127.0.0.1` e `::1`.
+- `ADMIN_DATABASE_URL` ausente, vazia ou malformada;
+- host de `ADMIN_DATABASE_URL` fora de `localhost`, `127.0.0.1` e `::1`;
+- Host da requisição fora de `localhost`, `127.0.0.1` e `[::1]`;
+- `ADMIN_LOCAL_EMAIL` ausente, ou que não é admin ativo em `adm_admins` (o banco confere).
 
-`NODE_ENV` não entra na regra: `next start` local roda com `production`. A guarda não registra o valor de nenhuma variável nem o motivo da recusa. Ela é chamada na primeira instrução de `web/src/app/(admin)/layout.tsx`, em cada handler, em cada função de `consultas.ts` e em `sqlAdmin()` (defesa em profundidade).
+`ADMIN_CENTRAL` com qualquer outro valor que não seja `1` ou `producao`, ou ausente: fechada. O modo produção e suas regras estão na subseção 6. `NODE_ENV` não entra na regra: `next start` local roda com `production`. A guarda não registra o valor de nenhuma variável nem o motivo da recusa. Ela é chamada no middleware, na primeira instrução de `web/src/app/(admin)/layout.tsx`, em cada handler, em cada função de `consultas.ts` e em `sqlAdmin()` (defesa em profundidade).
 
-Brecha residual, declarada: quem liga `ADMIN_CENTRAL=1` de propósito, com um túnel para um banco de produção ou numa hospedagem que não defina `VERCEL`, passa pela guarda. Por isso a central não é publicada. O grupo tem `noindex` e não entra em menu, rodapé nem sitemap; o site público não tem link para ela.
+Brecha residual do modo local, declarada: quem liga `ADMIN_CENTRAL=1` de propósito, com um túnel para um banco de produção ou numa hospedagem que não defina `VERCEL`, passa pela guarda (a identidade é a variável `ADMIN_LOCAL_EMAIL`, sem login). Por isso o modo local nunca vai à internet: a central publicada usa o modo produção. O grupo tem `noindex` e não entra em menu, rodapé nem sitemap; o site público não tem link para ela.
 
 **Como ligar (local).** Use um Postgres local. Os exemplos abaixo usam a porta `54329`, a da suíte. Não copie senhas para o repositório.
 
@@ -224,11 +224,12 @@ Brecha residual, declarada: quem liga `ADMIN_CENTRAL=1` de propósito, com um t�
 
    ```bash
    cd web && ADMIN_CENTRAL=1 NEXT_DIST_DIR=.next-admin \
+     ADMIN_LOCAL_EMAIL=operador.local@segueovoto.invalid \
      ADMIN_DATABASE_URL='postgres://admin_central:<senha local>@localhost:54329/<banco>' \
      npx next start -p 3000 -H 127.0.0.1
    ```
 
-   `-H 127.0.0.1` restringe o servidor à máquina local. Sem ele, o processo pode aceitar conexão de outro host da rede. Não há login: quem alcança a porta com `ADMIN_CENTRAL=1` vê a central.
+   `-H 127.0.0.1` restringe o servidor à máquina local. Sem ele, o processo pode aceitar conexão de outro host da rede. Não há login nem MFA no modo local: quem alcança a porta com `ADMIN_CENTRAL=1` e o Host local vê a central como o admin de `ADMIN_LOCAL_EMAIL`. Sem essa variável, ou se o e-mail não é de um admin ativo, tudo responde 404. O admin local de desenvolvimento (`operador.local@segueovoto.invalid`, nome "Operador local") é criado por `db/local/post_0004_admin_local.sql`, que `db/migrate.sh --local` roda; ele só existe em banco local.
 
 4. Executor, em outro terminal, com a URL de escrita do ETL no mesmo banco (não é a do `admin_central`):
 
@@ -339,9 +340,9 @@ Há três caminhos, e eles não são iguais:
 
 Tudo sai de `web/`. As provas não usam chamada a modelo nem rede externa.
 
-- `node e2e-admin/sem-navegador.mjs [--sem-build]`: sem navegador. Faz `next build` em `.next-admin` (ou reaproveita com `--sem-build`), sobe `next start` local, faz as requisições por `fetch` e confere status e HTML. Cobre os critérios 15 (404 em toda rota, sem variável, com `VERCEL` e com `VERCEL_ENV`), 19 (os números dos painéis contra `civico-etl admin relatorio --json`), 20 (dois POST iguais, um pedido), 22, 24 e os estados de tela. **Atenção:** o modo completo apaga e recria o banco `admin_coleta_c7`; não aponte para outro banco. As rodadas dele são simuladas (CLI real sobre respostas fabricadas de `etl/tests/fixtures/sapl_ale`).
-- `node e2e-admin/sem-navegador.mjs --fluxo --banco admin_coleta_c7|admin_coleta_r1`: passos 6 a 9 da primeira rodada, pela API. Não recria o banco; opera no que recebe. Sobe o `next start` por conta própria (com a central ligada, no banco dado) e exige fila sem pedido ativo no começo: se houver, o teste recusa e pede para rodar o executor ou recriar o banco.
-- `node e2e-admin/sem-rede-externa.mjs [--sem-build]`: critério 23. Varre o fonte de `web/src/app/(admin)`, `web/src/lib/admin`, `web/src/components/admin` e `web/src/styles/admin.css` atrás de URL absoluta, `fetch` para fora e recurso remoto em `link`, `script` e `url()`. Depois, com a central ligada num `next start` local, varre o HTML de cada página e os recursos que ele referencia. Reaproveita `admin_coleta_c7` se ele já tiver rodadas. Sai com 1 se achar host externo.
+- `node e2e-admin/sem-navegador.mjs [--sem-build]`: sem navegador. Faz `next build` em `.next-admin` (ou reaproveita com `--sem-build`), sobe `next start` local, faz as requisições por `fetch` e confere status e HTML. Cobre os critérios 15 (modo local: 404 sem variável, com `VERCEL`, com `VERCEL_ENV` e com Host de fora; modo produção simulado: 404 sem sessão, com Host errado, com ambiente errado e com o provedor de login fora do ar), 19 (os números dos painéis contra `civico-etl admin relatorio --json`), 20 (dois POST iguais, um pedido), 22, 24, os estados de tela e, da F3, os cabeçalhos de segurança em resposta real, o CSRF estrito (POST sem `Origin` ou sem `Sec-Fetch-Site` = 403), o `por` do corpo ignorado, o admin desativado e o limite de 20 pedidos por minuto (429 com `Retry-After`). **Atenção:** o modo completo apaga e recria o banco `admin_coleta_c7`; não aponte para outro banco. As rodadas dele são simuladas (CLI real sobre respostas fabricadas de `etl/tests/fixtures/sapl_ale`).
+- `node e2e-admin/sem-navegador.mjs --fluxo --banco admin_coleta_c7|admin_coleta_r1`: passos 6 a 9 da primeira rodada, pela API, no modo local com o admin local (a decisão do passo 9 sai como "Operador local"). Não recria o banco; opera no que recebe. Sobe o `next start` por conta própria (com a central ligada, no banco dado) e exige fila sem pedido ativo no começo: se houver, o teste recusa e pede para rodar o executor ou recriar o banco.
+- `node e2e-admin/sem-rede-externa.mjs [--sem-build]`: critério 23. Varre o fonte de `web/src/app/(admin)`, `web/src/lib/admin`, `web/src/components/admin`, `web/src/components/admin-entrada`, `web/src/styles/admin.css`, `web/src/middleware.ts` e o widget do Turnstile atrás de URL absoluta, host sem esquema, `fetch` para fora e recurso remoto em `link`, `script` e `url()`; só `challenges.cloudflare.com` é aceito, e só em `cabecalhos.ts` e no widget. Depois, com a central ligada num `next start` local, varre o HTML de cada página e os recursos que ele referencia e, no modo produção simulado, as páginas de entrada e a CSP. Reaproveita `admin_coleta_c7` se ele for da F3 e já tiver rodadas. Sai com 1 se achar host externo.
 - Playwright da central: `web/playwright.admin.config.ts`, com as specs `web/e2e-admin/*.spec.ts` (`acessibilidade`, `acoes`, `capturas`, `central-desligada`, `estados`, `rede`). É configuração própria: o conjunto público (`web/playwright.config.ts`, `web/e2e/`) não a enxerga. O config não tem valor padrão para `ADMIN_DATABASE_URL` e falha sem ele. Portas 3310 (ligada) e 3311 (desligada). As capturas do critério 26 vão para `replica/prompts/evidencias/central-<visao>-<largura>.png`.
 
   O dono roda fora do sandbox (AC-05, `replica/admin-coleta-decisoes.md`), com o banco da primeira rodada (`bash replica/prompts/evidencias/primeira-rodada.sh`):
@@ -360,10 +361,51 @@ Estado de execução nesta entrega: o Playwright não roda no sandbox, e a prova
 
 Nada disto foi feito. Produção está na `0120_raw_copy.sql` segundo `replica/runbook-migracoes-producao.md`.
 
-1. **Aplicar 0150 a 0155 em produção.** O runbook atual cobre só 0130, 0131, 0140 e 0141. Ele precisa ser estendido antes de qualquer aplicação. Ordem e risco de cada uma: ver os cabeçalhos das migrações e a seção 4.1 de `replica/fluxo-de-dados.md`. Antes da `0150`, conferir que o papel do ETL em produção é dono de `sapl_houses`, `data_coverage`, `mandate_contacts` e das `adm_*`, ou tem `BYPASSRLS` (os gatilhos não são `security definer`; a `0150` liga RLS sem policy). A `0142_drop_expenses_supplier_doc_idx.sql` está no ponto de partida e no `main`; em produção o índice já foi removido à mão (D314 em `replica/decisions.md`) e a migração consta pendente, virando no-op; o runbook deve cobri-la ou ser conferido contra ela.
-2. **Publicar a central com login e papel de admin.** Hoje não há autenticação. Falta:
-   - autenticação do operador (hoje a central confia na rede local);
-   - papel de admin, separado do usuário comum do site;
-   - auditoria de quem pediu: `por_nome` é texto livre do formulário, não identidade autenticada, e não há registro de sessão;
-   - hospedagem fora da Vercel pública ou proteção equivalente, já que a guarda depende de `VERCEL` e `VERCEL_ENV` e da URL local, que um túnel ou um deploy sem essas variáveis contorna.
-3. **Renumerar se o `main` andou.** As migrações 0150 a 0155, as decisões D325 e D326 de `replica/decisions.md` e as AC-01 a AC-22 foram numeradas sobre a base desta branch. Se outra migração ou decisão entrar no `main` antes, renumere: migração publicada não se edita (`db/migrate.sh` falha por checksum), e a referência cruzada nos cabeçalhos e neste documento muda junto.
+1. **Aplicar 0150 a 0156 em produção.** O runbook atual cobre só 0130, 0131, 0140 e 0141. Ele precisa ser estendido antes de qualquer aplicação. Ordem e risco de cada uma: ver os cabeçalhos das migrações e a seção 4.1 de `replica/fluxo-de-dados.md`. Antes da `0150`, conferir que o papel do ETL em produção é dono de `sapl_houses`, `data_coverage`, `mandate_contacts` e das `adm_*`, ou tem `BYPASSRLS` (os gatilhos não são `security definer`; a `0150` liga RLS sem policy). A `0142_drop_expenses_supplier_doc_idx.sql` está no ponto de partida e no `main`; em produção o índice já foi removido à mão (D314 em `replica/decisions.md`) e a migração consta pendente, virando no-op; o runbook deve cobri-la ou ser conferido contra ela.
+2. **Publicar a central com login e papel de admin.** O código está pronto (F3; subseção 6): login por código de e-mail, MFA TOTP, lista `adm_admins`, identidade da sessão, CSRF estrito e cabeçalhos de segurança. Falta, e é do dono: aplicar a `0156` em produção (F4), criar o projeto Vercel `admin.` com as variáveis da subseção 6, cadastrar os admins, configurar Supabase e Turnstile, e o DNS. Antes da F4, nada da central roda em produção.
+3. **Renumerar se o `main` andou.** As migrações 0150 a 0156, as decisões D325 e D326 de `replica/decisions.md` e as AC-01 a AC-26 foram numeradas sobre a base desta branch. Se outra migração ou decisão entrar no `main` antes, renumere: migração publicada não se edita (`db/migrate.sh` falha por checksum), e a referência cruzada nos cabeçalhos e neste documento muda junto.
+
+### 6. Central na internet (F3)
+
+Contrato: `replica/admin-coleta-decisoes.md`, AC-23 a AC-26; plano da fase: `replica/reavaliacao-central-e-dominio.md`, seções 2.3 e 6. Nada disto está em produção.
+
+**Os dois modos e suas variáveis.** `ADMIN_CENTRAL` com valor exato.
+
+| | modo local (`1`) | modo produção (`producao`) |
+| --- | --- | --- |
+| Onde | máquina do desenvolvedor | segundo projeto Vercel do repositório, em `admin.segueovoto.com.br` |
+| Ambiente | fora da Vercel: `VERCEL` e `VERCEL_ENV` não existem | `VERCEL_ENV=production` (Preview e Development ficam fechados) |
+| Host aceito | `localhost`, `127.0.0.1`, `[::1]` | exatamente `admin.segueovoto.com.br` (constante no código; o alias `*.vercel.app` do projeto responde 404) |
+| Banco | `ADMIN_DATABASE_URL` com host local | `ADMIN_DATABASE_URL` do role `admin_central`, qualquer host, com um único `sslmode` igual a `require`, `verify-ca` ou `verify-full` |
+| Identidade | `ADMIN_LOCAL_EMAIL`, admin ativo em `adm_admins`; sem login | sessão do Supabase (`getUser`), nível `aal2` e e-mail ativo em `adm_admins` |
+| Outras variáveis | nenhuma | `AUTH_PROVIDER=supabase`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` |
+
+O projeto do site (`www`) não pode ter nenhuma variável `ADMIN_*`. As variáveis do projeto `admin.` valem só em Production. Os critérios 15 e 23 de cada modo, e a reconferência do 9, estão em `replica/admin-coleta-criterios-producao.md`.
+
+**Cadastrar e desativar admin.** Só o dono do banco, por SQL; nunca pela tela (o `admin_central` só lê `adm_admins`). Toda mudança fica em `adm_admins_log`, que só aceita acréscimo.
+
+```sql
+-- cadastrar (e-mail em minúsculas; user_id é o id do usuário em Authentication > Users do Supabase, quando já existe)
+insert into adm_admins (email, nome, user_id) values ('pessoa@exemplo.com', 'Nome da Pessoa', '<uuid do Supabase>');
+-- desativar (a pessoa passa a ter 404 em toda a central e os pedidos dela são recusados pelo gatilho)
+update adm_admins set ativo = false where email = 'pessoa@exemplo.com';
+-- reativar
+update adm_admins set ativo = true where email = 'pessoa@exemplo.com';
+```
+
+Com `user_id` preenchido, o pedido só entra se a sessão trouxer o mesmo `user_id`. Admin sem `user_id` aceita qualquer `por_user_id`: em produção, cadastre o `user_id`. A CLI (`civico-etl admin decidir --por`) exige e-mail ou nome de admin ativo; o nome gravado é o da tabela.
+
+**Login e MFA.** `/admin/entrar` (e-mail, Turnstile, código de 6 números por e-mail) e `/admin/entrar/fator` (cadastro ou verificação do TOTP). Quem não é admin ativo nunca recebe código nem cria conta (`shouldCreateUser: false`), e a resposta é a mesma para admin, não admin e e-mail inexistente. Admin com sessão `aal1` é levado ao fator; sem `aal2`, o resto da central responde 404. O navegador nunca fala com o Supabase: todas as chamadas são do servidor (middleware, layout, server actions).
+
+**O que o dono configura no Supabase e no Turnstile.**
+
+- Authentication, URL Configuration: Site URL do site (`https://www.segueovoto.com.br`) e, em Redirect URLs, `https://admin.segueovoto.com.br/**` além das do site.
+- MFA TOTP habilitado no projeto; o modelo de e-mail do código (OTP) deve mostrar o código, não só o link.
+- Proteção contra bots (CAPTCHA) do Supabase Auth ligada com o Turnstile: a central entrega o token ao Supabase, que o verifica.
+- Turnstile (Cloudflare): `admin.segueovoto.com.br` na lista de hostnames da chave do widget.
+
+**CSP e cookies.** O middleware põe, em toda resposta de `/admin` (inclusive os 404): `Content-Security-Policy` com `frame-ancestors 'none'` e nonce por requisição (`challenges.cloudflare.com` só no modo produção; `'unsafe-eval'` só em desenvolvimento), `X-Frame-Options: DENY` e `Referrer-Policy: same-origin`. O site público não tem esses cabeçalhos. Cookies de sessão da central: host-only (nunca `domain=.segueovoto.com.br`), `Secure`, `HttpOnly`, `SameSite=Strict`, `path=/admin`. Efeito do `Strict`: abrir a central por um link de fora mostra 404 até a próxima navegação. POST da central exige `Content-Type: application/json`, `Origin` igual à origem da central e `Sec-Fetch-Site: same-origin`; ausente ou diferente = 403. O limite é de 20 pedidos por admin e por minuto (gatilho do banco; o 21º responde 429 com `Retry-After: 60`). O `por` do corpo é descartado: o pedido leva o admin da sessão.
+
+**Executor em container.** `etl/executor-container.md` (imagem, variáveis, reinício, encerramento, reserva por GitHub Actions). O container leva a credencial de escrita do ETL e não pode ter `ADMIN_COLETA_AGENTES` no ambiente (critério 9, em `replica/admin-coleta-criterios-producao.md`).
+
+**Falha do banco.** No modo local a identidade vem de `adm_admins`: com o banco inalcançável a guarda não acha admin e a central responde 404 (fecha), não `erro_leitura`. O estado `erro_leitura` e o 503 só ocorrem com o banco de pé e a leitura falhando.

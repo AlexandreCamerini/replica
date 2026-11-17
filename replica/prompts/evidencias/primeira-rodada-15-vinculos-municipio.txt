@@ -7,20 +7,20 @@ fontes    sapl
 
 CLASSE        CHAVE  REGISTRO                            FONTE  ORIGEM                 VIGENTE  DESDE              URL                                 EVIDÊNCIA                           ÚLTIMA TENTATIVA
 ------------  -----  ----------------------------------  -----  ---------------------  -------  -----------------  ----------------------------------  ----------------------------------  ----------------------------------
-vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   registro_oficial       sim      2026-11-17 11:28Z  https://www12.senado.leg.br/inter…  5d4482e291d4 2026-11-17 11:29Z      lida 2026-11-17 11:29Z
-vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   descoberta_automatica  sim      2026-11-17 11:29Z  https://sapl.camara-fabricada-nov…  desconhecido: nenhuma leitura bem…  desconhecido: nenhuma tentativa d…
-vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   descoberta_automatica  não      2026-11-17 11:28Z  https://sapl.camara-fabricada.inv…  desconhecido: nenhuma leitura bem…  desconhecido: nenhuma tentativa d…
+vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   registro_oficial       sim      2026-11-17 15:17Z  https://www12.senado.leg.br/inter…  5d4482e291d4 2026-11-17 15:17Z      lida 2026-11-17 15:17Z
+vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   descoberta_automatica  sim      2026-11-17 15:17Z  https://sapl.camara-fabricada-nov…  desconhecido: nenhuma leitura bem…  desconhecido: nenhuma tentativa d…
+vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   descoberta_automatica  não      2026-11-17 15:17Z  https://sapl.camara-fabricada.inv…  desconhecido: nenhuma leitura bem…  desconhecido: nenhuma tentativa d…
 
 3 vínculos listados (2 vigentes); 22 vigentes de 23 em adm_vinculos
-troca: f369d4e4-5996-4b7a-a74f-f98382e273e8 -> 38271f7c-62be-41a4-89f3-36acd281f354
+troca: 0b79d620-63cc-48f7-943f-db41b4f9e6f9 -> f62bec05-fa82-464f-84d0-70fb38cc637b
 
 runs:
 determinação: dataset
 dataset sapl.descoberta  (dataset compartilhado por todas as casas: o run da descoberta não registra quais casas leu)
-  último carimbo do dataset: 2026-11-17 11:29Z (run 352a7d62-6400-41bc-9df1-3442f01d317e)
-  run 352a7d62-6400-41bc-9df1-3442f01d317e  2026-11-17 11:29Z  succeeded  fonte sapl  lidas desconhecido  gravadas 1
-  run 27539617-e728-459b-8749-177119ddec04  2026-11-17 11:28Z  succeeded  fonte sapl  lidas desconhecido  gravadas 1
+  último carimbo do dataset: 2026-11-17 15:17Z (run e27a3347-5509-44ae-9689-bd353de47233)
+  run e27a3347-5509-44ae-9689-bd353de47233  2026-11-17 15:17Z  succeeded  fonte sapl  lidas desconhecido  gravadas 1
+  run 8d512efe-1e9c-4266-a3ee-cfe4ef6c3555  2026-11-17 15:17Z  succeeded  fonte sapl  lidas desconhecido  gravadas 1
 dataset sapl.1190099
-  último carimbo do dataset: 2026-11-17 11:29Z (run bdeabe25-e466-4a7c-b7e7-7ab157f08141)
-  run bdeabe25-e466-4a7c-b7e7-7ab157f08141  2026-11-17 11:29Z  succeeded  fonte sapl  lidas desconhecido  gravadas 32
+  último carimbo do dataset: 2026-11-17 15:17Z (run 2b8b6b9c-adc1-490c-8cee-6d8c0b2dbac6)
+  run 2b8b6b9c-adc1-490c-8cee-6d8c0b2dbac6  2026-11-17 15:17Z  succeeded  fonte sapl  lidas desconhecido  gravadas 32
 run exato do registro: desconhecido: sapl_houses não tem run_id nem last_run_id: só o dataset é determinável, não o run que gravou este registro

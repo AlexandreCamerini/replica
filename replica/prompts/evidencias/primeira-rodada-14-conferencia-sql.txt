@@ -1,23 +1,23 @@
 SIMULADO. conferência em SQL do passo 9 (a decisão pedida pela central, lida no banco)
-                  id                  |             pendencia_id             |  acao   | decidido_por_tipo |       decidido_por_nome       | aplicada |                                   justificativa                                    
---------------------------------------+--------------------------------------+---------+-------------------+-------------------------------+----------+------------------------------------------------------------------------------------
- f48e504f-3ad8-4717-8d27-b092e0ca1b93 | 33180e93-7303-4e89-b414-971472396632 | aprovar | pessoa            | Operador de Ensaio (SIMULADO) | f        | conferi a evidência da proposta (resposta fabricada, ensaio SIMULADO); não aplicar
+                  id                  |             pendencia_id             |  acao   | decidido_por_tipo | decidido_por_nome | aplicada |                                   justificativa                                    
+--------------------------------------+--------------------------------------+---------+-------------------+-------------------+----------+------------------------------------------------------------------------------------
+ 652f4b9a-21df-4203-a136-a2c526e8b240 | 034cb1c6-8e95-43cf-b4e7-65db6bda2d98 | aprovar | pessoa            | Operador local    | f        | conferi a evidência da proposta (resposta fabricada, ensaio SIMULADO); não aplicar
 (1 linha)
 
                   id                  |    classe    | registro_chave |  campo   |  tipo   |  status  
 --------------------------------------+--------------+----------------+----------+---------+----------
- 33180e93-7303-4e89-b414-971472396632 | vinculo_sapl | 20             | base_url | mudanca | decidida
+ 034cb1c6-8e95-43cf-b4e7-65db6bda2d98 | vinculo_sapl | 20             | base_url | mudanca | decidida
 (1 linha)
 
    tipo   |  status   |              rodada_id               
 ----------+-----------+--------------------------------------
- recoleta | concluido | 49c1296b-195f-4a97-9476-2ca92ada65b0
+ recoleta | concluido | e59179fe-4c8b-4df7-81b6-ca3e50be6882
  parecer  | concluido | 
 (2 linhas)
 
-  acao   |           por_nome            | aplicar |  status   |              decisao_id              
----------+-------------------------------+---------+-----------+--------------------------------------
- aprovar | Operador de Ensaio (SIMULADO) | f       | concluido | f48e504f-3ad8-4717-8d27-b092e0ca1b93
+  acao   |    por_nome    | aplicar |  status   |              decisao_id              
+---------+----------------+---------+-----------+--------------------------------------
+ aprovar | Operador local | f       | concluido | 652f4b9a-21df-4203-a136-a2c526e8b240
 (1 linha)
 
  decisoes | de_agentes | overrides | corrections 

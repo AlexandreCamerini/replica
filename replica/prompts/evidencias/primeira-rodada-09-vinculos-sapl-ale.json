@@ -4,7 +4,7 @@
   },
   "vinculos": [
     {
-      "id": "c8c52f3b-fec3-47db-b423-d169090ef9e2",
+      "id": "4903756e-41ba-4754-915e-5e728fb310b1",
       "classe": "cobertura",
       "registro_chave": "11:presenca",
       "rotulo": "cobertura presenca · Rondônia/RO",
@@ -13,7 +13,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -25,7 +25,7 @@
       }
     },
     {
-      "id": "7506c342-893c-433b-98e3-f1d70ba527de",
+      "id": "1a3799eb-5b5f-47ed-96f1-774c6756a29e",
       "classe": "cobertura",
       "registro_chave": "11:propostas",
       "rotulo": "cobertura propostas · Rondônia/RO",
@@ -34,7 +34,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -46,7 +46,7 @@
       }
     },
     {
-      "id": "a1d26dff-7e4d-4257-8bf1-972bf1abf54c",
+      "id": "4f259839-fcab-420f-9e44-3947a9ec7876",
       "classe": "cobertura",
       "registro_chave": "11:votos",
       "rotulo": "cobertura votos · Rondônia/RO",
@@ -55,7 +55,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -67,7 +67,7 @@
       }
     },
     {
-      "id": "17a1968e-f58f-4b5b-8c9b-a378de24445d",
+      "id": "0e7f59c3-b339-4488-a517-ada650ecd72b",
       "classe": "cobertura",
       "registro_chave": "12:presenca",
       "rotulo": "cobertura presenca · Acre/AC",
@@ -76,7 +76,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -88,7 +88,7 @@
       }
     },
     {
-      "id": "37dc9315-7af2-451f-89b7-e15d737998f0",
+      "id": "cf14cbb2-5ebc-4667-9a9b-7d13d262770f",
       "classe": "cobertura",
       "registro_chave": "12:propostas",
       "rotulo": "cobertura propostas · Acre/AC",
@@ -97,7 +97,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -109,7 +109,7 @@
       }
     },
     {
-      "id": "aefc4851-523b-4266-9e96-9b4f9c4e805d",
+      "id": "ce3eb91c-fe4b-43eb-af4d-c9c08e8db52c",
       "classe": "cobertura",
       "registro_chave": "12:votos",
       "rotulo": "cobertura votos · Acre/AC",
@@ -118,7 +118,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -130,7 +130,7 @@
       }
     },
     {
-      "id": "c08f539e-e06a-4628-816a-d32320b53096",
+      "id": "1011fd8a-3878-400f-96cf-0d023555401a",
       "classe": "cobertura",
       "registro_chave": "13:presenca",
       "rotulo": "cobertura presenca · Amazonas/AM",
@@ -139,7 +139,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -151,7 +151,7 @@
       }
     },
     {
-      "id": "26d96fa6-e99d-4296-a0d3-690090443232",
+      "id": "bce92c18-9258-4d8c-ab2b-2fef60f08f3c",
       "classe": "cobertura",
       "registro_chave": "13:propostas",
       "rotulo": "cobertura propostas · Amazonas/AM",
@@ -160,7 +160,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -172,7 +172,7 @@
       }
     },
     {
-      "id": "39287449-6842-4d84-aa80-8ddfa46e3db7",
+      "id": "dc866c48-ad7e-43b2-85ba-077535b7bdc1",
       "classe": "cobertura",
       "registro_chave": "13:votos",
       "rotulo": "cobertura votos · Amazonas/AM",
@@ -181,7 +181,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -193,7 +193,7 @@
       }
     },
     {
-      "id": "906e9601-8fca-427a-af32-9b539bc43710",
+      "id": "cd509978-19ff-4dd6-933b-87e3e0c16617",
       "classe": "cobertura",
       "registro_chave": "25:presenca",
       "rotulo": "cobertura presenca · Paraíba/PB",
@@ -202,7 +202,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:46.700019+00:00",
+      "desde": "2026-11-17T15:17:08.449468+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -214,7 +214,7 @@
       }
     },
     {
-      "id": "6e017b34-5d60-433d-a877-06b1677703ff",
+      "id": "64e7e110-e20f-4b72-b1dd-44a2d5f7f991",
       "classe": "cobertura",
       "registro_chave": "25:propostas",
       "rotulo": "cobertura propostas · Paraíba/PB",
@@ -223,7 +223,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:46.700019+00:00",
+      "desde": "2026-11-17T15:17:08.449468+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -235,7 +235,7 @@
       }
     },
     {
-      "id": "827bbc1b-ae66-48b5-84b6-73a6dd579a53",
+      "id": "95306cea-96fd-481a-871a-0356984e53f1",
       "classe": "cobertura",
       "registro_chave": "25:votos",
       "rotulo": "cobertura votos · Paraíba/PB",
@@ -244,7 +244,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T11:27:46.700019+00:00",
+      "desde": "2026-11-17T15:17:08.449468+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -256,7 +256,7 @@
       }
     },
     {
-      "id": "46a60dd2-1adc-4c59-9843-f8716f72d25e",
+      "id": "a8cffcfe-46a1-4a71-afc7-30279de81611",
       "classe": "vinculo_sapl",
       "registro_chave": "1",
       "rotulo": "Assembleia Legislativa de Rondônia · Rondônia/RO",
@@ -265,7 +265,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "registro_oficial",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -277,7 +277,7 @@
       }
     },
     {
-      "id": "a0d7d012-197a-42b9-a554-a90ca9854e11",
+      "id": "0692f945-8db0-4d1d-9b3a-7f89d3cafdda",
       "classe": "vinculo_sapl",
       "registro_chave": "2",
       "rotulo": "Assembleia Legislativa de Acre · Acre/AC",
@@ -286,7 +286,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "registro_oficial",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -298,7 +298,7 @@
       }
     },
     {
-      "id": "86121335-d747-44e3-88a6-1107547ae71f",
+      "id": "63c17920-768d-4bb4-95f8-94368ceef77a",
       "classe": "vinculo_sapl",
       "registro_chave": "3",
       "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
@@ -307,7 +307,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "registro_oficial",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -319,7 +319,7 @@
       }
     },
     {
-      "id": "71faaa11-232c-4ce8-a4bd-ca6190a37ee6",
+      "id": "7e49c1ca-ed6f-4325-b513-8ee7a508e5d6",
       "classe": "vinculo_sapl",
       "registro_chave": "4",
       "rotulo": "Assembleia Legislativa de Piauí · Piauí/PI",
@@ -328,7 +328,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "registro_oficial",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
@@ -340,7 +340,7 @@
       }
     },
     {
-      "id": "33ca0084-1635-4ed0-a0f3-1bd0d5af39f6",
+      "id": "265faf3a-eec4-44ca-af22-5a60623eb818",
       "classe": "vinculo_sapl",
       "registro_chave": "5",
       "rotulo": "Assembleia Legislativa de Paraíba · Paraíba/PB",
@@ -349,7 +349,7 @@
       "fonte_slug": "sapl-ale",
       "origem": "registro_oficial",
       "vigente": true,
-      "desde": "2026-11-17T11:27:38.161931+00:00",
+      "desde": "2026-11-17T15:17:05.329277+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,

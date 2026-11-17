@@ -42,7 +42,9 @@ export ETL_DATABASE_URL=postgres://postgres@localhost:54329/admin_coleta_r1
 
 CACHE="${TMPDIR:-/tmp}/admin-r1-cache"
 case "$CACHE" in */admin-r1-cache) ;; *) echo "ERRO: diretório de cache inesperado: $CACHE" >&2; exit 2 ;; esac
-OPERADOR="Operador de Ensaio (SIMULADO)"
+# F3 (AC-23, AC-24): quem decide é um admin ATIVO de adm_admins. O banco local ganha o admin "Operador local" (operador.local@segueovoto.invalid) de db/local/post_0004_admin_local.sql, que
+# `db/migrate.sh --local` roda (passo 00). A CLI (--por) e a central (modo local, ADMIN_LOCAL_EMAIL; o `por` do corpo é ignorado) gravam as duas decisões com este nome.
+OPERADOR="Operador local"
 UFS=(RO AC AM PI PB)
 UFARGS=(--uf RO --uf AC --uf AM --uf PI --uf PB)
 TAB_DOM="sapl_parlamentares sapl_mandatos sapl_materias sapl_autorias sapl_sessoes sapl_presencas sapl_votos sapl_cursors sapl_houses data_coverage"
@@ -497,7 +499,7 @@ assert c["simulado"] == ["v1", "v2"]  # as duas rodadas do banco são simuladas 
 ap = {(x["registro_chave"], x["campo"]): x for x in c["aplicadas"]}
 a = ap[(sys.argv[2], "status")]
 print("  PB aplicada:", a["valor_anterior"], "->", a["valor_novo"], "|", a["decisao"]["por_nome"])
-assert a["decisao"]["aplicada"] and a["decisao"]["por_nome"] == "Operador de Ensaio (SIMULADO)"
+assert a["decisao"]["aplicada"] and a["decisao"]["por_nome"] == "Operador local"
 d = {(x["registro_chave"], x["campo"]): x["situacao"] for x in c["diferencas"]}
 assert d[(sys.argv[3], "status")] == "pendente"
 print("  totais:", {k: f'{v["valor"]} de {v["de"]}' for k, v in c["totais"].items()})

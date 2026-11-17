@@ -58,4 +58,10 @@ aplicando 0153_admin_central.sql
 psql:migrations/0153_admin_central.sql:79: NOTICE:  trigger "adm_pedidos_decisao_guard" for relation "adm_pedidos_decisao" does not exist, skipping
 aplicando 0154_admin_central_criado_em.sql
 aplicando 0155_admin_central_criado_relogio.sql
-ok: 44 migração(ões) aplicada(s)
+aplicando 0156_admin_admins.sql
+psql:migrations/0156_admin_admins.sql:49: NOTICE:  trigger "adm_admins_toca" for relation "adm_admins" does not exist, skipping
+psql:migrations/0156_admin_admins.sql:72: NOTICE:  trigger "adm_admins_registra" for relation "adm_admins" does not exist, skipping
+psql:migrations/0156_admin_admins.sql:79: NOTICE:  trigger "adm_admins_log_imutavel" for relation "adm_admins_log" does not exist, skipping
+psql:migrations/0156_admin_admins.sql:143: NOTICE:  trigger "adm_pedido_identidade" for relation "adm_pedidos" does not exist, skipping
+psql:migrations/0156_admin_admins.sql:145: NOTICE:  trigger "adm_pedido_identidade" for relation "adm_pedidos_decisao" does not exist, skipping
+ok: 45 migração(ões) aplicada(s)

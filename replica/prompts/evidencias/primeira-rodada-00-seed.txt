@@ -1,1 +1,1 @@
-2026-11-17 08:27:22 etl INFO seed ok
+2026-11-17 12:17:02 etl INFO seed ok

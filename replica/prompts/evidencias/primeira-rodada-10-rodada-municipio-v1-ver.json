@@ -1,5 +1,5 @@
 {
-  "id": "d85ce711-dbcd-40d5-b8cb-a70ca3a7bccd",
+  "id": "358a2989-9832-40a0-b10f-9ae09f337382",
   "coletor": "sapl.camaras",
   "modo": "descobrir",
   "status": "concluida",
@@ -21,10 +21,10 @@
   "forcar_urls": [],
   "so_pendencias": false,
   "repete_id": null,
-  "invocation": "admin:d85ce711-dbcd-40d5-b8cb-a70ca3a7bccd",
+  "invocation": "admin:358a2989-9832-40a0-b10f-9ae09f337382",
   "cache_dir": "/tmp/claude-501/admin-r1-cache",
-  "iniciada_em": "2026-11-17T11:28:58.496539+00:00",
-  "finalizada_em": "2026-11-17T11:28:58.822586+00:00",
+  "iniciada_em": "2026-11-17T15:17:27.281971+00:00",
+  "finalizada_em": "2026-11-17T15:17:27.342268+00:00",
   "previa": {
     "argv": [
       "sapl.descobrir",
@@ -52,7 +52,7 @@
       "sapl.{ibge}"
     ],
     "cache_dir": "/tmp/claude-501/admin-r1-cache",
-    "gerada_em": "2026-11-17T11:28:58.501777+00:00",
+    "gerada_em": "2026-11-17T15:17:27.283515+00:00",
     "observacao": "a descoberta lê uma página do registro por município; {base_url}/api/ só aparece depois de ler o registro",
     "a_consultar": {
       "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
@@ -99,7 +99,7 @@
     "tentativas_registradas": true
   },
   "resultado": {
-    "fim": "2026-11-17T11:28:58.822381+00:00",
+    "fim": "2026-11-17T15:17:27.342217+00:00",
     "regra": {
       "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
       "timeout": "código 124 (timeout) -> interrompida",
@@ -111,7 +111,7 @@
       "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
       "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
     },
-    "inicio": "2026-11-17T11:28:58.547298+00:00",
+    "inicio": "2026-11-17T15:17:27.286835+00:00",
     "motivo": "código 0 -> concluida",
     "runner": "processo",
     "status": "concluida",
@@ -165,7 +165,7 @@
       }
     },
     "sem_cache": [],
-    "invocation": "admin:d85ce711-dbcd-40d5-b8cb-a70ca3a7bccd",
+    "invocation": "admin:358a2989-9832-40a0-b10f-9ae09f337382",
     "tentativas": {
       "lidas": 3,
       "falhas": {},
@@ -191,7 +191,7 @@
   },
   "execucoes": [
     {
-      "fim": "2026-11-17T11:28:58.822381+00:00",
+      "fim": "2026-11-17T15:17:27.342217+00:00",
       "regra": {
         "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
         "timeout": "código 124 (timeout) -> interrompida",
@@ -203,7 +203,7 @@
         "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
         "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
       },
-      "inicio": "2026-11-17T11:28:58.547298+00:00",
+      "inicio": "2026-11-17T15:17:27.286835+00:00",
       "motivo": "código 0 -> concluida",
       "runner": "processo",
       "status": "concluida",
@@ -257,7 +257,7 @@
         }
       },
       "sem_cache": [],
-      "invocation": "admin:d85ce711-dbcd-40d5-b8cb-a70ca3a7bccd",
+      "invocation": "admin:358a2989-9832-40a0-b10f-9ae09f337382",
       "tentativas": {
         "lidas": 3,
         "falhas": {},

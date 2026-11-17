@@ -3,10 +3,10 @@ SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requis
 SIMULADO: 0 URLs pedidas, 0 não previstas
 RODADA                              COLETOR           MODO         STATUS     INICIADA           REPETE                              TENTATIVAS
 ----------------------------------  ----------------  -----------  ---------  -----------------  ----------------------------------  ----------
-35b440f2-c4bf-4fad-922a-8efc00cde…  sapl.assembleias  reprocessar  falhou     2026-11-17 11:28Z  desconhecido                        0
-2ad4f77d-d92d-4a8d-b16e-e2ff76b5a…  sapl.assembleias  reprocessar  concluida  2026-11-17 11:28Z  desconhecido                        8
-bbcfe320-3817-4bf9-8368-6417ab130…  sapl.assembleias  recoletar    concluida  2026-11-17 11:28Z  39eee101-d59b-4e34-b4e6-003e251d1…  10
-39eee101-d59b-4e34-b4e6-003e251d1…  sapl.assembleias  recoletar    concluida  2026-11-17 11:27Z  desconhecido                        33
-f43f0c35-3c0e-4905-953d-735ed7492…  sapl.assembleias  recoletar    concluida  2026-11-17 11:27Z  desconhecido                        79
+00aadb3e-402d-4505-86cc-978df0f33…  sapl.assembleias  reprocessar  falhou     2026-11-17 15:17Z  desconhecido                        0
+6422cef1-5deb-4646-863d-4b6a225d0…  sapl.assembleias  reprocessar  concluida  2026-11-17 15:17Z  desconhecido                        8
+a2f68a11-71e5-4b36-85a9-692cc1ae1…  sapl.assembleias  recoletar    concluida  2026-11-17 15:17Z  e820716a-4f12-4252-9cb0-da1ff0a22…  10
+e820716a-4f12-4252-9cb0-da1ff0a22…  sapl.assembleias  recoletar    concluida  2026-11-17 15:17Z  desconhecido                        33
+c80a4a29-2a8b-41f6-86d3-da0bb7009…  sapl.assembleias  recoletar    concluida  2026-11-17 15:17Z  desconhecido                        79
 
 5 rodadas

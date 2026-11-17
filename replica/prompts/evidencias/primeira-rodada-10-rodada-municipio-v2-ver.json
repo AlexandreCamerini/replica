@@ -1,5 +1,5 @@
 {
-  "id": "0198841d-8f3d-47b0-a575-34ec1ff6601d",
+  "id": "1693cb8d-9ad7-471e-8ff5-58164a7e23ad",
   "coletor": "sapl.camaras",
   "modo": "descobrir",
   "status": "concluida",
@@ -23,10 +23,10 @@
   ],
   "so_pendencias": false,
   "repete_id": null,
-  "invocation": "admin:0198841d-8f3d-47b0-a575-34ec1ff6601d",
+  "invocation": "admin:1693cb8d-9ad7-471e-8ff5-58164a7e23ad",
   "cache_dir": "/tmp/claude-501/admin-r1-cache",
-  "iniciada_em": "2026-11-17T11:29:03.809933+00:00",
-  "finalizada_em": "2026-11-17T11:29:03.970075+00:00",
+  "iniciada_em": "2026-11-17T15:17:28.319118+00:00",
+  "finalizada_em": "2026-11-17T15:17:28.380223+00:00",
   "previa": {
     "argv": [
       "sapl.descobrir",
@@ -54,7 +54,7 @@
       "sapl.{ibge}"
     ],
     "cache_dir": "/tmp/claude-501/admin-r1-cache",
-    "gerada_em": "2026-11-17T11:29:03.813422+00:00",
+    "gerada_em": "2026-11-17T15:17:28.320752+00:00",
     "observacao": "a descoberta lê uma página do registro por município; {base_url}/api/ só aparece depois de ler o registro",
     "a_consultar": {
       "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
@@ -66,10 +66,10 @@
       "estimativa": true
     },
     "demais_urls": {
-      "base": "rodada d85ce711-dbcd-40d5-b8cb-a70ca3a7bccd de 2026-11-17",
+      "base": "rodada 358a2989-9832-40a0-b10f-9ae09f337382 de 2026-11-17",
       "valor": 2,
       "estimativa": true,
-      "rodada_base": "d85ce711-dbcd-40d5-b8cb-a70ca3a7bccd"
+      "rodada_base": "358a2989-9832-40a0-b10f-9ae09f337382"
     },
     "urls_entrada": [
       {
@@ -104,7 +104,7 @@
     "tentativas_registradas": true
   },
   "resultado": {
-    "fim": "2026-11-17T11:29:03.970001+00:00",
+    "fim": "2026-11-17T15:17:28.380188+00:00",
     "regra": {
       "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
       "timeout": "código 124 (timeout) -> interrompida",
@@ -116,7 +116,7 @@
       "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
       "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
     },
-    "inicio": "2026-11-17T11:29:03.821507+00:00",
+    "inicio": "2026-11-17T15:17:28.324251+00:00",
     "motivo": "código 0 -> concluida",
     "runner": "processo",
     "status": "concluida",
@@ -151,7 +151,7 @@
       "escopo": "municípios 1190099",
       "executado": true,
       "ids_novas": [
-        "a182bbe7-d8dd-498d-8adb-d88509b23f69"
+        "e2a229e4-c1f1-424b-9e5c-6c8c97c14da8"
       ],
       "recusadas": [],
       "repetidas": 0,
@@ -160,7 +160,7 @@
       "sem_evidencia": [],
       "anotadas_antes": [],
       "pendencias_abertas": [
-        "33180e93-7303-4e89-b414-971472396632"
+        "034cb1c6-8e95-43cf-b4e7-65db6bda2d98"
       ],
       "pendencias_ligadas": [],
       "reason_sem_proposta": [],
@@ -172,7 +172,7 @@
       "primeiros_preenchimentos_por_classe": {}
     },
     "sem_cache": [],
-    "invocation": "admin:0198841d-8f3d-47b0-a575-34ec1ff6601d",
+    "invocation": "admin:1693cb8d-9ad7-471e-8ff5-58164a7e23ad",
     "tentativas": {
       "lidas": 3,
       "falhas": {},
@@ -198,7 +198,7 @@
   },
   "execucoes": [
     {
-      "fim": "2026-11-17T11:29:03.970001+00:00",
+      "fim": "2026-11-17T15:17:28.380188+00:00",
       "regra": {
         "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
         "timeout": "código 124 (timeout) -> interrompida",
@@ -210,7 +210,7 @@
         "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
         "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
       },
-      "inicio": "2026-11-17T11:29:03.821507+00:00",
+      "inicio": "2026-11-17T15:17:28.324251+00:00",
       "motivo": "código 0 -> concluida",
       "runner": "processo",
       "status": "concluida",
@@ -245,7 +245,7 @@
         "escopo": "municípios 1190099",
         "executado": true,
         "ids_novas": [
-          "a182bbe7-d8dd-498d-8adb-d88509b23f69"
+          "e2a229e4-c1f1-424b-9e5c-6c8c97c14da8"
         ],
         "recusadas": [],
         "repetidas": 0,
@@ -254,7 +254,7 @@
         "sem_evidencia": [],
         "anotadas_antes": [],
         "pendencias_abertas": [
-          "33180e93-7303-4e89-b414-971472396632"
+          "034cb1c6-8e95-43cf-b4e7-65db6bda2d98"
         ],
         "pendencias_ligadas": [],
         "reason_sem_proposta": [],
@@ -266,7 +266,7 @@
         "primeiros_preenchimentos_por_classe": {}
       },
       "sem_cache": [],
-      "invocation": "admin:0198841d-8f3d-47b0-a575-34ec1ff6601d",
+      "invocation": "admin:1693cb8d-9ad7-471e-8ff5-58164a7e23ad",
       "tentativas": {
         "lidas": 3,
         "falhas": {},

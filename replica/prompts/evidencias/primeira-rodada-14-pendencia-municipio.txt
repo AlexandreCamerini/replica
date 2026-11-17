@@ -1,7 +1,7 @@
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: 0 URLs pedidas, 0 não previstas
-pendência             33180e93-7303-4e89-b414-971472396632
+pendência             034cb1c6-8e95-43cf-b4e7-65db6bda2d98
 status                decidida
 classe                vinculo_sapl
 tipo                  mudanca
@@ -16,12 +16,12 @@ pergunta              O endereço do SAPL desta casa mudou de 'https://sapl.cama
 propostas ligadas:
 CANDIDATO                           URL                                 TRECHO                              BLOCO         HASH          LIDA               DECLARADA
 ----------------------------------  ----------------------------------  ----------------------------------  ------------  ------------  -----------------  ------------
-https://sapl.camara-fabricada-nov…  https://www12.senado.leg.br/inter…  endereço do SAPL lido na linha SA…  desconhecido  5d4482e291d4  2026-11-17 11:29Z  desconhecido
+https://sapl.camara-fabricada-nov…  https://www12.senado.leg.br/inter…  endereço do SAPL lido na linha SA…  desconhecido  5d4482e291d4  2026-11-17 15:17Z  desconhecido
 
 histórico (ordem de leitura):
 CANDIDATO                           URL                                 TRECHO                              BLOCO         HASH          LIDA               DECLARADA     LIGADA
 ----------------------------------  ----------------------------------  ----------------------------------  ------------  ------------  -----------------  ------------  ------
-https://sapl.camara-fabricada-nov…  https://www12.senado.leg.br/inter…  endereço do SAPL lido na linha SA…  desconhecido  5d4482e291d4  2026-11-17 11:29Z  desconhecido  sim
+https://sapl.camara-fabricada-nov…  https://www12.senado.leg.br/inter…  endereço do SAPL lido na linha SA…  desconhecido  5d4482e291d4  2026-11-17 15:17Z  desconhecido  sim
 
 decisões:
-  2026-11-17 11:29Z  aprovar  pessoa  aplicada=não  conferi a evidência da proposta (resposta fabricada, ensaio SIMULADO); não aplicar
+  2026-11-17 15:17Z  aprovar  pessoa  aplicada=não  conferi a evidência da proposta (resposta fabricada, ensaio SIMULADO); não aplicar

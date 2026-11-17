@@ -1,12 +1,12 @@
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
-2026-11-17 08:29:03 httpx INFO HTTP Request: GET https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29 "HTTP/1.1 200 OK"
-2026-11-17 08:29:03 httpx INFO HTTP Request: GET https://sapl.camara-fabricada-nova.invalid/robots.txt "HTTP/1.1 200 OK"
-2026-11-17 08:29:03 httpx INFO HTTP Request: GET https://sapl.camara-fabricada-nova.invalid/api/ "HTTP/1.1 200 OK"
-2026-11-17 08:29:03 etl.sapl INFO SAPL Município Fabricado (teste)-RO: ok https://sapl.camara-fabricada-nova.invalid 
-2026-11-17 08:29:03 etl.db INFO sapl.descoberta [352a7d62]: ok em 0s, 1 upserts, 0 rejeitadas
+2026-11-17 12:17:28 httpx INFO HTTP Request: GET https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29 "HTTP/1.1 200 OK"
+2026-11-17 12:17:28 httpx INFO HTTP Request: GET https://sapl.camara-fabricada-nova.invalid/robots.txt "HTTP/1.1 200 OK"
+2026-11-17 12:17:28 httpx INFO HTTP Request: GET https://sapl.camara-fabricada-nova.invalid/api/ "HTTP/1.1 200 OK"
+2026-11-17 12:17:28 etl.sapl INFO SAPL Município Fabricado (teste)-RO: ok https://sapl.camara-fabricada-nova.invalid 
+2026-11-17 12:17:28 etl.db INFO sapl.descoberta [e27a3347]: ok em 0s, 1 upserts, 0 rejeitadas
 SIMULADO: 3 URLs pedidas, 0 não previstas
-rodada                    0198841d-8f3d-47b0-a575-34ec1ff6601d
+rodada                    1693cb8d-9ad7-471e-8ff5-58164a7e23ad
 status                    concluida
 motivo                    código 0 -> concluida
 código de saída           0
