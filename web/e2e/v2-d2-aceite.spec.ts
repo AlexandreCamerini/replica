@@ -617,7 +617,9 @@ test.describe("neutralidade", () => {
       for (const g of r.grupos) {
         if (g.length < 2) continue;
         temLista = true;
-        const ord = [...g].sort((a, b) => a.localeCompare(b, "pt-BR"));
+        // sinal no começo do nome não conta para a ordem (D329); o nome como veio desempata
+        const chave = (n: string) => n.normalize("NFC").replace(/^[^\p{L}\p{N}]+/u, "") || n;
+        const ord = [...g].sort((a, b) => chave(a).localeCompare(chave(b), "pt-BR") || a.localeCompare(b, "pt-BR"));
         if (JSON.stringify(ord) !== JSON.stringify(g)) falhas.push(`${url}: fora de ordem alfabética: ${g.slice(0, 8).join(" | ")}`);
       }
       if (temLista && !/(ordem alfab[ée]tica|de A a Z|A–Z|A-Z)/i.test(r.texto)) falhas.push(`${url}: lista de pessoas sem a frase que declara a ordem alfabética`);

@@ -30,6 +30,7 @@ import {
 } from "@/components/sv/ui";
 import { data, type AnswerClaim, type Body, type PautaStatus, type VotingEventDetail } from "@/lib/data";
 import { deciders } from "@/lib/pauta";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 const KEY = /^[a-z0-9-]{3,80}$/;
 // cache(): generateMetadata e a página leem a mesma proposta numa só ida ao banco por requisição
@@ -131,7 +132,7 @@ async function carregarEscolhidos(slugs: string[], falhar: boolean): Promise<Esc
   );
   return rows
     .filter((r): r is Escolhido => r !== null)
-    .sort((a, b) => (a.nome === null ? 1 : 0) - (b.nome === null ? 1 : 0) || (a.nome ?? a.slug).localeCompare(b.nome ?? b.slug, "pt-BR"));
+    .sort((a, b) => (a.nome === null ? 1 : 0) - (b.nome === null ? 1 : 0) || compararNomes(a.nome ?? a.slug, b.nome ?? b.slug));
 }
 
 /** O que a fonte diz do voto de uma pessoa numa votação. */

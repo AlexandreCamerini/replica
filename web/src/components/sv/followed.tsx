@@ -3,6 +3,7 @@ import { clip, fmtDate } from "@/components/sv/fmt";
 import { mandatoPrincipal } from "@/components/sv/mandato";
 import { Gap, Label, List, VoteMark } from "@/components/sv/ui";
 import { data, type PersonVote } from "@/lib/data";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 export type Followed = { slug: string; name: string; office: string; votes: PersonVote[]; total: number };
 
@@ -17,7 +18,7 @@ export async function loadFollowed(slugs: string[], perPerson: number): Promise<
       return { slug: r.person.slug, name: r.person.displayName, office: main ? `${main.officeName}, ${main.placeLabel}. ${main.party.acronym}` : "Sem mandato carregado", votes: votes.items, total: votes.total } satisfies Followed;
     }),
   );
-  return rows.filter((r): r is Followed => r !== null).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  return rows.filter((r): r is Followed => r !== null).sort((a, b) => compararNomes(a.name, b.name));
 }
 
 /** Uma pessoa acompanhada, com os votos mais recentes. */

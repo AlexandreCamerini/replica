@@ -5,6 +5,7 @@ import { fmtDate } from "../fmt";
 import { lerOuFalhar } from "../simular";
 import { agruparAtos, comDiaCerto } from "./agrupar";
 import { aguardaPosse, cobreLeis, fraseDesde, mandatoPrincipal, motivoPosse } from "../mandato";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 // Carrega, por pessoa do cookie sv_sigo, tudo o que o quadro "O que meus escolhidos estão fazendo?" mostra.
 // Só dado do contrato (DataSource): nada é calculado fora do que a fonte entregou. Lacuna fica null, nunca vira zero.
@@ -222,7 +223,7 @@ export async function carregarEscolhidos(slugs: string[], sim: FalhaSimulada = {
         cobertura,
       };
     });
-  pessoas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  pessoas.sort((a, b) => compararNomes(a.nome, b.nome));
 
   const esferaDe = new Map(pessoas.map((p) => [p.slug, p.esfera]));
   const atividadeLida = pessoas.length ? await ler(() => data.getActivity(pessoas.map((p) => p.id), RECENTES_LIDOS)).catch(() => null) : [];

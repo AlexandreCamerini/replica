@@ -73,6 +73,7 @@ import { placarPorUf } from "./cadeiras";
 import { lista } from "./lista";
 import { FAMILIAS_CARIMBO, coberturaDe, type CarimboFonte } from "./cobertura";
 import { claimsFrom, plainOf } from "../answer-claims";
+import { SINAIS_INICIAIS } from "../ordem-nomes";
 
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
 // Nenhuma query fora daqui. Listas públicas ordenam por nome (collation pt_br), nunca por métrica: regra de neutralidade.
@@ -605,7 +606,10 @@ export const pgSource: DataSource = {
       ${f.letter ? sql`and f_unaccent(lower(p.display_name)) like ${f.letter.toLowerCase()} || '%'` : sql``}
       ${q ? sql`and (f_unaccent(lower(p.display_name)) like '%' || f_unaccent(lower(${q})) || '%' or f_unaccent(lower(p.civil_name)) like '%' || f_unaccent(lower(${q})) || '%')` : sql``}`;
     const [{ n }] = await sql`select count(*)::int as n from mandates m join people p on p.id = m.person_id join offices o on o.id = m.office_id join places pl on pl.id = m.place_id left join person_current_party cp on cp.person_id = p.id where ${where}`;
-    const rows = await sql`${HOLDER_SELECT} where ${where} order by p.display_name collate pt_br, p.id limit ${limit} offset ${offset}`;
+    // D329: sinais no começo do nome não contam para a ordem (lista explícita, a mesma do comparador em ordem-nomes.ts);
+    // o nome como veio desempata. É esta ordem que decide o que entra em cada página. A lista é de mandatos: o id do
+    // mandato fecha a ordem, para quem tem dois em exercício não repetir nem sumir entre páginas.
+    const rows = await sql`${HOLDER_SELECT} where ${where} order by ltrim(p.display_name, ${SINAIS_INICIAIS}) collate pt_br, p.display_name collate pt_br, p.id, m.id limit ${limit} offset ${offset}`;
     return page(rows.map(holder), Number(n), offset, limit);
   },
   async searchPeople(q, limit = 8) {
@@ -1639,7 +1643,7 @@ export const pgSource: DataSource = {
       ? await sql`
           select pe.slug, pe.display_name, a.role, count(*) over () as total from proposal_authors a join people pe on pe.id = a.person_id
           where a.proposal_id = ${prop.id}::uuid and a.role in ('principal', 'coautoria')
-          order by (a.role = 'principal') desc, pe.display_name collate pt_br, pe.slug limit ${MAX_AUTORES}`
+          order by (a.role = 'principal') desc, ltrim(pe.display_name, ${SINAIS_INICIAIS}) collate pt_br, pe.display_name collate pt_br, pe.slug limit ${MAX_AUTORES}`
       : [];
     // campo legado `authors` (v1 /proposta): a ordem e o corte da main (ordem de assinatura), sem mudar o que o v1 mostra
     const authorsLegado = prop
