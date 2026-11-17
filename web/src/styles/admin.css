@@ -1,0 +1,61 @@
+/* Central de administração: tudo com escopo .admin-central (nada global, nada vaza para o site público).
+   Design v1: uma cor de quantidade (--tint), raio 0, sem sombra, elevação por borda dupla. Funciona nos temas claro e escuro
+   porque só usa variáveis de tema (com reserva). */
+.admin-central {
+  --adm-tint: var(--tint, #9a9d9b);
+  --adm-ink: var(--text, #1c2226);
+  --adm-muted: var(--text-muted, #545a5e);
+  --adm-paper: var(--bg, #f2eee5);
+  --adm-sheet: var(--surface, #fbf9f4);
+  --adm-focus: var(--focus, var(--text, #1c2226));
+  color: var(--adm-ink);
+}
+.admin-central *,
+.admin-central *::before,
+.admin-central *::after {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-central .admin-mapa__topo { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 24px; }
+.admin-central .admin-mapa__nivel { font-weight: 600; margin: 0; }
+.admin-central .admin-mapa__voltar,
+.admin-central .admin-mapa__fora a,
+.admin-central .admin-mapa__erro a { color: var(--adm-ink); text-decoration: underline; text-underline-offset: 3px; min-height: 44px; display: inline-flex; align-items: center; }
+.admin-central .admin-mapa__busca { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--adm-muted); margin-left: auto; }
+.admin-central .admin-mapa__busca input { min-height: 44px; padding: 0 12px; border: 1.5px solid var(--adm-ink); background: var(--adm-sheet); color: var(--adm-ink); font: inherit; }
+.admin-central .admin-mapa__anuncio { font-size: 13px; color: var(--adm-muted); margin: 8px 0; }
+
+.admin-central .admin-mapa__corpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (min-width: 900px) { .admin-central .admin-mapa__corpo { grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); } }
+.admin-central .admin-mapa__quadro { min-height: 240px; border: 1px solid var(--adm-ink); background: var(--adm-sheet); padding: 8px; }
+.admin-central .admin-mapa__svg { display: block; width: 100%; height: auto; }
+.admin-central .admin-mapa__espera { aspect-ratio: 1 / 1; width: 100%; border: 1.5px dashed var(--adm-muted); }
+.admin-central .admin-mapa__erro { padding: 12px; border: 1.5px solid var(--adm-ink); }
+
+/* defs: padrões na cor do tema */
+.admin-central .admin-mapa__defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.admin-central .admin-mapa__base { fill: var(--adm-tint); }
+.admin-central .admin-mapa__traco { stroke: var(--adm-ink); stroke-width: 1.2; fill: none; }
+.admin-central .admin-mapa__ponto { fill: var(--adm-ink); }
+
+/* território: contorno fino em cor de papel; foco visível; destaque = contorno grosso em tinta */
+.admin-central .admin-mapa__t { outline: none; }
+.admin-central .admin-mapa__forma { stroke: var(--adm-paper); stroke-width: 1; }
+.admin-central .admin-mapa__t:hover .admin-mapa__forma { stroke: var(--adm-ink); stroke-width: 1.5; }
+.admin-central .admin-mapa__t:focus-visible .admin-mapa__forma { stroke: var(--adm-focus); stroke-width: 3.5; }
+.admin-central .admin-mapa__t[aria-current="true"] .admin-mapa__forma { stroke: var(--adm-ink); stroke-width: 2.5; }
+.admin-central .admin-mapa__forma.is-destaque { stroke: var(--adm-ink); stroke-width: 2.5; }
+.admin-central .admin-mapa__forma.is-vazio { stroke: var(--adm-ink); stroke-width: 1.2; }
+
+.admin-central .admin-mapa__fora { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 4px; font-size: 15px; }
+.admin-central .admin-mapa__fora strong { font-variant-numeric: tabular-nums; }
+.admin-central .admin-mapa__legenda { background: var(--adm-sheet); border: 1px solid var(--adm-ink); outline: 1px solid var(--adm-ink); outline-offset: 5px; margin: 6px; padding: 12px; font-size: 14px; }
+.admin-central .admin-mapa__legenda h3 { margin: 0 0 6px; font-size: 16px; }
+.admin-central .admin-mapa__legenda h4 { margin: 12px 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--adm-muted); }
+.admin-central .admin-mapa__legenda p { margin: 0; color: var(--adm-muted); }
+.admin-central .admin-mapa__legenda ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.admin-central .admin-mapa__legenda li { display: flex; align-items: center; gap: 8px; }
+.admin-central .admin-mapa__amostra { flex: none; border: 1px solid var(--adm-ink); }
+.admin-central .admin-mapa__amostra rect.is-destaque { stroke: var(--adm-ink); stroke-width: 3; }
+.admin-central .admin-mapa__fonte { font-size: 12px; color: var(--adm-muted); margin: 8px 0 0; }
