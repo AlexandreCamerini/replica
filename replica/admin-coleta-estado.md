@@ -51,9 +51,10 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 - Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
 - Fase R: concluída e verificada (AC-08). 16 subagentes de um teto de 16. A linha da R11 abaixo cita o commit em que a decisão ainda se chamava D324; ela foi renumerada para D325 em `97c7930`.
 - Fase A: concluída (AC-11). 6 subagentes de um teto de 14. Commits: A1 `068e2c6`, A2 `9085621`, A3 `ae681ac`, A4 `1737029`, A5 `9900a7b`, A6 no commit seguinte a este estado.
-- Fase B: construção concluída; reverificação do critério 9 em voo. Subagentes da fase: 10 de 16 (B1, B2, B3a, B3b, B4, B5, B6, verificador Sonnet de 4/5/11, verificador Opus de 9, reverificador Opus de 9; retomadas não contam). Commits: B1 `16fa1a9`, B2 `565c687`, B3a `ab55781`, B3b `538be3a`, B4 `50f96af`, B5 `e2c2005`, B6 `ac43528`. Migrações `0150`, `0151` e `0152` aplicadas em `admin_coleta` (41). O banco `admin_coleta_r1` (primeira rodada) foi criado com 40 migrações, antes da `0152`: o roteiro da primeira rodada tem de ser rodado de novo antes do relato, para as evidências refletirem o código final.
+- Fase B: concluída e verificada (AC-18). 10 subagentes de um teto de 16. Commits: B1 `16fa1a9`, B2 `565c687`, B3a `ab55781`, B3b `538be3a`, B4 `50f96af`, B5 `e2c2005`, B6 `ac43528`, ajuste do `env_extra` no commit seguinte a este estado. Migrações `0150` a `0152` aplicadas em `admin_coleta` (41). O banco `admin_coleta_r1` foi criado antes da `0152`: rodar o roteiro da primeira rodada de novo antes do relato.
+- Fase C: iniciada. Subagentes da fase: 0 de 20.
 - Incidente AC-09: duas rodadas de teste da A2 caíram no banco `civico` (vazio, 0 tabelas, sem dano). Todo briefing passa a exigir o prefixo de banco literal em cada linha.
-- Suíte depois da B6: `1299 passed, 33 skipped, 4 xfailed`, em cerca de 5 min. `civico-etl check`: as mesmas 5 invariantes da linha de base.
+- Suíte ao fim da fase B: `1300 passed, 33 skipped, 4 xfailed`, entre 3 e 5 min. `civico-etl check`: as mesmas 5 invariantes da linha de base.
 
 | Tarefa | Modelo | Situação | Reprovações | Commit |
 | --- | --- | --- | --- | --- |
@@ -82,6 +83,5 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 ## Próximo passo
 
-1. Ler o relatório do reverificador Opus do critério 9. Se não atender, é parada (item 6).
-2. Fase C (teto 20): C1 migração `0153` (role `admin_central`, login local em `db/local/post_0003_admin_central.sql`); C2 executor de pedidos; C3 dados e agregação pura no `web/`; C4 layout, guarda e API; C5 mapa; C6 páginas e estados; C7 provas sem navegador; C8 specs Playwright; C9 primeira rodada, passos 6 a 9; C10 documentação; verificador Opus.
-3. Antes do relato: rodar de novo `replica/prompts/evidencias/primeira-rodada.sh` com o código final.
+1. Fase C (teto 20): C1 migração `0153` (role `admin_central`, grants, policies, login local em `db/local/post_0003_admin_central.sql`) e C2 executor de pedidos, em série; C3 dados e agregação pura no `web/`; C4 layout, guarda e API; C5 mapa; C6 páginas e estados; C7 provas sem navegador; C8 specs Playwright; C9 primeira rodada, passos 6 a 9; C10 documentação; verificador Opus da Parte C.
+2. Antes do relato: rodar de novo `replica/prompts/evidencias/primeira-rodada.sh` com o código final.

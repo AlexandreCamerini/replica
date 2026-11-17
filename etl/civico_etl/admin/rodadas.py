@@ -556,6 +556,9 @@ def executar(conn: Any, rodada_id: str, *, runner: Callable[[list[str]], int] | 
         SystemExit são relançados depois de gravar. KeyboardInterrupt/SystemExit DO COLETOR (dentro do runner) continuam absorvidos: o que ele já leu é importado e a rodada fica retomável.
       - NÃO é garantido: `kill -9`, queda da máquina ou da conexão. Nesses casos a rodada fica `em_andamento` e a trava some com a sessão; `civico-etl admin rodada recuperar ID` a
         move para `interrompida` (só se a trava está livre), e `repetir` funciona como para qualquer rodada interrompida."""
+    from .aplicar import VARIAVEL as _CHAVE_AGENTES  # tardio: aplicar importa rodadas indiretamente
+    if env_extra and _CHAVE_AGENTES in env_extra:  # a primeira chave dos agentes só vem do ambiente de quem roda (AC-18)
+        raise ErroAdmin("env_extra não pode definir a variável da primeira chave dos agentes: ela não passa por rodada")
     rod = _carregar(conn, rodada_id, travar=True)
     rid = str(rod["id"])
     if rod["status"] not in ("aberta", "interrompida"):

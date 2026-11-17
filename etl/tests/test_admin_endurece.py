@@ -584,3 +584,12 @@ def test_G_500_depois_503_repete_a_proposta_sem_reabrir_e_500_depois_403_cria_pr
     assert r3.nova is True and r3.proposta_id != r1.proposta_id
     depois = iso.execute("select status, reaberta, motivo_reabertura from adm_pendencias where id = %s", (r1.pendencia_id,)).fetchone()
     assert (depois["status"], depois["reaberta"], depois["motivo_reabertura"]) == ("aberta", True, "evidencia_mudou") and chave
+
+
+def test_N2_env_extra_nao_pode_ligar_a_chave_dos_agentes():
+    """AC-18: `rodadas.executar(env_extra=...)` recusa a variável da primeira chave antes de qualquer coisa (o teste não precisa de banco)."""
+    import pytest as _pt
+    from civico_etl.admin import rodadas as _R
+    from civico_etl.admin.saida import ErroAdmin as _Erro
+    with _pt.raises(_Erro, match="primeira chave dos agentes"):
+        _R.executar(None, "x", env_extra={"ADMIN_COLETA_AGENTES": "on"})  # conn None: a recusa vem antes de qualquer uso do banco
