@@ -585,7 +585,12 @@ export const pgSource: DataSource = {
     return { total: byLevel.federal + byLevel.estadual + byLevel.municipal, byLevel, byOffice };
   },
   async listParties() {
-    return (await sql`select distinct pa.id, pa.acronym, pa.name from parties pa join mandates m on m.party_id = pa.id and m.status = 'em_exercicio' order by pa.acronym`).map((r) => party(r, ""));
+    // D331: o mesmo partido que o filtro de listPeople usa (o vigente, ou o da posse na falta dele). Antes vinha só do
+    // partido da posse, e quem trocou de partido para uma sigla sem mandato de posse ficava fora do campo "Partido".
+    return (
+      await sql`select distinct pa.id, pa.acronym, pa.name from mandates m left join person_current_party cp on cp.person_id = m.person_id
+        join parties pa on pa.id = coalesce(cp.party_id, m.party_id) where m.status = 'em_exercicio' order by pa.acronym`
+    ).map((r) => party(r, ""));
   },
   async listOffices() {
     const order = Object.keys(PLURAL) as OfficeSlug[];

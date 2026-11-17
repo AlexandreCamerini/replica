@@ -198,7 +198,8 @@ test.describe("carregamento: troca de página", () => {
 test.describe("carregamento: envio de formulário", () => {
   test("marcar uma pessoa: o botão diz Guardando… enquanto o servidor responde, e depois mostra o resultado", async ({ page, context }) => {
     await context.addCookies([cookies[0]]);
-    await page.goto("/pessoas", { waitUntil: "networkidle" });
+    // D331: a lista (e os botões) só aparece depois de um filtro do eleitor
+    await page.goto("/pessoas?cargo=deputado_estadual", { waitUntil: "networkidle" });
     const linha = page.locator(".sv-pp > li").first();
     const presas: Route[] = [];
     await page.route("**/pessoas*", (route) => (route.request().method() === "POST" ? void presas.push(route) : route.continue()));
@@ -218,7 +219,8 @@ test.describe("carregamento: envio de formulário", () => {
 
   test("os formulários que guardam escolha têm o aviso de envio, vazio enquanto nada é enviado", async ({ page, context }) => {
     await context.addCookies(cookies);
-    for (const [url, minimo] of [["/pessoas", 2], ["/pessoa/helena-siqueira", 1], ["/ajustes", 2], ["/comecar", 2], ["/comecar?passo=2", 2]] as const) {
+    // D331: em /pessoas e no passo 2, os botões de marcar só existem depois do filtro (cargo, aqui)
+    for (const [url, minimo] of [["/pessoas?cargo=deputado_estadual", 2], ["/pessoa/helena-siqueira", 1], ["/ajustes", 2], ["/comecar", 2], ["/comecar?passo=2&cargo=deputado_estadual", 2]] as const) {
       await page.goto(url);
       const avisos = page.locator(".sv-main form .sv-envio");
       expect(await avisos.count(), `${url}: formulários com aviso de envio`).toBeGreaterThanOrEqual(minimo);
@@ -248,6 +250,11 @@ test.describe("carregamento: sem JavaScript", () => {
     await page.goto("/");
     await page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Pessoas", exact: true }).click();
     await expect(page).toHaveURL(/\/pessoas$/);
+    // D331: sem filtro do eleitor, nenhuma pessoa e nenhum botão de marcar; o filtro abre a lista
+    await expect(page.locator("#pp-pede")).toBeVisible();
+    await expect(page.locator(".sv-pp > li")).toHaveCount(0);
+    await page.locator("#pp-cargo").selectOption("deputado_estadual");
+    await page.getByRole("button", { name: "Procurar" }).click();
     await page.locator(".sv-pp > li").first().locator("button").click();
     await expect(page.locator(".sv-pp > li").first().locator("button")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".sv-envio").first()).toBeHidden();

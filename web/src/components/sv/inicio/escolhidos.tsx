@@ -144,7 +144,7 @@ export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slu
         <div className="sv-vazio">
           <p className="sv-t">Marque as pessoas em quem você votou. Aqui você vê o que elas votaram em plenário, em ordem alfabética.</p>
           <p className="sv-t">
-            Para marcar, abra a lista de pessoas{ufSigla ? ` de ${ufSigla}` : ""} e toque em “Votei nesta pessoa” ao lado do nome.
+            Para marcar, abra a lista de pessoas{ufSigla ? ` de ${ufSigla}` : ""}, escolha o partido (ou o cargo, ou procure pelo nome) e toque em “Votei nesta pessoa” ao lado do nome.
           </p>
           <Link className="sv-btn" href={ufSigla ? `/pessoas?uf=${ufSigla}` : "/pessoas"}>
             Escolher em quem votei

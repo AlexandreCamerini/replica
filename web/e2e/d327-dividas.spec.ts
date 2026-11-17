@@ -86,7 +86,8 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
     const ctx = await browser.newContext({ baseURL: info.project.use.baseURL as string, javaScriptEnabled: false, locale: "pt-BR" });
     await ctx.addCookies([uf("SP"), sigo(Array.from({ length: 12 }, (_, i) => `pessoa-que-sumiu-${i}`))]);
     const page = await ctx.newPage();
-    await page.goto("/pessoas");
+    // D331: a lista (e os botões) só aparece com um filtro do eleitor
+    await page.goto("/pessoas?cargo=deputado_estadual");
     const status = page.locator(".sv-pp__m > p[role=status]");
     await expect(status).toContainText("Nenhuma das 12 pessoas que você marcou aparece nos dados de hoje.");
     await expect(status).toContainText("tire as que não entram na conta para abrir lugar");
@@ -100,7 +101,7 @@ test.describe("1. a contagem de pessoas acompanhadas", () => {
 
   test("marcar uma pessoa na lista soma uma à conta de quem existe", async ({ page, context }) => {
     await context.addCookies([uf("SP"), sigo(["pessoa-que-sumiu"])]);
-    await page.goto("/pessoas");
+    await page.goto("/pessoas?cargo=deputado_estadual");
     const status = page.locator(".sv-pp__m > p[role=status]");
     await expect(status).toContainText("A pessoa que você marcou não aparece nos dados de hoje.");
     await page.locator(".sv-pp__f button[aria-pressed=false]").first().click();
@@ -168,7 +169,9 @@ test.describe("3. sigla de estado que não existe", () => {
       // a saída: todos os estados
       await quadro.getByRole("link", { name: /Ver todos os estados/ }).click();
       await expect(page).toHaveURL(/\/pessoas\?uf=$/);
-      await expect(page.locator('[aria-labelledby="pp-2"] .sv-pp__f').first()).toBeVisible();
+      // D331: todos os estados, sem filtro do eleitor, é o total e o pedido do filtro (sem lista e sem aviso de sigla)
+      await expect(page.locator("#pp-pede")).toBeVisible();
+      await expect(page.locator('[aria-labelledby="pp-2"]')).not.toContainText("não é de nenhum estado");
     });
 
   test("a sigla do endereço vale sobre o estado guardado, e nome e cargo seguem no link de saída", async ({ page, context }) => {
