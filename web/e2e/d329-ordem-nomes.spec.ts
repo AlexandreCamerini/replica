@@ -19,7 +19,9 @@ async function listaInteira(page: Page, url: string, maxPaginas = 40) {
     todos.push(...(await nomes(page)));
     const proxima = page.locator('a.sv-lk[href*="pagina="]', { hasText: "Próximas" });
     if ((await proxima.count()) === 0) break;
-    await Promise.all([page.waitForURL(/pagina=/), proxima.click()]);
+    // navega pelo endereço do link (o mesmo que o clique seguiria): da 2ª página em diante a URL já tem `pagina=`, e esperar
+    // por ela resolvia na hora, com o clique seguinte caindo no meio da navegação
+    await page.goto((await proxima.getAttribute("href"))!);
     await expect(page.locator(".sv-pp > li").first()).toBeVisible();
   }
   return todos;
@@ -27,7 +29,8 @@ async function listaInteira(page: Page, url: string, maxPaginas = 40) {
 
 test.describe("ordem alfabética com acento solto e sinal no começo do nome", () => {
   test("a lista do país não abre com o nome que começa por sinal: ele está na letra dele, uma vez", async ({ page }) => {
-    await page.goto("/pessoas?uf=");
+    // D331: a lista só aparece com um filtro do eleitor; o partido (DEL) é o do nome com sinal na demonstração
+    await page.goto("/pessoas?uf=&partido=del");
     const primeira = await nomes(page);
     expect(primeira.length).toBeGreaterThan(10);
     expect(primeira[0], "o primeiro nome começa por letra").toMatch(/^\p{L}/u);
@@ -42,16 +45,17 @@ test.describe("ordem alfabética com acento solto e sinal no começo do nome", (
     expect(alvaros, "a página inteira em ordem").toEqual([...alvaros].sort(comparar));
   });
 
-  test("a ordem vale de uma página para a outra: a lista inteira de um estado, com o nome com sinal no meio, sem pular ninguém", async ({ page }) => {
+  test("a ordem vale de uma página para a outra: a lista inteira de um partido no país, com o nome com sinal no meio, sem pular ninguém", async ({ page }) => {
     test.setTimeout(180_000);
-    const todos = await listaInteira(page, "/pessoas?uf=PB");
+    // D331: a lista só aparece com um filtro do eleitor; filtrado por estado e cargo, nenhum recorte da Paraíba passa de uma página
+    const todos = await listaInteira(page, "/pessoas?uf=&partido=del");
     expect(todos.length, "mais de uma página").toBeGreaterThan(60);
     const i = todos.indexOf(SINAL);
     expect(i, "o nome com sinal não é o primeiro da lista").toBeGreaterThan(0);
     const fora = todos.flatMap((n, k) => (k > 0 && comparar(todos[k - 1], n) > 0 ? [`"${todos[k - 1]}" antes de "${n}" (posição ${k})`] : []));
     expect(fora, "nenhum par fora de ordem, inclusive entre páginas").toEqual([]);
     // ninguém pulado nem repetido: as páginas somam o total que a tela declara ("N pessoas")
-    await page.goto("/pessoas?uf=PB");
+    await page.goto("/pessoas?uf=&partido=del");
     const declarado = Number((await page.locator('[aria-labelledby="pp-2"] .sv-a').first().innerText()).match(/^([\d.]+) pessoas?/)![1].replace(/\./g, ""));
     expect(todos.length, "as páginas somam o total declarado").toBe(declarado);
     await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText(/ordem alfabética/);

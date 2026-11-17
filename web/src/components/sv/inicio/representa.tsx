@@ -101,7 +101,7 @@ export function Representa({
         </Nota>
       ))}
       <p className="sv-selo__l">
-        <Link href={`/pessoas?uf=${uf.sigla}`}>Ver todas, de A a Z</Link>
+        <Link href={`/pessoas?uf=${uf.sigla}`}>Procurar por partido ou cargo</Link>
         <Link href="/ajustes">{esferas.municipal ? "Mudar em Ajustes" : "Ligar em Ajustes"}</Link>
       </p>
     </Quadro>

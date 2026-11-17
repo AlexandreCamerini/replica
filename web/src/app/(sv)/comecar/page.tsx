@@ -9,6 +9,7 @@ import { FALHOU_LEITURA } from "@/components/sv/estados";
 import { fmtInt } from "@/components/sv/fmt";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { contarMarcados } from "@/components/sv/marcados";
+import { escolherPartido, opcoesDePartido, partidoNaoAplicado, rotuloPartido } from "@/components/sv/partidos";
 import { ListaPessoas, Marcados } from "@/components/sv/pessoas-lista";
 import { COOKIE_TEXTO, readPrefs, ufOptions, type Prefs } from "@/components/sv/prefs";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
@@ -134,23 +135,30 @@ async function Passo1({ prefs, erro, falhar }: { prefs: Prefs; erro: boolean; /*
   );
 }
 
-async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; marcados: string[]; /** `?simular=erro` (só na demonstração): a conferência das marcações falha */ falhar: boolean; sp: { nome?: string; cargo?: string; pagina?: string }; /** a cidade do passo 1 não pôde ser guardada */ erro: boolean }) {
+async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; marcados: string[]; /** `?simular=erro` (só na demonstração): a conferência das marcações falha */ falhar: boolean; sp: { nome?: string; cargo?: string; partido?: string; pagina?: string }; /** a cidade do passo 1 não pôde ser guardada */ erro: boolean }) {
   const { uf } = prefs;
   // mesmas regras de entrada de /pessoas: `pagina` só inteiro de até 6 dígitos; cargo só da lista; nome até 80 caracteres
   const pagina = sp.pagina && /^\d{1,6}$/.test(sp.pagina) ? sp.pagina : undefined;
   const q = (sp.nome ?? "").trim().slice(0, 80);
   const office = isOffice(sp.cargo) ? sp.cargo : undefined;
-  const [marcacoes, offices, page, stamp] = await Promise.all([
+  const [marcacoes, offices, partidosLidos, stamp] = await Promise.all([
     contarMarcados(marcados, (fn) => lerOuFalhar(falhar, fn)),
     data.listOffices().catch(() => null),
-    data.listPeople({ q: q || undefined, office, uf: uf?.sigla, cursor: pagina, limit: POR_PAGINA }).catch(() => null),
+    data.listParties().catch(() => null),
     data.getStamp("tse.candidatos").catch(() => null),
   ]);
+  // D331: o partido é sempre um dos filtros, e a lista só aparece depois que o eleitor filtra (partido, cargo ou nome).
+  // O estado guardado só estreita: sem filtro, a tela diz quantas pessoas há e pede o filtro, sem despejar a lista.
+  const partidos = partidosLidos ? opcoesDePartido(partidosLidos) : null;
+  const partido = escolherPartido(sp.partido, partidos);
+  const naoAplicado = partidoNaoAplicado(sp.partido, partidos);
+  const filtrou = !!(q || office || partido);
+  const page = await data.listPeople({ q: q || undefined, office, party: partido?.id, uf: uf?.sigla, cursor: filtrou ? pagina : undefined, limit: filtrou ? POR_PAGINA : 1 }).catch(() => null);
   const next = new URLSearchParams({ passo: "2" });
+  if (partido) next.set("partido", partido.id);
   if (q) next.set("nome", q);
   if (office) next.set("cargo", office);
   if (page?.nextCursor) next.set("pagina", page.nextCursor);
-  const filtrou = !!(q || office);
   const n = page?.items.length ?? 0;
 
   return (
@@ -164,7 +172,7 @@ async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; mar
 
       <Quadro
         id="cm-pessoas"
-        variante={page && n > 0 ? "padrao" : "lacuna"}
+        variante={page && (n > 0 || !filtrou) ? "padrao" : "lacuna"}
         pergunta={uf ? `Quem está no cargo em ${uf.nome}, em ordem alfabética?` : "Quem está no cargo, em ordem alfabética?"}
         prova={
           <>
@@ -174,20 +182,27 @@ async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; mar
       >
         {!uf &&
           (prefs.ufFalhou ? (
-            <Lacuna motivo="A lista abaixo é do país inteiro.">Não conseguimos ler o estado guardado agora.</Lacuna>
+            <Lacuna motivo="Sem o estado, a lista é do país inteiro.">Não conseguimos ler o estado guardado agora.</Lacuna>
           ) : (
             <p className="sv-t">
-              Sem estado escolhido, a lista é do país inteiro: procure pelo nome.{" "}
+              Sem estado escolhido, a lista é do país inteiro.{" "}
               <Link className="sv-lk" href="/comecar">
                 Escolher estado
               </Link>
             </p>
           ))}
         {/* key: campos não controlados; remonta quando o filtro muda por navegação no cliente ("limpar os filtros") */}
-        <form key={`${q}|${office ?? ""}`} className="sv-filtro" action="/comecar" method="get" role="search" aria-label="Procurar pessoas">
+        <form key={`${q}|${office ?? ""}|${partido?.id ?? ""}`} className="sv-filtro" action="/comecar" method="get" role="search" aria-label="Procurar pessoas">
           <input type="hidden" name="passo" value="2" />
-          <label htmlFor="cm-nome">Nome</label>
-          <input className="sv-campo" id="cm-nome" name="nome" type="text" defaultValue={q} maxLength={80} autoComplete="off" />
+          <label htmlFor="cm-partido">Partido</label>
+          <select className="sv-campo" id="cm-partido" name="partido" defaultValue={partido?.id ?? ""}>
+            <option value="">Todos os partidos</option>
+            {(partidos ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {rotuloPartido(p)}
+              </option>
+            ))}
+          </select>
           <label htmlFor="cm-cargo">Cargo</label>
           <select className="sv-campo" id="cm-cargo" name="cargo" defaultValue={office ?? ""}>
             <option value="">Todos os cargos</option>
@@ -197,12 +212,21 @@ async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; mar
               </option>
             ))}
           </select>
+          <label htmlFor="cm-nome">Nome</label>
+          <input className="sv-campo" id="cm-nome" name="nome" type="text" defaultValue={q} maxLength={80} autoComplete="off" />
           <span className="sv-filtro__b" aria-hidden="true" />
           <button className="sv-enviar" type="submit">
             Procurar
           </button>
         </form>
-        {!offices && <Lacuna motivo="O filtro fica sem essa opção até a leitura voltar.">Não conseguimos ler a lista de cargos agora.</Lacuna>}
+        {(!offices || !partidos) && (
+          <Lacuna motivo="O filtro fica sem essas opções até a leitura voltar.">Não conseguimos ler a lista de {!offices && !partidos ? "partidos e de cargos" : !partidos ? "partidos" : "cargos"} agora.</Lacuna>
+        )}
+        {naoAplicado && (
+          <Lacuna motivo={naoAplicado === "sem-lista" ? "A lista de partidos não pôde ser lida agora." : "A lista de partidos vem de quem está no cargo hoje."}>
+            {naoAplicado === "sem-lista" ? "Não conseguimos aplicar o partido pedido no endereço." : "O partido pedido no endereço não está na lista de partidos de hoje."}
+          </Lacuna>
+        )}
         {filtrou && (
           <Link className="sv-lk" href={PASSO_2}>
             Limpar os filtros
@@ -211,6 +235,17 @@ async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; mar
 
         {!page ? (
           <Lacuna motivo="A lista de pessoas não pôde ser lida. Tente de novo em alguns minutos.">{FALHOU_LEITURA}</Lacuna>
+        ) : !filtrou ? (
+          // D331: sem filtro do eleitor, só o total; a lista espera o partido, o cargo ou o nome
+          <>
+            <Resposta tamanho="m">
+              {page.total === 1 ? "1 pessoa" : `${fmtInt(page.total)} pessoas`} no cargo hoje{uf ? ` em ${uf.nome}` : " no país"}.
+            </Resposta>
+            <p className="sv-t" id="cm-pede">
+              Escolha o partido em que você votou (ou o cargo, ou procure pelo nome). A lista aparece depois, em ordem alfabética, para você marcar.
+            </p>
+            <Marcados guardadas={marcacoes.guardadas} pessoas={marcacoes.pessoas} sobrando={marcacoes.sobrando} />
+          </>
         ) : n === 0 && pagina && page.total > 0 ? (
           <Lacuna motivo={`A lista tem ${fmtInt(page.total)} pessoas.`}>Esta página fica depois do fim da lista.</Lacuna>
         ) : n === 0 ? (
@@ -220,7 +255,7 @@ async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; mar
             <Marcados guardadas={marcacoes.guardadas} pessoas={marcacoes.pessoas} sobrando={marcacoes.sobrando} />
             {n < page.total && (
               <p className="sv-t">
-                Esta página mostra {fmtInt(n)} de {fmtInt(page.total)}. Use o nome ou o cargo para achar mais rápido.
+                Esta página mostra {fmtInt(n)} de {fmtInt(page.total)}. Use o partido, o cargo ou o nome para achar mais rápido.
               </p>
             )}
             <ListaPessoas items={page.items} marcados={marcados} porPessoa={marcacoes.porPessoa} />
@@ -257,13 +292,13 @@ async function Passo2({ prefs, marcados, sp, erro, falhar }: { prefs: Prefs; mar
   );
 }
 
-export default async function Comecar({ searchParams }: { searchParams: Promise<{ passo?: string | string[]; nome?: string | string[]; cargo?: string | string[]; pagina?: string | string[]; erro?: string | string[]; simular?: string | string[] }> }) {
+export default async function Comecar({ searchParams }: { searchParams: Promise<{ passo?: string | string[]; nome?: string | string[]; cargo?: string | string[]; partido?: string | string[]; pagina?: string | string[]; erro?: string | string[]; simular?: string | string[] }> }) {
   const raw = await searchParams;
   // parâmetro repetido chega como array: só string vale, o resto é ignorado (nunca erro 500)
   const so = (v: unknown) => (typeof v === "string" ? v : undefined);
   const [prefs, jar] = await Promise.all([readPrefs(), cookies()]);
   // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
   const falhar = simulacao(raw.simular) === "erro";
-  if (so(raw.passo) === "2") return <Passo2 falhar={falhar} prefs={prefs} marcados={parseFollows(jar.get(FOLLOW_COOKIE)?.value)} sp={{ nome: so(raw.nome), cargo: so(raw.cargo), pagina: so(raw.pagina) }} erro={raw.erro === "leitura"} />;
+  if (so(raw.passo) === "2") return <Passo2 falhar={falhar} prefs={prefs} marcados={parseFollows(jar.get(FOLLOW_COOKIE)?.value)} sp={{ nome: so(raw.nome), cargo: so(raw.cargo), partido: so(raw.partido), pagina: so(raw.pagina) }} erro={raw.erro === "leitura"} />;
   return <Passo1 prefs={prefs} erro={raw.erro === "leitura"} falhar={falhar} />;
 }

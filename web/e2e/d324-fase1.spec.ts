@@ -376,27 +376,33 @@ test.describe("4. /pessoas pelo estado do visitante", () => {
     const totalSp = await page.locator('[aria-labelledby="pp-2"] .sv-a').innerText();
     expect(totalSp).toMatch(/no cargo hoje em São Paulo/);
     expect(totalSp).not.toBe(totalPais);
-    // é a mesma lista do filtro explícito
-    await page.goto("/pessoas?uf=SP");
+    // D331: sem filtro do eleitor não há lista, só o total e o pedido do filtro
+    await expect(page.locator(".sv-pp > li")).toHaveCount(0);
+    await expect(page.locator("#pp-pede")).toBeVisible();
+    // com filtro, é a mesma lista do estado explícito
+    await page.goto("/pessoas?cargo=deputado_estadual&uf=SP");
     const nomesFiltro = await page.locator(".sv-pp > li > a").allInnerTexts();
-    await page.goto("/pessoas");
+    expect(nomesFiltro.length).toBeGreaterThan(0);
+    await page.goto("/pessoas?cargo=deputado_estadual");
     expect(await page.locator(".sv-pp > li > a").allInnerTexts()).toEqual(nomesFiltro);
     // a próxima página segue no estado guardado, sem pôr o estado no endereço
     const proximas = page.getByRole("link", { name: /Próximas 60/ });
     await expect(proximas).not.toHaveAttribute("href", /uf=/);
 
     // "ver todos os estados" é o pedido explícito de todos: vale sobre o cookie, inclusive na página seguinte
+    await page.goto("/pessoas");
     await page.getByRole("link", { name: "Ver todos os estados" }).click();
     await expect(page).toHaveURL(/\/pessoas\?uf=$/);
     await expect(page.locator("#pp-uf")).toHaveValue("");
     await expect(page.locator("#pp-estado")).toHaveCount(0);
     expect(await page.locator('[aria-labelledby="pp-2"] .sv-a').innerText()).toBe(totalPais);
+    await page.goto("/pessoas?cargo=deputado_estadual&uf=");
     await expect(page.getByRole("link", { name: /Próximas 60/ })).toHaveAttribute("href", /(\?|&)uf=(&|$)/);
   });
 
   test("uf explícito vale sobre o cookie; nome e cargo sem uf mantêm o estado guardado", async ({ page, context }) => {
     await context.addCookies([SP]);
-    await page.goto("/pessoas?uf=RJ");
+    await page.goto("/pessoas?uf=RJ&cargo=vereador");
     await expect(page.locator("#pp-uf")).toHaveValue("RJ");
     await expect(page.locator("#pp-estado")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Quem está no cargo, com esses filtros?" })).toBeVisible();
@@ -485,11 +491,11 @@ test.describe("5. marcar direto na lista", () => {
   });
 
   test("com 12 marcados, os demais botões ficam desligados e a lista diz o limite uma vez", async ({ page, context }) => {
-    await page.goto("/pessoas?uf=SP");
+    await page.goto("/pessoas?cargo=deputado_estadual&uf=SP");
     const slugs = (await page.locator(".sv-pp > li > a").evaluateAll((as) => as.map((a) => a.getAttribute("href")!.replace("/pessoa/", "")))).slice(0, 12);
     expect(new Set(slugs).size).toBe(12);
     await context.addCookies([sigo(slugs)]);
-    await page.goto("/pessoas?uf=SP");
+    await page.goto("/pessoas?cargo=deputado_estadual&uf=SP");
     await expect(page.locator(".sv-pp > li button[aria-pressed=true]")).toHaveCount(12);
     await expect(page.locator(".sv-pp > li button[aria-pressed=true]:disabled")).toHaveCount(0); // quem está marcado pode ser tirado
     const fora = page.locator(".sv-pp > li button[aria-pressed=false]");
@@ -501,7 +507,7 @@ test.describe("5. marcar direto na lista", () => {
   });
 
   test("o botão é igual para toda pessoa (mesmo texto, mesma moldura)", async ({ page }) => {
-    await page.goto("/pessoas?uf=SP");
+    await page.goto("/pessoas?cargo=deputado_estadual&uf=SP");
     const r = await page.locator(".sv-pp > li button.sv-follow").evaluateAll((bs) =>
       bs.map((b) => {
         const cs = getComputedStyle(b);
@@ -531,7 +537,9 @@ test.describe("6. começo em dois passos", () => {
     await expect(page.locator(".sv h1")).toHaveText("Em quem você votou?");
     await expect(page.locator(".sv-passos [aria-current=step]")).toHaveText("Passo 2 de 2: em quem você votou");
     await expect(page.locator(".sv-main")).toContainText("Sem estado escolhido, a lista é do país inteiro");
-    await expect(page.locator(".sv-pp > li")).toHaveCount(60);
+    // D331: a lista espera o filtro do eleitor
+    await expect(page.locator(".sv-pp > li")).toHaveCount(0);
+    await expect(page.locator("#cm-pede")).toBeVisible();
     await page.getByRole("link", { name: /Pular este passo/ }).click();
     await expect(page).toHaveURL(/\/$/);
     // quem pulou tudo continua sem cookies: o convite segue na home
@@ -561,14 +569,22 @@ test.describe("6. começo em dois passos", () => {
     await expect(page).toHaveURL(/\/comecar\?passo=2#cm-pessoas$/);
     expect((await context.cookies()).find((c) => c.name === "sv_esferas")?.value).toBe(`e1.m1.c${cidade}`);
 
-    // passo 2: a lista é a do estado, com o botão em cada linha
+    // passo 2: sem lista até o eleitor filtrar (D331); o partido é o primeiro campo
     await expect(page.getByRole("heading", { name: "Quem está no cargo em São Paulo, em ordem alfabética?" })).toBeVisible();
+    await expect(page.locator(".sv-pp > li")).toHaveCount(0);
+    await expect(page.locator(".sv-filtro label").first()).toHaveText("Partido");
+    // partido fixo da demonstração com gente em SP (a primeira opção pode não ter ninguém no estado)
+    await page.locator("#cm-partido").selectOption("aur");
+    await Promise.all([page.waitForLoadState("load"), page.getByRole("button", { name: "Procurar" }).click()]);
+    await expect(page).toHaveURL(/passo=2&partido=aur/);
     const nomes = await page.locator(".sv-pp > li > a").allInnerTexts();
+    expect(nomes.length).toBeGreaterThan(0);
     expect(nomes).toEqual([...nomes].sort((a, b) => a.localeCompare(b, "pt-BR")));
     await expect(page.locator(".sv-cm-nav").getByRole("link", { name: /Pular este passo/ })).toBeVisible();
     const slug = (await page.locator(".sv-pp > li > a").first().getAttribute("href"))!.replace("/pessoa/", "");
     await Promise.all([page.waitForLoadState("load"), page.locator(".sv-pp > li").first().getByRole("button").click()]);
-    await expect(page).toHaveURL(/\/comecar\?passo=2(#cm-pessoas)?$/);
+    // sem JavaScript o formulário GET manda também os campos vazios (cargo=, nome=): a volta mantém o mesmo filtro
+    await expect(page).toHaveURL(/\/comecar\?passo=2&partido=[^&#]+(&(cargo|nome)=[^&#]*)*(#cm-pessoas)?$/);
     await expect(page.locator(".sv-pp > li").first().getByRole("button")).toHaveAttribute("aria-pressed", "true");
     const c = (await context.cookies()).find((x) => x.name === "sv_sigo");
     expect(c?.value).toBe(slug);
@@ -639,10 +655,10 @@ test.describe("6. começo em dois passos", () => {
 
   test("passo 2: filtro por nome e cargo e a paginação seguem no passo 2", async ({ page, context }) => {
     await context.addCookies([SP]);
-    await page.goto("/comecar?passo=2");
+    await page.goto("/comecar?passo=2&cargo=deputado_estadual");
     await expect(page.locator(".sv-pp > li")).toHaveCount(60);
     const proximas = page.getByRole("link", { name: /Próximas 60/ });
-    await expect(proximas).toHaveAttribute("href", /^\/comecar\?passo=2&pagina=\d+$/);
+    await expect(proximas).toHaveAttribute("href", /^\/comecar\?passo=2&cargo=deputado_estadual&pagina=\d+$/);
     await proximas.click();
     await expect(page.locator(".sv h1")).toHaveText("Em quem você votou?");
     await page.locator("#cm-cargo").selectOption("senador");
