@@ -806,3 +806,16 @@ def test_decisao_com_base_url_interno_termina_falhou_com_o_motivo_e_nao_grava(cx
     cx.rollback()
     assert r3["status"] == "concluido" and pedido(cx, ok, "adm_pedidos_decisao")["decisao_id"] is not None
     assert cx.execute("select decidido_por_nome, valor from adm_decisoes").fetchone() == {"decidido_por_nome": "Fulana de Teste", "valor": "https://sapl.publico.example"}
+
+
+def test_pedido_de_decisao_gravado_pela_cli_com_nome_que_nao_e_admin_falha_sem_decidir(cx, base, v1_v2):
+    """AC-24: `admin pedido decidir --por` grava pelo role do dono (o gatilho da 0156 não age); o executor confere o admin pelo nome e recusa quem não consta ativo."""
+    pb = pend_de(cx, "PB")
+    p, novo = EX.pedir(cx, "decisao", {"pendencia_id": pb, "acao": "aprovar", "por_nome": "Alguém Sem Cadastro", "justificativa": "conferi", "aplicar": True})
+    cx.commit()
+    assert novo
+    r = EX.executar_um(cx)
+    cx.rollback()
+    assert r["status"] == "falhou" and r["erro"] == EX.MOTIVO_SEM_ADMIN and r["decisao_id"] is None
+    assert n(cx, "adm_decisoes") == 0
+    assert cx.execute("select status from adm_pendencias where id = %s", (pb,)).fetchone()["status"] != "decidida"

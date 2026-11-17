@@ -136,6 +136,7 @@ VETORES_DE_OURO = (
 # ------------------------------------------------------------------ parâmetros e chave
 
 
+MOTIVO_SEM_ADMIN = "quem decide não consta ativo em adm_admins: decisão de pessoa exige admin cadastrado"
 MOTIVO_CHAVE = "chave_idem não confere com os parâmetros"
 
 
@@ -576,6 +577,10 @@ def _decisao(conn: Any, pedido_id: str) -> dict[str, Any]:
     p = _pedido_dict("adm_pedidos_decisao", row)
     if chave_idem(TIPO_DECISAO, p) != p["chave_idem"]:  # a central escolhe a chave ao inserir: o executor não confia nela (G4-1)
         return _falhou(MOTIVO_CHAVE)
+    # Quem decide tem de ser admin ativo (AC-24): pedido da central traz `por_email` (o gatilho da 0156 já conferiu); pedido gravado pela CLI
+    # (`admin pedido decidir --por`, role do dono, sem gatilho) é conferido aqui pelo nome. Sem isso, qualquer nome viraria "pessoa".
+    if conn.execute("select 1 from adm_admins where ativo and (email = lower(%s) or nome = %s)", (p.get("por_email") or "", p["por_nome"])).fetchone() is None:
+        return _falhou(MOTIVO_SEM_ADMIN)
     acao, aplicar = p["acao"], bool(p["aplicar"])
     if aplicar and acao not in dec.ACOES_QUE_APLICAM:
         return _falhou(f"aplicar não vale com {acao}: só aprovar e corrigir aplicam")
