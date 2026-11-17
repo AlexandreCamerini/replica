@@ -44,17 +44,9 @@ export default async function PaginaInicial({ searchParams }: { searchParams: Pr
         <Navegacao atual="/admin" />
         <h1>Central de coleta</h1>
         {lista.length === 0 && <BlocoVazio />}
-        <nav aria-label="Visão do mapa" className="adm-visao">
-          <Link href={q("coleta")} aria-current={visao === "coleta" ? "page" : undefined}>
-            Coleta
-          </Link>
-          <Link href={q("revisao")} aria-current={visao === "revisao" ? "page" : undefined}>
-            Revisão
-          </Link>
-        </nav>
         {totaisParciais && <p className="adm-marca">Os totais desta rodada ainda não fecham (rodada em andamento). Eles aparecem assim que fecharem.</p>}
         <p className="adm-ajuda">
-          Os painéis de coleta e de revisão são separados e nunca somados. Esta tela só grava pedidos; o executor da linha de comando consome.{" "}
+          Esta tela só grava pedidos; o executor consome.{" "}
           {lista.length > 0 && <Link href="/admin/rodadas">Todas as rodadas</Link>}
         </p>
         <PainelVivo
@@ -62,7 +54,8 @@ export default async function PaginaInicial({ searchParams }: { searchParams: Pr
           rodada={cabecalho}
           relatorio={relatorio}
           mostrarPaineis
-          mapaPais={{ visao, estadosPorUf, hrefRegistros: "/admin/registros" }}
+          mostrarPendencias
+          mapaPais={{ visao, estadosPorUf, hrefRegistros: "/admin/registros", hrefColeta: q("coleta"), hrefRevisao: q("revisao") }}
         />
       </main>
     );

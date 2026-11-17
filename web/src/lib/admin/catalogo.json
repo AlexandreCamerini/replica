@@ -1,0 +1,448 @@
+{
+  "coletores": [
+    {
+      "exige_chave": false,
+      "fontes": [
+        "camara"
+      ],
+      "id": "camara.equipe",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "arquivo único, não há o que descobrir"
+      },
+      "recortes": [],
+      "rotulo": "camara.equipe",
+      "territorio": "nenhuma"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "sapl"
+      ],
+      "id": "sapl.camaras",
+      "modos": [
+        "descobrir",
+        "recoletar"
+      ],
+      "modos_recusados": {
+        "reprocessar": "a carga é incremental por cursor: reler o cache não reproduz a rodada"
+      },
+      "recortes": [
+        "ibge",
+        "escopo"
+      ],
+      "rotulo": "sapl.camaras",
+      "territorio": "municipio"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "camara"
+      ],
+      "id": "camara.diario",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "camara.diario",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "camara"
+      ],
+      "id": "camara.noturna",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única"
+      },
+      "recortes": [],
+      "rotulo": "camara.noturna",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "tse",
+        "tse-titulo"
+      ],
+      "id": "tse.candidatos",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "um zip por ano em URL fixa (tse_candidatos.py:204); não há o que descobrir"
+      },
+      "recortes": [
+        "ano",
+        "uf"
+      ],
+      "rotulo": "tse.candidatos",
+      "territorio": "municipio"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "tse"
+      ],
+      "id": "tse.votos",
+      "modos": [
+        "recoletar"
+      ],
+      "modos_recusados": {
+        "descobrir": "um zip por ano em URL fixa (tse_votos_contas.py:368); não há o que descobrir",
+        "reprocessar": "lê o zip por HTTP Range e não guarda cópia em disco (remotezip.py:70-71): não há cache para reler"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "tse.votos",
+      "territorio": "municipio"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "tse"
+      ],
+      "id": "tse.contas",
+      "modos": [
+        "recoletar"
+      ],
+      "modos_recusados": {
+        "descobrir": "um zip por ano em URL fixa (tse_votos_contas.py:446); não há o que descobrir",
+        "reprocessar": "lê o zip por HTTP Range e não guarda cópia em disco (remotezip.py:70-71): não há cache para reler"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "tse.contas",
+      "territorio": "nenhuma"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "tcu"
+      ],
+      "id": "sancoes.tcu",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única (um endpoint ORDS)"
+      },
+      "recortes": [],
+      "rotulo": "sancoes.tcu",
+      "territorio": "nenhuma"
+    },
+    {
+      "exige_chave": true,
+      "fontes": [
+        "cgu"
+      ],
+      "id": "sancoes.cgu",
+      "modos": [
+        "recoletar"
+      ],
+      "modos_recusados": {
+        "descobrir": "dois endpoints fixos (ceis e cnep); não há o que descobrir",
+        "reprocessar": "http.api_json não tem cache em disco (a resposta depende da chave e a paginação muda entre chamadas): não há o que reler"
+      },
+      "recortes": [],
+      "rotulo": "sancoes.cgu",
+      "territorio": "nenhuma"
+    },
+    {
+      "exige_chave": true,
+      "fontes": [
+        "transparencia"
+      ],
+      "id": "transparencia.emendas",
+      "modos": [
+        "recoletar"
+      ],
+      "modos_recusados": {
+        "descobrir": "um endpoint fixo (emendas) por ano; não há o que descobrir",
+        "reprocessar": "http.api_json não tem cache em disco (a resposta depende da chave e a paginação muda entre chamadas): não há o que reler"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "transparencia.emendas",
+      "territorio": "municipio"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "alesp",
+        "alemg"
+      ],
+      "id": "ale.custom",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "as duas casas são fixas (ADAPTERS = ('sp', 'mg'), ale_cli.py:20); não há descoberta"
+      },
+      "recortes": [
+        "ano",
+        "uf"
+      ],
+      "rotulo": "ale.custom",
+      "territorio": "uf"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "sapl-ale"
+      ],
+      "id": "sapl.assembleias",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "sapl.ales sempre sonda /api/ e carrega a casa na mesma execução (sapl.py:762, :778); não há comando que só sonde as Assembleias"
+      },
+      "recortes": [
+        "uf"
+      ],
+      "rotulo": "sapl.assembleias",
+      "territorio": "uf"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "senado"
+      ],
+      "id": "senado.diario",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "a lista de senadores em exercício é lida a cada rodada; não há fase de descoberta separada"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "senado.diario",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "senado"
+      ],
+      "id": "senado.noturna",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única (/votacao); não há o que descobrir"
+      },
+      "recortes": [],
+      "rotulo": "senado.noturna",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "senado"
+      ],
+      "id": "senado.secretas",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única (/votacao); não há o que descobrir"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "senado.secretas",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "camara",
+        "senado"
+      ],
+      "id": "agenda.congresso",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "janela de datas sobre duas APIs; não há o que descobrir"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "agenda.congresso",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "camara",
+        "senado"
+      ],
+      "id": "pauta",
+      "modos": [
+        "recoletar"
+      ],
+      "modos_recusados": {
+        "descobrir": "janela de datas sobre duas APIs; não há o que descobrir",
+        "reprocessar": "repetir o comando é uma leitura nova (insert em pauta_reads, :94-99, a cada rodada; run sem checksum, :132 e :179), nunca o reprocessamento de uma leitura anterior; a janela é hoje..hoje+14 sem argumento de data (a CLI não passa today a run_pauta) e o dado lido não fica reaproveitável"
+      },
+      "recortes": [],
+      "rotulo": "pauta",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "camara",
+        "senado"
+      ],
+      "id": "parlamento.extras",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "a lista de parlamentares vem dos mandatos em exercício do banco; não há fase de descoberta"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "parlamento.extras",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "camara"
+      ],
+      "id": "camara.presenca",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "arquivos anuais e API de deputados por ano; não há o que descobrir"
+      },
+      "recortes": [
+        "ano"
+      ],
+      "rotulo": "camara.presenca",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "ibge"
+      ],
+      "id": "ibge.places",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única, não há o que descobrir"
+      },
+      "recortes": [],
+      "rotulo": "ibge.places",
+      "territorio": "municipio"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "ibge"
+      ],
+      "id": "ibge.populacao",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única, não há o que descobrir"
+      },
+      "recortes": [],
+      "rotulo": "ibge.populacao",
+      "territorio": "municipio"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "ibge"
+      ],
+      "id": "ibge.malhas",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única, não há o que descobrir"
+      },
+      "recortes": [],
+      "rotulo": "ibge.malhas",
+      "territorio": "nenhuma"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "ibge-sidra",
+        "bcb-sgs"
+      ],
+      "id": "governos.indicadores",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única, não há o que descobrir"
+      },
+      "recortes": [],
+      "rotulo": "governos.indicadores",
+      "territorio": "pais"
+    },
+    {
+      "exige_chave": false,
+      "fontes": [
+        "receita-federal"
+      ],
+      "id": "receita.arrecadacao",
+      "modos": [
+        "recoletar",
+        "reprocessar"
+      ],
+      "modos_recusados": {
+        "descobrir": "fonte única, não há o que descobrir"
+      },
+      "recortes": [],
+      "rotulo": "receita.arrecadacao",
+      "territorio": "uf"
+    }
+  ],
+  "fonte": "etl/civico_etl/catalogo (COLETORES)"
+}

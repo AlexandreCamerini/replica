@@ -2,16 +2,21 @@
 
 // Mapa da central de administração (Parte C). Lógica de carga e desenho copiada do mapa público, sem importá-lo.
 // Só as malhas do próprio repositório (/geo), por caminho relativo ao site. Sem bolha, sem alfinete, sem agrupamento flutuante:
-// o território carrega a contagem pelo preenchimento em uma cor (--tint); o estado vai por padrão + palavra.
+// o território carrega a contagem pelo preenchimento em uma cor (--tint, faixas de opacidade); o estado vai por padrão + palavra, em camada separada (sobreposição com tamanho fixo em px de tela).
+// O número é escrito na lista ao lado; o 0 também é escrito sobre o território (no mapa do país), distinto do "vazio" (fichas sem tentativa = contorno reforçado).
 // Navegação por link: descer para a UF e abrir o município são <a href>; Esc volta um nível.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatarContagem } from "../../lib/admin/agregacao.ts";
+import { nomeDaUf } from "../../lib/admin/rotulos.ts";
 import {
-  FAIXAS,
+  LADO_HACHURA_PX,
+  LADO_PONTILHADO_PX,
   OPACIDADE_FAIXA,
   apresentar,
+  centroDoCaminho,
+  escalaDoDesenho,
   estadoVazio,
   faixaDeContagem,
   legenda,
@@ -64,6 +69,8 @@ export function MapaAdmin(props: MapaAdminProps) {
   const url = nivel.tipo === "pais" ? "/geo/br.json" : `/geo/uf/${nivel.uf}.json`;
   const [estado, setEstado] = useState<Estado | null>(null);
   const [busca, setBusca] = useState("");
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [escala, setEscala] = useState(1); // pixels de tela por unidade do desenho: o padrão de estado a compensa
 
   useEffect(() => {
     if (!urlValida) return;
@@ -91,6 +98,18 @@ export function MapaAdmin(props: MapaAdminProps) {
   const malha = atual?.malha;
   const falhou = !urlValida || atual?.erro === true;
   const carregando = !falhou && !malha;
+  const viewBox = malha?.viewBox ?? null;
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el || !viewBox) return;
+    const medir = () => setEscala(escalaDoDesenho(el.getBoundingClientRect().width, viewBox));
+    medir();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [viewBox]);
 
   const max = useMemo(() => {
     let m = 0;
@@ -121,27 +140,40 @@ export function MapaAdmin(props: MapaAdminProps) {
   const rotulo = (nome: string, c: ContagemTerritorio) =>
     c.total === 0 ? `${nome}: ${formatarContagem(0)}` : `${nome}: ${formatarContagem(c.total)}, ${apresentar(visao, c.estado).palavra}`;
 
-  const fillDe = (padrao: Padrao, faixa: Faixa) =>
-    faixa === 0 || padrao === "vazio" ? "none" : padrao === "cheio" ? "var(--tint, #9a9d9b)" : `url(#${uid}-${padrao}-${faixa})`;
-  const opacidadeDe = (padrao: Padrao, faixa: Faixa) => (padrao === "cheio" ? OPACIDADE_FAIXA[faixa] : 1);
+  // Contagem: preenchimento em --tint, faixa de opacidade (só quando há ficha). Estado: sobreposição de padrão (hachura, pontilhado), sem base, em camada separada.
+  // "cheio" e "vazio" não têm sobreposição: o vazio com fichas ganha contorno reforçado (is-vazio); o 0 não ganha nada além do número escrito.
+  const fillDaContagem = (faixa: Faixa) => (faixa === 0 ? "none" : "var(--adm-tint)");
+  const urlDoPadrao = (padrao: Padrao, legendaDe: boolean) => (padrao === "hachura" || padrao === "pontilhado" ? `url(#${uid}-${padrao}${legendaDe ? "-leg" : ""})` : null);
+  const compensacao = `scale(${1 / escala})`;
+
+  const linhas = malha
+    ? malha.items
+        .map((t) => {
+          const { c, faixa } = info(t.ibge);
+          const nome = nivel.tipo === "pais" && t.uf ? `${t.name} (${t.uf})` : t.name;
+          return { ibge: t.ibge, nome, c, faixa, palavra: apresentar(visao, c.estado).palavra };
+        })
+        .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    : [];
+  const rotuloDaColuna = nivel.tipo === "pais" ? "Estado" : "Município";
 
   return (
     <section className="admin-central admin-mapa" aria-label={`Mapa da central, visão ${leg.titulo}`}>
-      {/* definições dos padrões: um <pattern> por padrão e faixa, na cor do tema (--tint, --text) */}
+      {/* definições dos padrões de estado: ladrilho em px de tela (patternTransform anula o zoom do desenho); o jogo "-leg" é das amostras da legenda, que não têm zoom */}
       <svg width="0" height="0" aria-hidden="true" focusable="false" className="admin-mapa__defs">
         <defs>
-          {FAIXAS.filter((f) => f > 0).map((f) => (
-            <g key={f}>
-              <pattern id={`${uid}-hachura-${f}`} width="6" height="6" patternUnits="userSpaceOnUse">
-                <rect width="6" height="6" className="admin-mapa__base" style={{ opacity: OPACIDADE_FAIXA[f] * 0.6 }} />
-                <path d="M-1 1L1 -1M0 6L6 0M5 7L7 5" className="admin-mapa__traco" />
-              </pattern>
-              <pattern id={`${uid}-pontilhado-${f}`} width="5" height="5" patternUnits="userSpaceOnUse">
-                <rect width="5" height="5" className="admin-mapa__base" style={{ opacity: OPACIDADE_FAIXA[f] * 0.6 }} />
-                <rect x="1.8" y="1.8" width="1.4" height="1.4" className="admin-mapa__ponto" />
-              </pattern>
-            </g>
-          ))}
+          <pattern id={`${uid}-hachura`} width={LADO_HACHURA_PX} height={LADO_HACHURA_PX} patternUnits="userSpaceOnUse" patternTransform={compensacao}>
+            <path d={`M-1 1L1 -1M0 ${LADO_HACHURA_PX}L${LADO_HACHURA_PX} 0M${LADO_HACHURA_PX - 1} ${LADO_HACHURA_PX + 1}L${LADO_HACHURA_PX + 1} ${LADO_HACHURA_PX - 1}`} className="admin-mapa__traco" />
+          </pattern>
+          <pattern id={`${uid}-pontilhado`} width={LADO_PONTILHADO_PX} height={LADO_PONTILHADO_PX} patternUnits="userSpaceOnUse" patternTransform={compensacao}>
+            <rect x="1.8" y="1.8" width="1.4" height="1.4" className="admin-mapa__ponto" />
+          </pattern>
+          <pattern id={`${uid}-hachura-leg`} width={LADO_HACHURA_PX} height={LADO_HACHURA_PX} patternUnits="userSpaceOnUse">
+            <path d={`M-1 1L1 -1M0 ${LADO_HACHURA_PX}L${LADO_HACHURA_PX} 0M${LADO_HACHURA_PX - 1} ${LADO_HACHURA_PX + 1}L${LADO_HACHURA_PX + 1} ${LADO_HACHURA_PX - 1}`} className="admin-mapa__traco" />
+          </pattern>
+          <pattern id={`${uid}-pontilhado-leg`} width={LADO_PONTILHADO_PX} height={LADO_PONTILHADO_PX} patternUnits="userSpaceOnUse">
+            <rect x="1.8" y="1.8" width="1.4" height="1.4" className="admin-mapa__ponto" />
+          </pattern>
         </defs>
       </svg>
 
@@ -189,14 +221,14 @@ export function MapaAdmin(props: MapaAdminProps) {
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([ibge, c]) => (
                     <li key={ibge}>
-                      <Link href={hrefTerritorio(ibge)}>{rotulo(`Território ${ibge}`, c)}</Link>
+                      <Link href={hrefTerritorio(ibge)}>{rotulo(nivel.tipo === "pais" ? nomeDaUf(ibge) : `Município ${ibge}`, c)}</Link>
                     </li>
                   ))}
               </ul>
             </div>
           )}
           {malha && (
-            <svg viewBox={malha.viewBox} role="group" aria-label={nomeNivel} className="admin-mapa__svg">
+            <svg ref={svgRef} viewBox={malha.viewBox} role="group" aria-label={nomeNivel} className="admin-mapa__svg">
               {malha.items.map((t) => {
                 const { c, faixa } = info(t.ibge);
                 const ap = apresentar(visao, c.estado);
@@ -205,6 +237,7 @@ export function MapaAdmin(props: MapaAdminProps) {
                 const texto = rotulo(nome, c);
                 const destaque = c.total > 0 && ap.destaque;
                 const vazio = c.total > 0 && padrao === "vazio";
+                const sobreposicao = c.total > 0 ? urlDoPadrao(padrao, false) : null;
                 return (
                   <Link
                     key={t.ibge}
@@ -218,13 +251,27 @@ export function MapaAdmin(props: MapaAdminProps) {
                     <title>{texto}</title>
                     <path
                       d={t.d}
-                      className={`admin-mapa__forma${destaque ? " is-destaque" : ""}${vazio ? " is-vazio" : ""}`}
-                      style={{ fill: fillDe(padrao, faixa), fillOpacity: opacidadeDe(padrao, faixa) }}
+                      className={`admin-mapa__forma${destaque ? " is-destaque" : ""}${vazio ? " is-vazio" : ""}${c.total === 0 ? " is-zero" : ""}`}
+                      style={{ fill: fillDaContagem(faixa), fillOpacity: OPACIDADE_FAIXA[faixa] }}
                       vectorEffect="non-scaling-stroke"
                     />
+                    {sobreposicao && <path d={t.d} className="admin-mapa__estado" style={{ fill: sobreposicao }} />}
                   </Link>
                 );
               })}
+              {nivel.tipo === "pais" && (
+                <g aria-hidden="true" className="admin-mapa__zeros">
+                  {malha.items.map((t) => {
+                    if (info(t.ibge).c.total !== 0) return null;
+                    const centro = centroDoCaminho(t.d);
+                    return centro ? (
+                      <text key={t.ibge} x={centro.x} y={centro.y} fontSize={12 / escala} strokeWidth={3 / escala} textAnchor="middle" dominantBaseline="central" className="admin-mapa__zero">
+                        0
+                      </text>
+                    ) : null;
+                  })}
+                </g>
+              )}
             </svg>
           )}
         </div>
@@ -250,9 +297,15 @@ export function MapaAdmin(props: MapaAdminProps) {
               {leg.faixas.map((f) => (
                 <li key={f.faixa}>
                   <svg width="22" height="14" aria-hidden="true" className="admin-mapa__amostra">
-                    <rect width="22" height="14" style={{ fill: fillDe("cheio", f.faixa), fillOpacity: OPACIDADE_FAIXA[f.faixa] }} />
+                    <rect width="22" height="14" style={{ fill: fillDaContagem(f.faixa), fillOpacity: OPACIDADE_FAIXA[f.faixa] }} />
+                    {f.faixa === 0 && (
+                      <text x="11" y="7" fontSize="11" textAnchor="middle" dominantBaseline="central" className="admin-mapa__zero">
+                        0
+                      </text>
+                    )}
                   </svg>
                   {f.rotulo}
+                  {f.faixa === 0 ? ": sem preenchimento, com o 0 escrito" : ""}
                 </li>
               ))}
             </ul>
@@ -261,20 +314,44 @@ export function MapaAdmin(props: MapaAdminProps) {
               {leg.estados.map((e) => (
                 <li key={e.estado}>
                   <svg width="22" height="14" aria-hidden="true" className="admin-mapa__amostra">
-                    <rect
-                      width="22"
-                      height="14"
-                      className={e.destaque ? "is-destaque" : undefined}
-                      style={{ fill: fillDe(e.padrao, 3), fillOpacity: opacidadeDe(e.padrao, 3) }}
-                    />
+                    <rect width="22" height="14" className={e.padrao === "vazio" ? "is-vazio" : e.destaque ? "is-destaque" : undefined} style={{ fill: fillDaContagem(2), fillOpacity: OPACIDADE_FAIXA[2] }} />
+                    {urlDoPadrao(e.padrao, true) && <rect width="22" height="14" className={e.destaque ? "is-destaque" : undefined} style={{ fill: urlDoPadrao(e.padrao, true) ?? "none" }} />}
                   </svg>
-                  {e.palavra} ({e.padrao}){e.destaque ? ", em destaque" : ""}
+                  {e.palavra} ({e.padrao === "vazio" ? "contorno reforçado, sem sobreposição" : e.padrao}){e.destaque ? ", em destaque" : ""}
                 </li>
               ))}
             </ul>
           </div>
         </aside>
       </div>
+
+      {malha && (
+        <div className="adm-rolagem admin-mapa__lista" tabIndex={0} role="region" aria-label={`Lista de fichas por ${nivel.tipo === "pais" ? "estado" : "município"}`}>
+          <table className="adm-tabela">
+            <caption>Fichas por {nivel.tipo === "pais" ? "estado" : "município"}, com o número escrito</caption>
+            <thead>
+              <tr>
+                <th scope="col">{rotuloDaColuna}</th>
+                <th scope="col" className="adm-num">
+                  Fichas
+                </th>
+                <th scope="col">{leg.titulo === "Coleta" ? "Última tentativa" : "Revisão"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.map((l) => (
+                <tr key={l.ibge} data-faixa={l.faixa}>
+                  <th scope="row">
+                    <Link href={hrefTerritorio(l.ibge)}>{l.nome}</Link>
+                  </th>
+                  <td className="adm-num">{l.c.total}</td>
+                  <td>{l.c.total === 0 ? "sem ficha" : l.palavra}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <p className="admin-mapa__fonte">Malhas: IBGE (CC BY 4.0). Território sem ponto definido aparece só na lista.</p>
     </section>
   );

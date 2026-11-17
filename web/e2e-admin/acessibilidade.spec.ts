@@ -58,6 +58,17 @@ test.describe("teclado e leitor de tela", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Registros/);
   });
 
+  test("lista do mapa: número escrito de cada estado (27 linhas), cabeçalho e rolagem acessível por teclado; o 0 também vem escrito no mapa", async ({ page }) => {
+    await abrirMapaPais(page);
+    const lista = page.getByRole("region", { name: /^Lista de fichas por estado/ });
+    await expect(lista).toBeVisible();
+    await expect(lista.getByRole("columnheader")).toHaveText(["Estado", "Fichas", /Última tentativa|Revisão/]);
+    await expect(lista.locator("tbody tr")).toHaveCount(27);
+    const zeros = await page.locator(".admin-mapa__zeros .admin-mapa__zero").count();
+    const linhasZero = await lista.locator("tbody tr[data-faixa='0']").count();
+    expect(zeros, "todo estado com 0 fichas leva o 0 escrito sobre o território").toBe(linhasZero);
+  });
+
   test("telas: um único h1, navegação rotulada, formulário de decisão com rótulos e botão pelo papel", async ({ page }) => {
     await page.goto("/admin");
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
@@ -69,14 +80,12 @@ test.describe("teclado e leitor de tela", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
     const form = page.getByRole("form", { name: /Pedido de decisão sobre o campo/ }).first();
     await expect(form.getByLabel("Ação")).toBeVisible();
-    await expect(form.getByLabel(/Por \(quem decide/)).toBeVisible();
+    await expect(form.getByText(/^Decidindo como /)).toBeVisible();
     await expect(form.getByLabel(/Justificativa/)).toBeVisible();
     await expect(form.getByRole("button", { name: "Pedir decisão" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Pedir parecer" }).first()).toBeVisible();
-    // ordem de Tab previsível: dentro do formulário o foco anda Ação -> Por -> Justificativa
+    // ordem de Tab previsível: dentro do formulário o foco anda Ação -> Justificativa (o campo "Por" saiu: quem decide é a sessão)
     await form.getByLabel("Ação").focus();
-    await page.keyboard.press("Tab");
-    await expect(form.getByLabel(/Por \(quem decide/)).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(form.getByLabel(/Justificativa/)).toBeFocused();
   });

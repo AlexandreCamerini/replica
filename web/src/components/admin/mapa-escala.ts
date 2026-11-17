@@ -10,8 +10,33 @@ export type Visao = "coleta" | "revisao";
 export type Faixa = 0 | 1 | 2 | 3 | 4;
 export const FAIXAS: readonly Faixa[] = [0, 1, 2, 3, 4];
 
-/** Opacidade de `--tint` por faixa (monótona crescente; faixa 0 não pinta). */
-export const OPACIDADE_FAIXA: Readonly<Record<Faixa, number>> = { 0: 0, 1: 0.25, 2: 0.45, 3: 0.7, 4: 1 };
+/** Opacidade de `--tint` por faixa (monótona crescente; faixa 0 não pinta). 0,35/0,6/0,8/1: degraus de 0,2 a 0,25 entre faixas vizinhas (antes 0,25/0,45/0,7/1, que o olho não separava). */
+export const OPACIDADE_FAIXA: Readonly<Record<Faixa, number>> = { 0: 0, 1: 0.35, 2: 0.6, 3: 0.8, 4: 1 };
+
+/** Lado, em PIXELS DE TELA, de cada ladrilho de padrão de estado. O ladrilho vive no espaço do desenho (que escala com o zoom): o mapa compensa com `patternTransform` = scale(1/escala). */
+export const LADO_HACHURA_PX = 6;
+export const LADO_PONTILHADO_PX = 5;
+
+/** Escala (pixels de tela por unidade do desenho) a partir da largura renderizada e da largura do `viewBox`. Dado inválido: 1 (sem compensação). */
+export function escalaDoDesenho(larguraPx: number, viewBox: string): number {
+  const larguraUnidades = Number(viewBox.trim().split(/[\s,]+/)[2]);
+  if (!Number.isFinite(larguraPx) || larguraPx <= 0 || !Number.isFinite(larguraUnidades) || larguraUnidades <= 0) return 1;
+  return larguraPx / larguraUnidades;
+}
+
+/** Centro da caixa envolvente de um caminho SVG absoluto ("M295.2,484.3L298.7,485.2..."), para escrever o número no território. Sem pontos: null. */
+export function centroDoCaminho(d: string): { x: number; y: number } | null {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const m of d.matchAll(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)) {
+    const x = Number(m[1]);
+    const y = Number(m[2]);
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+  }
+  return Number.isFinite(x0) ? { x: (x0 + x1) / 2, y: (y0 + y1) / 2 } : null;
+}
 
 export function faixaDeContagem(n: number): Faixa {
   if (!Number.isInteger(n) || n < 0) throw new RangeError(`contagem inválida: ${n}`);

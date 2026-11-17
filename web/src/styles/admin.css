@@ -1,14 +1,17 @@
 /* Central de administração: tudo com escopo .admin-central (nada global, nada vaza para o site público).
-   Design v1: uma cor de quantidade (--tint), raio 0, sem sombra, elevação por borda dupla. Funciona nos temas claro e escuro
-   porque só usa variáveis de tema (com reserva). */
+   Design v1: papel e tinta, uma cor de quantidade (--tint), raio 0, sem sombra, elevação por borda dupla. Só tokens do site (--ds-*, --text, --surface, --border, --danger, --warning...):
+   sem valor cru de fonte, espaço ou cor. Funciona nos temas claro e escuro porque os tokens já mudam com o tema. */
 .admin-central {
-  --adm-tint: var(--tint, #9a9d9b);
-  --adm-ink: var(--text, #1c2226);
-  --adm-muted: var(--text-muted, #545a5e);
-  --adm-paper: var(--bg, #f2eee5);
-  --adm-sheet: var(--surface, #fbf9f4);
-  --adm-focus: var(--focus, var(--text, #1c2226));
+  --adm-tint: var(--tint);
+  --adm-ink: var(--text);
+  --adm-muted: var(--text-muted);
+  --adm-paper: var(--bg);
+  --adm-sheet: var(--surface);
+  --adm-focus: var(--focus);
+  --adm-estado-opacidade: 0.6; /* sobreposição do padrão de estado no mapa: fixa, separada da contagem */
   color: var(--adm-ink);
+  font-size: var(--ds-text-base);
+  line-height: var(--ds-leading-base);
 }
 .admin-central *,
 .admin-central *::before,
@@ -17,100 +20,204 @@
   box-shadow: none;
 }
 
-.admin-central .admin-mapa__topo { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 24px; }
+/* Faixa fixa "INTERNO": em toda página da central (inclusive a de entrada), para que uma captura não seja confundida com o site público. */
+.admin-central::before {
+  content: "INTERNO · central de coleta · não é o site público";
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: var(--ds-space-3) var(--ds-space-6);
+  background: var(--surface-inverse);
+  color: var(--on-inverse);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-text-xs);
+  line-height: var(--ds-leading-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------------------------------------------------- mapa */
+.admin-central .admin-mapa__topo { display: flex; flex-wrap: wrap; align-items: end; gap: var(--ds-space-5) var(--ds-space-8); }
 .admin-central .admin-mapa__nivel { font-weight: 600; margin: 0; }
 .admin-central .admin-mapa__voltar,
 .admin-central .admin-mapa__fora a,
-.admin-central .admin-mapa__erro a { color: var(--adm-ink); text-decoration: underline; text-underline-offset: 3px; min-height: 44px; display: inline-flex; align-items: center; }
-.admin-central .admin-mapa__busca { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--adm-muted); margin-left: auto; }
-.admin-central .admin-mapa__busca input { min-height: 44px; padding: 0 12px; border: 1.5px solid var(--adm-ink); background: var(--adm-sheet); color: var(--adm-ink); font: inherit; }
-.admin-central .admin-mapa__anuncio { font-size: 13px; color: var(--adm-muted); margin: 8px 0; }
+.admin-central .admin-mapa__erro a { color: var(--adm-ink); text-decoration: underline; text-underline-offset: var(--ds-space-2); min-height: var(--ds-layout-tap-min); display: inline-flex; align-items: center; }
+.admin-central .admin-mapa__busca { display: flex; flex-direction: column; gap: var(--ds-space-2); font-size: var(--ds-text-sm); color: var(--adm-muted); margin-left: auto; }
+.admin-central .admin-mapa__busca input { min-height: var(--ds-layout-tap-min); padding: 0 var(--ds-space-5); border: var(--ds-border-control) solid var(--border-input); background: var(--adm-sheet); color: var(--adm-ink); font: inherit; }
+.admin-central .admin-mapa__anuncio { font-size: var(--ds-text-sm); color: var(--adm-muted); margin: var(--ds-space-4) 0; }
 
-.admin-central .admin-mapa__corpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
-@media (min-width: 900px) { .admin-central .admin-mapa__corpo { grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); } }
-.admin-central .admin-mapa__quadro { min-height: 240px; border: 1px solid var(--adm-ink); background: var(--adm-sheet); padding: 8px; }
+.admin-central .admin-mapa__corpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-8); align-items: start; }
+@media (min-width: 900px) { .admin-central .admin-mapa__corpo { grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr); } }
+.admin-central .admin-mapa__quadro { min-height: 15rem; border: var(--ds-border-hairline) solid var(--adm-ink); background: var(--adm-sheet); padding: var(--ds-space-4); }
 .admin-central .admin-mapa__svg { display: block; width: 100%; height: auto; }
-.admin-central .admin-mapa__espera { aspect-ratio: 1 / 1; width: 100%; border: 1.5px dashed var(--adm-muted); }
-.admin-central .admin-mapa__erro { padding: 12px; border: 1.5px solid var(--adm-ink); }
+.admin-central .admin-mapa__espera { aspect-ratio: 1 / 1; width: 100%; background: var(--surface-sunken); border: var(--ds-border-hairline) solid var(--border); }
+.admin-central .admin-mapa__erro { padding: var(--ds-space-5); border: var(--ds-border-control) solid var(--adm-ink); }
 
-/* defs: padrões na cor do tema */
+/* defs dos padrões de estado: traço e ponto em tinta. Os ladrilhos têm lado fixo em px de tela (patternTransform no componente anula o zoom do desenho). */
 .admin-central .admin-mapa__defs { position: absolute; width: 0; height: 0; overflow: hidden; }
-.admin-central .admin-mapa__base { fill: var(--adm-tint); }
-.admin-central .admin-mapa__traco { stroke: var(--adm-ink); stroke-width: 1.2; fill: none; }
+.admin-central .admin-mapa__traco { stroke: var(--adm-ink); stroke-width: var(--ds-border-control); fill: none; }
 .admin-central .admin-mapa__ponto { fill: var(--adm-ink); }
 
-/* território: contorno fino em cor de papel; foco visível; destaque = contorno grosso em tinta */
+/* território: a CONTAGEM é o preenchimento em --tint (faixas de opacidade, no próprio elemento); o contorno é fino e em tinta, em todos. O ESTADO é a camada de cima
+   (sobreposição de padrão com opacidade fixa). Fichas sem tentativa (vazio) = contorno reforçado; 0 ficha = contorno fino e o "0" escrito. Destaque = contorno ainda mais grosso. */
 .admin-central .admin-mapa__t { outline: none; }
-.admin-central .admin-mapa__forma { stroke: var(--adm-paper); stroke-width: 1; }
-.admin-central .admin-mapa__t:hover .admin-mapa__forma { stroke: var(--adm-ink); stroke-width: 1.5; }
-.admin-central .admin-mapa__t:focus-visible .admin-mapa__forma { stroke: var(--adm-focus); stroke-width: 3.5; }
-.admin-central .admin-mapa__t[aria-current="true"] .admin-mapa__forma { stroke: var(--adm-ink); stroke-width: 2.5; }
-.admin-central .admin-mapa__forma.is-destaque { stroke: var(--adm-ink); stroke-width: 2.5; }
-.admin-central .admin-mapa__forma.is-vazio { stroke: var(--adm-ink); stroke-width: 1.2; }
+.admin-central .admin-mapa__forma { stroke: var(--adm-ink); stroke-width: var(--ds-border-hairline); }
+.admin-central .admin-mapa__estado { stroke: none; opacity: var(--adm-estado-opacidade); pointer-events: none; }
+.admin-central .admin-mapa__t:hover .admin-mapa__forma { stroke-width: var(--ds-border-control); }
+.admin-central .admin-mapa__t:focus-visible .admin-mapa__forma { stroke: var(--adm-focus); stroke-width: var(--ds-border-rail); }
+.admin-central .admin-mapa__t[aria-current="true"] .admin-mapa__forma { stroke-width: calc(var(--ds-border-control) + var(--ds-border-hairline)); }
+.admin-central .admin-mapa__forma.is-destaque { stroke-width: calc(var(--ds-border-control) + var(--ds-border-hairline)); }
+.admin-central .admin-mapa__forma.is-vazio { stroke-width: calc(2 * var(--ds-border-hairline)); }
+.admin-central .admin-mapa__zeros { pointer-events: none; }
+.admin-central .admin-mapa__zero { fill: var(--adm-ink); stroke: var(--adm-sheet); paint-order: stroke; stroke-linejoin: round; font-family: var(--ds-font-mono); font-weight: 600; }
 
-.admin-central .admin-mapa__fora { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 4px; font-size: 15px; }
+.admin-central .admin-mapa__fora { list-style: none; margin: 0 0 var(--ds-space-6); padding: 0; display: grid; gap: var(--ds-space-2); font-size: var(--ds-text-base); }
 .admin-central .admin-mapa__fora strong { font-variant-numeric: tabular-nums; }
-.admin-central .admin-mapa__legenda { background: var(--adm-sheet); border: 1px solid var(--adm-ink); outline: 1px solid var(--adm-ink); outline-offset: 5px; margin: 6px; padding: 12px; font-size: 14px; }
-.admin-central .admin-mapa__legenda h3 { margin: 0 0 6px; font-size: 16px; }
-.admin-central .admin-mapa__legenda h4 { margin: 12px 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--adm-muted); }
+.admin-central .admin-mapa__legenda { background: var(--adm-sheet); border: var(--ds-border-hairline) solid var(--adm-ink); outline: var(--ds-border-hairline) solid var(--adm-ink); outline-offset: var(--ds-space-3); margin: var(--ds-space-3); padding: var(--ds-space-5); font-size: var(--ds-text-sm); }
+.admin-central .admin-mapa__legenda h3 { margin: 0 0 var(--ds-space-3); font-size: var(--ds-text-base); }
+.admin-central .admin-mapa__legenda h4 { margin: var(--ds-space-5) 0 var(--ds-space-3); font-family: var(--ds-font-mono); font-size: var(--ds-text-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--adm-muted); }
 .admin-central .admin-mapa__legenda p { margin: 0; color: var(--adm-muted); }
-.admin-central .admin-mapa__legenda ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.admin-central .admin-mapa__legenda li { display: flex; align-items: center; gap: 8px; }
-.admin-central .admin-mapa__amostra { flex: none; border: 1px solid var(--adm-ink); }
-.admin-central .admin-mapa__amostra rect.is-destaque { stroke: var(--adm-ink); stroke-width: 3; }
-.admin-central .admin-mapa__fonte { font-size: 12px; color: var(--adm-muted); margin: 8px 0 0; }
+.admin-central .admin-mapa__legenda ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ds-space-3); }
+.admin-central .admin-mapa__legenda li { display: flex; align-items: center; gap: var(--ds-space-4); }
+.admin-central .admin-mapa__amostra { flex: none; border: var(--ds-border-hairline) solid var(--adm-ink); }
+.admin-central .admin-mapa__amostra rect.is-destaque { stroke: var(--adm-ink); stroke-width: var(--ds-border-rail); }
+.admin-central .admin-mapa__amostra rect.is-vazio { stroke: var(--adm-ink); stroke-width: calc(2 * var(--ds-border-hairline)); }
+.admin-central .admin-mapa__amostra .admin-mapa__zero { stroke: none; }
+.admin-central .admin-mapa__lista { margin-top: var(--ds-space-6); max-height: 28rem; }
+.admin-central .admin-mapa__fonte { font-size: var(--ds-text-xs); color: var(--adm-muted); margin: var(--ds-space-4) 0 0; }
 
-/* ------------------------------------------------------------------------------------------------------------------------
-   Telas da central (C6). Mesmo tom do mapa: uma cor, raio 0, sem sombra, borda em tinta, foco visível, número sempre em texto. */
-.admin-central .adm-pagina { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
-.admin-central .adm-pagina h1 { font-size: 28px; margin: 0; }
-.admin-central .adm-pagina h2 { font-size: 20px; margin: 0 0 8px; }
-.admin-central .adm-pagina h3 { font-size: 16px; margin: 16px 0 6px; }
-.admin-central .adm-pagina p { margin: 0 0 8px; line-height: 1.5; }
-.admin-central .adm-pagina a { color: var(--adm-ink); text-decoration: underline; text-underline-offset: 3px; }
-.admin-central .adm-pagina a[aria-current="page"] { font-weight: 700; text-decoration-thickness: 3px; }
+/* ---------------------------------------------------------------------------------------------------------------------------------------------------------------- telas */
+.admin-central .adm-pagina { max-width: var(--ds-layout-content-max); margin: 0 auto; padding: var(--ds-layout-gutter-mobile); display: grid; gap: var(--ds-space-6); }
+@media (min-width: 900px) { .admin-central .adm-pagina { padding: var(--ds-layout-gutter-desktop); } }
+.admin-central .adm-pagina h1 { font-size: var(--ds-text-xl); line-height: var(--ds-leading-xl); margin: 0; }
+.admin-central .adm-pagina h2 { font-size: var(--ds-text-lg); line-height: var(--ds-leading-lg); margin: 0 0 var(--ds-space-4); }
+.admin-central .adm-pagina h3 { font-size: var(--ds-text-base); margin: var(--ds-space-6) 0 var(--ds-space-3); }
+.admin-central .adm-pagina p { margin: 0 0 var(--ds-space-4); }
+.admin-central .adm-pagina a { color: var(--adm-ink); text-decoration: underline; text-underline-offset: var(--ds-space-2); }
 .admin-central a:focus-visible,
 .admin-central button:focus-visible,
 .admin-central input:focus-visible,
 .admin-central select:focus-visible,
 .admin-central textarea:focus-visible,
-.admin-central summary:focus-visible { outline: 3px solid var(--adm-focus); outline-offset: 2px; }
+.admin-central summary:focus-visible,
+.admin-central [tabindex="0"]:focus-visible,
+.admin-central label.chip:has(input:focus-visible) { outline: var(--ds-border-rail) solid var(--adm-focus); outline-offset: var(--ds-space-1); }
+.admin-central [tabindex="-1"]:focus-visible { outline: var(--ds-border-control) solid var(--adm-focus); outline-offset: var(--ds-space-2); }
+.admin-central .adm-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
-.admin-central .adm-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; border-bottom: 1.5px solid var(--adm-ink); padding-bottom: 8px; }
-.admin-central .adm-marca-central { font-weight: 700; margin: 0; }
-.admin-central .adm-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 20px; }
-.admin-central .adm-nav a,
-.admin-central .adm-visao a { min-height: 44px; display: inline-flex; align-items: center; }
-.admin-central .adm-visao { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+/* rótulos e números do v1 */
+.admin-central .lbl { font-family: var(--ds-font-mono); font-size: var(--ds-text-xs); line-height: var(--ds-leading-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--adm-muted); }
+.admin-central .disp { font-family: var(--ds-font-display); font-weight: 700; line-height: 0.9; font-size: var(--ds-text-display); }
+.admin-central .adm-num { font-variant-numeric: tabular-nums; font-family: var(--ds-font-mono); }
+.admin-central .adm-pagina td.adm-num,
+.admin-central .adm-pagina th.adm-num { text-align: right; }
 
-.admin-central .adm-vivo { display: grid; gap: 16px; }
-.admin-central .adm-bloco { background: var(--adm-sheet); border: 1px solid var(--adm-ink); outline: 1px solid var(--adm-ink); outline-offset: 4px; margin: 5px; padding: 16px; }
-.admin-central .adm-paineis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+/* .chip do v1: seletor com borda fina; a página atual (aria-current) ou o item marcado ganha borda em tinta e fundo rebaixado */
+.admin-central .chip { display: inline-flex; align-items: center; gap: var(--ds-space-3); min-height: var(--ds-layout-tap-min); padding: 0 var(--ds-space-6); border: var(--ds-border-control) solid var(--border); background: var(--adm-sheet); color: var(--adm-ink); font-family: var(--ds-font-sans); font-size: var(--ds-text-sm); text-decoration: none; cursor: pointer; }
+.admin-central .adm-pagina a.chip { text-decoration: none; }
+.admin-central .chip:hover { border-color: var(--adm-ink); }
+.admin-central .chip[aria-current="page"],
+.admin-central .chip[data-on="true"] { border-color: var(--adm-ink); background: var(--surface-sunken); font-weight: 600; }
+.admin-central .chip input[type="checkbox"] { width: var(--ds-space-6); height: var(--ds-space-6); margin: 0; }
+
+.admin-central .adm-topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-4) var(--ds-space-8); border-bottom: var(--ds-border-control) solid var(--adm-ink); padding-bottom: var(--ds-space-4); }
+.admin-central .adm-marca-central { font-family: var(--ds-font-serif); font-size: var(--ds-text-lg); font-weight: 600; margin: 0; }
+.admin-central .adm-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--ds-space-3); }
+.admin-central .adm-visao { display: flex; flex-wrap: wrap; gap: var(--ds-space-3); }
+
+.admin-central .adm-vivo { display: grid; gap: var(--ds-space-6); }
+.admin-central .adm-bloco { background: var(--adm-sheet); border: var(--ds-border-hairline) solid var(--adm-ink); outline: var(--ds-border-hairline) solid var(--adm-ink); outline-offset: var(--ds-space-2); margin: var(--ds-space-3); padding: var(--ds-space-6); }
+.admin-central .adm-bloco-linha { display: block; }
+
+/* faixa de estado: pendências por classe, executor e rodada em curso, em linha no desktop */
+.admin-central .adm-faixa { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-6); }
+@media (min-width: 900px) { .admin-central .adm-faixa { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); } }
+.admin-central .adm-faixa > .adm-bloco { margin: var(--ds-space-3); }
+.admin-central .adm-pendencias__lista { list-style: none; margin: 0 0 var(--ds-space-4); padding: 0; display: flex; flex-wrap: wrap; gap: var(--ds-space-3); }
+.admin-central .adm-pendencias h2 { display: flex; align-items: baseline; gap: var(--ds-space-4); }
+
+/* estado de sistema: a palavra vem no selo (escrita); a cor e a barra reforçam, nunca sozinhas. Crítico = barra grossa em --danger (executor parado, erro de leitura) ou --warning (rodada interrompida).
+   O estado normal fica rebaixado: sem moldura dupla, texto menor e discreto. */
+.admin-central .adm-selo { font-size: var(--ds-text-xs); }
+.admin-central [data-estado="executor_parado"],
+.admin-central [data-estado="erro_leitura"] { border-left: var(--ds-border-rail) solid var(--danger); }
+.admin-central [data-estado="executor_parado"] .adm-selo,
+.admin-central [data-estado="erro_leitura"] .adm-selo { color: var(--danger); }
+.admin-central [data-estado="rodada_interrompida"] { border-left: var(--ds-border-rail) solid var(--warning); }
+.admin-central [data-estado="rodada_interrompida"] .adm-selo { color: var(--warning); }
+.admin-central tr[data-estado="rodada_interrompida"] > :first-child { border-left: var(--ds-border-rail) solid var(--warning); }
+.admin-central [data-estado="executor_ok"] { outline: none; margin: var(--ds-space-3); border-color: var(--border); background: transparent; padding: var(--ds-space-5); color: var(--adm-muted); font-size: var(--ds-text-sm); }
+.admin-central [data-estado="executor_ok"] h2 { font-size: var(--ds-text-base); }
+.admin-central [data-estado="executor_ok"] .adm-selo { color: var(--success); transform: none; }
+.admin-central [data-estado="rodada_em_andamento"] .adm-selo { color: var(--adm-ink); }
+.admin-central [data-estado="rodada_concluida"] .adm-selo { color: var(--adm-muted); }
+.admin-central [data-estado="carregando"] { opacity: 1; }
+
+.admin-central .adm-ensaio { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-4) var(--ds-space-6); }
+.admin-central .adm-ensaio h2 { margin: 0; }
+.admin-central .adm-ensaio p { margin: 0; }
+
+.admin-central .adm-paineis { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-6); }
 @media (min-width: 900px) { .admin-central .adm-paineis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.admin-central .adm-painel { background: var(--adm-sheet); border: 1.5px solid var(--adm-ink); padding: 16px; }
-.admin-central .adm-totais { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.admin-central .adm-painel { background: var(--adm-sheet); border: var(--ds-border-control) solid var(--adm-ink); padding: var(--ds-space-6); }
+.admin-central .adm-totais { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ds-space-4); }
 .admin-central .adm-total__valor { font-variant-numeric: tabular-nums; }
-.admin-central .adm-ids summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; text-decoration: underline; text-underline-offset: 3px; }
-.admin-central .adm-ids ul { max-height: 260px; overflow: auto; margin: 4px 0 0; padding: 8px 8px 8px 24px; border: 1px solid var(--adm-ink); font-size: 13px; word-break: break-all; }
-.admin-central .adm-marca { display: inline-block; border: 1.5px solid var(--adm-ink); padding: 2px 8px; font-weight: 600; font-size: 13px; letter-spacing: 0.04em; }
-.admin-central .adm-ajuda { color: var(--adm-muted); font-size: 14px; }
-.admin-central .adm-codigo { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--adm-ink); background: var(--adm-paper); overflow: auto; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+.admin-central .adm-ids summary { cursor: pointer; min-height: var(--ds-layout-tap-min); display: flex; align-items: center; text-decoration: underline; text-underline-offset: var(--ds-space-2); }
+.admin-central .adm-ids ul { max-height: 16rem; overflow: auto; margin: var(--ds-space-2) 0 0; padding: var(--ds-space-4) var(--ds-space-4) var(--ds-space-4) var(--ds-space-8); border: var(--ds-border-hairline) solid var(--adm-ink); font-size: var(--ds-text-sm); word-break: break-all; }
+.admin-central .adm-ids code { font-family: var(--ds-font-mono); font-size: var(--ds-text-xs); word-break: break-all; }
+.admin-central .adm-marca { display: inline-block; border: var(--ds-border-control) solid var(--adm-ink); padding: var(--ds-space-1) var(--ds-space-4); font-weight: 600; font-size: var(--ds-text-sm); letter-spacing: 0.04em; }
+.admin-central .adm-ajuda { color: var(--adm-muted); font-size: var(--ds-text-sm); }
+.admin-central .adm-codigo { margin: var(--ds-space-4) 0; padding: var(--ds-space-4) var(--ds-space-5); border: var(--ds-border-hairline) solid var(--adm-ink); background: var(--adm-paper); overflow: auto; font-family: var(--ds-font-mono); font-size: var(--ds-text-sm); white-space: pre-wrap; word-break: break-word; }
 
-.admin-central .adm-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.admin-central ol.adm-lista { list-style: decimal; padding-left: 24px; }
-.admin-central .adm-item { border: 1px solid var(--adm-ink); background: var(--adm-sheet); padding: 12px; }
+.admin-central .adm-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ds-space-4); }
+.admin-central .adm-item { border: var(--ds-border-hairline) solid var(--adm-ink); background: var(--adm-sheet); padding: var(--ds-space-5); }
 
-.admin-central .adm-form { display: grid; gap: 12px; max-width: 640px; }
-.admin-central .adm-campo { display: flex; flex-direction: column; gap: 4px; }
-.admin-central .adm-campo--linha { flex-direction: row; align-items: center; gap: 8px; }
-.admin-central .adm-campo label { font-size: 14px; font-weight: 600; }
+/* tabelas (fila, registros, rodadas, mapa): cabeçalho fixo na rolagem, números tabulares, rolagem horizontal em tela estreita (a tabela tem largura mínima de leitura) */
+.admin-central .adm-rolagem { overflow: auto; max-height: 75vh; border: var(--ds-border-hairline) solid var(--adm-ink); background: var(--adm-sheet); }
+.admin-central .adm-tabela { width: 100%; min-width: var(--ds-layout-reading-max); border-collapse: collapse; font-size: var(--ds-text-sm); line-height: var(--ds-leading-sm); }
+.admin-central .adm-tabela caption { text-align: left; padding: var(--ds-space-4) var(--ds-space-5); color: var(--adm-muted); font-size: var(--ds-text-sm); }
+.admin-central .adm-tabela th,
+.admin-central .adm-tabela td { padding: var(--ds-space-4) var(--ds-space-5); border-bottom: var(--ds-border-hairline) solid var(--border); text-align: left; vertical-align: top; font-weight: 400; }
+.admin-central .adm-tabela thead th { position: sticky; top: 0; z-index: 1; background: var(--adm-sheet); border-bottom: var(--ds-border-control) solid var(--adm-ink); font-family: var(--ds-font-mono); font-size: var(--ds-text-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--adm-muted); }
+.admin-central .adm-tabela tbody th { font-weight: 600; }
+.admin-central .adm-tabela tbody tr:last-child th,
+.admin-central .adm-tabela tbody tr:last-child td { border-bottom: 0; }
+
+.admin-central .adm-form { display: grid; gap: var(--ds-space-5); max-width: var(--ds-layout-reading-max); }
+.admin-central .adm-campo { display: flex; flex-direction: column; gap: var(--ds-space-2); }
+.admin-central .adm-campo--linha { flex-direction: row; align-items: center; gap: var(--ds-space-4); }
+.admin-central .adm-campo label,
+.admin-central fieldset.adm-campo legend { font-size: var(--ds-text-sm); font-weight: 600; }
+.admin-central fieldset.adm-campo { border: 0; margin: 0; padding: 0; min-width: 0; }
+.admin-central .adm-ufs__grade { display: flex; flex-wrap: wrap; gap: var(--ds-space-3); margin-top: var(--ds-space-3); }
+.admin-central .adm-ufs__item { font-weight: 400; }
 .admin-central .adm-campo input[type="text"],
 .admin-central .adm-campo select,
-.admin-central .adm-campo textarea { min-height: 44px; padding: 8px 12px; border: 1.5px solid var(--adm-ink); background: var(--adm-sheet); color: var(--adm-ink); font: inherit; }
-.admin-central .adm-campo input[type="checkbox"] { width: 24px; height: 24px; }
-.admin-central .adm-botao { min-height: 44px; padding: 0 20px; border: 1.5px solid var(--adm-ink); background: var(--adm-ink); color: var(--adm-paper); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; }
-.admin-central .adm-botao[disabled] { background: transparent; color: var(--adm-muted); border-style: dashed; cursor: not-allowed; }
-.admin-central .adm-acao { display: grid; gap: 8px; justify-items: start; }
-.admin-central .adm-acoes { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: start; }
-.admin-central .adm-aviso { border: 1.5px solid var(--adm-ink); padding: 8px 12px; margin: 0; }
-.admin-central .adm-aviso--erro { border-style: dashed; font-weight: 600; }
+.admin-central .adm-campo textarea { min-height: var(--ds-layout-tap-min); padding: var(--ds-space-4) var(--ds-space-5); border: var(--ds-border-control) solid var(--border-input); background: var(--adm-sheet); color: var(--adm-ink); font: inherit; }
+.admin-central .adm-campo input[type="checkbox"] { width: var(--ds-space-8); height: var(--ds-space-8); }
+.admin-central .adm-decidindo { margin: 0; padding: var(--ds-space-4) var(--ds-space-5); border: var(--ds-border-hairline) solid var(--border); background: var(--surface-sunken); font-size: var(--ds-text-sm); }
+.admin-central .adm-botao { min-height: var(--ds-layout-tap-min); padding: 0 var(--ds-space-7); border: var(--ds-border-control) solid var(--adm-ink); background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; }
+.admin-central .adm-botao--secundario { background: var(--adm-sheet); color: var(--adm-ink); }
+.admin-central .adm-botao[disabled] { background: var(--surface-sunken); color: var(--adm-muted); border-color: var(--border); cursor: not-allowed; }
+.admin-central .adm-acao { display: grid; gap: var(--ds-space-4); justify-items: start; }
+.admin-central .adm-acoes { display: flex; flex-wrap: wrap; gap: var(--ds-space-5) var(--ds-space-8); align-items: start; }
+
+/* aviso: borda cheia (nunca tracejada: o tracejado e o pontilhado são do mapa) */
+.admin-central .adm-aviso { border: var(--ds-border-control) solid var(--adm-ink); padding: var(--ds-space-4) var(--ds-space-5); margin: 0; background: var(--adm-sheet); }
+.admin-central .adm-aviso p { margin: 0 0 var(--ds-space-3); }
+.admin-central .adm-aviso--erro { border-color: var(--danger); border-left-width: var(--ds-border-rail); font-weight: 600; }
+.admin-central .adm-aviso--atencao { border-color: var(--warning); border-left-width: var(--ds-border-rail); }
+.admin-central .adm-status { font-weight: 600; }
+.admin-central .adm-status[data-status-pedido="falhou"],
+.admin-central .adm-status[data-status-pedido="interrompido"],
+.admin-central .adm-status[data-status-pedido="perdido"] { color: var(--danger); }
+
+/* confirmação de ação com efeito: resumo em lista de definição e botão que diz o efeito */
+.admin-central .adm-confirmacao { padding: var(--ds-space-6); display: grid; gap: var(--ds-space-5); max-width: var(--ds-layout-reading-max); }
+.admin-central .adm-confirmacao h3 { margin: 0; }
+.admin-central .adm-resumo { margin: 0; display: grid; gap: var(--ds-space-4); }
+.admin-central .adm-resumo > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-1); border-bottom: var(--ds-border-hairline) solid var(--border); padding-bottom: var(--ds-space-3); }
+@media (min-width: 600px) { .admin-central .adm-resumo > div { grid-template-columns: 11rem minmax(0, 1fr); gap: var(--ds-space-5); } }
+.admin-central .adm-resumo dd { margin: 0; overflow-wrap: anywhere; }

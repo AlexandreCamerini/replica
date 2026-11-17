@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BlocoErro, Navegacao } from "@/components/admin/blocos";
+import { BlocoErro, Navegacao, Selo } from "@/components/admin/blocos";
 import { BotaoPedido } from "@/components/admin/botao-pedido";
 import { FormDecisao } from "@/components/admin/form-decisao";
 import { ErroLeituraBanco, ErroNaoEncontrado, ficha } from "@/lib/admin/consultas";
-import { estadoDaFicha, mostrarValor, textoData } from "@/lib/admin/estado-tela";
+import { estadoDaFicha, mostrarValor } from "@/lib/admin/estado-tela";
 import { exigirAdmin } from "@/lib/admin/guarda";
+import { nomeDeMunicipio } from "@/lib/admin/nomes-geo";
+import { acaoDaDecisao, motivoDaReabertura, nomeDaClasse, nomeDoTerritorio, quemDecidiu, statusDoPedido, tipoDaPendencia } from "@/lib/admin/rotulos";
+import { operadorAtual } from "@/lib/admin/sessao";
+import { dataComRelativo } from "@/lib/admin/tempo";
+import { TEXTO_MOTIVO, type MotivoSemMapa } from "@/lib/admin/tipos";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +31,10 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
   const chave = decodifica(p.chave);
   try {
     const f = await ficha(classe, chave);
+    const operador = await operadorAtual(); // quem decide é a sessão; a tela só mostra o nome
+    const agora = new Date();
+    const nomeMunicipio = f.territorio?.nivel === "municipio" ? await nomeDeMunicipio(f.territorio.ibge) : null;
+    const territorio = f.territorio ? nomeDoTerritorio(f.territorio, nomeMunicipio) : null;
     const todasPropostas = f.campos.flatMap((c) => c.propostas as Reg[]);
     const semEvidencia = estadoDaFicha(todasPropostas) === "ficha_sem_evidencia";
     return (
@@ -33,16 +42,15 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
         <Navegacao atual="/admin/fila" />
         <h1>{f.rotulo}</h1>
         <p className="adm-ajuda">
-          Ficha {f.classe}:{f.chave}.{" "}
-          {f.territorio ? `Território: ${f.territorio.nivel} ${f.territorio.ibge}.` : `Sem território no mapa: ${f.motivoSemTerritorio ?? "não resolvido"}.`}
+          {nomeDaClasse(f.classe)}. {territorio ? `Território: ${territorio}.` : `Sem território no mapa: ${f.motivoSemTerritorio ? TEXTO_MOTIVO[f.motivoSemTerritorio as MotivoSemMapa] ?? f.motivoSemTerritorio : "não resolvido"}`}
         </p>
         {f.fontes.length > 0 && <p className="adm-ajuda">Fontes vinculadas: {f.fontes.join(", ")}.</p>}
 
-        <section className="adm-bloco" aria-labelledby="adm-ensaio-t">
-          <h2 id="adm-ensaio-t">Parecer é ensaio</h2>
-          <p>
-            O parecer de IA desta entrega é um ensaio (modo simulado): não aplica nada. A aplicação de decisão de agentes exige duas chaves, e as duas estão desligadas. Decisão de pessoa só é registrada e aplicada pelo executor, depois do pedido.
-          </p>
+        <section className="adm-ensaio" aria-labelledby="adm-ensaio-t">
+          <h2 id="adm-ensaio-t" className="stamp adm-selo">
+            Parecer é ensaio
+          </h2>
+          <p className="adm-ajuda">Pareceres de IA são simulados e não aplicam nada. Decisão de pessoa só é registrada e aplicada pelo executor, depois do pedido.</p>
         </section>
 
         {semEvidencia && (
@@ -57,6 +65,7 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
           const pend = c.pendencia as Reg | null;
           const aberta = pend !== null && pend.status === "aberta";
           const pendId = pend && typeof pend.id === "string" ? pend.id : null;
+          const candidatos = [...new Set((c.propostas as Reg[]).map((pr) => pr.valor_candidato).filter((v) => v !== null && v !== undefined).map(mostrarValor))];
           return (
             <section key={c.campo} className="adm-bloco" aria-labelledby={`adm-campo-${i}`} data-campo={c.campo}>
               <h2 id={`adm-campo-${i}`}>Campo {c.campo}</h2>
@@ -69,8 +78,13 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
                   <h3>Pendência</h3>
                   <p>Pergunta: {texto(pend.pergunta)}</p>
                   <p className="adm-ajuda">
-                    Tipo {texto(pend.tipo)}, {texto(pend.status)}. Vence em {textoData(pend.vence_em)}.
-                    {pend.reaberta === true && <span className="adm-marca"> Reaberta: {texto(pend.motivo_reabertura)}</span>}
+                    {tipoDaPendencia(String(pend.tipo))}, {pend.status === "aberta" ? "aberta" : "decidida"}. Vence em {pend.vence_em ? dataComRelativo(pend.vence_em, agora) : "sem prazo"}.
+                    {pend.reaberta === true && (
+                      <>
+                        {" "}
+                        <Selo>Reaberta</Selo> {motivoDaReabertura(typeof pend.motivo_reabertura === "string" ? pend.motivo_reabertura : null)}
+                      </>
+                    )}
                   </p>
                 </div>
               )}
@@ -81,10 +95,10 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
                 {(c.propostas as Reg[]).map((pr) => (
                   <li key={String(pr.id)} className="adm-item">
                     <p>
-                      Candidato: <strong>{mostrarValor(pr.valor_candidato)}</strong> (vigente na leitura: {mostrarValor(pr.valor_vigente)})
+                      Hoje: <strong>{mostrarValor(pr.valor_vigente)}</strong>. Proposta: <strong>{mostrarValor(pr.valor_candidato)}</strong>.
                     </p>
                     <p className="adm-ajuda">
-                      URL {texto(pr.url)}. Trecho: {texto(pr.trecho)}. Hash {texto(pr.conteudo_sha256)}. Lida em {textoData(pr.lida_em)}; fonte declarou em {textoData(pr.fonte_declarada_em)}.
+                      URL {texto(pr.url)}. Trecho: {texto(pr.trecho)}. Hash {texto(pr.conteudo_sha256)}. Lida em {dataComRelativo(pr.lida_em, agora)}; fonte declarou em {dataComRelativo(pr.fonte_declarada_em, agora)}.
                     </p>
                   </li>
                 ))}
@@ -95,9 +109,9 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
               <ul className="adm-lista">
                 {(c.pareceres as Reg[]).map((pa) => (
                   <li key={String(pa.id)} className="adm-item" data-simulado={pa.simulado === true ? "true" : "false"}>
-                    {pa.simulado === true && <span className="adm-marca">SIMULADO </span>}
+                    {pa.simulado === true && <Selo>Simulado</Selo>}{" "}
                     <span>
-                      Parecer {texto(pa.modo)} ({texto(pa.modelo)}), {textoData(pa.criada_em)}
+                      Parecer {texto(pa.modo)} ({texto(pa.modelo)}), {dataComRelativo(pa.criada_em, agora)}
                     </span>
                     <pre className="adm-codigo">{mostrarValor(pa.saida)}</pre>
                   </li>
@@ -109,7 +123,8 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
               <ul className="adm-lista">
                 {(c.decisoes as Reg[]).map((d) => (
                   <li key={String(d.id)} className="adm-item">
-                    {texto(d.acao)} por {texto(d.decidido_por_nome)} ({texto(d.decidido_por_tipo)}), {textoData(d.criada_em)}. {d.aplicada === true ? `Aplicada em ${textoData(d.aplicada_em)}.` : "Não aplicada."} Justificativa: {texto(d.justificativa)}
+                    {acaoDaDecisao(String(d.acao))} por {texto(d.decidido_por_nome)} ({quemDecidiu(String(d.decidido_por_tipo))}), {dataComRelativo(d.criada_em, agora)}.{" "}
+                    {d.aplicada === true ? `Aplicada em ${dataComRelativo(d.aplicada_em, agora)}.` : "Não aplicada."} Justificativa: {texto(d.justificativa)}
                   </li>
                 ))}
               </ul>
@@ -119,8 +134,8 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
               <ul className="adm-lista">
                 {(c.pedidosDecisao as Reg[]).map((pd) => (
                   <li key={String(pd.id)} className="adm-item">
-                    {texto(pd.acao)} por {texto(pd.por_nome)}: {texto(pd.status)}
-                    {pd.aplicar === true ? ", com pedido de aplicação" : ""}. {pd.erro ? `Erro do executor: ${texto(pd.erro)}.` : ""} ({textoData(pd.criado_em)})
+                    {acaoDaDecisao(String(pd.acao))} por {texto(pd.por_nome)}: {statusDoPedido(String(pd.status))}
+                    {pd.aplicar === true ? ", com pedido de aplicação" : ""}. {pd.erro ? `Erro do executor: ${texto(pd.erro)}.` : ""} ({dataComRelativo(pd.criado_em, agora)})
                   </li>
                 ))}
               </ul>
@@ -128,7 +143,11 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
               {aberta && pendId ? (
                 <div>
                   <h3>Pedir decisão</h3>
-                  <FormDecisao pendenciaId={pendId} campo={c.campo} />
+                  <FormDecisao
+                    pendenciaId={pendId}
+                    operadorNome={operador.nome}
+                    contexto={{ campo: c.campo, classe: f.classe, fichaRotulo: f.rotulo, territorio: territorio ?? "sem território no mapa", valorAtual: mostrarValor(c.valorVigente), candidatos }}
+                  />
                   <h3>Pedir parecer</h3>
                   <BotaoPedido
                     rotulo="Pedir parecer"
@@ -144,7 +163,9 @@ export default async function PaginaFicha({ params }: { params: Promise<{ classe
           );
         })}
         <p>
-          <Link href="/admin/fila">Voltar à fila</Link>
+          <Link href="/admin/fila" className="chip">
+            Voltar à fila
+          </Link>
         </p>
       </main>
     );

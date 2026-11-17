@@ -4,8 +4,10 @@ import { BlocoErro, Navegacao } from "@/components/admin/blocos";
 import { PainelVivo, type EstadoApi, type RelatorioSerial, type RodadaSerial } from "@/components/admin/painel-vivo";
 import { agregarPais } from "@/lib/admin/agregacao";
 import { ErroInvariante, ErroLeituraBanco, ErroNaoEncontrado, estadoDoExecutor, fichas, relatorioDaRodada, rodada } from "@/lib/admin/consultas";
-import { contagensDeAgregado, mostrarValor, serializavel, textoData } from "@/lib/admin/estado-tela";
+import { contagensDeAgregado, mostrarValor, serializavel } from "@/lib/admin/estado-tela";
 import { exigirAdmin } from "@/lib/admin/guarda";
+import { abreviarId, descreverRecorte, modoDaRodada, statusDoPedido, tipoDoPedido } from "@/lib/admin/rotulos";
+import { dataComRelativo } from "@/lib/admin/tempo";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,7 @@ export default async function PaginaRodada({ params }: { params: Promise<{ id: s
   const { id } = await params;
   try {
     const [r, executor, todas] = await Promise.all([rodada(id), estadoDoExecutor(), fichas()]);
+    const agora = new Date();
     let relatorio: RelatorioSerial | null = null;
     let parcial = false;
     try {
@@ -29,23 +32,46 @@ export default async function PaginaRodada({ params }: { params: Promise<{ id: s
         <Navegacao atual="/admin/rodadas" />
         <h1>Rodada {r.coletor}</h1>
         <p>
-          <Link href="/admin/rodadas">Todas as rodadas</Link>
+          <Link href="/admin/rodadas" className="chip">
+            Todas as rodadas
+          </Link>
         </p>
         <p className="adm-ajuda">
-          Recorte: {mostrarValor(r.recorte)}.{r.repete_id ? ` Repete a rodada ${r.repete_id}.` : ""} Iniciada em {textoData(r.iniciada_em)}.
+          {modoDaRodada(String(r.modo))}. Recorte: {descreverRecorte(r.recorte)}.{r.repete_id ? ` Repete outra rodada (${abreviarId(String(r.repete_id))}).` : ""} Iniciada em {dataComRelativo(r.iniciada_em, agora)}.
         </p>
         {parcial && <p className="adm-marca">Os totais desta rodada ainda não fecham (rodada em andamento). Eles aparecem assim que fecharem.</p>}
         <PainelVivo inicial={inicial} rodada={cabecalho} relatorio={relatorio} mostrarPaineis />
         <section className="adm-bloco" aria-labelledby="adm-ped-t">
           <h2 id="adm-ped-t">Pedidos ligados a esta rodada</h2>
           {r.pedidos.length === 0 && <p>Nenhum pedido ligado.</p>}
-          <ul className="adm-lista">
-            {(r.pedidos as Record<string, unknown>[]).map((p) => (
-              <li key={String(p.id)} className="adm-item">
-                {String(p.tipo)}: {String(p.status)}, criado em {textoData(p.criado_em)}. {p.andamento != null ? `Andamento: ${mostrarValor(p.andamento)}.` : ""} {p.erro ? `Erro: ${String(p.erro)}.` : ""}
-              </li>
-            ))}
-          </ul>
+          {r.pedidos.length > 0 && (
+            <div className="adm-rolagem" tabIndex={0} role="region" aria-label="Pedidos da rodada (role para o lado em tela pequena)">
+              <table className="adm-tabela">
+                <caption className="adm-sr">Pedidos ligados a esta rodada</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Pedido</th>
+                    <th scope="col">Situação</th>
+                    <th scope="col">Criado</th>
+                    <th scope="col">Andamento ou erro</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(r.pedidos as Record<string, unknown>[]).map((p) => (
+                    <tr key={String(p.id)}>
+                      <th scope="row">{tipoDoPedido(String(p.tipo))}</th>
+                      <td>{statusDoPedido(String(p.status))}</td>
+                      <td>{dataComRelativo(p.criado_em, agora)}</td>
+                      <td>
+                        {p.andamento != null ? `Andamento: ${mostrarValor(p.andamento)}. ` : ""}
+                        {p.erro ? `Erro: ${String(p.erro)}.` : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </main>
     );
