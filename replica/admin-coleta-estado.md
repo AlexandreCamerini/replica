@@ -6,7 +6,7 @@ Arquivo de retomada. Quem retoma lê este arquivo, `replica/admin-coleta-plano.m
 
 - Branch: `claude/hopeful-lewin-176541` (não é `main`; worktree em `.claude/worktrees/hopeful-lewin-176541`).
 - SHA de partida: `39ee3ec64c989dcc5d02489f8eeb24e4c6a4d643` (merge do PR 49, que trouxe o prompt).
-- Modelo do orquestrador: Fable 5.2, não Opus. O papel de orquestrador foi mantido.
+- Modelo do orquestrador: Fable 5.2 até a tarefa B4 (commit `50f96af`); a partir de 2026-11-16, por decisão do dono (`/model claude-opus-5-5`), Opus 5.5, como o prompt define. Construtores seguem em Sonnet e Haiku; verificadores de segurança em Opus de contexto limpo.
 - Banco: `postgres://postgres@localhost:54329/admin_coleta`. Bancos extras: nenhum ainda.
 
 ## Ambiente (fatos observados em 2026-11-15)

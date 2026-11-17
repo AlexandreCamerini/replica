@@ -158,3 +158,10 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Duplicata de pessoa: NÃO há abertura automática de pendência. A única regra existente (`identity_dedupe.PAIRS_SQL`) já é unida sozinha pelo `run_dedupe`, encadeado em `camara.diario`, `senado.diario` e `all`. Detectar outros pares exigiria regra de identidade nova, que a restrição 8 proíbe. O modelo também não comporta: a chave da classe é uma linha da fila, e um par de pessoas não é. A aplicação por `merge_person` depois de decisão existe e é testada com pendência fabricada. No relato, o item "possível duplicata: registre indícios e vínculo proposto" sai como entregue em parte.
 - Materializa: commits `ab55781` (B3a) e `538be3a` (B3b).
 - Desfazer: `git revert` desses commits.
+
+## AC-14 · Troca do modelo do orquestrador para Opus
+
+- Data e fase: 2026-11-16, fase B, durante a tarefa B5.
+- O que houve: o dono trocou o modelo da sessão para Opus 5.5 e pediu para usar o modelo agêntico definido no prompt (orquestrador em Opus; construção em Sonnet e Haiku; verificador de segurança em Opus de contexto limpo).
+- Até o commit `50f96af` (B4) o orquestrador rodou em Fable 5.2, o que foi dito no primeiro relato. As decisões, briefings e conferências anteriores ficam como estão; nada foi refeito por causa da troca.
+- Desfazer: não se aplica.
