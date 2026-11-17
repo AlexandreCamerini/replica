@@ -292,3 +292,61 @@ Outros, vindos das fontes:
 - 21, 26 e a parte de navegador de 20, 23, 24 e 25 dependem de execução que só o dono pode fazer; até lá a central não tem prova de comportamento em navegador;
 - o relato da Parte B (critério 5) e a correção do critério 11 não passaram por reverificação independente própria; só o critério 9 teve segunda rodada;
 - nenhum dado simulado deve ser lido como dado da fonte: SAPL fabricado, município `1190099` fabricado.
+
+## Adendo · Fase F3: central preparada para `admin.segueovoto.com.br`, com login
+
+Escopo: F3 (código) e a preparação de código da F5 de `replica/reavaliacao-central-e-dominio.md`, pedidas pela sessão de origem com aprovação do dono. Nada em produção. Decisões AC-23 a AC-31 em `replica/admin-coleta-decisoes.md`. Commits de `96a753f` a `e898715`.
+
+### Critérios de aceite da linha F3 (seção 6 da reavaliação)
+
+| Critério | Situação | Prova |
+| --- | --- | --- |
+| Não admin logado → 404 | passou (simulado) | `verificacao/f3-opus-v3.md`: sessão aal2 de não admin → 404; admin desativado → 404. Supabase falso, não real |
+| Admin sem MFA → página do fator | passou (simulado) | aal1 → 307 para `/admin/entrar/fator`; a API → 404 |
+| POST sem `Origin` → 403 | passou | `web/e2e-admin/sem-navegador.mjs` (20 POST recusados, nada gravado); f3-opus-v3 |
+| `por` do corpo ignorado | passou | pedido gravado com `por_nome`/`por_email` da sessão; gatilho `adm_pedido_identidade` (0156) sobrescreve o nome |
+| `base_url` interno → pedido falha | passou | `etl/tests/test_admin_rede_segura.py`, `test_http_rede_segura.py`, `test_admin_pedidos.py`; também via redirecionamento e rebinding (conexão no IP conferido) |
+| `curl -I` mostra `frame-ancestors 'none'` | passou (local) | cabeçalhos em resposta real do `next start`, presentes na central e ausentes no site; na Vercel real não medido |
+| Site público sem regressão | passou em parte | build do site sem central e sem middleware, 61 rotas e 10 actions iguais (AC-30); mesmos status nas páginas-chave; o conjunto e2e público (809 testes) NÃO rodou (Playwright fora do sandbox) |
+| Suíte do ETL | passou | `1500 passed, 33 skipped, 4 xfailed` (mesmos 33 pulos e 4 xfail da linha de base) |
+| Unitários, lint e tipos do `web/` | passou | 240 testes, eslint e tsc sem erro |
+| `next build` nas condições do CI | passou | build do site sem `ADMIN_*`, sem rota `/admin` e sem middleware |
+
+Critérios 15, 23 e 9 reescritos para produção em `replica/admin-coleta-criterios-producao.md`: provados no modo local e no modo produção simulado; exceção de `TRACE` aceita pelo dono para a internet (AC-29, "Aceito, confere na F4").
+
+### O que mudou
+
+- Banco: migração `0156` (aditiva): `adm_admins` com log só de acréscimo; `por_user_id`/`por_email` nos pedidos; gatilho que exige admin ativo e limita 20 pedidos em 60 s; o `admin_central` deixa de ler `identity_match_queue.raw`.
+- ETL: CLI `decidir --por` exige admin; o executor exige admin em todo pedido de decisão (inclusive o da CLI); anti-SSRF de `base_url` na decisão, em cada salto de redirecionamento e na conexão; Dockerfile do executor com `tini`, SIGTERM interrompe o pedido em curso na hora.
+- Web: dois builds disjuntos por `pageExtensions` (o site sem a central e sem middleware; a central só com `.admin.*`); trava em dois modos (local e produção); login com Supabase, MFA TOTP `aal2`, cookie próprio; identidade da sessão; CSRF estrito; CSP com nonce, `X-Frame-Options`, `Referrer-Policy`; nenhuma server action na central; entrada por rotas de API com tempo fixo; prazo de 4 s nas chamadas ao provedor; UX e UI da seção 3 e 4 (AC-26).
+
+### Achados dos verificadores e destino
+
+Três verificações Opus independentes (`verificacao/f3-opus.md`, `-v2.md`, `-v3.md`).
+- Bloqueavam: A1 (site público na origem da central; resolvido só na terceira forma, pela separação no build, AC-30, depois de dois vazamentos do filtro por caminho: actions por id e variantes de caixa); A2 (anti-SSRF contornado por redirecionamento; fechado, AC-28).
+- Corrigidos: A3, A4, A5, A7, A9 (parcial), A10, A11 (só código), A12, A13, N1, N4 (tempo), N5, V1, V3.
+- Anotados para a F4: A6 (login de produção tem de ser o próprio `admin_central`); A8 (cadastrar o `user_id` de cada admin); N2 (404 na borda da Vercel não provado); N3 e V2 (308 de normalização de barras do Next, antes do middleware; V2 só com request-target absoluto); N4 (sem limite de ritmo por e-mail/IP na aplicação); N6 (Turnstile só vale com captcha ligado no Supabase); TRACE (AC-29).
+
+### Contagem
+
+Fase F3: 11 subagentes de um teto de 20. Sonnet 8 (T1 a T5, C1, C2, C3), Opus 3 (verificadores). Haiku 0. Nenhuma tarefa subiu de modelo. O orquestrador fez: exigência de admin no executor (AC-24), prazo do provedor e 503 de banco no modo local (AC-27), remendo de caixa (depois substituído), N4, N5, V1 e V3, e a conciliação dos contratos entre tarefas.
+
+### Não provado nesta fase
+
+- Nada com o Supabase real: login por código, TOTP, `aal2`, renovação de cookie, captcha, `shouldCreateUser: false`, limites de ritmo.
+- Nada na borda real da Vercel: 404, caixa do caminho, TRACE, 308 de barras, alias `*.vercel.app`.
+- Nada em navegador: telas novas, mapa, as 49 specs da central e as 809 públicas.
+- A imagem Docker não foi construída (daemon indisponível no sandbox).
+
+### Passos do dono para a F4 (acrescentam-se aos da seção 7)
+
+1. Projeto Vercel novo do mesmo repositório para `admin.segueovoto.com.br`, com `ADMIN_CENTRAL=producao` no BUILD e na execução, `AUTH_PROVIDER=supabase`, `ADMIN_DATABASE_URL` do `admin_central` com `sslmode=verify-full` (decidir; `require` não valida a cadeia), variáveis só em Production; o projeto do site sem nenhuma `ADMIN_*`.
+2. Aplicar `0156` com as demais (runbook); o login de produção é o próprio `admin_central` (A6); senha forte fora de migração, `connection limit 5`.
+3. Cadastrar os admins em `adm_admins` pelo dono do banco, com `user_id` preenchido (A8).
+4. Supabase: Redirect URLs com `admin.`; captcha ligado (N6); conferir os limites de ritmo de `/otp` e `/verify` (N4).
+5. Turnstile: acrescentar `admin.`; a chave pública no build do projeto admin.
+6. Vercel Firewall do projeto admin: negar tudo fora de `/admin`, `/_next/static/`, `/geo/` e `/favicon.ico`, e negar `TRACE`/`TRACK` (fecha N2, N3, V2 e o TRACE na borda).
+7. Conferir contra o deploy real: `curl -X TRACE -sI https://admin.segueovoto.com.br/admin` (AC-29), `curl -sI https://admin.segueovoto.com.br/admin` (cabeçalhos), `curl --request-target 'http://www.segueovoto.com.br/' -sI https://admin.segueovoto.com.br/` (V2), o alias `*.vercel.app` → 404; anotar no runbook.
+8. O cron de `vercel.json` (`/api/cron/vigia`) também roda no projeto admin e lá dá 404: desligar crons nesse projeto.
+9. Executor: construir e subir a imagem `etl/Dockerfile` (`etl/executor-container.md`), sem `ADMIN_COLETA_AGENTES` no ambiente.
+10. Rodar o Playwright fora do sandbox (central: `web/playwright.admin.config.ts`, agora com o build da central `ADMIN_CENTRAL=1`; público: o conjunto inteiro).
