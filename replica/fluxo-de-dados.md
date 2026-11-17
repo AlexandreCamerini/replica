@@ -245,6 +245,38 @@ sequenceDiagram
   AU->>PG: cascata apaga profiles e follows
 ```
 
+### 3.6 Central de administração e executor (Parte C)
+
+Local apenas: as rotas respondem 404 sem `ADMIN_CENTRAL=1`, com `VERCEL` ou `VERCEL_ENV` definida, ou com `ADMIN_DATABASE_URL` ausente ou de host não local (`web/src/lib/admin/guarda-regra.ts`). A tela não coleta nem chama modelo: grava pedido, e o executor da CLI o processa (`etl/civico_etl/admin/executor.py`). Detalhes em `replica/admin-coleta.md`, Parte C.
+
+Rotas de API (route handlers, `force-dynamic`):
+
+- `web/src/app/(admin)/admin/api/pedidos/route.ts`: POST grava pedido de `rodada`, `recoleta` ou `parecer` em `adm_pedidos`.
+- `web/src/app/(admin)/admin/api/decisoes/route.ts`: POST grava pedido de decisão em `adm_pedidos_decisao`; nunca grava em `adm_decisoes`.
+- `web/src/app/(admin)/admin/api/fila/route.ts`: GET lista pendências por classe, com limite.
+- `web/src/app/(admin)/admin/api/estado/route.ts`: GET estado do executor e contagens do mapa.
+- `web/src/app/(admin)/admin/api/ficha/[classe]/[chave]/route.ts`: GET ficha de um registro.
+- `web/src/app/(admin)/admin/api/relatorio/[rodada]/route.ts`: GET relatório de uma rodada.
+
+```mermaid
+flowchart TD
+  A["Central local: páginas em web/src/app/(admin) e rotas em /admin/api"] --> B["POST pedidos ou decisoes, com o role admin_central"]
+  B --> C["INSERT em adm_pedidos ou adm_pedidos_decisao, status na_fila"]
+  C --> D["civico-etl admin executor: pega o mais antigo, for update skip locked"]
+  D --> E{"tipo do pedido"}
+  E -- "rodada ou recoleta" --> F["rodadas: abrir, executar, repetir ou recuperar; coletores pelo despacho da CLI"]
+  E -- "parecer" --> G["parecer: motor de ensaio local, sem modelo"]
+  E -- "decisao" --> H["decisoes.decidir, por pessoa"]
+  F --> I["adm_rodadas, adm_tentativas, adm_evidencias, adm_propostas"]
+  G --> J["adm_pareceres"]
+  H --> K["adm_decisoes"]
+  H --> L{"aplicar?"}
+  L -- "sim, aprovar ou corrigir" --> M["aplicar.aplicar: tabelas de domínio, adm_overrides, corrections"]
+  L -- "não" --> N["sem escrita no domínio"]
+  C -. "batimento a cada 15 s; órfão após 120 s" .-> D
+  D --> O["status concluido, falhou ou interrompido"]
+```
+
 ## 4. Matriz de linhagem
 
 Uma linha por tabela ou view viva ao fim das migrações. "Role de escrita do ETL" é a conexão de `ETL_DATABASE_URL`: nenhuma migração cria role próprio para o ETL nem concede escrita a `service_role`, então presume-se o dono do banco (ver 9.6). A coluna de evidência traz a migração de origem, o primeiro ponto de escrita e o primeiro ponto de leitura encontrados.
@@ -465,6 +497,7 @@ Agenda interna do `run-due` (`etl/civico_etl/schedule.py:175-210`): 23 tarefas, 
 | ETL | `ETL_DATABASE_URL` | tudo | nenhuma no schema: as migrações só criam `web_reader` e `web_writer` | `db/migrations/0001_init.sql:1026` `db/migrations/0003_web_writer.sql:7` |
 | `/api/revalidate` | Bearer `REVALIDATE_SECRET` | invalida cache; não toca o banco | comparação em tempo constante; sem limite de taxa no código | `web/src/app/api/revalidate/route.ts:5-22` |
 | `/api/cron/vigia` | Bearer `CRON_SECRET` | lê os carimbos (`web_reader`); não grava; faz POST no webhook de alerta | comparação em tempo constante; sem o segredo configurado responde 401 a todos; o corpo nunca traz a URL do webhook | `web/src/lib/vigia.ts:23-28` `web/src/app/api/cron/vigia/route.ts:17-26` |
+| Central de administração (`web/src/lib/admin/db.ts`, só local) | `ADMIN_DATABASE_URL`, role `admin_central`; a senha não está no repositório (`db/local/post_0003_admin_central.sql`) | `select` nas `adm_*` e em tabelas de domínio que a central lê; `insert` só em `adm_pedidos` e `adm_pedidos_decisao`; sem `update`, `delete` nem `people` | guarda por ambiente (404 com `VERCEL`, `VERCEL_ENV`, `ADMIN_CENTRAL` diferente de 1 ou host não local); sem login nem papel: não publicar | `web/src/lib/admin/guarda-regra.ts` `db/migrations/0153_admin_central.sql` `web/src/app/(admin)/layout.tsx` |
 
 As 6 tools do MCP, todas só leitura (`mcp/src/server.ts:32-72`): `buscar_politico`, `ver_politico`, `quem_me_representa`, `como_votou`, `comparar_votos`, `gastos_cota`.
 
