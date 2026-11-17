@@ -1,5 +1,5 @@
   [ok] o banco conectado é admin_coleta_r1
   [ok] as cinco Assembleias estão em legislative_bodies
   [ok] banco sem rodada, sem casa SAPL e sem run (zero conhecido)
-  migrações aplicadas: 40
+  migrações aplicadas: 42
   invariantes quebradas antes da rodada (check, linhas FALHOU): 6

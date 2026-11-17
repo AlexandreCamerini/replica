@@ -1,53 +1,53 @@
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
-2026-11-16 21:56:07 etl.check INFO ok: presidente: votos por turno <= votos válidos do TSE (ou eleitorado) e votos por município <= total da candidatura
-2026-11-16 21:56:07 etl.check INFO ok: carreira = total direto da fonte (propostas, votos, gastos) e nunca menor que a soma dos anos
-2026-11-16 21:56:07 etl.check INFO ok: nenhum zero em ano sem carga da fonte
-2026-11-16 21:56:07 etl.check ERROR FALHOU: câmara: exatamente 513 em exercício, todos com partido vigente (513)
-2026-11-16 21:56:07 etl.check ERROR FALHOU: senado: exatamente 81 em exercício, todos com partido vigente (81)
-2026-11-16 21:56:07 etl.check INFO ok: câmara/senado: partido vigente de quem está em exercício = última observação da própria casa
-2026-11-16 21:56:07 etl.check ERROR FALHOU: cota: amostra fixa de deputados e anos = total da Câmara (±0,5%) (20)
-2026-11-16 21:56:07 etl.check INFO ok: cota: complementação do auxílio-moradia e passagem de missão oficial nunca negativas
-2026-11-16 21:56:07 etl.check INFO ok: cota da Câmara: toda linha com chave por linha da fonte (cotaAAAA: ou cotaapiAAAA:)
-2026-11-16 21:56:07 etl.check INFO ok: assembleia: titulares eleitos da legislatura = cadeiras da CF art. 27, e em exercício <= cadeiras (por UF)
-2026-11-16 21:56:07 etl.check ERROR FALHOU: UF: exatamente 1 governador titular em exercício (salvo exceção listada com motivo) (25)
-2026-11-16 21:56:07 etl.check ERROR FALHOU: UF: governador e vice em exercício = lista conferida na fonte oficial (GOVERNO_POR_UF), e vaga com motivo (54)
-2026-11-16 21:56:07 etl.check INFO ok: executivo: mandato com renúncia/cassação/encerramento termina até hoje e a pessoa não segue em exercício no mesmo cargo
-2026-11-16 21:56:07 etl.check INFO ok: executivo: um titular em exercício por lugar e cargo
-2026-11-16 21:56:07 etl.check ERROR FALHOU: município: exatamente 1 prefeito titular em exercício (salvo exceção listada com motivo) (1)
-2026-11-16 21:56:07 etl.check INFO ok: mesma pessoa com dois mandatos sobrepostos no mesmo cargo (deveria ser impossível pela exclusão)
-2026-11-16 21:56:07 etl.check INFO ok: pessoa duplicada na mesma cadeira (nome parlamentar igual, TSE x casa)
-2026-11-16 21:56:07 etl.check INFO ok: voto sem evento nominal
-2026-11-16 21:56:07 etl.check INFO ok: presença maior que o total
-2026-11-16 21:56:07 etl.check INFO ok: salário: todo mês de mandato federal (deputado/senador) desde 02/2015 tem subsídio publicado vigente
-2026-11-16 21:56:07 etl.check INFO ok: senado: votação sem is_secret da fonte, ou secreta com voto individual
-2026-11-16 21:56:07 etl.check INFO ok: agenda: item de pauta ligado a proposta de outra casa
-2026-11-16 21:56:07 etl.check INFO ok: sanções: vínculo com pessoa sem método de casamento
-2026-11-16 21:56:07 etl.check INFO ok: sanções CGU: vínculo com órgão federal, ou não-vínculo sem motivo gravado
-2026-11-16 21:56:07 etl.check INFO ok: emendas: pago maior que empenhado mais resto a pagar inscrito
-2026-11-16 21:56:07 etl.check INFO ok: emendas: vínculo com pessoa sem método de casamento, ou emenda de bancada/comissão/relator ligada a uma pessoa
-2026-11-16 21:56:07 etl.check INFO ok: contas de campanha: soma das origens diferente do total arrecadado
-2026-11-16 21:56:07 etl.check INFO ok: SAPL: parlamentar casado com pessoa sem mandato do cargo certo na casa (vereador no município; deputado estadual na UF)
-2026-11-16 21:56:07 etl.check INFO ok: stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias (carimbo mais novo de cada família de dataset)
-2026-11-16 21:56:07 etl.check INFO ok: pauta: última leitura de cada Casa há mais de 24 h (o número da entrada estaria velho)
-2026-11-16 21:56:07 etl.check INFO ok: pauta: regra vigente com tema que não existe em topics
-2026-11-16 21:56:07 etl.check INFO ok: assembleia: todo vínculo de deputado estadual aponta para pessoa com mandato de deputado estadual/distrital na mesma UF
-2026-11-16 21:56:07 etl.check INFO ok: assembleia: um id da casa por pessoa e por tipo de id (ninguém casado com dois deputados da mesma Assembleia)
-2026-11-16 21:56:07 etl.check INFO ok: assembleia: autoria e gasto de Assembleia só em pessoa com mandato estadual/distrital naquela UF
-2026-11-16 21:56:07 etl.check INFO ok: assembleia: deputado estadual de UF sem adaptador não tem número de propostas nem de gastos ("—", nunca 0)
-2026-11-16 21:56:07 etl.check INFO ok: vereador: em exercício por município <= cadeiras da CF art. 29, IV (exceções em VEREADOR_EXCECOES, com motivo)
-2026-11-16 21:56:07 etl.check INFO prefeito: 16 município(s) em exceção listada (PREFEITO_EXCECOES, com motivo)
-2026-11-16 21:56:07 etl.check INFO ok: identidade: mesma pessoa com o mesmo SQ_CANDIDATO em anos diferentes sem prova da fonte (título ou nome + nascimento)
-2026-11-16 21:56:07 etl.check INFO ok: identidade: chave do TSE em person_external_ids fora do formato (ANO:SQ; em 2012, ANO:UE:SQ, D224)
-2026-11-16 21:56:07 etl.check INFO ok: identidade: chave ANO:SQ do TSE ligada a uma pessoa e a candidatura desse ano e SQ a outra
-2026-11-16 21:56:07 etl.check INFO ok: identidade: chave 2012:UE:SQ do TSE de uma pessoa sem candidatura de 2012 com esse SQ (que existe noutra pessoa)
-2026-11-16 21:56:07 etl.check INFO ok: identidade: candidatura do TSE sem a chave ANO:SQ (2012: ANO:UE:SQ) na própria pessoa
-2026-11-16 21:56:07 etl.check INFO ok: identidade: mesma pessoa com duas candidaturas do mesmo ano e SQ em municípios diferentes
-2026-11-16 21:56:07 etl.check INFO ok: identidade: pessoa com mais de um id da Câmara ou do Senado
-2026-11-16 21:56:07 etl.check INFO ok: identidade: pessoa com dois títulos de eleitor que concorrem na mesma eleição em municípios diferentes
-2026-11-16 21:56:07 etl.check INFO ok: identidade: título com linha ELEITO na fonte e pessoa sem candidatura eleita nesse ano
-2026-11-16 21:56:07 etl.check INFO ok: identidade: candidatura cuja linha da fonte tem outro nascimento e nome civil sem token em comum com a pessoa
-2026-11-16 21:56:07 etl.check INFO ok: identidade: registro substituído no banco com registro de posto maior na fonte para a mesma disputa e número
-2026-11-16 21:56:07 etl.check INFO ok: identidade: candidatura cuja linha da fonte é de outra pessoa pelo título repetido (BUG-044: outro nascimento e outro primeiro nome, ou o título em 2 SQ da mesma eleição)
-2026-11-16 21:56:07 etl.check ERROR 6 invariante(s) quebrada(s)
+2026-11-17 07:01:03 etl.check INFO ok: presidente: votos por turno <= votos válidos do TSE (ou eleitorado) e votos por município <= total da candidatura
+2026-11-17 07:01:03 etl.check INFO ok: carreira = total direto da fonte (propostas, votos, gastos) e nunca menor que a soma dos anos
+2026-11-17 07:01:03 etl.check INFO ok: nenhum zero em ano sem carga da fonte
+2026-11-17 07:01:03 etl.check ERROR FALHOU: câmara: exatamente 513 em exercício, todos com partido vigente (513)
+2026-11-17 07:01:03 etl.check ERROR FALHOU: senado: exatamente 81 em exercício, todos com partido vigente (81)
+2026-11-17 07:01:03 etl.check INFO ok: câmara/senado: partido vigente de quem está em exercício = última observação da própria casa
+2026-11-17 07:01:03 etl.check ERROR FALHOU: cota: amostra fixa de deputados e anos = total da Câmara (±0,5%) (20)
+2026-11-17 07:01:03 etl.check INFO ok: cota: complementação do auxílio-moradia e passagem de missão oficial nunca negativas
+2026-11-17 07:01:03 etl.check INFO ok: cota da Câmara: toda linha com chave por linha da fonte (cotaAAAA: ou cotaapiAAAA:)
+2026-11-17 07:01:03 etl.check INFO ok: assembleia: titulares eleitos da legislatura = cadeiras da CF art. 27, e em exercício <= cadeiras (por UF)
+2026-11-17 07:01:03 etl.check ERROR FALHOU: UF: exatamente 1 governador titular em exercício (salvo exceção listada com motivo) (25)
+2026-11-17 07:01:03 etl.check ERROR FALHOU: UF: governador e vice em exercício = lista conferida na fonte oficial (GOVERNO_POR_UF), e vaga com motivo (54)
+2026-11-17 07:01:03 etl.check INFO ok: executivo: mandato com renúncia/cassação/encerramento termina até hoje e a pessoa não segue em exercício no mesmo cargo
+2026-11-17 07:01:03 etl.check INFO ok: executivo: um titular em exercício por lugar e cargo
+2026-11-17 07:01:03 etl.check ERROR FALHOU: município: exatamente 1 prefeito titular em exercício (salvo exceção listada com motivo) (1)
+2026-11-17 07:01:03 etl.check INFO ok: mesma pessoa com dois mandatos sobrepostos no mesmo cargo (deveria ser impossível pela exclusão)
+2026-11-17 07:01:03 etl.check INFO ok: pessoa duplicada na mesma cadeira (nome parlamentar igual, TSE x casa)
+2026-11-17 07:01:03 etl.check INFO ok: voto sem evento nominal
+2026-11-17 07:01:03 etl.check INFO ok: presença maior que o total
+2026-11-17 07:01:03 etl.check INFO ok: salário: todo mês de mandato federal (deputado/senador) desde 02/2015 tem subsídio publicado vigente
+2026-11-17 07:01:03 etl.check INFO ok: senado: votação sem is_secret da fonte, ou secreta com voto individual
+2026-11-17 07:01:03 etl.check INFO ok: agenda: item de pauta ligado a proposta de outra casa
+2026-11-17 07:01:03 etl.check INFO ok: sanções: vínculo com pessoa sem método de casamento
+2026-11-17 07:01:03 etl.check INFO ok: sanções CGU: vínculo com órgão federal, ou não-vínculo sem motivo gravado
+2026-11-17 07:01:03 etl.check INFO ok: emendas: pago maior que empenhado mais resto a pagar inscrito
+2026-11-17 07:01:03 etl.check INFO ok: emendas: vínculo com pessoa sem método de casamento, ou emenda de bancada/comissão/relator ligada a uma pessoa
+2026-11-17 07:01:03 etl.check INFO ok: contas de campanha: soma das origens diferente do total arrecadado
+2026-11-17 07:01:03 etl.check INFO ok: SAPL: parlamentar casado com pessoa sem mandato do cargo certo na casa (vereador no município; deputado estadual na UF)
+2026-11-17 07:01:03 etl.check INFO ok: stamp vencido: Câmara/Senado há mais de 48 h, TSE há mais de 60 dias (carimbo mais novo de cada família de dataset)
+2026-11-17 07:01:03 etl.check INFO ok: pauta: última leitura de cada Casa há mais de 24 h (o número da entrada estaria velho)
+2026-11-17 07:01:03 etl.check INFO ok: pauta: regra vigente com tema que não existe em topics
+2026-11-17 07:01:03 etl.check INFO ok: assembleia: todo vínculo de deputado estadual aponta para pessoa com mandato de deputado estadual/distrital na mesma UF
+2026-11-17 07:01:03 etl.check INFO ok: assembleia: um id da casa por pessoa e por tipo de id (ninguém casado com dois deputados da mesma Assembleia)
+2026-11-17 07:01:03 etl.check INFO ok: assembleia: autoria e gasto de Assembleia só em pessoa com mandato estadual/distrital naquela UF
+2026-11-17 07:01:03 etl.check INFO ok: assembleia: deputado estadual de UF sem adaptador não tem número de propostas nem de gastos ("—", nunca 0)
+2026-11-17 07:01:03 etl.check INFO ok: vereador: em exercício por município <= cadeiras da CF art. 29, IV (exceções em VEREADOR_EXCECOES, com motivo)
+2026-11-17 07:01:03 etl.check INFO prefeito: 16 município(s) em exceção listada (PREFEITO_EXCECOES, com motivo)
+2026-11-17 07:01:03 etl.check INFO ok: identidade: mesma pessoa com o mesmo SQ_CANDIDATO em anos diferentes sem prova da fonte (título ou nome + nascimento)
+2026-11-17 07:01:03 etl.check INFO ok: identidade: chave do TSE em person_external_ids fora do formato (ANO:SQ; em 2012, ANO:UE:SQ, D224)
+2026-11-17 07:01:03 etl.check INFO ok: identidade: chave ANO:SQ do TSE ligada a uma pessoa e a candidatura desse ano e SQ a outra
+2026-11-17 07:01:03 etl.check INFO ok: identidade: chave 2012:UE:SQ do TSE de uma pessoa sem candidatura de 2012 com esse SQ (que existe noutra pessoa)
+2026-11-17 07:01:03 etl.check INFO ok: identidade: candidatura do TSE sem a chave ANO:SQ (2012: ANO:UE:SQ) na própria pessoa
+2026-11-17 07:01:03 etl.check INFO ok: identidade: mesma pessoa com duas candidaturas do mesmo ano e SQ em municípios diferentes
+2026-11-17 07:01:03 etl.check INFO ok: identidade: pessoa com mais de um id da Câmara ou do Senado
+2026-11-17 07:01:03 etl.check INFO ok: identidade: pessoa com dois títulos de eleitor que concorrem na mesma eleição em municípios diferentes
+2026-11-17 07:01:03 etl.check INFO ok: identidade: título com linha ELEITO na fonte e pessoa sem candidatura eleita nesse ano
+2026-11-17 07:01:03 etl.check INFO ok: identidade: candidatura cuja linha da fonte tem outro nascimento e nome civil sem token em comum com a pessoa
+2026-11-17 07:01:03 etl.check INFO ok: identidade: registro substituído no banco com registro de posto maior na fonte para a mesma disputa e número
+2026-11-17 07:01:03 etl.check INFO ok: identidade: candidatura cuja linha da fonte é de outra pessoa pelo título repetido (BUG-044: outro nascimento e outro primeiro nome, ou o título em 2 SQ da mesma eleição)
+2026-11-17 07:01:03 etl.check ERROR 6 invariante(s) quebrada(s)
 SIMULADO: 0 URLs pedidas, 0 não previstas

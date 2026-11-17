@@ -39,7 +39,7 @@
   ],
   "tentativas_registradas": true,
   "cache_dir": "/tmp/claude-501/admin-r1-cache",
-  "gerada_em": "2026-11-17T00:55:24.123172+00:00",
+  "gerada_em": "2026-11-17T10:00:54.281943+00:00",
   "registros_elegiveis": {
     "classe": "vinculo_sapl",
     "valor": 5,
@@ -79,7 +79,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "9c4863cdfaeaf526d83da9b653562fb82807c42f341bd5b222f8c89bbf3ca69b"
       }
     },
@@ -88,7 +88,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e"
       }
     },
@@ -97,7 +97,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "c2bcba167146c89840b0efbc4bc5eefbc602f361371d175d9819c1381e577f65"
       }
     },
@@ -106,7 +106,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e"
       }
     },
@@ -115,7 +115,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "bc154e4aab08437b2e4f7221cbc0311707e1781f0e5d95061e05d049855f3896"
       }
     },
@@ -124,7 +124,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087"
       }
     },
@@ -140,7 +140,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087"
       }
     },
@@ -149,7 +149,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118"
       }
     },
@@ -158,7 +158,7 @@
       "condicional": null,
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e"
       }
     },
@@ -167,7 +167,7 @@
       "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'",
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33"
       }
     },
@@ -176,7 +176,7 @@
       "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'",
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33"
       }
     },
@@ -185,7 +185,7 @@
       "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'",
       "cache": {
         "estado": "em_cache",
-        "idade_horas": 0.01,
+        "idade_horas": 0.0,
         "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33"
       }
     }
@@ -207,7 +207,7 @@
   "demais_urls": {
     "valor": 0,
     "estimativa": true,
-    "base": "rodada 36ed11b4-e27f-43a6-9bcf-7e214d4f0555 de 2026-11-17",
-    "rodada_base": "36ed11b4-e27f-43a6-9bcf-7e214d4f0555"
+    "base": "rodada 82edd764-8cc8-464c-8462-1d70385534d1 de 2026-11-17",
+    "rodada_base": "82edd764-8cc8-464c-8462-1d70385534d1"
   }
 }

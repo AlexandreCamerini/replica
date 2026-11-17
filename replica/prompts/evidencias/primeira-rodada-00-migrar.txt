@@ -50,4 +50,10 @@ psql:migrations/0150_admin_coleta.sql:368: NOTICE:  trigger "adm_override" for r
 psql:migrations/0150_admin_coleta.sql:395: NOTICE:  trigger "adm_override" for relation "data_coverage" does not exist, skipping
 psql:migrations/0150_admin_coleta.sql:413: NOTICE:  trigger "adm_override" for relation "mandate_contacts" does not exist, skipping
 aplicando 0151_admin_coleta_colisoes.sql
-ok: 40 migração(ões) aplicada(s)
+aplicando 0152_admin_coleta_endurece.sql
+psql:migrations/0152_admin_coleta_endurece.sql:75: NOTICE:  trigger "adm_exige_chave_agentes" for relation "adm_overrides" does not exist, skipping
+psql:migrations/0152_admin_coleta_endurece.sql:77: NOTICE:  trigger "adm_exige_chave_agentes" for relation "adm_vinculos" does not exist, skipping
+psql:migrations/0152_admin_coleta_endurece.sql:102: NOTICE:  trigger "adm_reaponta_override" for relation "mandate_contacts" does not exist, skipping
+aplicando 0153_admin_central.sql
+psql:migrations/0153_admin_central.sql:79: NOTICE:  trigger "adm_pedidos_decisao_guard" for relation "adm_pedidos_decisao" does not exist, skipping
+ok: 42 migração(ões) aplicada(s)

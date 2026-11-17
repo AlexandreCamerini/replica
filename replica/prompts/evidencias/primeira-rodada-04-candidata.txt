@@ -17,12 +17,12 @@ pendências restantes        2 de 2
 diferenças em relação à base vigente:
 CLASSE        CHAVE  REGISTRO                                          CAMPO   VIGENTE          CANDIDATO                                         SITUAÇÃO  EVIDÊNCIA                                                                      DECISÃO
 ------------  -----  ------------------------------------------------  ------  ---------------  ------------------------------------------------  --------  -----------------------------------------------------------------------------  -------
-vinculo_sapl  3      Assembleia Legislativa de Amazonas · Amazonas/AM  status  robots_bloqueia  robots_bloqueia (já é o vigente; na leitura: ok)  pendente  https://sapl.al.am.leg.br/robots.txt hash ab75d28a39d3 lida 2026-11-17 00:54Z  -
-vinculo_sapl  5      Assembleia Legislativa de Paraíba · Paraíba/PB    status  ok               ok (já é o vigente; na leitura: fora_do_ar)       pendente  https://sapl.al.pb.leg.br/api/ hash c7296d22537b lida 2026-11-17 00:54Z        -
+vinculo_sapl  3      Assembleia Legislativa de Amazonas · Amazonas/AM  status  robots_bloqueia  robots_bloqueia (já é o vigente; na leitura: ok)  pendente  https://sapl.al.am.leg.br/robots.txt hash ab75d28a39d3 lida 2026-11-17 10:00Z  -
+vinculo_sapl  5      Assembleia Legislativa de Paraíba · Paraíba/PB    status  ok               ok (já é o vigente; na leitura: fora_do_ar)       pendente  https://sapl.al.pb.leg.br/api/ hash c7296d22537b lida 2026-11-17 10:00Z        -
 
 2 diferenças em 2 campos com proposta
 
-aplicadas (o candidato já é o vigente):
+aplicadas (valor antes da rodada -> valor fixado pela decisão; o candidato já é o vigente):
   nenhuma
 
 pendências restantes (ordem da fila):

@@ -503,8 +503,12 @@ async function fluxo(banco) {
     if (!alvo) return;
     if (!mun) R.aviso("PREMISSA: a fixture sapl_ale só tem casas de UF (Assembleias); não há pendência de município na fila. Uso o território de UF da pendência. O município fabricado (1190099) não tem casa SAPL nem pendência.");
     const terr = { ibge: alvo.territorio.ibge ?? alvo.territorio.ibge_code, nivel: alvo.territorio.nivel };
-    const mapaVe = est.json?.mapa?.porUf?.[terr.ibge];
-    R.checa(terr.nivel !== "uf" || mapaVe >= 1, `o mapa conta ${mapaVe} ficha(s) no território ${terr.ibge}`);
+    // /admin/api/estado só conta por UF: para pendência de município, mede a UF que o contém. A contagem do PRÓPRIO município no mapa da UF é
+    // desenhada no navegador (malha buscada no cliente) e só o Playwright a prova (AC-05).
+    const ufDoTerr = String(terr.ibge).slice(0, 2);
+    const mapaVe = est.json?.mapa?.porUf?.[ufDoTerr];
+    R.checa(typeof mapaVe === "number" && mapaVe >= 1, `o mapa do país conta ${mapaVe} ficha(s) na UF ${ufDoTerr} do território ${terr.nivel} ${terr.ibge}`);
+    if (terr.nivel === "municipio") R.aviso(`contagem do município ${terr.ibge} no mapa da UF: não medida sem navegador (só o Playwright prova)`);
 
     // 2. recoleta
     R.cabecalho("passo 2: recoleta das fichas pendentes do território");

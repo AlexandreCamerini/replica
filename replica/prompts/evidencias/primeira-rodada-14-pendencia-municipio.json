@@ -1,0 +1,76 @@
+{
+  "id": "08937a94-f4b6-4e17-a271-7060e22ab4c0",
+  "classe": "vinculo_sapl",
+  "registro_chave": "20",
+  "campo": "base_url",
+  "tipo": "mudanca",
+  "pergunta": "O endereço do SAPL desta casa mudou de 'https://sapl.camara-fabricada.invalid' para 'https://sapl.camara-fabricada-nova.invalid'?",
+  "reaberta": false,
+  "motivo_reabertura": null,
+  "vence_em": "2026-11-24T10:01:06.100893+00:00",
+  "cobertura_recorte": 1.0,
+  "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
+  "territorio": {
+    "ibge_code": "1190099",
+    "nivel": "municipio"
+  },
+  "valor_vigente": "https://sapl.camara-fabricada-nova.invalid",
+  "propostas": [
+    {
+      "id": "7a01e7bb-02a9-4ef9-b022-c2ec960509c9",
+      "valor_vigente_na_leitura": "https://sapl.camara-fabricada.invalid",
+      "valor_candidato": "https://sapl.camara-fabricada-nova.invalid",
+      "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
+      "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T10:01:06.082053+00:00)",
+      "bloco": null,
+      "conteudo_sha256": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
+      "lida_em": "2026-11-17T10:01:06.082053+00:00",
+      "fonte_declarada_em": null,
+      "fonte_slug": "sapl",
+      "rodada_id": "da93e6a8-17fe-4c62-9682-e44d9a33ea88",
+      "alcance": "registro",
+      "regra_criterio": null,
+      "regra_ids": null
+    }
+  ],
+  "desconhecidos": {},
+  "status": "decidida",
+  "evidencia_sha": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
+  "vigente_sha": "365b39fc0baf22fe4a17167b3289b5e02380a44770181d0feb3e535c693f5291",
+  "criada_em": "2026-11-17T10:01:06.098739+00:00",
+  "decisoes": [
+    {
+      "id": "e4311be6-e0d2-4932-bf8e-ba6dc1701e24",
+      "acao": "aprovar",
+      "decidido_por_tipo": "pessoa",
+      "decidido_por_nome": "Operador de Ensaio (SIMULADO)",
+      "justificativa": "conferi a evidência da proposta (resposta fabricada, ensaio SIMULADO); não aplicar",
+      "valor": "https://sapl.camara-fabricada-nova.invalid",
+      "campos_afetados": [
+        "vinculo_sapl:20:base_url"
+      ],
+      "aplicada": false,
+      "aplicada_em": null,
+      "criada_em": "2026-11-17T10:01:11.392041+00:00"
+    }
+  ],
+  "historico": [
+    {
+      "id": "7a01e7bb-02a9-4ef9-b022-c2ec960509c9",
+      "valor_vigente_na_leitura": "https://sapl.camara-fabricada.invalid",
+      "valor_candidato": "https://sapl.camara-fabricada-nova.invalid",
+      "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
+      "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T10:01:06.082053+00:00)",
+      "bloco": null,
+      "conteudo_sha256": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
+      "lida_em": "2026-11-17T10:01:06.082053+00:00",
+      "fonte_declarada_em": null,
+      "fonte_slug": "sapl",
+      "rodada_id": "da93e6a8-17fe-4c62-9682-e44d9a33ea88",
+      "alcance": "registro",
+      "regra_criterio": null,
+      "regra_ids": null,
+      "ligada_a_esta_pendencia": true
+    }
+  ]
+}

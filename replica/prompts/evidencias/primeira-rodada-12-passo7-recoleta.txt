@@ -1,0 +1,7 @@
+SIMULADO. Parte da saída de `node web/e2e-admin/sem-navegador.mjs --sem-build --fluxo --banco admin_coleta_r1` (API HTTP da central; executor da CLI sobre respostas fabricadas, cenário v2). Nada foi lido de fonte real.
+== passo 2: recoleta das fichas pendentes do território
+ok      POST recoleta vinculo_sapl municipio 1190099: id d967c18f-dee2-4683-b45c-386da8d6e27a
+ok      executor (--uma-vez até esvaziar): recoleta:concluido [recoleta]
+ok      a recoleta abriu e executou a rodada 90c13326-96bd-48fa-ad81-eac1eee25eb5
+ok      a pendência do mesmo registro e campo continua na fila depois da recoleta (id 08937a94-f4b6-4e17-a271-7060e22ab4c0, o mesmo)
+

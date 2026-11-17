@@ -1,0 +1,228 @@
+{
+  "simulado": "v2",
+  "rodada": {
+    "id": "da93e6a8-17fe-4c62-9682-e44d9a33ea88",
+    "coletor": "sapl.camaras",
+    "modo": "descobrir",
+    "recorte": {
+      "ufs": [],
+      "anos": [],
+      "modo": "descobrir",
+      "casas": [],
+      "ibges": [
+        "1190099"
+      ],
+      "extras": {}
+    },
+    "status": "concluida",
+    "iniciada_em": "2026-11-17T10:01:06.030779+00:00",
+    "finalizada_em": "2026-11-17T10:01:06.110150+00:00",
+    "repete_id": null
+  },
+  "coleta": {
+    "urls_tentadas": {
+      "valor": 3,
+      "de": 3,
+      "ids": [
+        {
+          "url_sha": "1daed48350ffd9a36dccb050c06b6587316f9a5509697b301094b066c88e8fa2",
+          "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29"
+        },
+        {
+          "url_sha": "cf98bb532b89008670782b9c966187ac675f738206553b2c2770d75e7fad2f26",
+          "url": "https://sapl.camara-fabricada-nova.invalid/api/"
+        },
+        {
+          "url_sha": "db01ca2896f7a7a9f861050d0d29c22b929050b21120284c4349013693b38a4d",
+          "url": "https://sapl.camara-fabricada-nova.invalid/robots.txt"
+        }
+      ]
+    },
+    "urls_lidas": {
+      "valor": 3,
+      "de": 3,
+      "ids": [
+        {
+          "url_sha": "1daed48350ffd9a36dccb050c06b6587316f9a5509697b301094b066c88e8fa2",
+          "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29"
+        },
+        {
+          "url_sha": "cf98bb532b89008670782b9c966187ac675f738206553b2c2770d75e7fad2f26",
+          "url": "https://sapl.camara-fabricada-nova.invalid/api/"
+        },
+        {
+          "url_sha": "db01ca2896f7a7a9f861050d0d29c22b929050b21120284c4349013693b38a4d",
+          "url": "https://sapl.camara-fabricada-nova.invalid/robots.txt"
+        }
+      ]
+    },
+    "urls_reaproveitadas": {
+      "valor": 0,
+      "de": 3,
+      "ids": []
+    },
+    "urls_com_falha": {
+      "valor": 0,
+      "de": 3,
+      "ids": [],
+      "por_motivo": {
+        "bloqueio": {
+          "valor": 0,
+          "de": 0,
+          "ids": []
+        },
+        "robots": {
+          "valor": 0,
+          "de": 0,
+          "ids": []
+        },
+        "expiracao": {
+          "valor": 0,
+          "de": 0,
+          "ids": []
+        },
+        "erro": {
+          "valor": 0,
+          "de": 0,
+          "ids": []
+        },
+        "sem_conteudo": {
+          "valor": 0,
+          "de": 0,
+          "ids": []
+        }
+      }
+    },
+    "urls_entrada": {
+      "declaradas": {
+        "valor": 1,
+        "de": 1,
+        "ids": [
+          {
+            "url_sha": "1daed48350ffd9a36dccb050c06b6587316f9a5509697b301094b066c88e8fa2",
+            "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29"
+          }
+        ]
+      },
+      "tentadas": {
+        "valor": 1,
+        "de": 1,
+        "ids": [
+          {
+            "url_sha": "1daed48350ffd9a36dccb050c06b6587316f9a5509697b301094b066c88e8fa2",
+            "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29"
+          }
+        ]
+      },
+      "declaradas_nao_tentadas": {
+        "valor": 0,
+        "de": 1,
+        "ids": []
+      }
+    },
+    "registros_elegiveis": {
+      "valor": 1,
+      "de": 1,
+      "ids": [
+        "vinculo_sapl:20"
+      ]
+    },
+    "registros_alcancados": {
+      "valor": 1,
+      "de": 1,
+      "ids": [
+        "vinculo_sapl:20"
+      ]
+    },
+    "registros_elegiveis_nao_alcancados": {
+      "valor": 0,
+      "de": 1,
+      "ids": [],
+      "itens": []
+    }
+  },
+  "revisao": {
+    "campos_com_proposta": {
+      "valor": 1,
+      "de": 1,
+      "ids": [
+        "vinculo_sapl:20:base_url"
+      ]
+    },
+    "conflitantes": {
+      "valor": 0,
+      "de": 1,
+      "ids": []
+    },
+    "pendentes": {
+      "valor": 1,
+      "de": 1,
+      "ids": [
+        "vinculo_sapl:20:base_url"
+      ],
+      "sem_pendencia_aberta": {
+        "valor": 0,
+        "de": 1,
+        "ids": []
+      }
+    },
+    "confirmados": {
+      "valor": 0,
+      "de": 1,
+      "ids": [],
+      "pela_fonte": {
+        "valor": 0,
+        "de": 1,
+        "ids": []
+      },
+      "por_decisao": {
+        "valor": 0,
+        "de": 1,
+        "ids": []
+      }
+    },
+    "pendencias_reabertas": {
+      "valor": 0,
+      "de": 1,
+      "ids": [],
+      "por_motivo": {}
+    },
+    "registros_com_proposta": {
+      "valor": 1,
+      "de": 1,
+      "ids": [
+        "vinculo_sapl:20"
+      ]
+    },
+    "registros_alterados": {
+      "valor": 0,
+      "de": 1,
+      "ids": []
+    },
+    "decisoes": {
+      "valor": 0,
+      "de": 1,
+      "ids": [],
+      "por_acao": {},
+      "por_decidido_por_tipo": {},
+      "aplicadas": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      },
+      "nao_aplicadas": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      }
+    },
+    "pendencias_ligadas": {
+      "valor": 1,
+      "de": 1,
+      "ids": [
+        "08937a94-f4b6-4e17-a271-7060e22ab4c0"
+      ]
+    },
+    "mensagem": null
+  }
+}

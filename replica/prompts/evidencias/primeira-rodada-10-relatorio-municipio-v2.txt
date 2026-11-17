@@ -1,0 +1,53 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+SIMULADO: respostas fabricadas (cenário v2); nenhum número abaixo foi lido da fonte
+
+rodada   da93e6a8-17fe-4c62-9682-e44d9a33ea88
+coletor  sapl.camaras
+modo     descobrir
+recorte  {'ufs': [], 'anos': [], 'modo': 'descobrir', 'casas': [], 'ibges': ['1190099'], 'extras': {}}
+status   concluida
+início   2026-11-17 10:01:06.030779+00:00
+fim      2026-11-17 10:01:06.110150+00:00
+repete   -
+
+COLETA (leitura das URLs; não diz nada sobre revisão)
+  URLs tentadas                3 de 3
+        - https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29  (1daed48350ff)
+        - https://sapl.camara-fabricada-nova.invalid/api/  (cf98bb532b89)
+        - https://sapl.camara-fabricada-nova.invalid/robots.txt  (db01ca2896f7)
+    lidas                      3 de 3
+        - https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29  (1daed48350ff)
+        - https://sapl.camara-fabricada-nova.invalid/api/  (cf98bb532b89)
+        - https://sapl.camara-fabricada-nova.invalid/robots.txt  (db01ca2896f7)
+    reaproveitadas             0 de 3
+    com falha                  0 de 3
+  URLs de entrada declaradas   1 de 1
+        - https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29  (1daed48350ff)
+    tentadas                   1 de 1
+        - https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29  (1daed48350ff)
+    declaradas e não tentadas  0 de 1
+  Registros elegíveis          1 de 1
+        - vinculo_sapl:20
+  Registros alcançados         1 de 1
+        - vinculo_sapl:20
+  Elegíveis não alcançados  0 de 1
+
+REVISÃO (campos com proposta; não diz nada sobre leitura de URL)
+  Campos com proposta                                   1 de 1
+        - vinculo_sapl:20:base_url
+    confirmados                                         0 de 1
+      pela fonte                                        0 de 1
+      por decisão                                       0 de 1
+    conflitantes                                        0 de 1
+    pendentes                                           1 de 1
+        - vinculo_sapl:20:base_url
+      sem pendência aberta                              0 de 1
+  Pendências reabertas                                  0 de 1
+  Registros com proposta                                1 de 1
+        - vinculo_sapl:20
+  Registros com decisão aplicada (aprovar ou corrigir)  0 de 1
+  Decisões                                              0 de 1
+    aplicadas                                           0 de 0
+    não aplicadas                                       0 de 0

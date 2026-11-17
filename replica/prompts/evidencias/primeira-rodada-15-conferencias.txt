@@ -1,0 +1,3 @@
+SIMULADO: conferências do passo 15-fechamento-central (respostas fabricadas)
+  [ok] o check depois do fluxo da central quebra as mesmas invariantes que no passo 09 (o município e a recoleta não quebraram nada novo)
+  [ok] a fila final tem a pendência de AM e não tem a do município (decidida)

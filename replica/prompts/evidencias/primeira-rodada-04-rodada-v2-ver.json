@@ -1,5 +1,5 @@
 {
-  "id": "be210685-beda-4269-942f-07608ece56d8",
+  "id": "798e17cd-9b88-48af-ac2b-3b2264293c6c",
   "coletor": "sapl.assembleias",
   "modo": "recoletar",
   "status": "concluida",
@@ -44,10 +44,10 @@
   ],
   "so_pendencias": false,
   "repete_id": null,
-  "invocation": "admin:be210685-beda-4269-942f-07608ece56d8",
+  "invocation": "admin:798e17cd-9b88-48af-ac2b-3b2264293c6c",
   "cache_dir": "/tmp/claude-501/admin-r1-cache",
-  "iniciada_em": "2026-11-17T00:54:52.203862+00:00",
-  "finalizada_em": "2026-11-17T00:54:52.434882+00:00",
+  "iniciada_em": "2026-11-17T10:00:44.531517+00:00",
+  "finalizada_em": "2026-11-17T10:00:44.671115+00:00",
   "previa": {
     "argv": [
       "sapl.ales",
@@ -87,7 +87,7 @@
       "sapl-ale.{uf}"
     ],
     "cache_dir": "/tmp/claude-501/admin-r1-cache",
-    "gerada_em": "2026-11-17T00:54:52.207092+00:00",
+    "gerada_em": "2026-11-17T10:00:44.533495+00:00",
     "observacao": "sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=ok, AC=ok, AM=ok, PI=robots_bloqueia, PB=fora_do_ar | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas",
     "a_consultar": {
       "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
@@ -99,10 +99,10 @@
       "estimativa": true
     },
     "demais_urls": {
-      "base": "rodada b99f71ad-7ab7-4dd6-b8a9-dea208bdb445 de 2026-11-17",
+      "base": "rodada ca49f9bf-3151-497f-b8f7-41068378adcc de 2026-11-17",
       "valor": 69,
       "estimativa": true,
-      "rodada_base": "b99f71ad-7ab7-4dd6-b8a9-dea208bdb445"
+      "rodada_base": "ca49f9bf-3151-497f-b8f7-41068378adcc"
     },
     "urls_entrada": [
       {
@@ -260,7 +260,7 @@
     "tentativas_registradas": true
   },
   "resultado": {
-    "fim": "2026-11-17T00:54:52.434790+00:00",
+    "fim": "2026-11-17T10:00:44.671069+00:00",
     "regra": {
       "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
       "timeout": "código 124 (timeout) -> interrompida",
@@ -272,7 +272,7 @@
       "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
       "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
     },
-    "inicio": "2026-11-17T00:54:52.216326+00:00",
+    "inicio": "2026-11-17T10:00:44.537440+00:00",
     "motivo": "código 0 -> concluida",
     "runner": "processo",
     "status": "concluida",
@@ -307,8 +307,8 @@
       "escopo": "UFs RO,AC,AM,PI,PB",
       "executado": true,
       "ids_novas": [
-        "1ca48e90-89b0-4b87-9f61-2b9ae261543d",
-        "c06a7fbb-c4ce-40d7-871a-2566fab730e2"
+        "3c92f9c3-055b-47ff-9bcd-661f34ad3880",
+        "0c156c4b-569e-4ea6-834d-b7007d356606"
       ],
       "recusadas": [],
       "repetidas": 0,
@@ -317,8 +317,8 @@
       "sem_evidencia": [],
       "anotadas_antes": [],
       "pendencias_abertas": [
-        "77f606a3-ee64-414e-a81c-6534627876ca",
-        "dee4da87-7389-46c4-a820-a3a135e3984d"
+        "da115520-8938-42cb-aa05-28e49c25c659",
+        "57b8b675-e804-4f63-91fe-db072a59997d"
       ],
       "pendencias_ligadas": [],
       "reason_sem_proposta": [],
@@ -332,7 +332,7 @@
       }
     },
     "sem_cache": [],
-    "invocation": "admin:be210685-beda-4269-942f-07608ece56d8",
+    "invocation": "admin:798e17cd-9b88-48af-ac2b-3b2264293c6c",
     "tentativas": {
       "lidas": 25,
       "falhas": {
@@ -372,7 +372,7 @@
   },
   "execucoes": [
     {
-      "fim": "2026-11-17T00:54:52.434790+00:00",
+      "fim": "2026-11-17T10:00:44.671069+00:00",
       "regra": {
         "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
         "timeout": "código 124 (timeout) -> interrompida",
@@ -384,7 +384,7 @@
         "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
         "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
       },
-      "inicio": "2026-11-17T00:54:52.216326+00:00",
+      "inicio": "2026-11-17T10:00:44.537440+00:00",
       "motivo": "código 0 -> concluida",
       "runner": "processo",
       "status": "concluida",
@@ -419,8 +419,8 @@
         "escopo": "UFs RO,AC,AM,PI,PB",
         "executado": true,
         "ids_novas": [
-          "1ca48e90-89b0-4b87-9f61-2b9ae261543d",
-          "c06a7fbb-c4ce-40d7-871a-2566fab730e2"
+          "3c92f9c3-055b-47ff-9bcd-661f34ad3880",
+          "0c156c4b-569e-4ea6-834d-b7007d356606"
         ],
         "recusadas": [],
         "repetidas": 0,
@@ -429,8 +429,8 @@
         "sem_evidencia": [],
         "anotadas_antes": [],
         "pendencias_abertas": [
-          "77f606a3-ee64-414e-a81c-6534627876ca",
-          "dee4da87-7389-46c4-a820-a3a135e3984d"
+          "da115520-8938-42cb-aa05-28e49c25c659",
+          "57b8b675-e804-4f63-91fe-db072a59997d"
         ],
         "pendencias_ligadas": [],
         "reason_sem_proposta": [],
@@ -444,7 +444,7 @@
         }
       },
       "sem_cache": [],
-      "invocation": "admin:be210685-beda-4269-942f-07608ece56d8",
+      "invocation": "admin:798e17cd-9b88-48af-ac2b-3b2264293c6c",
       "tentativas": {
         "lidas": 25,
         "falhas": {

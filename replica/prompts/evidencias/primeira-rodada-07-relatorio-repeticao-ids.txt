@@ -3,14 +3,14 @@ SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requis
 SIMULADO: 0 URLs pedidas, 0 não previstas
 SIMULADO: respostas fabricadas (cenário v2); nenhum número abaixo foi lido da fonte
 
-rodada   36ed11b4-e27f-43a6-9bcf-7e214d4f0555
+rodada   82edd764-8cc8-464c-8462-1d70385534d1
 coletor  sapl.assembleias
 modo     recoletar
 recorte  {'ufs': ['RO', 'AC', 'AM', 'PI', 'PB'], 'anos': [], 'modo': 'recoletar', 'casas': [], 'ibges': [], 'extras': {}}
 status   concluida
-início   2026-11-17 00:55:10.386649+00:00
-fim      2026-11-17 00:55:10.543960+00:00
-repete   be210685-beda-4269-942f-07608ece56d8
+início   2026-11-17 10:00:51.747891+00:00
+fim      2026-11-17 10:00:51.847905+00:00
+repete   798e17cd-9b88-48af-ac2b-3b2264293c6c
 
 COLETA (leitura das URLs; não diz nada sobre revisão)
   URLs tentadas                10 de 10
@@ -79,16 +79,16 @@ COLETA (leitura das URLs; não diz nada sobre revisão)
 
 REVISÃO (campos com proposta; não diz nada sobre leitura de URL)
   nenhuma proposta registrada nesta rodada
-  Campos com proposta       0 de 0
-    confirmados             0 de 0
-      pela fonte            0 de 0
-      por decisão           0 de 0
-    conflitantes            0 de 0
-    pendentes               0 de 0
-      sem pendência aberta  0 de 0
-  Pendências reabertas      0 de 0
-  Registros com proposta    0 de 0
-  Registros alterados       0 de 0
-  Decisões                  0 de 0
-    aplicadas               0 de 0
-    não aplicadas           0 de 0
+  Campos com proposta                                   0 de 0
+    confirmados                                         0 de 0
+      pela fonte                                        0 de 0
+      por decisão                                       0 de 0
+    conflitantes                                        0 de 0
+    pendentes                                           0 de 0
+      sem pendência aberta                              0 de 0
+  Pendências reabertas                                  0 de 0
+  Registros com proposta                                0 de 0
+  Registros com decisão aplicada (aprovar ou corrigir)  0 de 0
+  Decisões                                              0 de 0
+    aplicadas                                           0 de 0
+    não aplicadas                                       0 de 0

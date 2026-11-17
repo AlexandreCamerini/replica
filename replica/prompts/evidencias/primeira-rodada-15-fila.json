@@ -1,0 +1,40 @@
+[
+  {
+    "posicao": 1,
+    "id": "da115520-8938-42cb-aa05-28e49c25c659",
+    "classe": "vinculo_sapl",
+    "registro_chave": "3",
+    "campo": "status",
+    "tipo": "mudanca",
+    "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
+    "reaberta": false,
+    "motivo_reabertura": null,
+    "vence_em": "2026-11-24T10:00:44.658984+00:00",
+    "cobertura_recorte": 0.6,
+    "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
+    "territorio": {
+      "ibge_code": "13",
+      "nivel": "uf"
+    },
+    "valor_vigente": "robots_bloqueia",
+    "propostas": [
+      {
+        "id": "3c92f9c3-055b-47ff-9bcd-661f34ad3880",
+        "valor_vigente_na_leitura": "ok",
+        "valor_candidato": "robots_bloqueia",
+        "url": "https://sapl.al.am.leg.br/robots.txt",
+        "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T10:00:44.582216+00:00)",
+        "bloco": null,
+        "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+        "lida_em": "2026-11-17T10:00:44.582216+00:00",
+        "fonte_declarada_em": null,
+        "fonte_slug": "sapl-ale",
+        "rodada_id": "798e17cd-9b88-48af-ac2b-3b2264293c6c",
+        "alcance": "registro",
+        "regra_criterio": null,
+        "regra_ids": null
+      }
+    ],
+    "desconhecidos": {}
+  }
+]

@@ -1,0 +1,73 @@
+{
+  "coletor": "sapl.camaras",
+  "modo": "descobrir",
+  "recorte": {
+    "anos": [],
+    "ufs": [],
+    "casas": [],
+    "ibges": [
+      "1190099"
+    ],
+    "extras": {},
+    "modo": "descobrir"
+  },
+  "nao_suportado": null,
+  "comando": "sapl.descobrir",
+  "argv": [
+    "sapl.descobrir",
+    "--ibge",
+    "1190099"
+  ],
+  "fontes": [
+    "sapl"
+  ],
+  "datasets": [
+    "sapl.descoberta",
+    "sapl.{ibge}"
+  ],
+  "tentativas_registradas": true,
+  "cache_dir": "/tmp/claude-501/admin-r1-cache",
+  "gerada_em": "2026-11-17T10:01:04.489751+00:00",
+  "registros_elegiveis": {
+    "classe": "vinculo_sapl",
+    "valor": 1,
+    "chaves": [
+      {
+        "ibge": "1190099",
+        "municipio": "Município Fabricado (teste)",
+        "sapl_houses_id": null,
+        "status": null
+      }
+    ],
+    "motivo": null,
+    "base": "municípios do recorte em places"
+  },
+  "urls_entrada": [
+    {
+      "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    }
+  ],
+  "n_urls_entrada": 1,
+  "n_urls_condicionais": 0,
+  "lista_completa": false,
+  "entradas_tipo": "dinamicas",
+  "observacao": "a descoberta lê uma página do registro por município; {base_url}/api/ só aparece depois de ler o registro",
+  "a_consultar": {
+    "valor": 1,
+    "estimativa": true,
+    "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
+    "intervalo": [
+      1,
+      1
+    ]
+  },
+  "demais_urls": {
+    "valor": null,
+    "estimativa": false,
+    "base": "desconhecido: nenhuma rodada anterior deste recorte"
+  }
+}

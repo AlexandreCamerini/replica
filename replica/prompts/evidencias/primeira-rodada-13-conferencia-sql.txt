@@ -1,0 +1,12 @@
+SIMULADO. pareceres no banco admin_coleta_r1 (motor de ensaio local; nenhuma chamada a modelo). Lido DEPOIS do fluxo inteiro: as contagens de decisoes incluem a do passo 9
+                  id                  |             pendencia_id             |    modelo    |  modo  | simulado |           criada_em           
+--------------------------------------+--------------------------------------+--------------+--------+----------+-------------------------------
+ c96013e2-f5fa-472c-8e08-71dd06feee66 | da115520-8938-42cb-aa05-28e49c25c659 | ensaio-local | ensaio | t        | 2026-11-17 07:00:50.652921-03
+ 894f5add-6f6a-49f7-8fdd-7862712f4205 | 08937a94-f4b6-4e17-a271-7060e22ab4c0 | ensaio-local | ensaio | t        | 2026-11-17 07:01:10.530484-03
+(2 linhas)
+
+ decisoes | overrides | corrections 
+----------+-----------+-------------
+        2 |         1 |           0
+(1 linha)
+

@@ -3,13 +3,13 @@ SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requis
 SIMULADO: 0 URLs pedidas, 0 não previstas
 SIMULADO: respostas fabricadas (cenário v2); nenhum número abaixo foi lido da fonte
 
-rodada   be210685-beda-4269-942f-07608ece56d8
+rodada   798e17cd-9b88-48af-ac2b-3b2264293c6c
 coletor  sapl.assembleias
 modo     recoletar
 recorte  {'ufs': ['RO', 'AC', 'AM', 'PI', 'PB'], 'anos': [], 'modo': 'recoletar', 'casas': [], 'ibges': [], 'extras': {}}
 status   concluida
-início   2026-11-17 00:54:52.203862+00:00
-fim      2026-11-17 00:54:52.434882+00:00
+início   2026-11-17 10:00:44.531517+00:00
+fim      2026-11-17 10:00:44.671115+00:00
 repete   -
 
 COLETA (leitura das URLs; não diz nada sobre revisão)
@@ -108,30 +108,30 @@ COLETA (leitura das URLs; não diz nada sobre revisão)
         - vinculo_sapl:4  URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada; última falha: robots
 
 REVISÃO (campos com proposta; não diz nada sobre leitura de URL)
-  Campos com proposta       2 de 2
+  Campos com proposta                                   2 de 2
         - vinculo_sapl:3:status
         - vinculo_sapl:5:status
-    confirmados             1 de 2
+    confirmados                                         1 de 2
         - vinculo_sapl:5:status
-      pela fonte            0 de 2
-      por decisão           1 de 2
+      pela fonte                                        0 de 2
+      por decisão                                       1 de 2
         - vinculo_sapl:5:status
-    conflitantes            0 de 2
-    pendentes               1 de 2
+    conflitantes                                        0 de 2
+    pendentes                                           1 de 2
         - vinculo_sapl:3:status
-      sem pendência aberta  0 de 2
-  Pendências reabertas      0 de 1
-  Registros com proposta    2 de 2
+      sem pendência aberta                              0 de 2
+  Pendências reabertas                                  0 de 1
+  Registros com proposta                                2 de 2
         - vinculo_sapl:3
         - vinculo_sapl:5
-  Registros alterados       1 de 2
+  Registros com decisão aplicada (aprovar ou corrigir)  1 de 2
         - vinculo_sapl:5
-  Decisões                  1 de 2
-        - 2cb3fb72-93ee-4124-a974-72e10cd8d466
-    aplicadas               1 de 1
-        - 2cb3fb72-93ee-4124-a974-72e10cd8d466
-    não aplicadas           0 de 1
-      ação: aprovar         1 de 1
-        - 2cb3fb72-93ee-4124-a974-72e10cd8d466
-      por: pessoa           1 de 1
-        - 2cb3fb72-93ee-4124-a974-72e10cd8d466
+  Decisões                                              1 de 2
+        - ba732b1f-005a-44fc-8b47-55cb0e74ce15
+    aplicadas                                           1 de 1
+        - ba732b1f-005a-44fc-8b47-55cb0e74ce15
+    não aplicadas                                       0 de 1
+      ação: aprovar                                     1 de 1
+        - ba732b1f-005a-44fc-8b47-55cb0e74ce15
+      por: pessoa                                       1 de 1
+        - ba732b1f-005a-44fc-8b47-55cb0e74ce15

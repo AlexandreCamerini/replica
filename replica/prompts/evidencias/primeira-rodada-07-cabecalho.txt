@@ -1,1 +1,1 @@
-SIMULADO. rodada be210685-beda-4269-942f-07608ece56d8 (v2), repetida pelo identificador com o mesmo cenário e o mesmo cache
+SIMULADO. rodada 798e17cd-9b88-48af-ac2b-3b2264293c6c (v2), repetida pelo identificador com o mesmo cenário e o mesmo cache

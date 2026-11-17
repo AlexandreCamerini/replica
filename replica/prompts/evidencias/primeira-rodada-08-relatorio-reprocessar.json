@@ -1,7 +1,7 @@
 {
   "simulado": "v2",
   "rodada": {
-    "id": "93cb48a6-9ef6-4290-bf1f-5684e7f96631",
+    "id": "18dc6eef-bcdf-41c2-82e9-4cd00f7ccb7e",
     "coletor": "sapl.assembleias",
     "modo": "reprocessar",
     "recorte": {
@@ -18,8 +18,8 @@
       "extras": {}
     },
     "status": "concluida",
-    "iniciada_em": "2026-11-17T00:55:38.954818+00:00",
-    "finalizada_em": "2026-11-17T00:55:39.341371+00:00",
+    "iniciada_em": "2026-11-17T10:00:55.737840+00:00",
+    "finalizada_em": "2026-11-17T10:00:55.799247+00:00",
     "repete_id": null
   },
   "coleta": {

@@ -1,0 +1,78 @@
+[
+  {
+    "posicao": 1,
+    "id": "da115520-8938-42cb-aa05-28e49c25c659",
+    "classe": "vinculo_sapl",
+    "registro_chave": "3",
+    "campo": "status",
+    "tipo": "mudanca",
+    "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
+    "reaberta": false,
+    "motivo_reabertura": null,
+    "vence_em": "2026-11-24T10:00:44.658984+00:00",
+    "cobertura_recorte": 0.6,
+    "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
+    "territorio": {
+      "ibge_code": "13",
+      "nivel": "uf"
+    },
+    "valor_vigente": "robots_bloqueia",
+    "propostas": [
+      {
+        "id": "3c92f9c3-055b-47ff-9bcd-661f34ad3880",
+        "valor_vigente_na_leitura": "ok",
+        "valor_candidato": "robots_bloqueia",
+        "url": "https://sapl.al.am.leg.br/robots.txt",
+        "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T10:00:44.582216+00:00)",
+        "bloco": null,
+        "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+        "lida_em": "2026-11-17T10:00:44.582216+00:00",
+        "fonte_declarada_em": null,
+        "fonte_slug": "sapl-ale",
+        "rodada_id": "798e17cd-9b88-48af-ac2b-3b2264293c6c",
+        "alcance": "registro",
+        "regra_criterio": null,
+        "regra_ids": null
+      }
+    ],
+    "desconhecidos": {}
+  },
+  {
+    "posicao": 2,
+    "id": "08937a94-f4b6-4e17-a271-7060e22ab4c0",
+    "classe": "vinculo_sapl",
+    "registro_chave": "20",
+    "campo": "base_url",
+    "tipo": "mudanca",
+    "pergunta": "O endereço do SAPL desta casa mudou de 'https://sapl.camara-fabricada.invalid' para 'https://sapl.camara-fabricada-nova.invalid'?",
+    "reaberta": false,
+    "motivo_reabertura": null,
+    "vence_em": "2026-11-24T10:01:06.100893+00:00",
+    "cobertura_recorte": 1.0,
+    "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
+    "territorio": {
+      "ibge_code": "1190099",
+      "nivel": "municipio"
+    },
+    "valor_vigente": "https://sapl.camara-fabricada-nova.invalid",
+    "propostas": [
+      {
+        "id": "7a01e7bb-02a9-4ef9-b022-c2ec960509c9",
+        "valor_vigente_na_leitura": "https://sapl.camara-fabricada.invalid",
+        "valor_candidato": "https://sapl.camara-fabricada-nova.invalid",
+        "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
+        "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T10:01:06.082053+00:00)",
+        "bloco": null,
+        "conteudo_sha256": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
+        "lida_em": "2026-11-17T10:01:06.082053+00:00",
+        "fonte_declarada_em": null,
+        "fonte_slug": "sapl",
+        "rodada_id": "da93e6a8-17fe-4c62-9682-e44d9a33ea88",
+        "alcance": "registro",
+        "regra_criterio": null,
+        "regra_ids": null
+      }
+    ],
+    "desconhecidos": {}
+  }
+]

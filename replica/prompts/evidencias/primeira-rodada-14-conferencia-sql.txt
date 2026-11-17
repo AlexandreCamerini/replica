@@ -1,0 +1,27 @@
+SIMULADO. conferência em SQL do passo 9 (a decisão pedida pela central, lida no banco)
+                  id                  |             pendencia_id             |  acao   | decidido_por_tipo |       decidido_por_nome       | aplicada |                                   justificativa                                    
+--------------------------------------+--------------------------------------+---------+-------------------+-------------------------------+----------+------------------------------------------------------------------------------------
+ e4311be6-e0d2-4932-bf8e-ba6dc1701e24 | 08937a94-f4b6-4e17-a271-7060e22ab4c0 | aprovar | pessoa            | Operador de Ensaio (SIMULADO) | f        | conferi a evidência da proposta (resposta fabricada, ensaio SIMULADO); não aplicar
+(1 linha)
+
+                  id                  |    classe    | registro_chave |  campo   |  tipo   |  status  
+--------------------------------------+--------------+----------------+----------+---------+----------
+ 08937a94-f4b6-4e17-a271-7060e22ab4c0 | vinculo_sapl | 20             | base_url | mudanca | decidida
+(1 linha)
+
+   tipo   |  status   |              rodada_id               
+----------+-----------+--------------------------------------
+ recoleta | concluido | 90c13326-96bd-48fa-ad81-eac1eee25eb5
+ parecer  | concluido | 
+(2 linhas)
+
+  acao   |           por_nome            | aplicar |  status   |              decisao_id              
+---------+-------------------------------+---------+-----------+--------------------------------------
+ aprovar | Operador de Ensaio (SIMULADO) | f       | concluido | e4311be6-e0d2-4932-bf8e-ba6dc1701e24
+(1 linha)
+
+ decisoes | de_agentes | overrides | corrections 
+----------+------------+-----------+-------------
+        2 |          0 |         1 |           0
+(1 linha)
+

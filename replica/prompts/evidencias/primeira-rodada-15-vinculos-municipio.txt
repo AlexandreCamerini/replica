@@ -1,0 +1,26 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+registro  vinculo_sapl:20
+rótulo    Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO
+fontes    sapl
+
+CLASSE        CHAVE  REGISTRO                            FONTE  ORIGEM                 VIGENTE  DESDE              URL                                 EVIDÊNCIA                           ÚLTIMA TENTATIVA
+------------  -----  ----------------------------------  -----  ---------------------  -------  -----------------  ----------------------------------  ----------------------------------  ----------------------------------
+vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   registro_oficial       sim      2026-11-17 10:01Z  https://www12.senado.leg.br/inter…  5d4482e291d4 2026-11-17 10:01Z      lida 2026-11-17 10:01Z
+vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   descoberta_automatica  sim      2026-11-17 10:01Z  https://sapl.camara-fabricada-nov…  desconhecido: nenhuma leitura bem…  desconhecido: nenhuma tentativa d…
+vinculo_sapl  20     Câmara Municipal de Município Fab…  sapl   descoberta_automatica  não      2026-11-17 10:01Z  https://sapl.camara-fabricada.inv…  desconhecido: nenhuma leitura bem…  desconhecido: nenhuma tentativa d…
+
+3 vínculos listados (2 vigentes); 22 vigentes de 23 em adm_vinculos
+troca: 01cf7941-e581-4057-915e-ccefbab5c2a7 -> 6c48f535-6e0b-4a40-a26b-55d14a88989b
+
+runs:
+determinação: dataset
+dataset sapl.descoberta  (dataset compartilhado por todas as casas: o run da descoberta não registra quais casas leu)
+  último carimbo do dataset: 2026-11-17 10:01Z (run 21eeffb0-e82d-4686-b8ab-52b405146d6a)
+  run 21eeffb0-e82d-4686-b8ab-52b405146d6a  2026-11-17 10:01Z  succeeded  fonte sapl  lidas desconhecido  gravadas 1
+  run f1614a3b-2466-4c88-9a65-7e044aec574a  2026-11-17 10:01Z  succeeded  fonte sapl  lidas desconhecido  gravadas 1
+dataset sapl.1190099
+  último carimbo do dataset: 2026-11-17 10:01Z (run 36dacb4a-478a-4d11-912e-db5b9dfc0484)
+  run 36dacb4a-478a-4d11-912e-db5b9dfc0484  2026-11-17 10:01Z  succeeded  fonte sapl  lidas desconhecido  gravadas 32
+run exato do registro: desconhecido: sapl_houses não tem run_id nem last_run_id: só o dataset é determinável, não o run que gravou este registro

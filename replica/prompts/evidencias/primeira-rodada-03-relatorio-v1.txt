@@ -3,13 +3,13 @@ SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requis
 SIMULADO: 0 URLs pedidas, 0 não previstas
 SIMULADO: respostas fabricadas (cenário v1); nenhum número abaixo foi lido da fonte
 
-rodada   b99f71ad-7ab7-4dd6-b8a9-dea208bdb445
+rodada   ca49f9bf-3151-497f-b8f7-41068378adcc
 coletor  sapl.assembleias
 modo     recoletar
 recorte  {'ufs': ['RO', 'AC', 'AM', 'PI', 'PB'], 'anos': [], 'modo': 'recoletar', 'casas': [], 'ibges': [], 'extras': {}}
 status   concluida
-início   2026-11-17 00:54:34.363403+00:00
-fim      2026-11-17 00:54:36.600304+00:00
+início   2026-11-17 10:00:41.982316+00:00
+fim      2026-11-17 10:00:42.223914+00:00
 repete   -
 
 COLETA (leitura das URLs; não diz nada sobre revisão)
@@ -104,16 +104,16 @@ COLETA (leitura das URLs; não diz nada sobre revisão)
 
 REVISÃO (campos com proposta; não diz nada sobre leitura de URL)
   nenhuma proposta registrada nesta rodada
-  Campos com proposta       0 de 0
-    confirmados             0 de 0
-      pela fonte            0 de 0
-      por decisão           0 de 0
-    conflitantes            0 de 0
-    pendentes               0 de 0
-      sem pendência aberta  0 de 0
-  Pendências reabertas      0 de 0
-  Registros com proposta    0 de 0
-  Registros alterados       0 de 0
-  Decisões                  0 de 0
-    aplicadas               0 de 0
-    não aplicadas           0 de 0
+  Campos com proposta                                   0 de 0
+    confirmados                                         0 de 0
+      pela fonte                                        0 de 0
+      por decisão                                       0 de 0
+    conflitantes                                        0 de 0
+    pendentes                                           0 de 0
+      sem pendência aberta                              0 de 0
+  Pendências reabertas                                  0 de 0
+  Registros com proposta                                0 de 0
+  Registros com decisão aplicada (aprovar ou corrigir)  0 de 0
+  Decisões                                              0 de 0
+    aplicadas                                           0 de 0
+    não aplicadas                                       0 de 0

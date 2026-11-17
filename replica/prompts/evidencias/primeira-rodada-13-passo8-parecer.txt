@@ -1,0 +1,6 @@
+SIMULADO. Parte da saída de `node web/e2e-admin/sem-navegador.mjs --sem-build --fluxo --banco admin_coleta_r1` (API HTTP da central; executor da CLI sobre respostas fabricadas, cenário v2). Nada foi lido de fonte real.
+== passo 3: parecer de ensaio da pendência
+ok      POST parecer: id d2d33258-6ec2-4401-b20f-1a91d6e03ec7
+ok      executor (--uma-vez até esvaziar): parecer:concluido [parecer]
+ok      o parecer foi gravado em adm_pareceres com simulado = true
+

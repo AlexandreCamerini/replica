@@ -1,0 +1,12 @@
+SIMULADO. Parte da saída de `node web/e2e-admin/sem-navegador.mjs --sem-build --fluxo --banco admin_coleta_r1` (API HTTP da central; executor da CLI sobre respostas fabricadas, cenário v2). Nada foi lido de fonte real.
+        SIMULADO: fluxo da primeira rodada (passos 6 a 9) pela API da central, banco admin_coleta_r1. Executor da CLI sobre respostas fabricadas (cenário v2). Nada é aplicado às tabelas de domínio.
+ok      o banco conectado é admin_coleta_r1
+ok      fila de pedidos sem pedido ativo no começo
+
+== passo 1: pendência de coleta pelo mapa
+ok      GET /admin/api/estado: mapa com 18 fichas; por UF (ibge): {"11":5,"12":4,"13":4,"22":1,"25":4}
+ok      GET /admin/api/fila?classe=vinculo_sapl responde 200 com a lista (2)
+ok      pendência escolhida: Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO (base_url, id 08937a94-f4b6-4e17-a271-7060e22ab4c0, território municipio 1190099)
+ok      o mapa do país conta 5 ficha(s) na UF 11 do território municipio 1190099
+AVISO   contagem do município 1190099 no mapa da UF: não medida sem navegador (só o Playwright prova)
+
