@@ -37,6 +37,19 @@ set search_path = pg_catalog;
     from pg_indexes where schemaname in ('public', 'login');
   select 'policies ' || count(*) || ' ' || coalesce(md5(string_agg(schemaname || '.' || tablename || '.' || policyname || ':' || cmd || ':' || roles::text || ':' || coalesce(qual, '') || ':' || coalesce(with_check, ''), E'\n' order by schemaname, tablename, policyname)), '-')
     from pg_policies where schemaname in ('public', 'login');
+  select 'rls ' || coalesce(md5(string_agg(n.nspname || '.' || c.relname || ':' || c.relrowsecurity || ':' || c.relforcerowsecurity, E'\n' order by n.nspname, c.relname)), '-')
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname in ('public', 'login') and c.relkind in ('r', 'p');
+  -- grants de tabela e de coluna aos roles do app (sem o grantor, que muda com o dono)
+  select 'acl_tabelas ' || coalesce(md5(string_agg(x, E'\n' order by x)), '-') from (
+    select n.nspname || '.' || c.relname || ':' || a.grantee::regrole || ':' || a.privilege_type || ':' || a.is_grantable as x
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a
+     where n.nspname in ('public', 'login') and c.relkind in ('r', 'p', 'v', 'm', 'S')
+       and a.grantee::regrole::text in ('anon', 'authenticated', 'service_role', 'web_reader', 'web_writer', 'admin_central')) t;
+  select 'acl_colunas ' || coalesce(md5(string_agg(x, E'\n' order by x)), '-') from (
+    select n.nspname || '.' || c.relname || '.' || at.attname || ':' || a.grantee::regrole || ':' || a.privilege_type as x
+      from pg_attribute at join pg_class c on c.oid = at.attrelid join pg_namespace n on n.oid = c.relnamespace, aclexplode(at.attacl) a
+     where n.nspname in ('public', 'login') and at.attacl is not null
+       and a.grantee::regrole::text in ('anon', 'authenticated', 'service_role', 'web_reader', 'web_writer', 'admin_central')) t;
   select 'funcoes ' || count(*)
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname in ('public', 'login') and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e');

@@ -39,10 +39,11 @@ case "$DB" in postgres|railway|template0|template1) echo "Recuso '$DB' como dest
 
 # ---- URLs --------------------------------------------------------------------------------------------------------------------
 # uri_parts: imprime host, porta, banco; uri_set_db: troca o banco; uri_ssl: acrescenta sslmode=require fora do local.
-uri() { python3 -I - "$@" <<'PY'
+uri() { URI_IN="$2" python3 -I - "$1" "${3:-}" <<'PY'  # a URI (com senha) vai por ambiente, nunca por argv
 import sys
 from urllib.parse import urlsplit, parse_qsl, urlencode
-op, url = sys.argv[1], sys.argv[2]
+import os
+op, url = sys.argv[1], os.environ["URI_IN"]
 u = urlsplit(url)
 q = dict(parse_qsl(u.query, keep_blank_values=True))
 host = q.get("host") or u.hostname or ""
@@ -51,9 +52,17 @@ if op == "host": print(host or "(socket)")
 elif op == "local": print("1" if local else "0")
 elif op == "key": print(f"{host}:{u.port or q.get('port') or 5432}/{u.path.lstrip('/')}")
 elif op == "db": print(u.path.lstrip("/"))
+elif op == "nopass":
+    netloc = (u.username + "@" if u.username else "") + (f"[{u.hostname}]" if u.hostname and ":" in u.hostname else (u.hostname or "")) + (f":{u.port}" if u.port else "")
+    print(f"{u.scheme}://{netloc}{u.path}" + ("?" + u.query if u.query else ""))
+elif op == "pgpass":
+    from urllib.parse import unquote
+    if u.password:
+        esc = lambda x: x.replace("\\", "\\\\").replace(":", "\\:")
+        print(":".join([esc(host), esc(str(u.port or q.get("port") or 5432)), "*", esc(unquote(u.username or "")), esc(unquote(u.password))]))
 elif op in ("setdb", "ssl"):
     path = u.path
-    if op == "setdb": path = "/" + sys.argv[3]
+    if op == "setdb": path = "/" + sys.argv[2]
     if op == "ssl" and not local and "sslmode" not in q: q["sslmode"] = "require"
     print(f"{u.scheme}://{u.netloc}{path}" + ("?" + urlencode(q) if q else ""))
 PY
@@ -76,11 +85,17 @@ if [[ -z "${DESTINO_URL:-}" ]]; then
 fi
 [[ "$DESTINO_URL" =~ ^postgres(ql)?:// ]] || { echo "DESTINO_URL não começa com postgres://. Abortado." >&2; exit 1; }
 
-ORIGEM="$(secure "$ORIGEM_URL")"
-ADMIN="$(secure "$(uri setdb "$DESTINO_URL" postgres)")"   # manutenção: criar/apagar database
-DESTINO="$(secure "$(uri setdb "$DESTINO_URL" "$DB")")"
-[[ "$(uri key "$ORIGEM")" != "$(uri key "$DESTINO")" ]] || { echo "Origem e destino são o mesmo database. Abortado." >&2; exit 1; }
-unset ORIGEM_URL DESTINO_URL
+ORIGEM_FULL="$(secure "$ORIGEM_URL")"
+ADMIN_FULL="$(secure "$(uri setdb "$DESTINO_URL" postgres)")"   # manutenção: criar/apagar database
+DESTINO_FULL="$(secure "$(uri setdb "$DESTINO_URL" "$DB")")"
+[[ "$(uri key "$ORIGEM_FULL")" != "$(uri key "$DESTINO_FULL")" ]] || { echo "Origem e destino são o mesmo database. Abortado." >&2; exit 1; }
+if [[ $SIM == 1 ]] && ! is_local "$DESTINO_FULL"; then echo "--sim (sem confirmação digitada) só vale com destino local. Abortado." >&2; exit 2; fi
+# Senhas nunca vão para argv (ps mostra): ficam num .pgpass 0600 e as URIs seguem sem senha.
+PGDIR="$(mktemp -d "${TMPDIR:-/tmp}/civico-pg.XXXXXX")"; chmod 700 "$PGDIR"
+{ uri pgpass "$ORIGEM_FULL"; uri pgpass "$DESTINO_FULL"; } > "$PGDIR/pgpass"; chmod 600 "$PGDIR/pgpass"
+export PGPASSFILE="$PGDIR/pgpass"
+ORIGEM="$(uri nopass "$ORIGEM_FULL")"; ADMIN="$(uri nopass "$ADMIN_FULL")"; DESTINO="$(uri nopass "$DESTINO_FULL")"
+unset ORIGEM_URL DESTINO_URL ORIGEM_FULL ADMIN_FULL DESTINO_FULL
 Q=(-X -v ON_ERROR_STOP=1 -At)
 export PGOPTIONS="${PGOPTIONS:-} -c client_min_messages=warning"   # sem NOTICE de "já existe" no meio da saída
 echo "Origem : $(uri host "$ORIGEM") (database $(uri db "$ORIGEM"))"
@@ -90,8 +105,8 @@ echo "Destino: $(uri host "$DESTINO") (database $DB)$([[ $REFAZER == 1 ]] && ech
 T_START=$SECONDS; T_STEP=$SECONDS; STEP=""; SUMMARY=()
 etapa() { STEP="$1"; T_STEP=$SECONDS; echo; echo "== $STEP"; }
 fim() { local d=$((SECONDS - T_STEP)); SUMMARY+=("$(printf '%5ds  %s' "$d" "$STEP")"); echo "   ($STEP: ${d}s)"; }
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/civico-copy.XXXXXX")"; [[ -n "$KEEP" ]] && { mkdir -p "$KEEP"; WORK="$KEEP"; }
-cleanup() { [[ -z "$KEEP" ]] && rm -rf "$WORK"; return 0; }
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/civico-copy.XXXXXX")"; [[ -n "$KEEP" ]] && { install -d -m 700 "$KEEP"; WORK="$KEEP"; }
+cleanup() { rm -rf "$PGDIR"; [[ -z "$KEEP" ]] && rm -rf "$WORK"; return 0; }
 trap cleanup EXIT
 confirmar() { # confirmar "mensagem" valor_esperado
   [[ $SIM == 1 ]] && return 0
@@ -135,7 +150,7 @@ import re, sys
 roles = set()
 for line in sys.stdin:
     if re.match(r"(GRANT|REVOKE|ALTER DEFAULT PRIVILEGES)\b", line):
-        roles.update(m.strip("\"") for m in re.findall(r"\b(?:TO|FROM|FOR ROLE)\s+(\"[^\"]+\"|[A-Za-z_][\w$]*)", line))
+        roles.update(m.strip("\"") for m in re.findall(r"\b(?:TO|FROM)\s+(\"[^\"]+\"|[A-Za-z_][\w$]*)", line))
 print("\n".join(sorted(r for r in roles if r.upper() != "PUBLIC")))' > "$WORK/roles.txt"
 MISSING=()
 while IFS= read -r r; do
@@ -156,7 +171,11 @@ etapa "destino: database e bootstrap"
 EXISTS="$(psql "$ADMIN" "${Q[@]}" -c "select exists (select 1 from pg_database where datname = '$DB')")"
 if [[ $REFAZER == 1 ]]; then
   confirmar "ATENÇÃO: vou APAGAR o database '$DB' do cluster (e só ele)." "$DB"
-  [[ "$EXISTS" == t ]] && psql "$ADMIN" "${Q[@]}" -c "drop database \"$DB\" with (force)"
+  if [[ "$EXISTS" == t ]]; then
+    MARCA="$(psql "$ADMIN" "${Q[@]}" -c "select coalesce(shobj_description(oid, 'pg_database'), '') from pg_database where datname = '$DB'")"
+    [[ "$MARCA" == segueovoto ]] || { echo "O database '$DB' existe sem a marca 'segueovoto': pode ser de outra app. Recuso apagar. Nada alterado." >&2; exit 1; }
+    psql "$ADMIN" "${Q[@]}" -c "drop database \"$DB\" with (force)"
+  fi
   EXISTS=f
 fi
 if [[ "$EXISTS" != t ]]; then psql "$ADMIN" "${Q[@]}" -c "create database \"$DB\""
@@ -186,7 +205,10 @@ fim
 
 # ---- 6. restore -------------------------------------------------------------------------------------------------------------------------------
 etapa "restore (--single-transaction --exit-on-error --role=civico_etl) + bootstrap de novo"
-pg_restore --single-transaction --exit-on-error --role=civico_etl --no-owner -d "$DESTINO" "$WORK/dump.custom"
+# ALTER DEFAULT PRIVILEGES FOR ROLE postgres/supabase_admin (Supabase) não é nosso e o civico_etl não pode executá-lo: fora da lista do restore
+pg_restore -l "$WORK/dump.custom" | grep -v ' DEFAULT ACL ' > "$WORK/restore.list"
+echo "   $(pg_restore -l "$WORK/dump.custom" | grep -c ' DEFAULT ACL ') entrada(s) DEFAULT ACL do dump ignoradas"
+pg_restore --single-transaction --exit-on-error --role=civico_etl --no-owner -L "$WORK/restore.list" -d "$DESTINO" "$WORK/dump.custom"
 if [[ "$HAS_LOGIN" != t ]]; then
   echo "   AVISO: a origem não tem o schema login (migração 0143 ainda não aplicada lá): criado no destino a partir do arquivo da migração." >&2
   psql "$DESTINO" -X -q -v ON_ERROR_STOP=1 -c "set role civico_etl" -f "$ROOT/db/migrations/0143_login_pg.sql"

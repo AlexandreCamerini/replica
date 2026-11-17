@@ -8,6 +8,7 @@
 --  * só toca nos roles do Segue o Voto (lista abaixo); nenhum é superusuário, todos nascem NOLOGIN e levam a marca 'segueovoto'
 --    (comment on role). A senha e o LOGIN são dados fora deste arquivo (runbook-railway.md), nunca versionados.
 --  * role da lista que já exista sem a marca é de outra app: aborta antes de mexer em qualquer coisa.
+--  * o database também tem guarda: só vale vazio ou já marcado 'segueovoto' (comment on database); recusa postgres e railway.
 --  * nada usa o nome do database: tudo vale para current_database(), e config de role é sempre `in database`.
 \set ON_ERROR_STOP on
 begin;
@@ -24,10 +25,22 @@ begin
     raise exception 'bootstrap: rode com um superusuário (cria extensões e troca o dono do database); current_user = %', current_user;
   end if;
   -- Supabase: o stub de auth sobrescreveria o auth.uid() de verdade
-  if exists (select 1 from pg_roles where rolname in ('supabase_admin','supabase_auth_admin'))
-     or exists (select 1 from pg_namespace where nspname in ('supabase_functions','realtime','storage','graphql'))
+  if exists (select 1 from pg_namespace where nspname in ('supabase_functions','realtime','storage','graphql'))
      or exists (select 1 from information_schema.columns where table_schema = 'auth' and table_name = 'users' and column_name = 'encrypted_password') then
     raise exception 'bootstrap: este database parece ser Supabase (auth nativo); este arquivo é só para o Postgres do Railway';
+  end if;
+  -- guarda do DATABASE: nunca assume um database que já tem dono. Só vale database vazio (nenhum schema de usuário além de um public
+  -- sem objetos) ou já marcado 'segueovoto' por um bootstrap anterior. O database padrão do Railway pode ser de outra app.
+  if current_database() in ('postgres', 'railway', 'template0', 'template1') then
+    raise exception 'bootstrap: recuso o database %: use um database próprio do Segue o Voto', current_database();
+  end if;
+  if shobj_description((select oid from pg_database where datname = current_database()), 'pg_database') is distinct from 'segueovoto' then
+    if exists (select 1 from pg_namespace where nspname !~ '^pg_' and nspname not in ('information_schema', 'public'))
+       or exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public')
+       or exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public')
+       or exists (select 1 from pg_extension where extname not in ('plpgsql')) then
+      raise exception 'bootstrap: o database % não está vazio e não tem a marca ''segueovoto'': pode ser de outra app. Nada foi alterado.', current_database();
+    end if;
   end if;
   for r in select oid, rolname, rolsuper, shobj_description(oid, 'pg_authid') as marca from pg_roles where rolname = any (nomes) loop
     if r.marca is distinct from 'segueovoto' then
@@ -64,6 +77,7 @@ grant authenticated to web_writer;      -- asUser(): set_config('role','authenti
 do $config$
 declare db text := current_database();
 begin
+  execute format('comment on database %I is %L', db, 'segueovoto');
   execute format('alter database %I owner to civico_etl', db);
   execute format('alter database %I set search_path = "$user", public, extensions', db);
   -- no Supabase o timeout só valia pelo PostgREST (anon/authenticated); aqui o site conecta como web_reader/web_writer e a troca
