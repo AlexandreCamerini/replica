@@ -51,6 +51,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import signal
 import threading
 import uuid
 from typing import Any, Callable
@@ -624,11 +625,42 @@ def _despachar(conn: Any, tabela: str, pedido_id: str, runner: Callable[[list[st
     return _falhou(f"tipo de pedido desconhecido: {t!r}")
 
 
+# ------------------------------------------------------------------ encerramento por sinal
+
+
+class ExecutorEncerrado(BaseException):
+    """Lançada pelo tratador de SIGTERM/SIGINT na thread principal enquanto há pedido em execução. BaseException: `except Exception` do código de coleta não a engole."""
+
+    def __init__(self, motivo: str):
+        super().__init__(motivo)
+        self.motivo = motivo
+
+
+class Encerramento:
+    """Estado do encerramento pedido por sinal. `parar` é o evento do laço; `interrompivel` só é verdadeiro enquanto há pedido `em_execucao` com batimento ligado (é aí, e só aí, que o tratador
+    interrompe a thread principal; fora disso apenas pede a saída, e o pedido nunca fica `em_execucao` sem desfecho)."""
+
+    def __init__(self, parar: threading.Event):
+        self.parar = parar
+        self.motivo = ""
+        self.interrompivel = False
+
+    def pedir(self, nome: str) -> None:
+        self.motivo = f"executor encerrado ({nome})"
+        self.parar.set()
+
+    def tratador(self, signum: int, _frame: Any) -> None:
+        self.pedir(signal.Signals(signum).name)
+        if self.interrompivel:
+            self.interrompivel = False
+            raise ExecutorEncerrado(self.motivo)
+
+
 # ------------------------------------------------------------------ executar um pedido
 
 
 def executar_um(conn: Any, *, agora: Any = None, runner: Callable[[list[str]], int] | None = None, batimento_s: float = BATIMENTO_S,
-                conn_factory: Callable[[], Any] | None = None) -> dict[str, Any] | None:
+                conn_factory: Callable[[], Any] | None = None, encerramento: Encerramento | None = None) -> dict[str, Any] | None:
     """Limpa órfãos, pega o pedido mais antigo (das duas tabelas), executa e grava o desfecho. None se não há pedido `na_fila`. Comita sozinho.
     `agora` (relógio do banco por padrão) só vale para o limite de órfãos (teste); `runner` é repassado a `rodadas.executar` (teste); `batimento_s` é o intervalo do batimento (teste)."""
     conn.rollback()
@@ -640,19 +672,27 @@ def executar_um(conn: Any, *, agora: Any = None, runner: Callable[[list[str]], i
     bat.start()
     try:
         try:
+            if encerramento is not None:
+                encerramento.interrompivel = True
+                if encerramento.parar.is_set():  # o sinal chegou entre pegar o pedido e ligar o batimento: não se perde
+                    raise ExecutorEncerrado(encerramento.motivo)
             s = _despachar(conn, p["tabela"], str(p["id"]), runner)
         except Exception as e:  # noqa: BLE001 - bug ou erro de infraestrutura: o pedido falha com o motivo e o laço continua
             with contextlib.suppress(Exception):
                 conn.rollback()
             s = _falhou(f"erro inesperado: {type(e).__name__}: {e}"[:500])
         except BaseException as e:
+            if encerramento is not None:
+                encerramento.interrompivel = False
             bat.parar()
             with contextlib.suppress(Exception):
                 conn.rollback()
-                _finalizar(conn, p, "interrompido", f"executor interrompido: {type(e).__name__}")
+                _finalizar(conn, p, "interrompido", e.motivo if isinstance(e, ExecutorEncerrado) else f"executor interrompido: {type(e).__name__}")
                 conn.commit()
             raise
     finally:
+        if encerramento is not None:
+            encerramento.interrompivel = False
         bat.parar()
     perdida = bool(s.get("finalizacao_perdida"))
     if not s.get("finalizado"):
@@ -665,17 +705,24 @@ def executar_um(conn: Any, *, agora: Any = None, runner: Callable[[list[str]], i
 
 def laco(conn_factory: Callable[[], Any], *, intervalo: float = 2.0, uma_vez: bool = False, runner: Callable[[list[str]], int] | None = None, batimento_s: float = BATIMENTO_S,
          parar: threading.Event | None = None, aviso: Callable[[str], None] | None = None) -> dict[str, Any] | None:
-    """O laço do executor. `uma_vez`: processa no máximo um pedido e devolve o resultado (ou None). Sem `uma_vez` roda até `parar` ser sinalizado (ou Ctrl-C) e devolve None.
+    """O laço do executor. `uma_vez`: processa no máximo um pedido e devolve o resultado (ou None). Sem `uma_vez` roda até `parar` ser sinalizado ou até SIGTERM/SIGINT e devolve None.
+    SIGTERM/SIGINT (instalados só na thread principal; os tratadores anteriores voltam ao sair): para de pegar pedido; sem pedido em execução sai na hora; com pedido em execução o batimento
+    para e o pedido vira `interrompido` com o motivo "executor encerrado (SIGTERM)" antes de sair (a tela não espera os 120 s). Saída normal (código 0).
     Conexão perdida: reabre no ciclo seguinte (o pedido em execução fica sem batimento e é interrompido pelo próximo executor)."""
     parar = parar or threading.Event()
+    enc = Encerramento(parar)
     dizer = aviso or (lambda _m: None)
+    anteriores: dict[int, Any] = {}
+    if threading.current_thread() is threading.main_thread():
+        for sg in (signal.SIGTERM, signal.SIGINT):
+            anteriores[sg] = signal.signal(sg, enc.tratador)
     conn = None
     try:
         while not parar.is_set():
             try:
                 if conn is None:
                     conn = conn_factory()
-                r = executar_um(conn, runner=runner, batimento_s=batimento_s)
+                r = executar_um(conn, runner=runner, batimento_s=batimento_s, encerramento=enc)
             except psycopg.OperationalError as e:
                 dizer(f"executor: banco indisponível ({e}); tento de novo em {intervalo:g} s")
                 with contextlib.suppress(Exception):
@@ -691,9 +738,14 @@ def laco(conn_factory: Callable[[], Any], *, intervalo: float = 2.0, uma_vez: bo
                 return r
             if r is None:
                 parar.wait(intervalo)
+        dizer(f"{enc.motivo or 'executor: parada pedida'}")
+    except ExecutorEncerrado as e:
+        dizer(f"{e.motivo}: pedido em execução marcado como interrompido")
     except KeyboardInterrupt:
         dizer("executor: interrompido")
     finally:
+        for sg, h in anteriores.items():
+            signal.signal(sg, h)
         if conn is not None:
             with contextlib.suppress(Exception):
                 conn.close()
