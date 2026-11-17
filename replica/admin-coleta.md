@@ -360,7 +360,7 @@ Estado de execução nesta entrega: o Playwright não roda no sandbox, e a prova
 
 Nada disto foi feito. Produção está na `0120_raw_copy.sql` segundo `replica/runbook-migracoes-producao.md`.
 
-1. **Aplicar 0150 a 0155 em produção.** O runbook atual cobre só 0130, 0131, 0140 e 0141. Ele precisa ser estendido antes de qualquer aplicação. Ordem e risco de cada uma: ver os cabeçalhos das migrações e a seção 4.1 de `replica/fluxo-de-dados.md`. A branch também tem `db/migrations/0142_drop_expenses_supplier_doc_idx.sql`, que o `main` ainda não tem; o runbook deve cobri-la ou ser conferido contra ela.
+1. **Aplicar 0150 a 0155 em produção.** O runbook atual cobre só 0130, 0131, 0140 e 0141. Ele precisa ser estendido antes de qualquer aplicação. Ordem e risco de cada uma: ver os cabeçalhos das migrações e a seção 4.1 de `replica/fluxo-de-dados.md`. Antes da `0150`, conferir que o papel do ETL em produção é dono de `sapl_houses`, `data_coverage`, `mandate_contacts` e das `adm_*`, ou tem `BYPASSRLS` (os gatilhos não são `security definer`; a `0150` liga RLS sem policy). A `0142_drop_expenses_supplier_doc_idx.sql` está no ponto de partida e no `main`; em produção o índice já foi removido à mão (D314 em `replica/decisions.md`) e a migração consta pendente, virando no-op; o runbook deve cobri-la ou ser conferido contra ela.
 2. **Publicar a central com login e papel de admin.** Hoje não há autenticação. Falta:
    - autenticação do operador (hoje a central confia na rede local);
    - papel de admin, separado do usuário comum do site;
