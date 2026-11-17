@@ -19,7 +19,9 @@ Premissas declaradas (corrija se alguma estiver errada):
 
 O provedor `supabase` continua intacto: a volta do corte é trocar `AUTH_PROVIDER`.
 
-## 1. Ações do dono antes do ensaio (nada disso está no PR)
+## 1. Ações do dono antes do ensaio
+`bash db/railway/configurar-dono.sh --db civico_ensaio` faz os itens 1, 2 e 4 abaixo de forma guiada (senhas dos roles geradas e guardadas em `~/.config/segueovoto/railway-roles.env`, 0600; precisa do database já com o bootstrap, ou seja, depois do primeiro `railway-copy.sh`). Não foi executado no P1.
+
 1. **Roles com login e senha**, no Railway, fora de qualquer arquivo versionado. Depois do bootstrap os roles nascem `nologin`:
    ```sql
    alter role web_reader  login password '<gerada>';
