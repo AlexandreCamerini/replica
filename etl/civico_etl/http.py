@@ -85,7 +85,7 @@ def _gancho_destino_publico(resolver: Any = None):
     """Gancho de requisição do httpx (`event_hooks["request"]`), chamado para CADA requisição, inclusive as de redirecionamento: recusa host IP não público
     ou nome que resolve para IP não público (regra de admin/rede_segura.py; sem exigir https: há coletores de sites http legítimos). Resolução em cache por
     host durante a vida do cliente. Nome que não resolve passa: o transporte falha sozinho com o erro de rede de sempre.
-    O rebinding é fechado pelo `_BackendSeguro` (confere e conecta no mesmo resultado de DNS) quando não há proxy; com proxy vale só este gancho. Fora desta checagem o comportamento é byte a byte o de antes.
+    O rebinding é fechado pelo `_BackendSeguro` (confere e conecta no mesmo resultado de DNS). Com o transporte explícito, o httpx 0.28 IGNORA HTTP(S)_PROXY do ambiente (achado N5): nenhum coletor usa proxy hoje; se um dia usar, o proxy terá de ser configurado no transporte. Fora desta checagem o comportamento é byte a byte o de antes.
     Desligável só por ETL_REDE_SEGURA=0."""
     from .admin.rede_segura import motivo_host
 
@@ -140,7 +140,7 @@ class _BackendSeguro(httpcore.NetworkBackend):
 
 def _transporte_seguro(resolver: Any = None) -> httpx.HTTPTransport:
     """HTTPTransport padrão com o backend de rede seguro no pool do httpcore. Usa `_pool._network_backend` (API privada do httpcore; versões travadas
-    no uv.lock: httpcore 1.0.9 / httpx 0.28.1). Se o formato mudar ou houver proxy (o pool vira outro tipo), não troca nada: fica só o gancho por requisição."""
+    no uv.lock: httpcore 1.0.9 / httpx 0.28.1). Se o formato do pool mudar, não troca nada: fica só o gancho por requisição. Proxy do ambiente não é usado com transporte explícito (httpx 0.28)."""
     t = httpx.HTTPTransport()
     pool = getattr(t, "_pool", None)
     if type(pool) is httpcore.ConnectionPool and hasattr(pool, "_network_backend"):

@@ -25,12 +25,15 @@ test("next.config: sem ADMIN_CENTRAL=producao devolve exatamente o objeto de sem
   assert.equal(configuracao({ NEXT_DIST_DIR: ".next-x" }).distDir, ".next-x");
 });
 
-test("next.config: com ADMIN_CENTRAL=producao acrescenta SÓ rewrites, headers e skipTrailingSlashRedirect; o resto é idêntico", async () => {
+test("next.config: com ADMIN_CENTRAL=producao acrescenta SÓ rewrites, headers, skipTrailingSlashRedirect e caseSensitiveRoutes; o resto é idêntico", async () => {
   const site = configuracao({});
   const adm = configuracao({ ADMIN_CENTRAL: "producao" });
-  const { rewrites, headers, skipTrailingSlashRedirect, ...resto } = adm;
+  const { rewrites, headers, skipTrailingSlashRedirect, experimental, ...resto } = adm;
   assert.equal(skipTrailingSlashRedirect, true, "o 308 de barra final sai antes dos cabeçalhos: no projeto admin a barra passa pelo middleware");
+  // N1: rotas e rewrites sensíveis à caixa, senão /ADMIN e /_NEXT/STATIC escapam do rewrite e do middleware
+  assert.deepEqual(experimental, { ...(site.experimental ?? {}), caseSensitiveRoutes: true });
   assert.deepEqual(resto, site);
+  assert.equal(site.experimental, undefined, "o build do site não ganha experimental");
   const rw = await rewrites!();
   assert.ok(!Array.isArray(rw));
   assert.deepEqual(rw, { beforeFiles: [{ source: FORA_DA_CENTRAL, destination: DESTINO_404 }], afterFiles: [], fallback: [] });

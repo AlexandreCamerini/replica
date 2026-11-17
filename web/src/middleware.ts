@@ -14,7 +14,20 @@ import { cabecalhosDeSeguranca, CABECALHO_NONCE, ehEntrada, ehEntradaSemSessao, 
 import { decidirAcesso, hostDeRequisicaoPermitido } from "./lib/admin/guarda-regra.ts";
 import { comPrazo } from "./lib/admin/prazo.ts";
 
-export const config = { matcher: ["/admin", "/admin/:path*"], runtime: "nodejs" };
+// Matcher: /admin e, além dele, SÓ as variantes de caixa dos prefixos que o projeto admin serve (admin, _next, geo, favicon.ico), com a forma minúscula excluída por
+// lookahead. Achado N1 da reverificação F3: o rewrite do next.config é avaliado sem distinguir caixa (a exceção `admin` casava `/ADMIN`), e `/ADMIN`, `/_NEXT/STATIC/x`,
+// `/GEO/...` escapavam do rewrite e do middleware e serviam o not-found PÚBLICO na origem da central. Nenhum caminho minúsculo do site passa a ser coberto.
+export const config = {
+  matcher: [
+    "/admin",
+    "/admin/:path*",
+    "/:p((?!admin)[aA][dD][mM][iI][nN].*)",
+    "/:p((?!_next)_[nN][eE][xX][tT].*)",
+    "/:p((?!geo)[gG][eE][oO].*)",
+    "/:p((?!favicon\\.ico)[fF][aA][vV][iI][cC][oO][nN]\\.[iI][cC][oO].*)",
+  ],
+  runtime: "nodejs",
+};
 
 const novoNonce = (): string => btoa(crypto.randomUUID());
 const ehPedidoDeAction = (req: NextRequest): boolean => {
@@ -34,6 +47,8 @@ export async function middleware(req: NextRequest): Promise<Response> {
   };
   const negar = (): Response => comSeguranca(new Response(null, { status: 404 }));
 
+  // variante de caixa de um prefixo servido (N1): nunca é rota da central; 404 com cabeçalhos, em qualquer modo
+  if (!(pathname === "/admin" || pathname.startsWith("/admin/"))) return negar();
   if (!acesso.liberada) return negar();
   if (!hostDeRequisicaoPermitido(req.headers.get("host"), acesso.modo)) return negar();
   // NENHUMA server action roda na central (A1/A13): o Next roteia a action pelo ID, não pelo caminho, então uma action PÚBLICA executaria sob qualquer /admin/*. Cabeçalho `Next-Action`

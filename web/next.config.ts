@@ -32,6 +32,9 @@ export function configuracao(env: Record<string, string | undefined>): NextConfi
     // A9: o redirecionamento 308 de barra final do Next roda ANTES dos cabeçalhos do config e do middleware (a resposta sai sem CSP/XFO). Sem ele, `/admin/fila/` é servido como `/admin/fila`,
     // passa pelo middleware (guarda, sessão e cabeçalhos completos) e nenhuma resposta da central sai sem cabeçalho. Só no projeto admin.
     skipTrailingSlashRedirect: true,
+    // N1 (reverificação F3): sem isto o Next compara rotas e rewrites sem distinguir maiúsculas; a exceção `admin|_next/static/` do rewrite casava `/ADMIN` e `/_NEXT/STATIC/x`,
+    // que escapavam do rewrite e do middleware e serviam o not-found público. Com rotas sensíveis à caixa, `/ADMIN` cai no rewrite (404 de 9 B). Só no projeto admin.
+    experimental: { ...(base.experimental ?? {}), caseSensitiveRoutes: true },
     async rewrites() {
       return { beforeFiles: [{ source: FORA_DA_CENTRAL, destination: DESTINO_404 }], afterFiles: [], fallback: [] };
     },

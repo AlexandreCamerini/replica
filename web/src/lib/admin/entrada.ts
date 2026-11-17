@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { clienteAuthDaCentral } from "./cliente-auth.ts";
 import { escolherFator } from "./escolha-fator.ts";
+import { comPrazo } from "./prazo.ts";
 import { adminAtivo, resolverOperador } from "./sessao.ts";
 import { completarAte, PISO_ENTRADA_MS, RELOGIO_REAL, responderNoPiso, type Relogio } from "./tempo-minimo.ts";
 
@@ -65,7 +66,8 @@ export async function verificarCodigo(corpo: Record<string, unknown>, relogio: R
       try {
         if (!(await adminAtivo(email))) return invalido;
         const sb = await clienteAuthDaCentral();
-        const { data, error } = await sb.auth.verifyOtp({ email, token: codigo, type: "email" });
+        // N4: prazo menor que o piso, para a resposta de admin não passar do piso e vazar pelo tempo; estourado = código inválido
+        const { data, error } = await comPrazo(sb.auth.verifyOtp({ email, token: codigo, type: "email" }), PISO_ENTRADA_MS - 400);
         if (error || !data.user) return invalido;
       } catch (e) {
         logErro("verifyCode", e);

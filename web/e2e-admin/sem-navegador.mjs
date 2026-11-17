@@ -498,7 +498,7 @@ function construirAdminProducao(t) {
 async function a1PublicoFechado(srv) {
   R.cabecalho("F3-C1 (A1, A9, A13): o projeto admin (Host da central) não serve o site público; todo 404 e todo 308 levam os cabeçalhos");
   const h = { host: HP };
-  const fora = ["/", "/entrar", "/api/me", "/pessoas", "/conta", "/api/places", "/api/qualquer", "/_next/data/x/y.json", "/p/x/opengraph-image", "/proposta/x/opengraph-image", "/robots.txt", "/rota-que-nao-existe", "/v2/x", "/votacoes", "/_next/admin-central-fora-do-escopo"];
+  const fora = ["/", "/entrar", "/api/me", "/pessoas", "/conta", "/api/places", "/api/qualquer", "/_next/data/x/y.json", "/p/x/opengraph-image", "/proposta/x/opengraph-image", "/robots.txt", "/rota-que-nao-existe", "/v2/x", "/votacoes", "/_next/admin-central-fora-do-escopo", "/ADMIN", "/aDmin", "/Admin/fila", "/ADMIN/api/estado", "/_NEXT/STATIC/x", "/_Next/static/chunks/x.js", "/GEO/br.json", "/Geo/uf/35.json", "/FAVICON.ICO"];
   const rs = [];
   for (const u of fora) rs.push([u, await C.crua(srv.base, u, { cabecalhos: h })]);
   R.checa(rs.every(([, r]) => r.status === 404), `${fora.length} caminhos do site público (/, /entrar, /api/me, /pessoas, /conta, /api/places, imagens OG, /v2, ...) respondem 404`, rs.filter(([, r]) => r.status !== 404).map(([u, r]) => `${u} -> ${r.status}`).join("; "));

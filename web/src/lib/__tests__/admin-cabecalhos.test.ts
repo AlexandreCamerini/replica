@@ -169,7 +169,13 @@ test("middleware, produção, SEM sessão (sem cookie: o Supabase nem sai para a
 
 test("o middleware só cobre /admin e roda em Node; nada do site público importa dele nem ele do site público", async () => {
   const { config } = await import("../../middleware.ts");
-  assert.deepEqual(config.matcher, ["/admin", "/admin/:path*"]);
+  assert.deepEqual(config.matcher.slice(0, 2), ["/admin", "/admin/:path*"]);
+  // N1: as entradas extras só pegam VARIANTES DE CAIXA (a forma minúscula é excluída por lookahead); nenhum caminho minúsculo do site é coberto
+  const { createRequire } = await import("node:module");
+  const { pathToRegexp } = createRequire(import.meta.url)("next/dist/compiled/path-to-regexp") as { pathToRegexp: (p: string, k: unknown[], o: { sensitive: boolean }) => RegExp };
+  const casa = (u: string) => config.matcher.some((m: string) => pathToRegexp(m, [], { sensitive: true }).test(u));
+  for (const u of ["/", "/entrar", "/pessoas", "/api/me", "/_next/static/chunks/a.js", "/_next/data/x.json", "/geo/br.json", "/geo/uf/35.json", "/favicon.ico", "/administracao-publica"]) assert.equal(casa(u), false, `não pode cobrir ${u}`);
+  for (const u of ["/ADMIN", "/aDmin/fila", "/_NEXT/STATIC/x", "/_Next/static/a.js", "/GEO/br.json", "/Geo/uf/35.json", "/FAVICON.ICO", "/admin", "/admin/fila"]) assert.ok(casa(u), `tem de cobrir ${u}`);
   assert.equal(config.runtime, "nodejs");
   const fonte = readFileSync(new URL("../../middleware.ts", import.meta.url), "utf8");
   for (const m of fonte.matchAll(/from\s+["']([^"']+)["']/g)) assert.ok(["@supabase/ssr", "next/server.js"].includes(m[1]) || /^\.\/lib\/admin\/(guarda-regra|cabecalhos|prazo)\.ts$/.test(m[1]), `middleware importa ${m[1]}`);
