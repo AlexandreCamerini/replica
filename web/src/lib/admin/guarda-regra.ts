@@ -12,7 +12,7 @@
 
 export type DecisaoAcesso = { liberada: boolean; motivo: string };
 
-const HOSTS_LOCAIS = new Set(["localhost", "127.0.0.1", "::1"]);
+export const HOSTS_LOCAIS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "::1"]);
 
 export function decidirAcesso(env: Record<string, string | undefined>): DecisaoAcesso {
   const nega = (motivo: string): DecisaoAcesso => ({ liberada: false, motivo });
@@ -21,6 +21,8 @@ export function decidirAcesso(env: Record<string, string | undefined>): DecisaoA
   if (env.VERCEL_ENV !== undefined) return nega("VERCEL_ENV definida");
   const url = env.ADMIN_DATABASE_URL;
   if (url === undefined || url.trim() === "") return nega("ADMIN_DATABASE_URL ausente");
+  // `#`, espaço e caractere de controle: o driver `postgres` corta a URL só em `/` e `?` (não em `#`), então `localhost#@remoto` conectaria no remoto (achado N1).
+  if (/[#\s\u0000-\u001f\u007f]/.test(url)) return nega("ADMIN_DATABASE_URL com caractere não aceito");
   let host: string;
   let u: URL;
   try {
@@ -30,13 +32,17 @@ export function decidirAcesso(env: Record<string, string | undefined>): DecisaoA
     return nega("ADMIN_DATABASE_URL malformada");
   }
   if (u.protocol !== "postgres:" && u.protocol !== "postgresql:") return nega("ADMIN_DATABASE_URL com protocolo que não é postgres");
-  const authority = url.trim().replace(/^[^:]*:\/\//, "").split(/[/?#]/)[0] ?? "";
+  const authority = url.trim().replace(/^[^:]*:\/\//, "").split(/[/?]/)[0] ?? "";
   if (authority.slice(authority.lastIndexOf("@") + 1).includes(",")) return nega("ADMIN_DATABASE_URL com mais de um host");
   for (const k of u.searchParams.keys()) {
     if (["host", "hostaddr", "service"].includes(k.toLowerCase())) return nega("ADMIN_DATABASE_URL com host na query");
   }
   if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
   if (!HOSTS_LOCAIS.has(host)) return nega("host de ADMIN_DATABASE_URL não é local");
+  // Segunda leitura, do jeito do driver (node_modules/postgres/src/index.js, parseUrl): authority até o primeiro `/` ou `?`, host depois do último `@`.
+  const doDriver = authority.slice(authority.lastIndexOf("@") + 1).replace(/:\d*$/, "").toLowerCase();
+  const hostDriver = doDriver.startsWith("[") && doDriver.endsWith("]") ? doDriver.slice(1, -1) : doDriver;
+  if (!HOSTS_LOCAIS.has(hostDriver)) return nega("host de ADMIN_DATABASE_URL não é local");
   return { liberada: true, motivo: "ligada, fora da Vercel, banco local" };
 }
 

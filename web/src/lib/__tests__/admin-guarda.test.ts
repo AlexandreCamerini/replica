@@ -71,3 +71,27 @@ test("G1-4: Host de requisição só local (localhost, 127.0.0.1, [::1]), com ou
   for (const h of [null, undefined, "", "evil.example.com", "evil.example.com:3000", "localhost.evil.example.com", "127.0.0.1.evil.example.com", "mylocalhost", "10.0.0.5", "[::2]", "::1", "localhost:abc", "localhost:3000:1", "[::1", "a@localhost", "localhost/x"])
     assert.equal(hostDeRequisicaoLocal(h), false, String(h));
 });
+
+// Achado N1 (reverificador): a guarda cortava a URL em `#`, o driver não; `localhost#@remoto` passava e conectava no remoto.
+test("N1: `#`, espaço e controle na URL bloqueiam; a guarda e o driver concordam sobre o host em toda URL aceita", async () => {
+  for (const u of [
+    "postgres://u@localhost#@remoto.example.com/db",
+    "postgres://u@localhost:54329#@203.0.113.7:54329/db",
+    "postgres://u@localhost#,remoto/db",
+    "postgres://u@localhost/db#x",
+    "postgres://u@local host/db",
+    "postgres://u@localhost/db\n",
+    "postgres://u@localhost\t/db",
+    "postgres://u@localhost/db\u0000",
+  ])
+    assert.equal(decidirAcesso(ligada({ ADMIN_DATABASE_URL: u })).liberada, false, JSON.stringify(u));
+  const { default: postgres } = await import("postgres");
+  const aceitas = [LOCAL, "postgres://u:p@127.0.0.1:5432/d", "postgres://u:p@[::1]:5432/d", "postgresql://u@localhost:5432/db", "postgres://u:p@localhost/db?sslmode=disable&application_name=central", "postgres://u:p%2C1@localhost/db", "postgres://u:p%40x@localhost/db"];
+  for (const u of aceitas) {
+    assert.equal(decidirAcesso(ligada({ ADMIN_DATABASE_URL: u })).liberada, true, u);
+    const sql = postgres(u, { max: 1 });
+    const hosts = sql.options.host as unknown as string[];
+    assert.ok(!sql.options.path && hosts.length > 0 && hosts.every((h) => ["localhost", "127.0.0.1", "::1"].includes(h.toLowerCase())), `${u} -> driver ${JSON.stringify(hosts)}`);
+    await sql.end({ timeout: 0 });
+  }
+});

@@ -398,6 +398,7 @@ def test_rls_ligada_e_policies_exatas(su):
     do_role = {(p["tablename"], p["policyname"], p["cmd"]) for p in su.execute("select tablename, policyname, roles::text[] as roles, cmd from pg_policies where %s = any(roles)", (ROLE,)).fetchall()}
     esperadas = {(t, "admin_central_le", "SELECT") for t in SELECT_EM} | {(t, "admin_central_insere", "INSERT") for t in INSERT_EM}
     esperadas |= {(t, "admin_central_criado_agora", "INSERT") for t in INSERT_EM}  # 0154 (C11, G4-1): restritiva, o cliente não escolhe o relógio do pedido
+    esperadas |= {(t, "admin_central_criado_relogio", "INSERT") for t in INSERT_EM}  # 0155 (C12, N2): a mesma janela pelo relógio, não pelo início da transação
     assert do_role == esperadas, (do_role ^ esperadas)
     # nenhuma policy `to public` em tabela adm_*
     assert su.execute("select 1 from pg_policies where tablename like 'adm\\_%' and ('public' = any(roles) or roles = '{}')").fetchall() == []
@@ -430,3 +431,19 @@ def test_criado_em_do_pedido_so_aceita_agora(central, pendencia):
         assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"adm_pedidos {v}: {type(e).__name__} {e}"
         e, _ = tentar(central, dec.format(v=v), (pendencia, uuid.uuid4().hex))
         assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"adm_pedidos_decisao {v}: {type(e).__name__} {e}"
+
+
+def test_criado_em_pelo_relogio_e_nao_pelo_inicio_da_transacao(central, pendencia):
+    """0155 (N2): `now()` é o início da transação; quem segura a transação e insere com o default grava `criado_em` retroagido. Com a policy pelo relógio,
+    o default de uma transação de 6 s é recusado nas duas tabelas; o de uma transação curta passa."""
+    ped = "insert into adm_pedidos (tipo, chave_idem) values ('rodada', %s) returning id"
+    dec = "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', 'Fulana', 'conferi', %s) returning id"
+    with central.transaction(force_rollback=True):
+        central.execute("select pg_sleep(0.2)")
+        assert deve_passar(central, ped, (uuid.uuid4().hex,))
+        assert deve_passar(central, dec, (pendencia, uuid.uuid4().hex))
+    with central.transaction(force_rollback=True):
+        central.execute("select pg_sleep(6)")
+        for q, p in ((ped, (uuid.uuid4().hex,)), (dec, (pendencia, uuid.uuid4().hex))):
+            e, _ = tentar(central, q, p)
+            assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"{q[:30]}: {type(e).__name__} {e}"
