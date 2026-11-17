@@ -191,6 +191,8 @@ export const envCentral = (banco, extra = {}) => envCi({ ADMIN_CENTRAL: "1", ADM
 // Modo produção SIMULADO (AC-23): o `next start` local com as variáveis do projeto admin. O Supabase é FALSO: aponta para uma porta local FECHADA (nenhuma requisição sai da máquina);
 // o provedor fora do ar tem de dar 404, nunca derrubar o servidor. O banco é o de ensaio com `sslmode=require` (a guarda só confere o formato; nada consulta o banco antes da sessão).
 export const HOST_PRODUCAO = "admin.segueovoto.com.br";
+// F3-C1: o projeto admin é um BUILD com ADMIN_CENTRAL=producao (rewrites e cabeçalhos entram no build, não no `next start`): pasta própria, para não pisar no build do site (.next).
+export const DIST_ADMIN_PROD = ".next-admin-prod";
 export async function envProducao(banco, extra = {}) {
   const fechada = await portaLivre(); // livre agora = fechada: ninguém escuta
   const base = urlCentral(banco).replace("@localhost:", "@127.0.0.1:");
@@ -201,6 +203,7 @@ export async function envProducao(banco, extra = {}) {
     NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${fechada}`,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: "x",
     ADMIN_DATABASE_URL: `${base}?sslmode=require`,
+    NEXT_DIST_DIR: DIST_ADMIN_PROD,
     ...extra,
   });
 }

@@ -69,17 +69,12 @@ export function recusarOrigemExterna(req: Request): Response | null {
 }
 
 /**
- * Server action das páginas de entrada: o CSRF do Next já compara `Origin` com o Host; confere-se de novo, com a mesma regra dos POST da central (Origin e Sec-Fetch-Site presentes e
- * da própria central; sem exigir JSON, porque o corpo de uma action é multipart). `true` = recusar.
+ * Route handler da ENTRADA (/admin/api/entrar (subcaminhos)): só modo produção, só com a marca do middleware (prova que o Host e a regra foram conferidos) e só requisição da própria central em JSON.
+ * `null` = pode seguir; senão a resposta (404 sem corpo, ou 403). Use na primeira instrução: `const negado = await exigirEntradaApi(req); if (negado) return negado;`
+ * As rotas de fator conferem a sessão por conta própria (`resolverOperador`, em entrada.ts).
  */
-export async function acaoComOrigemExterna(): Promise<boolean> {
-  const h = await headers();
-  return origemRecusada({
-    modo: decidirAcesso(process.env).modo,
-    host: h.get("host"),
-    origin: h.get("origin"),
-    secFetchSite: h.get("sec-fetch-site"),
-    contentType: null,
-    exigirJson: false,
-  });
+export async function exigirEntradaApi(req: Request): Promise<Response | null> {
+  if (decidirAcesso(process.env).modo !== "producao") return new Response(null, { status: 404 });
+  if ((await headers()).get(MARCA_ENTRADA) !== "1") return new Response(null, { status: 404 });
+  return recusarOrigemExterna(req);
 }

@@ -10,18 +10,24 @@
 // só nessas páginas (e só em modo produção, com Host certo) e APAGA o que o cliente mandar com esse nome; o layout só pula a checagem de admin quando a marca existe.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server.js";
-import { cabecalhosDeSeguranca, CABECALHO_NONCE, ehEntrada, ehEntradaSemSessao, MARCA_ENTRADA, opcoesDeCookieDaCentral } from "./lib/admin/cabecalhos.ts";
+import { cabecalhosDeSeguranca, CABECALHO_NONCE, ehEntrada, ehEntradaSemSessao, ehPaginaDeEntrada, MARCA_ENTRADA, OPCOES_SSR_DA_CENTRAL, opcoesDeCookieDaCentral } from "./lib/admin/cabecalhos.ts";
 import { decidirAcesso, hostDeRequisicaoPermitido } from "./lib/admin/guarda-regra.ts";
 import { comPrazo } from "./lib/admin/prazo.ts";
 
 export const config = { matcher: ["/admin", "/admin/:path*"], runtime: "nodejs" };
 
 const novoNonce = (): string => btoa(crypto.randomUUID());
+const ehPedidoDeAction = (req: NextRequest): boolean => {
+  if (req.headers.has("next-action")) return true;
+  const tipo = (req.headers.get("content-type") ?? "").toLowerCase();
+  return req.method === "POST" && (tipo.startsWith("multipart/form-data") || tipo.startsWith("application/x-www-form-urlencoded"));
+};
 
 export async function middleware(req: NextRequest): Promise<Response> {
   const acesso = decidirAcesso(process.env);
   const nonce = novoNonce();
-  const seguranca = cabecalhosDeSeguranca({ modo: acesso.modo, nonce, desenvolvimento: process.env.NODE_ENV !== "production" });
+  const { pathname } = req.nextUrl;
+  const seguranca = cabecalhosDeSeguranca({ modo: acesso.modo, nonce, desenvolvimento: process.env.NODE_ENV !== "production", paginaDeEntrada: ehPaginaDeEntrada(pathname) });
   const comSeguranca = <R extends Response>(r: R): R => {
     for (const [k, v] of Object.entries(seguranca)) r.headers.set(k, v);
     return r;
@@ -30,8 +36,10 @@ export async function middleware(req: NextRequest): Promise<Response> {
 
   if (!acesso.liberada) return negar();
   if (!hostDeRequisicaoPermitido(req.headers.get("host"), acesso.modo)) return negar();
+  // NENHUMA server action roda na central (A1/A13): o Next roteia a action pelo ID, não pelo caminho, então uma action PÚBLICA executaria sob qualquer /admin/*. Cabeçalho `Next-Action`
+  // (fetch) ou POST de formulário (multipart/urlencoded: o envio sem JavaScript leva o id no corpo) = 404 antes de tudo. As rotas de API da central só aceitam JSON.
+  if (ehPedidoDeAction(req)) return negar();
 
-  const { pathname } = req.nextUrl;
   // Cabeçalhos da REQUISIÇÃO que o Next repassa às páginas: o CSP (de onde o Next tira o nonce dos seus scripts) e o nonce. A marca de entrada nunca vem do cliente.
   const proxima = (marcarEntrada: boolean): NextResponse => {
     const h = new Headers(req.headers);
@@ -51,6 +59,7 @@ export async function middleware(req: NextRequest): Promise<Response> {
   const marcar = ehEntrada(pathname);
   let resposta = proxima(marcar);
   const supabase = createServerClient(url, anon, {
+    cookieOptions: OPCOES_SSR_DA_CENTRAL,
     cookies: {
       getAll: () => req.cookies.getAll(),
       setAll(lista, cabecalhos) {
@@ -69,6 +78,6 @@ export async function middleware(req: NextRequest): Promise<Response> {
   } catch {
     temUsuario = false; // falha do provedor = sem usuário = 404 (fecha)
   }
-  if (!temUsuario && !ehEntradaSemSessao(pathname)) return negar();
+  if (!temUsuario && !ehEntradaSemSessao(pathname, req.method)) return negar();
   return comSeguranca(resposta); // `resposta` é a última criada (a de `setAll`, se houve renovação de sessão)
 }

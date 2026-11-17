@@ -1,7 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { opcoesDeCookieDaCentral } from "./cabecalhos.ts";
+import { OPCOES_SSR_DA_CENTRAL, opcoesDeCookieDaCentral } from "./cabecalhos.ts";
 
 // Client do Supabase Auth da CENTRAL (só modo produção), com os cookies da requisição. Próprio de lib/admin: não reaproveita lib/auth/supabase.ts porque aquele grava cookie
 // `SameSite=Lax` e o `signInWithOtp` dele cria conta para qualquer e-mail (`shouldCreateUser: true`); a central não pode dar conta a quem não é admin.
@@ -18,6 +18,7 @@ export async function clienteAuthDaCentral() {
   const { url, anon } = ambiente();
   const store = await cookies();
   return createServerClient(url, anon, {
+    cookieOptions: OPCOES_SSR_DA_CENTRAL, // nome próprio do cookie de sessão da central (A10), o mesmo do middleware
     cookies: {
       getAll: () => store.getAll(),
       setAll: (lista) => {

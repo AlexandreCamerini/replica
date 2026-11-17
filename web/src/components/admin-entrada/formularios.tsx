@@ -1,11 +1,45 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, type FormEvent } from "react";
 import { Turnstile } from "@/components/account/turnstile";
-import { confirmarFator, enviarCodigo, iniciarCadastroFator, verificarCodigo, type EstadoEntrada, type EstadoFator } from "@/lib/admin/entrada";
 
-// Formulários das páginas de entrada da central. Só falam com as server actions de lib/admin/entrada.ts: nenhum fetch, nenhuma URL do Supabase no navegador.
-// O widget Turnstile é o mesmo do site (components/account/turnstile.tsx); a CSP da central o libera só em modo produção.
+// Formulários das páginas de entrada da central. Falam SÓ com as rotas de API da própria central (/admin/api/entrar (subcaminhos), JSON, mesma origem, `fetch` relativo): nenhuma server action
+// (o Next roteia action pelo id, não pelo caminho) e nenhuma URL do Supabase no navegador.
+// O widget Turnstile é o mesmo do site (components/account/turnstile.tsx); a CSP da central o libera só nas páginas de entrada, em modo produção.
+
+type Resposta = { proximo?: string; erro?: string; fatorId?: string; qr?: string; segredo?: string };
+type EstadoFator = { erro?: string; fatorId?: string; qr?: string; segredo?: string };
+
+async function postar(url: string, corpo: Record<string, unknown>): Promise<Resposta> {
+  try {
+    const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corpo), credentials: "same-origin", cache: "no-store" });
+    const j = (await r.json().catch(() => ({}))) as Resposta;
+    if (r.ok) return j;
+    return { erro: j.erro ?? "Não foi possível concluir agora. Tente de novo." };
+  } catch {
+    return { erro: "Sem conexão com a central. Tente de novo." };
+  }
+}
+const campo = (f: HTMLFormElement, nome: string): string => String(new FormData(f).get(nome) ?? "");
+
+/** Envio com estado de pendência e erro; em sucesso com `proximo`, navega (navegação completa: os cookies da etapa vão junto). */
+function useEnvio(acao: (f: HTMLFormElement) => Promise<Resposta>) {
+  const [estado, setEstado] = useState<EstadoFator>({});
+  const [pendente, setPendente] = useState(false);
+  const enviar = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = e.currentTarget;
+    setPendente(true);
+    const r = await acao(f);
+    if (r.proximo) {
+      window.location.assign(r.proximo);
+      return;
+    }
+    setPendente(false);
+    setEstado(r);
+  };
+  return { estado, pendente, enviar };
+}
 
 function Alerta({ erro }: { erro?: string }) {
   return (
@@ -16,12 +50,13 @@ function Alerta({ erro }: { erro?: string }) {
 }
 
 export function FormEmail({ aviso }: { aviso?: string }) {
-  const [estado, acao, pendente] = useActionState<EstadoEntrada, FormData>(enviarCodigo, {});
+  const { estado, pendente, enviar } = useEnvio((f) => postar("/admin/api/entrar/codigo", { email: campo(f, "email"), turnstile: campo(f, "cf-turnstile-response") }));
+  const [email, setEmail] = useState("");
   return (
-    <form action={acao} className="adm-form" noValidate>
+    <form onSubmit={enviar} className="adm-form" noValidate>
       <div className="adm-campo">
         <label htmlFor="adm-email">E-mail</label>
-        <input id="adm-email" name="email" type="email" inputMode="email" autoComplete="email" required maxLength={254} defaultValue={estado.email} aria-invalid={Boolean(estado.erro)} />
+        <input id="adm-email" name="email" type="email" inputMode="email" autoComplete="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={Boolean(estado.erro)} />
       </div>
       {aviso && <p className="adm-ajuda">{aviso}</p>}
       <Turnstile />
@@ -34,9 +69,9 @@ export function FormEmail({ aviso }: { aviso?: string }) {
 }
 
 export function FormCodigo() {
-  const [estado, acao, pendente] = useActionState<EstadoEntrada, FormData>(verificarCodigo, {});
+  const { estado, pendente, enviar } = useEnvio((f) => postar("/admin/api/entrar/verificar", { code: campo(f, "code") }));
   return (
-    <form action={acao} className="adm-form" noValidate>
+    <form onSubmit={enviar} className="adm-form" noValidate>
       <div className="adm-campo">
         <label htmlFor="adm-codigo">Código de 6 números</label>
         <input id="adm-codigo" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required autoFocus aria-invalid={Boolean(estado.erro)} />
@@ -51,9 +86,9 @@ export function FormCodigo() {
 
 /** Fator já cadastrado: só o código do aplicativo. */
 export function FormFatorVerificar() {
-  const [estado, acao, pendente] = useActionState<EstadoFator, FormData>(confirmarFator, {});
+  const { estado, pendente, enviar } = useEnvio((f) => postar("/admin/api/entrar/fator/confirmar", { code: campo(f, "code") }));
   return (
-    <form action={acao} className="adm-form" noValidate>
+    <form onSubmit={enviar} className="adm-form" noValidate>
       <div className="adm-campo">
         <label htmlFor="adm-totp">Código do aplicativo autenticador (6 números)</label>
         <input id="adm-totp" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required autoFocus aria-invalid={Boolean(estado.erro)} />
@@ -66,14 +101,23 @@ export function FormFatorVerificar() {
   );
 }
 
-/** Primeiro acesso: gera o QR (action), mostra, e pede o primeiro código para confirmar o fator. */
+/** Primeiro acesso: gera o QR (rota de API), mostra, e pede o primeiro código para confirmar o fator. */
 export function FormFatorCadastro() {
-  const [estado, acao, pendente] = useActionState<EstadoFator, FormData>(confirmarFator, {});
-  const [inicio, comecar, iniciando] = useActionState<EstadoFator, FormData>(async () => iniciarCadastroFator(), {});
-  const dados = estado.fatorId ? estado : inicio;
+  const [inicio, setInicio] = useState<EstadoFator>({});
+  const [iniciando, setIniciando] = useState(false);
+  const { estado, pendente, enviar } = useEnvio((f) => postar("/admin/api/entrar/fator/confirmar", { code: campo(f, "code"), fatorId: campo(f, "fatorId") }));
+  const comecar = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIniciando(true);
+    const r = await postar("/admin/api/entrar/fator/iniciar", {});
+    setIniciando(false);
+    if (r.proximo) window.location.assign(r.proximo);
+    else setInicio(r);
+  };
+  const dados = inicio;
   if (!dados.fatorId || !dados.qr) {
     return (
-      <form action={comecar} className="adm-form">
+      <form onSubmit={comecar} className="adm-form">
         <Alerta erro={dados.erro} />
         <button type="submit" className="adm-botao" disabled={iniciando} aria-busy={iniciando}>
           {iniciando ? "Preparando…" : "Cadastrar autenticador"}
@@ -82,10 +126,8 @@ export function FormFatorCadastro() {
     );
   }
   return (
-    <form action={acao} className="adm-form" noValidate>
+    <form onSubmit={enviar} className="adm-form" noValidate>
       <input type="hidden" name="fatorId" value={dados.fatorId} />
-      <input type="hidden" name="qr" value={dados.qr} />
-      <input type="hidden" name="segredo" value={dados.segredo ?? ""} />
       {/* eslint-disable-next-line @next/next/no-img-element -- QR em data URI (SVG) devolvido pelo Supabase: não há o que otimizar */}
       <img src={dados.qr} alt="QR code para o aplicativo autenticador" width={200} height={200} />
       <p className="adm-ajuda">

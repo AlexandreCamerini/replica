@@ -26,12 +26,33 @@ const doGrupo = arquivos(GRUPO);
 const doLib = arquivos(LIB).filter((f) => /\.tsx?$/.test(f));
 const codigo = [...doGrupo, ...doLib];
 const layout = join(GRUPO, "layout.tsx");
-const rotas = doGrupo.filter((f) => /\/route\.ts$/.test(f));
+const todasAsRotas = doGrupo.filter((f) => /\/route\.ts$/.test(f));
+// F3-C1: as rotas da ENTRADA (/admin/api/entrar (subcaminhos)) não têm sessão no início; a guarda delas é `rotaDeEntrada`/`exigirEntradaApi` (testada mais abaixo). As demais seguem a regra de sempre.
+const ehDaEntrada = (f: string): boolean => f.includes("/admin/api/entrar/");
+const rotas = todasAsRotas.filter((f) => !ehDaEntrada(f));
+const rotasDeEntrada = todasAsRotas.filter(ehDaEntrada);
 
 test("o grupo (admin) existe: layout e as seis rotas de API", () => {
   assert.ok(doGrupo.includes(layout));
   const esperadas = ["estado", "relatorio/[rodada]", "fila", "ficha/[classe]/[chave]", "pedidos", "decisoes"].map((p) => join(GRUPO, "admin/api", p, "route.ts"));
   assert.deepEqual(rotas, [...esperadas].sort());
+  // F3-C1: mais as quatro rotas de API da entrada (as server actions de entrada.ts deixaram de existir)
+  assert.deepEqual(rotasDeEntrada, ["codigo", "fator/confirmar", "fator/iniciar", "verificar"].map((p) => join(GRUPO, "admin/api/entrar", p, "route.ts")).sort());
+});
+
+test("F3-C1: as rotas da entrada só exportam POST real (via rotaDeEntrada, guarda na primeira instrução) e 404 nos outros métodos; nenhuma server action na central", () => {
+  for (const f of rotasDeEntrada) {
+    const src = semComentarios(ler(f));
+    assert.match(src, /export async function POST\(req: Request\) \{\s*return rotaDeEntrada\(req, /, rel(f));
+    assert.match(src, /export \{ naoUsado as GET, naoUsado as PUT, naoUsado as PATCH, naoUsado as DELETE, naoUsado as OPTIONS, naoUsado as HEAD \};/, rel(f));
+    assert.match(src, /export const dynamic = "force-dynamic";/, rel(f));
+  }
+  const casca = semComentarios(ler(join(LIB, "rota-entrada.ts")));
+  assert.match(casca, /export async function rotaDeEntrada\([^)]*\)[^{]*\{\s*const negado = await exigirEntradaApi\(req\);\s*if \(negado\) return negado;/);
+  const guarda = semComentarios(ler(join(LIB, "guarda.ts")));
+  assert.match(guarda, /export async function exigirEntradaApi\(req: Request\)[^{]*\{\s*if \(decidirAcesso\(process\.env\)\.modo !== "producao"\) return new Response\(null, \{ status: 404 \}\);\s*if \(\(await headers\(\)\)\.get\(MARCA_ENTRADA\) !== "1"\) return new Response\(null, \{ status: 404 \}\);\s*return recusarOrigemExterna\(req\);/);
+  for (const f of codigo) assert.ok(!/["']use server["']/.test(ler(f)), `${rel(f)}: nenhuma server action na central (o id da action vale sob qualquer caminho)`);
+  for (const f of arquivos(join(WEB, "src/components/admin-entrada")).filter((x) => /\.tsx?$/.test(x))) assert.ok(!/["']use server["']|useActionState/.test(ler(f)), `${rel(f)}: formulário com server action`);
 });
 
 test("a primeira instrução do layout é `await exigirAdminOuEntrada()` (AC-23: guarda assíncrona, com await), antes de qualquer JSX", () => {
@@ -103,7 +124,7 @@ test("sqlAdmin() recusa com a central fechada e só cria o pool dentro da funç�
 
 test("guarda, db e consultas são server-only; sql e as regras puras não importam Next", () => {
   for (const n of ["guarda.ts", "db.ts", "consultas.ts", "sessao.ts", "cliente-auth.ts"]) assert.match(ler(join(LIB, n)), /^import "server-only";/, n);
-  for (const n of ["sql.ts", "guarda-regra.ts", "tipos.ts", "agregacao.ts", "cabecalhos.ts"]) {
+  for (const n of ["sql.ts", "guarda-regra.ts", "tipos.ts", "agregacao.ts", "cabecalhos.ts", "tempo-minimo.ts", "escolha-fator.ts"]) {
     const src = semComentarios(ler(join(LIB, n)));
     assert.ok(!/server-only|from "next|from "react|from "@\//.test(src), `${n} é puro: não importa server-only, Next, React nem alias`);
   }
@@ -142,7 +163,10 @@ test("a central não importa as páginas públicas (AC-23): nada de @/app/, nada
 test("a central inteira (menos o widget Turnstile) não carrega nada de fora: nenhum domínio absoluto em lib/admin, no grupo e em components/admin-entrada", () => {
   for (const f of arquivos(join(WEB, "src/components/admin-entrada")).filter((x) => /\.tsx?$/.test(x))) {
     const src = semComentarios(ler(f));
-    assert.ok(!/https?:\/\//i.test(src) && !/\bfetch\s*\(/.test(src), `${rel(f)} tem URL absoluta ou fetch`);
+    assert.ok(!/https?:\/\//i.test(src), `${rel(f)} tem URL absoluta`);
+    // F3-C1: os formulários da entrada usam `fetch` (o desenho antigo usava server actions): só para a API relativa da própria central, por constante literal em `postar("/admin/api/entrar/...")`
+    for (const m of src.matchAll(/\bpostar\(\s*(["'][^,)]*)/g)) assert.match(m[1].trim(), /^"\/admin\/api\/entrar\/[a-z/]+"$/, `${rel(f)}: postar com destino fora da API da entrada: ${m[1]}`);
+    for (const m of src.matchAll(/\bfetch\s*\(\s*([^,)]*)/g)) assert.equal(m[1].trim(), "url", `${rel(f)}: fetch só com o parâmetro url de postar()`);
   }
 });
 

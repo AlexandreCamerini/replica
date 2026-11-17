@@ -42,7 +42,8 @@ test("política CSP: as quatro diretivas obrigatórias e default-src 'self', sem
 
 test("política CSP: Turnstile (e só ele) liberado em produção; nada externo no modo local; Supabase nunca (o navegador não fala com ele)", () => {
   const local = politicaCsp({ modo: "local", nonce: "n" });
-  const prod = politicaCsp({ modo: "producao", nonce: "n" });
+  // F3-C1 (A5): o Turnstile só vale nas páginas de entrada; este teste passou a pedir `paginaDeEntrada: true` (antes o host entrava em toda página da central em produção)
+  const prod = politicaCsp({ modo: "producao", nonce: "n", paginaDeEntrada: true });
   assert.ok(!local.includes("cloudflare") && local.includes("frame-src 'none'"));
   assert.ok(prod.includes("script-src") && /script-src [^;]*challenges\.cloudflare\.com/.test(prod));
   assert.ok(/frame-src challenges\.cloudflare\.com(;|$)/.test(prod) && /connect-src 'self' challenges\.cloudflare\.com/.test(prod));
