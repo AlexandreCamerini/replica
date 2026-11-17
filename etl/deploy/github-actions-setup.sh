@@ -192,6 +192,13 @@ PY="$ROOT/etl/.venv/bin/python"
 export GH_REPO="${GH_REPO:-AlexandreCamerini/replica}"
 ENV_FILE="/nonexistent/.env"   # sem valor sugerido de .env e sem gravar nele (write_env não é usado)
 
+# ssl_url URL: fora do local acrescenta sslmode=require se a URI não disser nada (Railway exige TLS; o Supabase aceita igual)
+ssl_url() {
+  local u="$1"
+  [[ "$u" == *sslmode=* || "$u" =~ @(localhost|127\.0\.0\.1|\[::1\])[:/] ]] && { printf '%s' "$u"; return; }
+  if [[ "$u" == *\?* ]]; then printf '%s&sslmode=require' "$u"; else printf '%s?sslmode=require' "$u"; fi
+}
+
 # db_probe: confere a URL no próprio banco, lida de ETL_DATABASE_URL (env, nunca argv). Imprime uma linha por fato.
 db_probe() {
   ETL_DATABASE_URL="$1" "$PY" - <<'PYEOF'
@@ -224,7 +231,9 @@ pause "Enter para seguir"
 
 # ── 2 ─────────────────────────────────────────────────────────────────────
 stage "Banco de produção: ETL_DATABASE_URL"
-say "A agenda precisa de uma conexão de escrita no banco de produção (Supabase)."
+say "A agenda precisa de uma conexão de escrita no banco de produção (Supabase; depois do corte, o Postgres do Railway)."
+note "Railway: use a DATABASE_PUBLIC_URL (proxy TCP) do serviço Postgres, com usuário/senha do role civico_etl e o database do Segue o Voto."
+note "No Railway não há pooler de sessão a escolher: a conexão é direta e o advisory lock funciona. As instruções de Session pooler abaixo são do Supabase."
 open_url "https://supabase.com/dashboard/projects"
 step "Abra o projeto de produção → botão Connect (topo) → aba Connection String."
 step "Escolha 'Session pooler' (porta 5432, IPv4). Os runners do GitHub não têm IPv6,"
@@ -237,6 +246,7 @@ while :; do
   if [[ "$DB_URL" =~ :6543(/|\?|$) || "$DB_URL" == *pgbouncer=true* ]]; then warn "é o Transaction pooler (6543/pgbouncer); use o Session pooler"; continue; fi
   if [[ "$DB_URL" =~ @(localhost|127\.0\.0\.1|\[::1\])[:/] ]]; then warn "é um banco local; o GitHub não alcança o seu Mac"; continue; fi
   if [[ "$DB_URL" == *YOUR-PASSWORD* ]]; then warn "ainda tem [YOUR-PASSWORD]; troque pela senha"; continue; fi
+  DB_URL="$(ssl_url "$DB_URL")"
   say "Testando a conexão daqui..."
   if PROBE=$(db_probe "$DB_URL" 2>&1); then break; fi
   warn "não conectou:"; PROBE="${PROBE//"$DB_URL"/<url>}"; note "$(printf '%s' "$PROBE" | tail -n 2)"

@@ -8,6 +8,10 @@
 #   Production: DATA_SOURCE=pg, DATABASE_URL, DATABASE_WRITE_URL
 #   Preview:    DATA_SOURCE=pg, DATABASE_URL (mesma conexão de leitura, usuário web_reader)
 #
+# Serve para o Supabase e para o Postgres do Railway (corte): URI do Railway entra igual; fora do local o script acrescenta
+# sslmode=require se faltar. Opcional: PG_POOL_MAX e PG_WRITE_POOL_MAX (ex.: 2) vão para Production quando definidas no ambiente
+# (sem pooler à frente do Railway, cada função da Vercel abre as suas conexões: o runbook-railway.md manda medir no ensaio).
+#
 # Pede a URL de leitura uma vez, sem eco (a CLI não consegue copiar um Secret já gravado). Nada é impresso.
 # Uso: bash etl/deploy/vercel-env-fix.sh            # aplica e refaz os deploys
 #      bash etl/deploy/vercel-env-fix.sh --dry-run  # só mostra o que faria
@@ -32,6 +36,9 @@ if (( ! DRY )) && [[ -z "$DB_URL" ]]; then
 fi
 if (( ! DRY )); then
   [[ "$DB_URL" =~ ^postgres(ql)?:// ]] || { echo "Não parece uma URL postgres://. Abortado."; exit 1; }
+  if [[ "$DB_URL" != *sslmode=* && ! "$DB_URL" =~ @(localhost|127\.0\.0\.1|\[::1\])[:/] ]]; then
+    if [[ "$DB_URL" == *\?* ]]; then DB_URL="$DB_URL&sslmode=require"; else DB_URL="$DB_URL?sslmode=require"; fi
+  fi
   [[ "$DB_URL" == *web_reader* ]] || echo "Aviso: a URL não usa o usuário web_reader; o preview teria mais permissão que o necessário."
 fi
 
@@ -45,6 +52,14 @@ fi
 
 echo "2/5 DATABASE_WRITE_URL: só Production"
 run v env rm DATABASE_WRITE_URL preview --yes >/dev/null 2>&1 || true
+for pool in PG_POOL_MAX PG_WRITE_POOL_MAX; do
+  if [[ -n "${!pool:-}" ]]; then
+    [[ "${!pool}" =~ ^[0-9]{1,2}$ ]] || { echo "$pool inválido: ${!pool}"; exit 1; }
+    echo "   $pool=${!pool} (Production)"
+    run v env rm "$pool" production --yes >/dev/null 2>&1 || true
+    if (( ! DRY )); then printf '%s' "${!pool}" | v env add "$pool" --environment production --no-sensitive --yes >/dev/null; fi
+  fi
+done
 
 echo "3/5 Preview: DATA_SOURCE=pg, sem ALLOW_DEMO_DATA"
 run v env rm DATA_SOURCE preview --yes >/dev/null 2>&1 || true

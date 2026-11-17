@@ -192,11 +192,21 @@ finish() {
 # aparecem na tela, em argv ou em arquivo. Chaves coladas também (entrada oculta; testes via curl -K -, não argv).
 # Idempotente: o que já existe é pulado, salvo se você pedir para regravar. Nada vai para .env.
 #
+# Corte para o Postgres do Railway: AUTH_PROVIDER_ALVO=pg bash etl/deploy/config-producao.sh troca os estágios do Supabase Auth
+# (chaves e painel) pelo do provedor `pg` (RESEND_API_KEY, AUTH_EMAIL_FROM; SESSION_SECRET de 64 hex já atende o mínimo de 32).
+# Sem a variável o comportamento é o de sempre (Supabase). A troca de AUTH_PROVIDER em si é do runbook-railway.md.
+#
 # Uso: bash etl/deploy/config-producao.sh            # assistente completo
 #      bash etl/deploy/config-producao.sh --check    # só o diagnóstico (o que existe e o que falta), sem gravar nada
 # ──────────────────────────────────────────────────────────────────────────
 
 TOTAL_STAGES=8
+AUTH_ALVO="${AUTH_PROVIDER_ALVO:-supabase}"
+case "$AUTH_ALVO" in
+  supabase) AUTH_VARS_PROD="NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY"; AUTH_VARS_PREVIEW="NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY" ;;
+  pg) AUTH_VARS_PROD="RESEND_API_KEY AUTH_EMAIL_FROM"; AUTH_VARS_PREVIEW="" ;;
+  *) echo "AUTH_PROVIDER_ALVO inválido: $AUTH_ALVO (supabase ou pg)"; exit 1 ;;
+esac
 SCOPE="alexandrecamerini"
 PROJECT="replica"
 SITE="${SITE:-https://replica-virid-sigma.vercel.app}"
@@ -254,16 +264,17 @@ b() { "$@" && echo 1 || echo 0; }
 diagnose() {
   refresh_vercel; refresh_gh
   say "${BOLD}Vercel · Production${RESET}"
-  for n in REVALIDATE_SECRET SITE_URL SESSION_SECRET NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY NEXT_PUBLIC_TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY; do
+  for n in REVALIDATE_SECRET SITE_URL SESSION_SECRET $AUTH_VARS_PROD NEXT_PUBLIC_TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY; do
     status_line "$n" "$(b has_v "$n" Production)"
   done
   say "${BOLD}Vercel · Preview${RESET}"
-  for n in SESSION_SECRET NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY; do
+  for n in SESSION_SECRET $AUTH_VARS_PREVIEW NEXT_PUBLIC_TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY; do
     status_line "$n" "$(b has_v "$n" Preview)"
   done
   say "${BOLD}GitHub Actions · $GH_REPO${RESET}"
   for n in REVALIDATE_URL REVALIDATE_SECRET ANTHROPIC_API_KEY; do status_line "$n" "$(b has_g "$n")"; done
-  note "AUTH_PROVIDER=supabase já está nos dois ambientes: sem as chaves do Supabase o login quebra."
+  if [[ "$AUTH_ALVO" == pg ]]; then note "Alvo pg: AUTH_PROVIDER=pg só entra no corte (runbook-railway.md); sem RESEND_API_KEY e AUTH_EMAIL_FROM o código não sai."
+  else note "AUTH_PROVIDER=supabase já está nos dois ambientes: sem as chaves do Supabase o login quebra."; fi
   note "Sem TURNSTILE_SECRET_KEY o captcha falha fechado em produção (formulários recusam tudo)."
 }
 
@@ -323,8 +334,27 @@ else SS=$(gen); vset SESSION_SECRET production,preview sensitive "$SS" || true; 
 pause "Enter para seguir"
 
 # ── 4 ─────────────────────────────────────────────────────────────────────
-stage "Supabase Auth: chaves"
-if has_v NEXT_PUBLIC_SUPABASE_URL Production && has_v NEXT_PUBLIC_SUPABASE_ANON_KEY Production && has_v SUPABASE_SERVICE_ROLE_KEY Production \
+stage "$([[ "$AUTH_ALVO" == pg ]] && echo 'Login pg: Resend' || echo 'Supabase Auth: chaves')"
+if [[ "$AUTH_ALVO" == pg ]]; then
+  say "O provedor pg envia o código pela API HTTP do Resend: precisa da chave e de um remetente de domínio verificado."
+  if has_v RESEND_API_KEY Production && has_v AUTH_EMAIL_FROM Production && ! confirm "RESEND_API_KEY e AUTH_EMAIL_FROM já existem. Regravar?"; then
+    say "Mantidas."
+  else
+    open_url "https://resend.com/api-keys"
+    step "Create API Key com permissão 'Sending access' restrita ao domínio do remetente."
+    step "Remetente: um endereço do domínio já verificado no Resend (ex.: Segue o Voto <login@seudominio>)."
+    while :; do
+      ask_secret RS_KEY "Chave do Resend (re_..., oculta):"; trim RS_KEY
+      [[ "$RS_KEY" == re_* ]] && break
+      warn "esperado re_..."
+    done
+    ask RS_FROM "Remetente (AUTH_EMAIL_FROM):"
+    [[ "$RS_FROM" == *@* ]] || { warn "remetente sem @"; exit 1; }
+    vset RESEND_API_KEY production sensitive "$RS_KEY" || true
+    vset AUTH_EMAIL_FROM production plain "$RS_FROM" || true
+    unset RS_KEY RS_FROM
+  fi
+elif has_v NEXT_PUBLIC_SUPABASE_URL Production && has_v NEXT_PUBLIC_SUPABASE_ANON_KEY Production && has_v SUPABASE_SERVICE_ROLE_KEY Production \
    && ! confirm "As três chaves já existem. Regravar?"; then
   say "Mantidas."
 else
@@ -371,6 +401,10 @@ pause "Enter para seguir"
 
 # ── 5 ─────────────────────────────────────────────────────────────────────
 stage "Supabase Auth: painel (manual)"
+if [[ "$AUTH_ALVO" == pg ]]; then
+  say "Nada a fazer no painel do Supabase: o login pg não usa o Supabase Auth."
+  pause "Enter para seguir"
+else
 open_url "https://supabase.com/dashboard/project/_/auth/url-configuration"
 step "Authentication → URL Configuration → Site URL = $SITE"
 step "Redirect URLs: adicione $SITE/** e https://replica-git-*-$SCOPE.vercel.app/**"
@@ -382,6 +416,7 @@ step "repassa o mesmo token; token é de uso único e o Supabase recusaria (\"A 
 note "Opcional (R2): Authentication → Emails → SMTP com o Resend. Sem SMTP próprio o Supabase"
 note "manda poucos e-mails por hora, o que trava o login em qualquer pico."
 pause "Feito? Enter para seguir"
+fi
 
 # ── 6 ─────────────────────────────────────────────────────────────────────
 stage "Cloudflare Turnstile (captcha)"
