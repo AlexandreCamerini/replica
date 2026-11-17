@@ -40,7 +40,10 @@ export async function exigirAdminOuEntrada(): Promise<void> {
 export async function exigirAdminApi(): Promise<Response | null> {
   if (!centralLiberada()) return new Response(null, { status: 404 });
   const r = await resolverOperador();
-  return r.ok ? null : new Response(null, { status: 404 });
+  if (r.ok) return null;
+  // modo local com o banco fora: 503 com a mensagem que a tela entende como falha de banco (não "sessão expirou")
+  if (r.destino === "banco") return new Response(JSON.stringify({ erro: "Não foi possível ler o banco." }), { status: 503, headers: { "content-type": "application/json" } });
+  return new Response(null, { status: 404 });
 }
 
 /** Página /admin/entrar: só em modo produção e só com a marca do middleware (prova que o Host e a regra foram conferidos). Qualquer outra coisa = 404. */

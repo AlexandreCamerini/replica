@@ -171,5 +171,13 @@ test("o middleware só cobre /admin e roda em Node; nada do site público import
   assert.deepEqual(config.matcher, ["/admin", "/admin/:path*"]);
   assert.equal(config.runtime, "nodejs");
   const fonte = readFileSync(new URL("../../middleware.ts", import.meta.url), "utf8");
-  for (const m of fonte.matchAll(/from\s+["']([^"']+)["']/g)) assert.ok(["@supabase/ssr", "next/server.js"].includes(m[1]) || /^\.\/lib\/admin\/(guarda-regra|cabecalhos)\.ts$/.test(m[1]), `middleware importa ${m[1]}`);
+  for (const m of fonte.matchAll(/from\s+["']([^"']+)["']/g)) assert.ok(["@supabase/ssr", "next/server.js"].includes(m[1]) || /^\.\/lib\/admin\/(guarda-regra|cabecalhos|prazo)\.ts$/.test(m[1]), `middleware importa ${m[1]}`);
+});
+
+test("comPrazo: promessa que não termina falha no prazo; a que termina antes passa", async () => {
+  const { comPrazo } = await import("../admin/prazo.ts");
+  const inicio = Date.now();
+  await assert.rejects(comPrazo(new Promise(() => {}), 50), /prazo/);
+  assert.ok(Date.now() - inicio < 1000);
+  assert.equal(await comPrazo(Promise.resolve(7), 50), 7);
 });

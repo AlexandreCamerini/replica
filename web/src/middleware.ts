@@ -12,6 +12,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server.js";
 import { cabecalhosDeSeguranca, CABECALHO_NONCE, ehEntrada, ehEntradaSemSessao, MARCA_ENTRADA, opcoesDeCookieDaCentral } from "./lib/admin/cabecalhos.ts";
 import { decidirAcesso, hostDeRequisicaoPermitido } from "./lib/admin/guarda-regra.ts";
+import { comPrazo } from "./lib/admin/prazo.ts";
 
 export const config = { matcher: ["/admin", "/admin/:path*"], runtime: "nodejs" };
 
@@ -63,7 +64,7 @@ export async function middleware(req: NextRequest): Promise<Response> {
   });
   let temUsuario = false;
   try {
-    const { data, error } = await supabase.auth.getUser(); // valida o token no servidor do Auth; não confia só no cookie
+    const { data, error } = await comPrazo(supabase.auth.getUser()); // valida o token no servidor do Auth; não confia só no cookie; com prazo (provedor fora do ar = 404 rápido)
     temUsuario = !error && !!data.user;
   } catch {
     temUsuario = false; // falha do provedor = sem usuário = 404 (fecha)

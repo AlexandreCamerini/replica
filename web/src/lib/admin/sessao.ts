@@ -4,6 +4,7 @@ import { cache } from "react";
 import { clienteAuthDaCentral } from "./cliente-auth.ts";
 import { sqlAdmin } from "./db.ts";
 import { decidirAcesso } from "./guarda-regra.ts";
+import { comPrazo } from "./prazo.ts";
 import { SQL_ADMIN_ATIVO } from "./sql.ts";
 
 // Identidade do operador da central (AC-23). Função única `operadorAtual()`; ninguém mais diz "quem é" (o `por` do corpo é ignorado).
@@ -13,7 +14,7 @@ import { SQL_ADMIN_ATIVO } from "./sql.ts";
 // Falha de banco ou do provedor = 404 (fecha), com só o código no log.
 
 export type Operador = { userId: string | null; email: string; nome: string };
-export type Resolucao = { ok: true; operador: Operador } | { ok: false; destino: "404" | "fator" };
+export type Resolucao = { ok: true; operador: Operador } | { ok: false; destino: "404" | "fator" | "banco" };
 
 type LinhaAdmin = { email: string; nome: string; user_id: string | null; ativo: boolean };
 const NEGADO: Resolucao = { ok: false, destino: "404" };
@@ -26,8 +27,8 @@ export async function adminAtivo(email: string): Promise<LinhaAdmin | null> {
 
 /** Resolve o operador sem lançar nem redirecionar (rotas de API usam isto e respondem 404). Uma vez por requisição renderizada (React `cache`). */
 export const resolverOperador = cache(async (): Promise<Resolucao> => {
+  const acesso = decidirAcesso(process.env);
   try {
-    const acesso = decidirAcesso(process.env);
     if (!acesso.liberada) return NEGADO;
     if (acesso.modo === "local") {
       const email = process.env.ADMIN_LOCAL_EMAIL?.trim().toLowerCase();
@@ -36,19 +37,21 @@ export const resolverOperador = cache(async (): Promise<Resolucao> => {
       return a ? { ok: true, operador: { userId: a.user_id, email: a.email.toLowerCase(), nome: a.nome } } : NEGADO;
     }
     const sb = await clienteAuthDaCentral();
-    const { data, error } = await sb.auth.getUser(); // antes do aal: o nível vem de um token já validado
+    const { data, error } = await comPrazo(sb.auth.getUser()); // antes do aal: o nível vem de um token já validado
     const u = data.user;
     if (error || !u || !u.email || !u.email_confirmed_at) return NEGADO;
     const a = await adminAtivo(u.email.toLowerCase());
     if (!a) return NEGADO;
     if (a.user_id !== null && a.user_id !== u.id) return NEGADO;
-    const { data: nivel, error: erroNivel } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    const { data: nivel, error: erroNivel } = await comPrazo(sb.auth.mfa.getAuthenticatorAssuranceLevel());
     if (erroNivel || !nivel) return NEGADO;
     if (nivel.currentLevel !== "aal2") return { ok: false, destino: "fator" };
     return { ok: true, operador: { userId: u.id, email: a.email.toLowerCase(), nome: a.nome } };
   } catch (e) {
     console.error("[admin] identidade:", e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : e instanceof Error ? e.name : typeof e);
-    return NEGADO;
+    // Modo local: a única falha possível é o banco (não há provedor de login); dizer "banco" em vez de 404, que a tela leria como "sessão expirou".
+    // Modo produção: qualquer falha fecha com 404 (não se sabe se quem pede é admin).
+    return acesso.modo === "local" ? { ok: false, destino: "banco" } : NEGADO;
   }
 });
 
@@ -57,5 +60,6 @@ export async function operadorAtual(): Promise<Operador> {
   const r = await resolverOperador();
   if (r.ok) return r.operador;
   if (r.destino === "fator") redirect("/admin/entrar/fator");
+  if (r.destino === "banco") throw new Error("central local: o banco não respondeu ao conferir o operador");
   notFound();
 }

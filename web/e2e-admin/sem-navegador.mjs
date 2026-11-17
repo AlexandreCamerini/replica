@@ -506,7 +506,7 @@ async function provedorForaDoAr(rotas) {
     R.checa(x.ent === 200, `[${m}] /admin/entrar com o provedor fora do ar: 200 (renderiza o formulário; quem não passa pelo provedor não entra, mas a página abre)`, `status ${x.ent}`);
     R.checa(x.conexoes >= 1, `[${m}] o servidor TENTOU falar com o Supabase falso (${x.conexoes} conexões): a prova não passou por um caminho que nem tenta`);
     R.checa(x.vivo[0] === 404 && x.vivo[1] === 200 && !/unhandled|uncaught|TypeError/i.test(x.log), `[${m}] depois de ${x.conexoes} conexões ao provedor falso o servidor continua de pé (404 na central, / 200) e o log não tem exceção solta`, `central ${x.vivo[0]}, / ${x.vivo[1]}; log: ${x.log.slice(-300)}`);
-    R.aviso(`ACHADO [${m}]: com o provedor fora do ar, o conjunto de requisições em paralelo com cookie de sessão levou ${x.seg.toFixed(0)} s (cada uma ~25 s até o 404 por causa do backoff do supabase-js dentro do middleware, sem prazo; /admin/entrar ~51 s porque a página repete a chamada); sem cookie o 404 é imediato. Relatado, não corrigido (fora do escopo da T5).`);
+    R.checa(x.seg <= 12, `[${m}] com o provedor fora do ar o 404 sai no prazo (comPrazo, 4 s por chamada ao Auth; /admin/entrar faz até duas): o conjunto em paralelo levou ${x.seg.toFixed(1)} s (antes do prazo: ~25 s por requisição e ~51 s em /admin/entrar)`, `${x.seg.toFixed(1)} s`);
   }
 }
 
@@ -814,11 +814,12 @@ async function completo() {
     }
     const aposGrants = C.sqlLinhas(C.BANCO_C7, "select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a where n.nspname = 'public' and c.relkind = 'r' and a.grantee = 'admin_central'::regrole and a.privilege_type = 'SELECT' and c.relname <> 'adm_admins' order by 1").map((l) => l[0]);
     R.checa(C.canonico(aposGrants) === C.canonico(grantsTab) && C.sql(C.BANCO_C7, "select count(*) from pg_db_role_setting where setrole = 'admin_central'::regrole") === "0", "grants do admin_central devolvidos como estavam (mesmas tabelas) e a configuração read-only removida");
-    // banco INALCANÇÁVEL (porta local fechada): a identidade não se resolve, a guarda fecha (404), nunca erro_leitura nem 503. Mudança da F3, por desenho (sessao.ts: falha de banco = 404).
+    // banco INALCANÇÁVEL (porta local fechada), MODO LOCAL: a identidade não se resolve por falha de banco; a API diz 503 "Não foi possível ler o banco" (a tela mostra falha de banco, não
+    // "sessão expirou") e a página sai com erro do servidor (500), nunca 200 nem 404 (AC-27). No modo produção a mesma falha fecha com 404 (não se sabe se quem pede é admin).
     const fora = await C.subirNext(C.envCentral(C.BANCO_C7, { ADMIN_DATABASE_URL: "postgres://admin_central:admin_central@127.0.0.1:1/admin_coleta_c7" }));
     try {
       const st = await Promise.all(["/admin", "/admin/fila", "/admin/api/estado"].map((p) => C.http(fora.base, p)));
-      R.checa(st.every((x) => x.status === 404) && st[2].texto === "", "banco inalcançável (porta fechada): 404 em página e API (a API sem corpo; a página com o 404 padrão do Next), porque a identidade não se resolve e a guarda fecha", st.map((x) => x.status).join(","));
+      R.checa(st[0].status === 500 && st[1].status === 500 && st[2].status === 503 && /Não foi possível ler o banco/.test(st[2].texto), "banco inalcançável (porta fechada), modo local: páginas 500 e API 503 com \"Não foi possível ler o banco\" (nunca 404 \"sessão expirou\" nem 200)", st.map((x) => x.status).join(","));
       R.checa((await C.http(fora.base, "/")).status === 200, "o site público continua 200 com o banco da central fora do ar");
     } finally {
       await fora.parar();
