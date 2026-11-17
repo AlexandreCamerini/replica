@@ -50,7 +50,8 @@ export async function pgAuth(): Promise<AuthProvider> {
     cookie: {
       get: () => jar.get(name)?.value,
       set: (value, maxAge) => jar.set(name, value, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge }),
-      clear: () => jar.delete({ name, path: "/" }),
+      // delete() não manda Secure e o navegador rejeita apagar um cookie __Host-: expira com o mesmo conjunto de atributos
+      clear: () => jar.set(name, "", { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 0 }),
     },
   });
 }

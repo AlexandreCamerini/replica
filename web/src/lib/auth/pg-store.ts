@@ -50,6 +50,7 @@ export function pgStore(sql: postgres.Sql): PgStore {
         await tx`
           insert into login.sessoes_validas_desde (user_id, valido_desde) values (${id}::uuid, ${new Date(nowMs)}::timestamptz)
           on conflict (user_id) do update set valido_desde = greatest(login.sessoes_validas_desde.valido_desde, excluded.valido_desde)`;
+        await tx`delete from login.codes where email = (select email from auth.users where id = ${id}::uuid)`; // LGPD
         await tx`delete from auth.users where id = ${id}::uuid`;
       });
     },
