@@ -7,6 +7,7 @@
 # Uso: bash db/railway/configurar-dono.sh [--db civico_ensaio] [--etapa roles|supabase|vercel|tudo]
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$ROOT/db/railway/lib-uri.sh"
 DB=civico_ensaio; ETAPA=tudo
 while [[ $# -gt 0 ]]; do case "$1" in --db) DB="$2"; shift ;; --etapa) ETAPA="$2"; shift ;; *) echo "opção desconhecida: $1" >&2; exit 2 ;; esac; shift; done
 [[ "$DB" =~ ^[a-z_][a-z0-9_]*$ ]] || { echo "--db inválido" >&2; exit 2; }
@@ -21,11 +22,15 @@ etapa_roles() {
   local vars url
   vars="$(railway variables --service "${RAILWAY_PG_SERVICE:-Postgres}" --kv)" || { echo "railway login/link feitos?" >&2; exit 1; }
   url="$(grep -E '^DATABASE_PUBLIC_URL=' <<<"$vars" | head -1 | cut -d= -f2- || true)"; unset vars
-  [[ "$url" =~ ^postgres(ql)?://.*@([^:/]+):([0-9]+)/ ]] || { echo "DATABASE_PUBLIC_URL ausente ou inesperada" >&2; exit 1; }
-  local host="${BASH_REMATCH[2]}" port="${BASH_REMATCH[3]}"
-  export PGSSLMODE=require
-  # superusuário do cluster: a URI entra só no ambiente do psql (nunca em argv)
-  adm() { PGDATABASE="$DB" psql "$url" -X -v ON_ERROR_STOP=1 -At "$@"; }
+  [[ "$url" =~ ^postgres(ql)?:// ]] || { echo "DATABASE_PUBLIC_URL ausente ou inesperada" >&2; exit 1; }
+  # o database vem da URI, não de PGDATABASE: troca o caminho para o database do ensaio e tira a senha do argv (.pgpass 0600)
+  local full host port
+  full="$(secure "$(uri setdb "$url" "$DB")")"; unset url
+  PGDIR="$(mktemp -d "${TMPDIR:-/tmp}/civico-cfg.XXXXXX")"; chmod 700 "$PGDIR"; trap 'rm -rf "$PGDIR"' EXIT
+  uri pgpass "$full" > "$PGDIR/pgpass"; chmod 600 "$PGDIR/pgpass"; export PGPASSFILE="$PGDIR/pgpass"
+  host="$(uri host "$full")"; port="$(uri key "$full")"; port="${port#*:}"; port="${port%%/*}"
+  url="$(uri nopass "$full")"; unset full
+  adm() { psql "$url" -X -v ON_ERROR_STOP=1 -At "$@"; }
   adm -c "select 1" >/dev/null || { echo "não conectei ao database $DB. Rode antes o railway-copy.sh/bootstrap.sql." >&2; exit 1; }
   [[ "$(adm -c "select shobj_description(oid,'pg_database') from pg_database where datname = current_database()")" == segueovoto ]] \
     || { echo "o database $DB não tem a marca segueovoto: rode o bootstrap.sql primeiro. Nada alterado." >&2; exit 1; }
@@ -47,7 +52,8 @@ etapa_roles() {
   fi
   echo "   Confira: statement_timeout por role (3s, 8s):"
   for r in web_reader web_writer; do
-    u="$(grep "^${r}_URL=" "$OUT" | cut -d= -f2-)"; printf '   %s: ' "$r"; psql "$u" -X -At -c "show statement_timeout" || true
+    u="$(grep "^${r}_URL=" "$OUT" | cut -d= -f2-)"; uri pgpass "$u" >> "$PGDIR/pgpass"   # senha no .pgpass, nunca em argv
+    printf '   %s: ' "$r"; psql "$(uri nopass "$u")" -X -At -c "show statement_timeout" || true
   done
 }
 
