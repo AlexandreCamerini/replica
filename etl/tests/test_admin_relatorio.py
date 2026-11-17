@@ -460,7 +460,7 @@ def test_6_cli_json_tabela_e_inexistente(mundo, cx, monkeypatch, capsys):
     assert cli.main(["admin", "relatorio", rid]) == 0
     txt = capsys.readouterr().out
     assert f"URLs tentadas" in txt and f"{n} de {n}" in txt and "10 de 10" in txt and "5 de 5" in txt and "3 de 5" in txt and "2 de 5" in txt and f"e mais {n - 20}" in txt
-    for rot in ("URLs tentadas", "  lidas", "  com falha", "URLs de entrada declaradas", "Registros elegíveis", "Registros alcançados", "Campos com proposta", "Registros alterados"):
+    for rot in ("URLs tentadas", "  lidas", "  com falha", "URLs de entrada declaradas", "Registros elegíveis", "Registros alcançados", "Campos com proposta", "Registros com decisão aplicada (aprovar ou corrigir)"):
         assert re.search(rf"^  {re.escape(rot)}\s+\d+ de \d+$", txt, re.M), rot
     assert "COLETA" in txt and "REVISÃO" in txt and txt.index("COLETA") < txt.index("REVISÃO")
     assert cli.main(["admin", "relatorio", rid, "--ids"]) == 0

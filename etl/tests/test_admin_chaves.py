@@ -121,16 +121,22 @@ def test_matriz_so_variavel_on_e_linha_on_aplicam_e_todas_as_outras_falham_fecha
     assert len(VARIAVEIS) * len(LINHAS) == 30
 
 
-def test_a_comparacao_e_exata_em_minusculas_nas_duas_chaves(iso):
+def test_a_comparacao_e_exata_em_minusculas_nas_duas_chaves(iso, monkeypatch):
+    # B6: `ambiente=` saiu; a variável é a real, posta com monkeypatch (mesmos valores e mesmas conclusões de antes)
     for v in ("ON", "On", "1", "true", "yes", " on", "on ", ""):
         iso.execute("delete from pipeline_switches where name = %s", (CHAVE_BANCO,))
         iso.execute("insert into pipeline_switches (name, value, note) values (%s, %s, 'teste B4')", (CHAVE_BANCO, v))
-        assert APL.chaves_dos_agentes(iso, {VAR: "on"}) == {"variavel": True, "linha": False, "ligadas": False}, repr(v)
-        assert APL.chaves_dos_agentes(iso, {VAR: v})["variavel"] is False, repr(v)
+        monkeypatch.setenv(VAR, "on")
+        assert APL.chaves_dos_agentes(iso) == {"variavel": True, "linha": False, "ligadas": False}, repr(v)
+        monkeypatch.setenv(VAR, v)
+        assert APL.chaves_dos_agentes(iso)["variavel"] is False, repr(v)
     iso.execute("update pipeline_switches set value = 'on' where name = %s", (CHAVE_BANCO,))
-    assert APL.chaves_dos_agentes(iso, {VAR: "on"})["ligadas"] is True and APL.chaves_dos_agentes(iso, {})["ligadas"] is False
+    monkeypatch.setenv(VAR, "on")
+    assert APL.chaves_dos_agentes(iso)["ligadas"] is True
+    monkeypatch.delenv(VAR, raising=False)
+    assert APL.chaves_dos_agentes(iso)["ligadas"] is False
     src = inspect.getsource(APL.chaves_dos_agentes)  # as duas comparações do código, sem .lower()/.upper()/.strip()
-    assert 'amb.get(VARIAVEL) == "on"' in src and 'r["value"] == "on"' in src and not re.search(r"\.(lower|upper|strip|casefold)\(", src)
+    assert 'os.environ.get(VARIAVEL) == "on"' in src and 'r["value"] == "on"' in src and not re.search(r"\.(lower|upper|strip|casefold)\(", src)
 
 
 # ------------------------------------------------------------------ 2. a segunda chave no BANCO, sem passar pelo código
@@ -289,13 +295,14 @@ def test_aplicar_por_agentes_com_as_duas_ligadas_recusa_ensaio_e_falta_confirmar
     assert n(iso, "adm_decisoes") == 1
 
 
-def test_aplicar_por_agentes_um_ambiente_forjado_nao_liga_a_linha_do_banco(iso, m, monkeypatch):
-    """O parâmetro `ambiente` (só para teste; nenhum subcomando o passa) substitui a VARIÁVEL, nunca a linha de `pipeline_switches`: com a linha ausente continua falhando."""
+def test_aplicar_por_agentes_a_variavel_ligada_nao_liga_a_linha_do_banco(iso, m, monkeypatch):
+    """B6: o parâmetro `ambiente=` saiu (ver test_admin_endurece.py). Aqui a VARIÁVEL real (monkeypatch) ligada nunca liga a linha de `pipeline_switches`: com a linha ausente continua falhando."""
     real, _, _ = _pareceres(iso, m)
     poe(iso, monkeypatch, "ausente", "ausente")
+    monkeypatch.setenv(VAR, "on")
     antes = retrato(iso, excluir=())
     with pytest.raises(ChavesDesligadas):
-        PA.aplicar_por_agentes(iso, real["id"], ambiente={VAR: "on"})
+        PA.aplicar_por_agentes(iso, real["id"])
     assert retrato(iso, excluir=()) == antes and n(iso, "adm_decisoes") == 0
 
 

@@ -29,7 +29,7 @@ por outro processo) a proposta não é registrada: entra em `Resumo.sem_evidenci
                            `set_coverage` e `_no_legislature`), e, na falta dela, `<base_url>/api/`. O trecho diz que o valor resume a carga inteira e que só esta leitura tem hash aqui.
 Tentativa `lida` ou `reaproveitada`: hash do conteúdo (`adm_tentativas`/`adm_evidencias`); `lida_em` = o horário da leitura (para `reaproveitada`, a data da leitura real em
 `adm_evidencias` quando o hash é o mesmo, senão o da tentativa; `tentativas.py` explica). Tentativa `falha`: NÃO há conteúdo lido; o hash é o do REGISTRO DA TENTATIVA
-(JSON canônico com url, resultado, motivo e http_status, SEM horário: falha que persiste com o mesmo desfecho tem o mesmo hash e não reabre pendência; o hash muda quando muda o motivo ou o status HTTP; o horário fica em `lida_em` e no trecho) e o trecho diz isso. `fonte_declarada_em`: só do cabeçalho `Last-Modified` que o cache em disco guarda para a URL, quando o
+(JSON canônico com url, resultado, motivo e http_status, SEM horário: falha que persiste com o mesmo desfecho tem o mesmo hash e não reabre pendência; o hash muda quando muda o motivo ou o status HTTP (todo 5xx conta como o mesmo desfecho); o horário fica em `lida_em` e no trecho) e o trecho diz isso. `fonte_declarada_em`: só do cabeçalho `Last-Modified` que o cache em disco guarda para a URL, quando o
 hash do cache é o da leitura; o SAPL das fixtures e (até onde o cache mostra) das respostas lidas não o declara: nulo.
 
 Não decide nada sozinho: só registra proposta e deixa a pendência aberta ou reaberta. Não escreve em tabela de domínio. Nenhuma função daqui comita; `registrar` roda num
@@ -272,7 +272,10 @@ def _da_tentativa(conn: Any, rodada_id: str, cache_dir: str | None, url: str, de
         return None
     quando = t["tentada_em"]
     if t["resultado"] == "falha" or not t["conteudo_sha256"]:
-        registro = {"url": url, "resultado": t["resultado"], "motivo": t["motivo"], "http_status": t["http_status"]}  # sem horário: o hash só muda quando o desfecho muda
+        # sem horário: o hash só muda quando o desfecho muda. Todo HTTP 5xx entra como o MESMO valor ("5xx"): a oscilação 500/502/503 de um servidor instável não reabre pendência decidida (AC-15);
+        # os outros status (403, 404, ...) e a ausência de resposta (None) ficam como estão. O trecho continua dizendo o status exato da tentativa.
+        st_hash = "5xx" if isinstance(t["http_status"], int) and 500 <= t["http_status"] <= 599 else t["http_status"]
+        registro = {"url": url, "resultado": t["resultado"], "motivo": t["motivo"], "http_status": st_hash}
         st = t["http_status"] if t["http_status"] is not None else "sem resposta"
         trecho = (f"sem conteúdo lido: tentativa {t['resultado']}/{t['motivo']} (HTTP {st}) em {_iso(quando)}; o hash é do registro da tentativa (URL, resultado, motivo e status), não de conteúdo da fonte")
         return _Evid(url, trecho, sha256_text(canonico(registro)), quando)

@@ -3,7 +3,7 @@
 Só `aprovar` e `corrigir` aplicam. Cada aplicação roda num SAVEPOINT (`conn.transaction()`): se qualquer passo falhar, nada fica gravado (nem override, nem mudança na
 tabela, nem a marca `aplicada`) e a decisão continua não aplicada. O `update` real na tabela de domínio é o que valida os `check` dela. Nada aqui comita.
 
-DUAS CHAVES (D293). Decisão de `agentes` só se aplica com a variável de ambiente `ADMIN_COLETA_AGENTES=on` E a linha `admin_coleta_agentes = 'on'` em `pipeline_switches`.
+DUAS CHAVES (D293). Decisão de `agentes` só se aplica com a variável de ambiente `ADMIN_COLETA_AGENTES=on` E a linha `admin_coleta_agentes = 'on'` em `public.pipeline_switches`.
 As duas nascem desligadas. Com qualquer uma desligada, `aplicar` levanta `ChavesDesligadas` ANTES de qualquer escrita (falha fechada). O gatilho `adm_decisoes_guard`
 (0150) confere a segunda chave outra vez no momento de marcar `aplicada`. Decisão de `pessoa` não depende das chaves.
 
@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import Any, Mapping
+from typing import Any
 
 import psycopg
 from psycopg.types.json import Jsonb
@@ -92,11 +92,12 @@ class AplicacaoRecusada(ErroAdmin):
     """A decisão não pôde ser aplicada: o motivo é a mensagem; nada foi gravado."""
 
 
-def chaves_dos_agentes(conn: Any, ambiente: Mapping[str, str] | None = None) -> dict[str, bool]:
-    """Estado das duas chaves: `variavel` (ADMIN_COLETA_AGENTES == 'on' no ambiente) e `linha` (pipeline_switches.admin_coleta_agentes.value == 'on'). `ligadas` = as duas."""
-    amb = os.environ if ambiente is None else ambiente
-    var = amb.get(VARIAVEL) == "on"
-    r = conn.execute("select value from pipeline_switches where name = %s", (CHAVE_BANCO,)).fetchone()
+def chaves_dos_agentes(conn: Any) -> dict[str, bool]:
+    """Estado das duas chaves: `variavel` (ADMIN_COLETA_AGENTES == 'on' em `os.environ`, lida AGORA) e `linha` (public.pipeline_switches.admin_coleta_agentes.value == 'on').
+    `ligadas` = as duas. Não há parâmetro que substitua a variável (critério de segurança 9: nenhuma porta de serviço); a tabela vai com o esquema `public` para que uma
+    tabela temporária de mesmo nome na sessão não a sombreie."""
+    var = os.environ.get(VARIAVEL) == "on"
+    r = conn.execute("select value from public.pipeline_switches where name = %s", (CHAVE_BANCO,)).fetchone()
     linha = bool(r and r["value"] == "on")
     return {"variavel": var, "linha": linha, "ligadas": var and linha}
 
@@ -295,7 +296,7 @@ def _corrections(conn: Any, d: dict[str, Any], r: dict[str, Any], valor: Any) ->
 # ------------------------------------------------------------------ aplicar
 
 
-def aplicar(conn: Any, decisao_id: Any, *, ambiente: Mapping[str, str] | None = None) -> dict[str, Any]:
+def aplicar(conn: Any, decisao_id: Any) -> dict[str, Any]:
     """Aplica UMA decisão (aprovar ou corrigir) às tabelas de domínio, atomicamente. NÃO comita.
 
     Falha fechada: decisão de agentes com qualquer das duas chaves desligada levanta `ChavesDesligadas` antes de qualquer escrita. Decisão já aplicada, descartar e
@@ -306,10 +307,10 @@ def aplicar(conn: Any, decisao_id: Any, *, ambiente: Mapping[str, str] | None = 
     if d["acao"] not in ACOES_QUE_APLICAM:
         raise AplicacaoRecusada(f"a decisão {d['id']} é {d['acao']}: não há nada a aplicar às tabelas (só aprovar e corrigir aplicam)")
     if d["decidido_por_tipo"] == "agentes":
-        ch = chaves_dos_agentes(conn, ambiente)
+        ch = chaves_dos_agentes(conn)
         if not ch["ligadas"]:
             raise ChavesDesligadas(
-                f"decisão de agentes não se aplica: variável {VARIAVEL}={'on' if ch['variavel'] else 'desligada'} e pipeline_switches.{CHAVE_BANCO}={'on' if ch['linha'] else 'desligada'} "
+                f"decisão de agentes não se aplica: variável {VARIAVEL}={'on' if ch['variavel'] else 'desligada'} e public.pipeline_switches.{CHAVE_BANCO}={'on' if ch['linha'] else 'desligada'} "
                 "(as duas têm de estar ligadas); nada foi gravado")
     with conn.transaction():
         d = _decisao(conn, d["id"], travar=True)
@@ -336,7 +337,7 @@ def aplicar(conn: Any, decisao_id: Any, *, ambiente: Mapping[str, str] | None = 
             "corrections": corr, "observacao": r["observacao"], "vigente_sha": sha, "aplicada_em": em}
 
 
-def aplicar_pendentes(conn: Any, *, ambiente: Mapping[str, str] | None = None, decisao_id: Any = None) -> list[dict[str, Any]]:
+def aplicar_pendentes(conn: Any, *, decisao_id: Any = None) -> list[dict[str, Any]]:
     """Aplica as decisões não aplicadas de aprovar/corrigir, em ordem de criação, cada uma no seu savepoint. Falha de uma não impede as outras: devolve um item por
     decisão, `{decisao_id, estado, ...}`: estado `aplicada` (com o resultado), `bloqueada_chaves` (agentes com chave desligada) ou `falhou` (com o motivo). NÃO comita."""
     filtro = ""
@@ -348,7 +349,7 @@ def aplicar_pendentes(conn: Any, *, ambiente: Mapping[str, str] | None = None, d
     out: list[dict[str, Any]] = []
     for i in ids:
         try:
-            out.append({"decisao_id": i, "estado": "aplicada", "resultado": aplicar(conn, i, ambiente=ambiente), "erro": None})
+            out.append({"decisao_id": i, "estado": "aplicada", "resultado": aplicar(conn, i), "erro": None})
         except ChavesDesligadas as e:
             out.append({"decisao_id": i, "estado": "bloqueada_chaves", "resultado": None, "erro": str(e)})
         except (ErroAdmin, psycopg.Error) as e:

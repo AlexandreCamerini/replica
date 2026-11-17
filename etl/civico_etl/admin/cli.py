@@ -1,6 +1,6 @@
 """`civico-etl admin <subcomando>`: administração de coleta (Parte A do plano; replica/admin-coleta-plano.md, seção 4.1).
 
-Subcomandos nesta entrega: `inventario`, `vinculos`, `previa`, `rodada` (abrir, executar, repetir, ver, listar), `relatorio` e, da Parte B, `proposta registrar`,
+Subcomandos nesta entrega: `inventario`, `vinculos`, `previa`, `rodada` (abrir, executar, repetir, recuperar, ver, listar), `relatorio` e, da Parte B, `proposta registrar`,
 `fila` e `pendencia` (detalhe e `reavaliar`; `proposta registrar` e `pendencia reavaliar` gravam só em `adm_propostas`, `adm_pendencias` e `adm_pendencia_propostas`),
 `decidir` (grava `adm_decisoes`; só decisão de PESSOA, a de agentes não tem opção de linha de comando) e `aplicar` (escreve nas tabelas de domínio, em `adm_overrides`, `adm_vinculos` e `corrections`). Os próximos (parecer, candidata, executor) entram em `SUBCOMANDOS` com uma função `configurar` (opções do parser) e uma `executar` (devolve o documento e o texto).
 
@@ -193,7 +193,7 @@ def _stdout_em_stderr(ativo: bool):
 
 
 def _cfg_rodada(p: argparse.ArgumentParser) -> None:
-    p.add_argument("acao", choices=["abrir", "executar", "repetir", "ver", "listar"], help="abrir: grava a rodada (com --executar, também a executa); executar ID; repetir ID; ver ID; listar")
+    p.add_argument("acao", choices=["abrir", "executar", "repetir", "recuperar", "ver", "listar"], help="abrir: grava a rodada (com --executar, também a executa); executar ID; repetir ID; recuperar ID (rodada presa em em_andamento cujo executor morreu); ver ID; listar")
     p.add_argument("id", nargs="?", help="identificador da rodada (executar, repetir, ver)")
     p.add_argument("--coletor", metavar="ID", help="abrir: coletor do catálogo (obrigatório); listar: só este coletor")
     _cfg_recorte(p)
@@ -207,7 +207,7 @@ def _codigo(res: dict[str, Any]) -> int:
 
 
 def _run_rodada(conn: Any, a: argparse.Namespace) -> Resultado:
-    if a.acao in ("executar", "repetir", "ver") and not a.id:
+    if a.acao in ("executar", "repetir", "recuperar", "ver") and not a.id:
         raise _Uso(f"rodada {a.acao}: informe o identificador da rodada")
     if a.acao in ("abrir", "listar") and a.id:
         raise _Uso(f"rodada {a.acao}: não leva identificador")
@@ -233,6 +233,9 @@ def _run_rodada(conn: Any, a: argparse.Namespace) -> Resultado:
         with _stdout_em_stderr(a.json):
             res = rod.repetir(conn, a.id, so_pendencias=a.pendencias, forcar_urls=a.forcar_url or ())
         return res, rod.texto_resultado(res), False, _codigo(res)
+    if a.acao == "recuperar":
+        res = rod.recuperar(conn, a.id)
+        return res, rod.texto_resultado(res), False, 0  # `recuperar` já comitou
     if a.acao == "ver":
         d = rod.descrever_rodada(conn, a.id)
         return d, rod.texto_rodada(d), False

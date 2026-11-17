@@ -454,32 +454,44 @@ def _estado_dominio(iso) -> tuple:
             iso.execute("select id, aplicada, aplicada_em from adm_decisoes order by id").fetchall(), iso.execute("select id, status, vigente_sha from adm_pendencias order by id").fetchall())
 
 
-def test_decisao_de_agentes_com_chave_desligada_falha_fechado_sem_gravar_nada(iso, m):
+def _poe_ambiente(monkeypatch, amb: dict) -> None:
+    """B6: o ambiente das duas chaves é o `os.environ` real; o teste o põe com `monkeypatch` (antes passava `ambiente=`)."""
+    if "ADMIN_COLETA_AGENTES" in amb:
+        monkeypatch.setenv("ADMIN_COLETA_AGENTES", amb["ADMIN_COLETA_AGENTES"])
+    else:
+        monkeypatch.delenv("ADMIN_COLETA_AGENTES", raising=False)
+
+
+def test_decisao_de_agentes_com_chave_desligada_falha_fechado_sem_gravar_nada(iso, m, monkeypatch):
     pid = prop_status(iso, m, "fora_do_ar")
     d = DEC.decidir(iso, pid, acao="aprovar", por_tipo="agentes", relatorio={"v": 1}, versao_verificador=1, justificativa="verificadores concordam")
     assert n(iso, "pipeline_switches", "name = 'admin_coleta_agentes'") == 0  # nascem desligadas
-    assert APL.chaves_dos_agentes(iso, {}) == {"variavel": False, "linha": False, "ligadas": False}
+    monkeypatch.delenv("ADMIN_COLETA_AGENTES", raising=False)  # B6: o parâmetro `ambiente=` saiu; o ambiente é o real, posto aqui por monkeypatch
+    assert APL.chaves_dos_agentes(iso) == {"variavel": False, "linha": False, "ligadas": False}
     antes = _estado_dominio(iso)
     for amb in ({}, {"ADMIN_COLETA_AGENTES": "on"}, {"ADMIN_COLETA_AGENTES": "off"}, {"ADMIN_COLETA_AGENTES": "ON"}):  # variável ausente, ligada sem a linha, desligada, valor fora do contrato
+        _poe_ambiente(monkeypatch, amb)
         with pytest.raises(ChavesDesligadas):
-            APL.aplicar(iso, d["id"], ambiente=amb)
+            APL.aplicar(iso, d["id"])
         assert _estado_dominio(iso) == antes
     # só a linha, sem a variável
     iso.execute("insert into pipeline_switches (name, value, note) values ('admin_coleta_agentes', 'on', 'teste B2')")
-    assert APL.chaves_dos_agentes(iso, {}) == {"variavel": False, "linha": True, "ligadas": False}
+    _poe_ambiente(monkeypatch, {})
+    assert APL.chaves_dos_agentes(iso) == {"variavel": False, "linha": True, "ligadas": False}
     antes = _estado_dominio(iso)
     with pytest.raises(ChavesDesligadas):
-        APL.aplicar(iso, d["id"], ambiente={})
+        APL.aplicar(iso, d["id"])
     assert _estado_dominio(iso) == antes
     # em lote: a decisão fica `bloqueada_chaves`, não aplicada, e as de pessoa seguem
     pp = prop_cob(iso, m, "status", "so_portal")
     dp = decide(iso, pp, "aprovar")
-    lote = APL.aplicar_pendentes(iso, ambiente={})
+    lote = APL.aplicar_pendentes(iso)
     assert {i["decisao_id"]: i["estado"] for i in lote} == {str(d["id"]): "bloqueada_chaves", str(dp["id"]): "aplicada"}
     assert um(iso, "select status from sapl_houses where id = %s", m["h_cam"])["status"] == "ok"
     # as duas ligadas: aplica
-    assert APL.chaves_dos_agentes(iso, {"ADMIN_COLETA_AGENTES": "on"})["ligadas"] is True
-    APL.aplicar(iso, d["id"], ambiente={"ADMIN_COLETA_AGENTES": "on"})
+    _poe_ambiente(monkeypatch, {"ADMIN_COLETA_AGENTES": "on"})
+    assert APL.chaves_dos_agentes(iso)["ligadas"] is True
+    APL.aplicar(iso, d["id"])
     assert um(iso, "select status from sapl_houses where id = %s", m["h_cam"])["status"] == "fora_do_ar"
 
 
@@ -594,7 +606,8 @@ def test_reaplicar_e_recusado_e_nova_decisao_depois_de_reaberta_substitui_o_over
     sem_reabrir(iso)
 
 
-def test_aplicar_pendentes_aplica_em_ordem_de_criacao_cada_uma_no_seu_savepoint_e_uma_falha_nao_impede_as_outras(iso, m):
+def test_aplicar_pendentes_aplica_em_ordem_de_criacao_cada_uma_no_seu_savepoint_e_uma_falha_nao_impede_as_outras(iso, m, monkeypatch):
+    monkeypatch.delenv("ADMIN_COLETA_AGENTES", raising=False)  # B6: era `ambiente={}`; agora o ambiente real, sem a variável
     d1 = decide(iso, prop_status(iso, m, "fora_do_ar"), "aprovar")
     pq, _ = fila_com_candidato(iso, m)
     q_ruim = prop_ident(iso, m, str(m["q"]), "rejeitado", sha="ir")
@@ -606,12 +619,12 @@ def test_aplicar_pendentes_aplica_em_ordem_de_criacao_cada_uma_no_seu_savepoint_
     iso.execute("alter table adm_decisoes disable trigger adm_decisoes_guard")
     iso.execute("update adm_decisoes d set criada_em = now() + x.rn * interval '1 second' from (select id, row_number() over (order by ctid) as rn from adm_decisoes) x where x.id = d.id")
     iso.execute("alter table adm_decisoes enable trigger adm_decisoes_guard")
-    lote = APL.aplicar_pendentes(iso, ambiente={})
+    lote = APL.aplicar_pendentes(iso)
     estados = [(i["decisao_id"], i["estado"]) for i in lote]
     assert estados == [(str(d1["id"]), "aplicada"), (str(d_ruim["id"]), "falhou"), (str(d3["id"]), "aplicada")] and str(dd["id"]) not in {e[0] for e in estados}
     assert "não existe" in lote[1]["erro"] and um(iso, "select status from sapl_houses where id = %s", m["h_cam"])["status"] == "fora_do_ar"
-    assert APL.aplicar_pendentes(iso, ambiente={})[0]["estado"] == "falhou"  # a que falhou continua pendente; as aplicadas não voltam
-    assert len(APL.aplicar_pendentes(iso, ambiente={})) == 1 and pq
+    assert APL.aplicar_pendentes(iso)[0]["estado"] == "falhou"  # a que falhou continua pendente; as aplicadas não voltam
+    assert len(APL.aplicar_pendentes(iso)) == 1 and pq
 
 
 # ------------------------------------------------------------------ 7. pela CLI real

@@ -323,16 +323,16 @@ def gerar_da_rodada(conn: Any, rodada_id: Any, *, pedido_id: Any = None, real: b
 # ------------------------------------------------------------------ aplicar (só para o portão das duas chaves ser provado)
 
 
-def aplicar_por_agentes(conn: Any, parecer_id: Any, *, ambiente: Mapping[str, str] | None = None) -> dict[str, Any]:
+def aplicar_por_agentes(conn: Any, parecer_id: Any) -> dict[str, Any]:
     """O ÚNICO caminho pelo qual um parecer viraria decisão aplicada. Nenhum subcomando o chama. Ordem obrigatória:
       (i)   as duas chaves (`aplicar.chaves_dos_agentes`): qualquer uma desligada levanta `ChavesDesligadas` ANTES de qualquer leitura de parecer ou escrita;
       (ii)  parecer simulado (motor de ensaio local) é recusado, mesmo com as duas chaves ligadas;
       (iii) parecer real com proposta validada: cria a decisão de `agentes` (relatório = o parecer; versão do verificador) e aplica com `aplicar.aplicar`, tudo ou nada.
     Campo com `falta_confirmar` nunca vira decisão."""
-    ch = apl.chaves_dos_agentes(conn, ambiente)
+    ch = apl.chaves_dos_agentes(conn)
     if not ch["ligadas"]:
         raise apl.ChavesDesligadas(
-            f"parecer não se aplica: variável {apl.VARIAVEL}={'on' if ch['variavel'] else 'desligada'} e pipeline_switches.{apl.CHAVE_BANCO}={'on' if ch['linha'] else 'desligada'} "
+            f"parecer não se aplica: variável {apl.VARIAVEL}={'on' if ch['variavel'] else 'desligada'} e public.pipeline_switches.{apl.CHAVE_BANCO}={'on' if ch['linha'] else 'desligada'} "
             "(as duas têm de estar ligadas); nada foi gravado")
     pid = _uuid(parecer_id, "identificador de parecer")
     p = conn.execute("select id, pendencia_id, modelo, versao_verificador, entrada, saida, modo, simulado from adm_pareceres where id = %s", (pid,)).fetchone()
@@ -353,5 +353,5 @@ def aplicar_por_agentes(conn: Any, parecer_id: Any, *, ambiente: Mapping[str, st
             raise ParecerRecusado("o valor proposto pelo parecer não é mais o candidato único da pendência: gere outro parecer")
         d = dec.decidir(conn, p["pendencia_id"], acao="aprovar", por_tipo="agentes", relatorio=relatorio, versao_verificador=p["versao_verificador"],
                         justificativa=f"parecer {p['id']} ({p['modelo']}): trecho citado da evidência em {c['url']}: {c['trecho']}")
-        r = apl.aplicar(conn, d["id"], ambiente=ambiente)
+        r = apl.aplicar(conn, d["id"])
     return {"parecer_id": str(p["id"]), "decisao_id": str(d["id"]), "aplicacao": r}

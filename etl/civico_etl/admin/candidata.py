@@ -207,11 +207,11 @@ def texto_candidata(doc: dict[str, Any]) -> str:
                        "evidencia": " | ".join(_linha_evid(c) for c in d["candidatos"]),
                        "decisao": f"{dc['acao']} por {dc['por_nome'] or dc['por_tipo']} em {dc['decidida_em']:%Y-%m-%d %H:%MZ}, aplicada={'sim' if dc['aplicada'] else 'não'}: {dc['justificativa']}" if dc else "-"})
     out += ["", "diferenças em relação à base vigente:", tabela(cols, linhas, largura_max=110, total=f"{len(linhas)} diferenças em {t['campos_com_proposta']['valor']} campos com proposta") if linhas else "  nenhuma"]
-    out += ["", "aplicadas (o candidato já é o vigente):"]
+    out += ["", "aplicadas (valor antes da rodada -> valor fixado pela decisão; o candidato já é o vigente):"]
     if doc["aplicadas"]:
         la = [{**a, "antes": _fv(a["valor_anterior"]), "depois": _fv(a["valor_novo"]), "decisao": f"{a['decisao']['acao']} por {a['decisao']['por_nome'] or a['decisao']['por_tipo']} em {a['decisao']['aplicada_em']:%Y-%m-%d %H:%MZ}: {a['decisao']['justificativa']}",
                "evidencia": " | ".join(_linha_evid(c) for c in a["candidatos"]) or "-"} for a in doc["aplicadas"]]
-        out.append(tabela((("classe", "CLASSE"), ("registro_chave", "CHAVE"), ("rotulo", "REGISTRO"), ("campo", "CAMPO"), ("antes", "ANTES"), ("depois", "DEPOIS"), ("decisao", "DECISÃO"), ("evidencia", "EVIDÊNCIA")),
+        out.append(tabela((("classe", "CLASSE"), ("registro_chave", "CHAVE"), ("rotulo", "REGISTRO"), ("campo", "CAMPO"), ("antes", "ANTES DA RODADA"), ("depois", "FIXADO PELA DECISÃO"), ("decisao", "DECISÃO"), ("evidencia", "EVIDÊNCIA")),
                           la, largura_max=110, total=f"{len(la)} aplicadas"))
     else:
         out.append("  nenhuma")

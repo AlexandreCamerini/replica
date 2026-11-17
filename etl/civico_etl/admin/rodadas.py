@@ -56,6 +56,7 @@ Onde fica o resultado: `adm_rodadas.previa` (JSON; não há coluna de erro e a m
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import os
 import sys
@@ -493,10 +494,68 @@ def _propor(conn: Any, rid: str, coletor_id: str, antes: PRO.Foto | None, erro_f
         return {"executado": False, "erro": f"{type(e).__name__}: {e}"[:500]}
 
 
+NAMESPACE_TRAVA = 0x41434F4C  # "ACOL": primeiro inteiro da trava consultiva de rodada (o segundo é derivado do id; ver `chave_da_trava`)
+
+
+def chave_da_trava(rodada_id: str) -> tuple[int, int]:
+    """Chave da trava consultiva de SESSÃO do executor de uma rodada: `(NAMESPACE_TRAVA, k)`, com `k` = os 4 primeiros bytes de sha256("admin.rodada:<uuid>") como inteiro de 32 bits
+    COM sinal. A forma de dois `int4` de `pg_try_advisory_lock` tem espaço de chaves próprio, distinto da forma de um `bigint` (`hashtext(dataset)` em `db.run`): não colide com a trava
+    dos jobs. Colisão entre duas rodadas (2^-32) só pode errar para o lado seguro: `executar` recusa e `recuperar` se recusa a agir, nunca o contrário."""
+    k = int.from_bytes(hashlib.sha256(f"admin.rodada:{rodada_id}".encode()).digest()[:4], "big", signed=True)
+    return NAMESPACE_TRAVA, k
+
+
+def _tomar_trava(conn: Any, rodada_id: str) -> bool:
+    a, b = chave_da_trava(rodada_id)
+    return bool(conn.execute("select pg_try_advisory_lock(%s::int, %s::int) as ok", (a, b)).fetchone()["ok"])
+
+
+def _soltar_trava(conn: Any, rodada_id: str) -> None:
+    """Solta a trava da sessão de `conn`. Nunca levanta: se a conexão morreu, a trava já se foi com a sessão."""
+    a, b = chave_da_trava(rodada_id)
+    try:
+        conn.rollback()
+        conn.execute("select pg_advisory_unlock(%s::int, %s::int)", (a, b))
+        conn.commit()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _interromper(conn: Any, rid: str, resultado: dict[str, Any], e: BaseException) -> dict[str, Any] | None:
+    """Leva a rodada de `em_andamento` a `interrompida` depois de uma exceção, gravando o motivo no resultado. Só toca na rodada que ainda está `em_andamento` (se a exceção veio antes de
+    o estado ser comitado, ou depois de um desfecho final, não há o que fazer). Devolve o resultado, ou None se não há o que gravar (a rodada não está `em_andamento`) ou não foi possível gravar (conexão
+    morta): quem chama relança a exceção original e a rodada, se ficou `em_andamento`, sai de lá por `rodada recuperar`."""
+    try:
+        with contextlib.suppress(Exception):
+            conn.rollback()
+        atual = conn.execute("select status from adm_rodadas where id = %s", (rid,)).fetchone()
+        if atual is None or atual["status"] != "em_andamento":
+            return None  # nada a gravar (a exceção veio antes de `em_andamento` ser comitado): quem chama relança, e a exceção aparece
+        erro = f"{type(e).__name__}: {e}"[:500]
+        resultado.update(status="interrompida", motivo=REGRA_DESFECHO["excecao"], fim=datetime.now(timezone.utc).isoformat(), erro_execucao=erro)
+        if not resultado.get("interrupcao"):
+            resultado["interrupcao"] = erro
+        _finalizar(conn, rid, "interrompida", resultado)
+        return {"rodada_id": rid, **resultado}
+    except Exception:  # noqa: BLE001
+        with contextlib.suppress(Exception):
+            conn.rollback()
+        return None
+
+
 def executar(conn: Any, rodada_id: str, *, runner: Callable[[list[str]], int] | None = None, env_extra: dict[str, str] | None = None) -> dict[str, Any]:
     """Executa a rodada (`aberta` ou `interrompida`). Comita: `em_andamento` antes do coletor e o estado final depois. Devolve o resultado
-    (também gravado em `adm_rodadas.previa.resultado`), com `rodada_id` e `status`. Nunca deixa a rodada em `em_andamento`: erro do runner ou
-    do registro viram `interrompida`. KeyboardInterrupt do coletor é absorvido (a rodada fica retomável)."""
+    (também gravado em `adm_rodadas.previa.resultado`), com `rodada_id` e `status`.
+
+    O que é garantido (critério 5):
+      - antes de a rodada ir a `em_andamento` o executor toma a trava consultiva de SESSÃO da rodada (`chave_da_trava`; `pg_try_advisory_lock`) na própria conexão `conn`, que fica
+        aberta até o fim, e só a solta DEPOIS do estado final comitado. Trava já tomada = outro executor vivo: `ErroAdmin`, nada muda. `rodada recuperar` usa a trava para saber se o
+        executor está vivo.
+      - tudo o que vem depois de `em_andamento` roda sob `try/except BaseException`: qualquer exceção (a do runner, do registro, do proponente, KeyboardInterrupt, SystemExit) leva a
+        rodada a `interrompida` com o motivo em `resultado` (`interrupcao`, `erro_execucao`). Exceção comum (`Exception`) é devolvida como resultado `interrompida`; KeyboardInterrupt e
+        SystemExit são relançados depois de gravar. KeyboardInterrupt/SystemExit DO COLETOR (dentro do runner) continuam absorvidos: o que ele já leu é importado e a rodada fica retomável.
+      - NÃO é garantido: `kill -9`, queda da máquina ou da conexão. Nesses casos a rodada fica `em_andamento` e a trava some com a sessão; `civico-etl admin rodada recuperar ID` a
+        move para `interrompida` (só se a trava está livre), e `repetir` funciona como para qualquer rodada interrompida."""
     rod = _carregar(conn, rodada_id, travar=True)
     rid = str(rod["id"])
     if rod["status"] not in ("aberta", "interrompida"):
@@ -505,18 +564,35 @@ def executar(conn: Any, rodada_id: str, *, runner: Callable[[list[str]], int] | 
     c = _coletor(rod["coletor"])
     r = recorte_de_json(rod["recorte"])
     pv = rod["previa"] or {}
-    urls = _urls_da_previa(pv)
-    firmes = [i["url"] for i in pv.get("urls_entrada", []) if not i["condicional"]]
     n_exec = len(pv.get("execucoes") or []) + 1
     inicio = datetime.now(timezone.utc)
     invocation = f"admin:{rid}"
+    resultado: dict[str, Any] = {"execucao": n_exec, "inicio": inicio.isoformat(), "invocation": invocation, "regra": REGRA_DESFECHO,
+                                "simulado": os.environ.get("ADMIN_SIMULADO") or None}
+    if not _tomar_trava(conn, rid):
+        conn.rollback()
+        raise ErroAdmin(f"a rodada está sendo executada por outro processo (rodada {rid}, trava consultiva tomada): nada foi alterado")
+    try:
+        conn.execute("update adm_rodadas set status = 'em_andamento', invocation = %s, finalizada_em = null where id = %s", (invocation, rid))
+        conn.commit()
+        return _executar_apos_inicio(conn, rid, rod, c, r, pv, n_exec, inicio, invocation, resultado, runner, env_extra)
+    except BaseException as e:  # noqa: BLE001 - qualquer coisa depois de em_andamento leva a `interrompida` (ver o docstring)
+        saida = _interromper(conn, rid, resultado, e)
+        if saida is None or not isinstance(e, Exception):
+            raise
+        return saida
+    finally:
+        _soltar_trava(conn, rid)
+
+
+def _executar_apos_inicio(conn: Any, rid: str, rod: dict[str, Any], c: Any, r: Recorte, pv: dict[str, Any], n_exec: int, inicio: datetime, invocation: str, resultado: dict[str, Any],
+                          runner: Callable[[list[str]], int] | None, env_extra: dict[str, str] | None) -> dict[str, Any]:
+    """O corpo de `executar` depois de a rodada estar `em_andamento` e com a trava tomada."""
+    urls = _urls_da_previa(pv)
+    firmes = [i["url"] for i in pv.get("urls_entrada", []) if not i["condicional"]]
     cache_dir = rod["cache_dir"] or str(H.CACHE_DIR)
     pasta = Path(cache_dir).parent / "admin-rodadas"
     forcar = list(rod["forcar_urls"] or [])
-    conn.execute("update adm_rodadas set status = 'em_andamento', invocation = %s, finalizada_em = null where id = %s", (invocation, rid))
-    conn.commit()
-    resultado: dict[str, Any] = {"execucao": n_exec, "inicio": inicio.isoformat(), "invocation": invocation, "regra": REGRA_DESFECHO,
-                                "simulado": os.environ.get("ADMIN_SIMULADO") or None}
 
     def encerrar(status: str, regra: str, **mais: Any) -> dict[str, Any]:
         resultado.update(status=status, motivo=REGRA_DESFECHO[regra], fim=datetime.now(timezone.utc).isoformat(), **mais)
@@ -579,6 +655,47 @@ def executar(conn: Any, rodada_id: str, *, runner: Callable[[list[str]], int] | 
                       "firmes_nao_tentadas": [u for u in firmes if u not in tentadas],
                       "condicionais_tentadas": [u for u in tentadas if u not in firmes]} if c.tentativas_registradas else {"previstas": len(firmes), "tentadas": None, "motivo": SEM_TENTATIVAS},
         robots_registrados=robots, sem_cache=semcache, vinculos=vres.para_dict())
+
+
+# ---------------------------------------------------------------- recuperar
+
+
+def recuperar(conn: Any, rodada_id: Any, *, agora: datetime | None = None) -> dict[str, Any]:
+    """`admin rodada recuperar ID`: tira de `em_andamento` uma rodada cujo executor morreu (`kill -9`, queda). Só age com as DUAS condições: a rodada está `em_andamento` E a trava
+    consultiva de sessão dela (`chave_da_trava`) está livre, o que `pg_try_advisory_lock` prova tomando-a e soltando-a na hora (ninguém a segura = ninguém está executando).
+    Então: importa o log de tentativas das execuções (os arquivos `<rodada>-<n>.jsonl`, se existirem; o importador é idempotente), grava a rodada como `interrompida` com o motivo
+    "executor ausente (recuperada em <data>)" e comita. A rodada fica retomável por `repetir`, como qualquer interrompida.
+    Recusas (`ErroAdmin`, a CLI devolve código 1, nada muda): rodada em outro estado (a mensagem diz qual) ou trava tomada ("a rodada está sendo executada por outro processo").
+    Importante: a trava é de SESSÃO. Chamar `recuperar` na MESMA conexão que está executando a rodada não a vê tomada (a trava é reentrante na sessão); o subcomando abre a própria conexão."""
+    rod = _carregar(conn, rodada_id, travar=True)
+    rid = str(rod["id"])
+    if rod["status"] != "em_andamento":
+        conn.rollback()
+        raise ErroAdmin(f"rodada {rid} está {rod['status']}: só `em_andamento` se recupera")
+    if not _tomar_trava(conn, rid):
+        conn.rollback()
+        raise ErroAdmin(f"a rodada está sendo executada por outro processo (rodada {rid}, trava consultiva tomada): nada foi alterado")
+    try:
+        c = _coletor(rod["coletor"])
+        pv = rod["previa"] or {}
+        quando = (agora or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        n_exec = len(pv.get("execucoes") or []) + 1
+        motivo = f"executor ausente (recuperada em {quando:%Y-%m-%d %H:%M}Z)"
+        importados: list[str] = []
+        if c.tentativas_registradas:
+            pasta = Path(rod["cache_dir"] or str(H.CACHE_DIR)).parent / "admin-rodadas"
+            for arq in sorted(pasta.glob(f"{rid}-*.jsonl")):
+                T.importar(conn, rid, arq, urls_entrada=_urls_da_previa(pv))
+                importados.append(arq.name)
+        resultado: dict[str, Any] = {"execucao": n_exec, "invocation": rod["invocation"], "regra": REGRA_DESFECHO, "status": "interrompida", "motivo": motivo, "recuperada": True,
+                                     "logs_importados": importados, "codigo_saida": None, "executou_coletor": None, "fim": quando.isoformat()}
+        _finalizar(conn, rid, "interrompida", resultado)  # comita
+        return {"rodada_id": rid, **resultado}
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        _soltar_trava(conn, rid)
 
 
 # ---------------------------------------------------------------- repetir
@@ -709,13 +826,17 @@ def listar(conn: Any, coletor_id: str | None = None) -> list[dict[str, Any]]:
 def texto_resultado(res: dict[str, Any]) -> str:
     if res.get("rodada_id") is None:
         return res.get("mensagem", "")
-    pares = [("rodada", res["rodada_id"]), ("status", res["status"]), ("motivo", res["motivo"]), ("código de saída", res.get("codigo_saida") if res.get("codigo_saida") is not None else "desconhecido: o coletor não rodou" if not res.get("executou_coletor") else "desconhecido: interrompido antes de devolver")]
+    pares = [("rodada", res["rodada_id"]), ("status", res["status"]), ("motivo", res["motivo"]), ("código de saída", res.get("codigo_saida") if res.get("codigo_saida") is not None else "desconhecido: o executor morreu antes de registrar o desfecho (rodada recuperada)" if res.get("recuperada") else "desconhecido: o coletor não rodou" if not res.get("executou_coletor") else "desconhecido: interrompido antes de devolver")]
     if res.get("repete_id"):
         pares.append(("repete", res["repete_id"]))
     if res.get("interrupcao"):
         pares.append(("interrupção", res["interrupcao"]))
     if res.get("erro_registro"):
         pares.append(("erro ao registrar", res["erro_registro"]))
+    if res.get("erro_execucao"):
+        pares.append(("erro na execução", res["erro_execucao"]))
+    if res.get("recuperada"):
+        pares.append(("logs importados", ", ".join(res.get("logs_importados") or []) or "nenhum arquivo de registro encontrado"))
     if res.get("faltam_no_cache"):
         pares.append(("faltam no cache", ", ".join(res["faltam_no_cache"])))
     if res.get("sem_cache"):

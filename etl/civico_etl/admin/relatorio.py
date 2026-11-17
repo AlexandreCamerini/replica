@@ -41,8 +41,9 @@ PAINEL REVISÃO (só `adm_propostas`, `adm_pendencias`, `adm_pendencia_propostas
      não é nulo) e `por_decisao` (a pendência do campo está `decidida`, qualquer que tenha sido a ação, inclusive descartar).
   As três somam `campos_com_proposta`; se não somarem, `ErroAdmin`.
 - `pendencias_reabertas`: dos conflitantes e pendentes, os com `reaberta = true` (de = conflitantes + pendentes), com `por_motivo`.
-- `registros_alterados`: registros com ao menos uma decisão `aprovar` ou `corrigir` com `aplicada = true`, ligada (por `adm_pendencia_propostas`) a
-  proposta da rodada; de = registros distintos com proposta na rodada.
+- `registros_alterados` (rótulo em tabela: "registros com decisão aplicada (aprovar ou corrigir)"): registros com ao menos uma decisão `aprovar` ou `corrigir` com `aplicada = true`,
+  ligada (por `adm_pendencia_propostas`) a proposta da rodada; de = registros distintos com proposta na rodada. NÃO quer dizer "registros cujo valor na tabela mudou": inclui aprovar
+  uma mudança que o job JÁ gravou (o valor da tabela não troca, mas a decisão grava override e FIXA o valor; AC-17). A chave do JSON continua `registros_alterados`.
 - `decisoes`: decisões ligadas a propostas da rodada (de = pendências ligadas a propostas da rodada: são unidades diferentes, o `de` só diz sobre
   quantas pendências elas incidem), com `por_acao`, `por_decidido_por_tipo`, `aplicadas` e `nao_aplicadas` (cada fatia com de = decisões).
 - rodada sem proposta: tudo 0 de 0 e `mensagem` = "nenhuma proposta registrada nesta rodada" (zero conhecido, não desconhecido).
@@ -433,7 +434,7 @@ def texto_relatorio(doc: dict[str, Any], *, ids: bool = False) -> str:
               ("Pendências reabertas", v["pendencias_reabertas"])]
     for m, t in v["pendencias_reabertas"]["por_motivo"].items():
         linhas.append((f"    motivo: {m}", t))
-    linhas += [("Registros com proposta", v["registros_com_proposta"]), ("Registros alterados", v["registros_alterados"]), ("Decisões", v["decisoes"]),
+    linhas += [("Registros com proposta", v["registros_com_proposta"]), ("Registros com decisão aplicada (aprovar ou corrigir)", v["registros_alterados"]), ("Decisões", v["decisoes"]),
                ("  aplicadas", v["decisoes"]["aplicadas"]), ("  não aplicadas", v["decisoes"]["nao_aplicadas"])]
     for k, rot in (("por_acao", "ação"), ("por_decidido_por_tipo", "por")):
         for nome, t in v["decisoes"][k].items():
