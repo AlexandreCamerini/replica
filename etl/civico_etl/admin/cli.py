@@ -28,6 +28,7 @@ from ..catalogo.contrato import Recorte
 from . import aplicar as apl
 from . import candidata as cand
 from . import decisoes as dec
+from . import executor as exe
 from . import inventario as inv
 from . import parecer as par
 from . import pendencias as pen
@@ -461,6 +462,110 @@ def _run_candidata(conn: Any, a: argparse.Namespace) -> Resultado:
     return doc, cand.texto_candidata(doc), False
 
 
+# ------------------------------------------------------------------ executor e pedido (Parte C, C2): a fila que a central grava
+
+
+def _cfg_executor(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--uma-vez", action="store_true", help="processa no máximo um pedido e sai (código 1 se o pedido processado falhou ou foi interrompido)")
+    p.add_argument("--intervalo", type=float, default=2.0, metavar="S", help="segundos entre consultas à fila quando ela está vazia (padrão: 2)")
+
+
+def _texto_pedido_processado(r: dict[str, Any] | None) -> str:
+    if r is None:
+        return "nenhum pedido na fila"
+    return lista_chave_valor([("pedido", f"{r['tipo']} {r['id']}"), ("estado", r["status"]), ("erro", r["erro"] or "-"), ("rodada", r["rodada_id"] or "-"), ("decisão", r["decisao_id"] or "-"),
+                              ("batimentos", r["batidas"]), ("órfãos recuperados", len(r["orfaos"]))])
+
+
+def _run_executor(conn: Any, a: argparse.Namespace) -> Resultado:
+    if a.intervalo <= 0:
+        raise _Uso("--intervalo: informe segundos maiores que zero")
+    conn.rollback()
+    with _stdout_em_stderr(a.json):
+        r = exe.laco(db.connect, intervalo=a.intervalo, uma_vez=a.uma_vez, aviso=lambda m: print(m, file=sys.stderr))
+    if not a.uma_vez:
+        return {"executor": "encerrado"}, "executor encerrado", False
+    return {"pedido": r}, _texto_pedido_processado(r), False, 1 if r is not None and r["status"] in ("falhou", "interrompido") else 0
+
+
+def _cfg_pedido(p: argparse.ArgumentParser) -> None:
+    sub = p.add_subparsers(dest="pedido_acao", metavar="AÇÃO")
+    s = sub.add_parser("rodada", help="pede uma rodada de coleta (--coletor, recorte) ou a repetição de uma (--repetir ID)")
+    s.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
+    s.add_argument("--repetir", metavar="RODADA", help="repete esta rodada (com --pendencias, só o que falhou ou ficou pendente)")
+    s.add_argument("--pendencias", action="store_true", help="--repetir: só o que falhou ou ficou pendente na rodada de origem")
+    s.add_argument("--coletor", metavar="ID", help="coletor do catálogo")
+    _cfg_recorte(s)
+    s = sub.add_parser("recoleta", help="recoletar as fichas pendentes de uma classe num território")
+    s.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
+    s.add_argument("--classe", required=True, choices=list(CLASSES_PEDIDO))
+    s.add_argument("--ibge", required=True, metavar="COD", help="places.ibge_code do território (7 dígitos no município, 2 na UF)")
+    s.add_argument("--nivel", required=True, choices=list(exe.NIVEIS))
+    s = sub.add_parser("parecer", help="parecer de IA em modo ensaio de uma pendência ou das pendentes de uma rodada")
+    s.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
+    s.add_argument("--pendencia", metavar="ID")
+    s.add_argument("--rodada", metavar="ID")
+    s = sub.add_parser("decidir", help="pede a decisão de uma pessoa sobre uma pendência (o executor a registra e, com --aplicar, a aplica)")
+    s.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
+    s.add_argument("id", metavar="PENDENCIA")
+    s.add_argument("--acao", required=True, choices=list(dec.ACOES))
+    s.add_argument("--por", required=True, metavar="NOME")
+    s.add_argument("--justificativa", required=True, metavar="TEXTO")
+    s.add_argument("--valor", metavar="JSON")
+    s.add_argument("--aplicar", action="store_true")
+    s = sub.add_parser("estado", help="contagens por estado, pedidos ativos e se o executor está parado")
+    s.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
+
+
+CLASSES_PEDIDO = ("vinculo_sapl", "cobertura", "contato_mandato", "identidade")
+
+
+def _texto_estado(d: dict[str, Any]) -> str:
+    cont = [{"tabela": t, **{s: v.get(s, 0) for s in ("na_fila", "em_execucao", "concluido", "falhou", "interrompido")}} for t, v in d["contagens"].items()]
+    txt = tabela((("tabela", "TABELA"), ("na_fila", "NA FILA"), ("em_execucao", "EM EXECUÇÃO"), ("concluido", "CONCLUÍDO"), ("falhou", "FALHOU"), ("interrompido", "INTERROMPIDO")), cont)
+    if d["ativos"]:
+        txt += "\n\n" + tabela((("tipo", "TIPO"), ("id", "ID"), ("status", "ESTADO"), ("criado_em", "CRIADO"), ("batimento_em", "BATIMENTO"), ("rodada_id", "RODADA")), d["ativos"])
+    return txt + "\n\n" + d["executor_parado"]["mensagem"]
+
+
+def _run_pedido(conn: Any, a: argparse.Namespace) -> Resultado:
+    ac = a.pedido_acao
+    if not ac:
+        raise _Uso("pedido: informe a ação (rodada, recoleta, parecer, decidir ou estado)")
+    if ac == "estado":
+        d = exe.estado_dos_pedidos(conn)
+        conn.rollback()
+        return d, _texto_estado(d), False
+    if ac == "rodada":
+        if a.repetir:
+            if a.coletor:
+                raise _Uso("pedido rodada: --repetir não se combina com --coletor")
+            tipo, par_ = "rodada", {"repetir": a.repetir, "so_pendencias": a.pendencias}
+        else:
+            if not a.coletor:
+                raise _Uso("pedido rodada: informe --coletor (ou --repetir RODADA)")
+            if a.pendencias:
+                raise _Uso("--pendencias só vale com --repetir")
+            r = _recorte(a)
+            tipo, par_ = "rodada", {"coletor": a.coletor, "modo": a.modo, "recorte": {"anos": list(r.anos), "ufs": list(r.ufs), "casas": list(r.casas), "ibges": list(r.ibges), "extras": dict(r.extras)}}
+    elif ac == "recoleta":
+        tipo, par_ = "recoleta", {"classe": a.classe, "territorio": {"ibge": a.ibge, "nivel": a.nivel}}
+    elif ac == "parecer":
+        tipo, par_ = "parecer", {k: v for k, v in (("pendencia_id", a.pendencia), ("rodada_id", a.rodada)) if v}
+    else:
+        valor = None
+        if a.valor is not None:
+            try:
+                valor = json.loads(a.valor)
+            except ValueError as e:
+                raise _Uso(f"--valor não é JSON válido: {e}") from None
+        tipo, par_ = "decisao", {"pendencia_id": a.id, "acao": a.acao, "por_nome": a.por, "justificativa": a.justificativa, "valor": valor, "aplicar": a.aplicar}
+    pedido, novo = exe.pedir(conn, tipo, par_)
+    doc = {"pedido_id": str(pedido["id"]), "tabela": pedido["tabela"], "tipo": tipo, "novo": novo, "status": pedido["status"], "chave_idem": pedido["chave_idem"]}
+    txt = f"{pedido['id']}  {'novo' if novo else 'já existia (pedido igual em curso)'}  {tipo}  {pedido['status']}"
+    return doc, txt, novo
+
+
 class _Uso(Exception):
     """Combinação de opções inválida: sai com 2, como um erro do argparse."""
 
@@ -479,6 +584,8 @@ SUBCOMANDOS: dict[str, Subcomando] = {s.nome: s for s in (
     Subcomando("parecer", "parecer de IA em modo ENSAIO de uma pendência (--pendencia) ou de uma rodada (--rodada): proposta por campo com o trecho usado, ou \"falta confirmar\"; não aplica nada", _cfg_parecer, _run_parecer),
     Subcomando("candidata", "edição candidata: diferenças em relação à base vigente por registro e campo, com evidência, as já aplicadas e as pendências restantes (só leitura)", _cfg_candidata, _run_candidata),
     Subcomando("aplicar", "aplica às tabelas de domínio as decisões aprovadas e ainda não aplicadas (agentes só com as duas chaves ligadas)", _cfg_aplicar, _run_aplicar),
+    Subcomando("executor", "executa os pedidos gravados pela central (rodada, recoleta, parecer, decisão): --uma-vez processa um e sai; sem ele roda em laço", _cfg_executor, _run_executor),
+    Subcomando("pedido", "grava um pedido na fila do executor (rodada, recoleta, parecer, decidir) ou mostra o `estado` da fila; pedido igual em curso não abre outro", _cfg_pedido, _run_pedido),
 )}
 
 

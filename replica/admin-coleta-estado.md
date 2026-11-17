@@ -52,7 +52,8 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 - Fase R: concluída e verificada (AC-08). 16 subagentes de um teto de 16. A linha da R11 abaixo cita o commit em que a decisão ainda se chamava D324; ela foi renumerada para D325 em `97c7930`.
 - Fase A: concluída (AC-11). 6 subagentes de um teto de 14. Commits: A1 `068e2c6`, A2 `9085621`, A3 `ae681ac`, A4 `1737029`, A5 `9900a7b`, A6 no commit seguinte a este estado.
 - Fase B: concluída e verificada (AC-18). 10 subagentes de um teto de 16. Commits: B1 `16fa1a9`, B2 `565c687`, B3a `ab55781`, B3b `538be3a`, B4 `50f96af`, B5 `e2c2005`, B6 `ac43528`, ajuste do `env_extra` no commit seguinte a este estado. Migrações `0150` a `0152` aplicadas em `admin_coleta` (41). O banco `admin_coleta_r1` foi criado antes da `0152`: rodar o roteiro da primeira rodada de novo antes do relato.
-- Fase C: iniciada. Subagentes da fase: 0 de 20.
+- Fase C: em curso. Subagentes da fase: 5 de 20 (C1, C3, C5 aceitas; C2 e C4 em voo, arquivos disjuntos: `etl/` e `web/`). Commits: C3 `ebd3c01`, C5 `e0242f9`, C1 `1a0c0e9`. Migração `0153` aplicada em `admin_coleta` (42). Decisão AC-19: decisão pela tela vira pedido em `adm_pedidos_decisao`; o role `admin_central` só insere pedidos.
+- Suíte depois da `0153`: `1329 passed, 33 skipped, 4 xfailed`, cerca de 13 min (lentidão do preparo do banco isolado, não da `0153`). Rodar em segundo plano, nunca duas cópias.
 - Incidente AC-09: duas rodadas de teste da A2 caíram no banco `civico` (vazio, 0 tabelas, sem dano). Todo briefing passa a exigir o prefixo de banco literal em cada linha.
 - Suíte ao fim da fase B: `1300 passed, 33 skipped, 4 xfailed`, entre 3 e 5 min. `civico-etl check`: as mesmas 5 invariantes da linha de base.
 
