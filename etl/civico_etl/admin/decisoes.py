@@ -28,6 +28,7 @@ from psycopg.types.json import Jsonb
 
 from . import propostas as prop
 from .classes import CLASSES, canonico, contato_partes
+from .rede_segura import url_publica
 from .saida import ErroAdmin
 
 ACOES = ("aprovar", "corrigir", "descartar", "pedir_confirmacao")
@@ -102,6 +103,10 @@ def valida_valor(conn: Any, pend: dict[str, Any], acao: str, valor: Any) -> Any:
     erro = c.valida_candidato(campo_validacao, valor)
     if erro:
         raise DecisaoRecusada(erro)
+    if pend["classe"] == "vinculo_sapl" and campo == "base_url":  # anti-SSRF (AC-23): o endereço gravado tem de ser https para host público
+        motivo = url_publica(valor)
+        if motivo:
+            raise DecisaoRecusada(f"base_url recusado: {motivo}")
     if pend["classe"] == "identidade":
         if valor not in IDENTIDADE_APLICAVEL:
             raise DecisaoRecusada(f"identidade: só {' e '.join(IDENTIDADE_APLICAVEL)} se aplicam (nova_pessoa criaria pessoa e pendente não decide nada); veio {valor!r}")

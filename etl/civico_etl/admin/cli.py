@@ -338,7 +338,7 @@ def _run_pendencia(conn: Any, a: argparse.Namespace) -> Resultado:
 def _cfg_decidir(p: argparse.ArgumentParser) -> None:
     p.add_argument("id", metavar="PENDENCIA", help="identificador da pendência (veja `admin fila`)")
     p.add_argument("--acao", required=True, choices=list(dec.ACOES), help="aprovar (o candidato único), corrigir (--valor), descartar ou pedir_confirmacao")
-    p.add_argument("--por", required=True, metavar="NOME", help="nome de quem decide (decisão de pessoa)")
+    p.add_argument("--por", required=True, metavar="ADMIN", help="e-mail ou nome de um admin ATIVO em adm_admins (decisão de pessoa; grava o nome da tabela)")
     p.add_argument("--justificativa", required=True, metavar="TEXTO", help="por que (obrigatória)")
     p.add_argument("--valor", metavar="JSON", help='corrigir: o valor, em JSON (texto entre aspas; em contato, {"remover": true}); aprovar de duplicata: {"unir": {"de": "ID", "para": "ID"}}')
     p.add_argument("--aplicar", action="store_true", help="aprovar/corrigir: aplica em seguida (tudo ou nada: se a aplicação falhar, a decisão também não fica registrada)")
@@ -356,6 +356,18 @@ def fmt_v(v: Any) -> str:
     return "sem valor" if v is None else repr(v)
 
 
+def _admin_ativo(conn: Any, por: str) -> str:
+    """Nome (da tabela) do admin ativo que `por` identifica, por e-mail ou por nome (AC-23). Sem admin ativo único: erro de uso (código 2), nada gravado."""
+    chave = (por or "").strip()
+    achados = conn.execute("select nome from adm_admins where ativo and (email = lower(%s) or nome = %s)", (chave, chave)).fetchall() if chave else []
+    nomes = {r["nome"] for r in achados}
+    if not nomes:
+        raise _Uso(f"--por {por!r}: não é e-mail nem nome de um admin ativo em adm_admins (peça ao dono do banco o cadastro)")
+    if len(nomes) > 1:
+        raise _Uso(f"--por {por!r} identifica mais de um admin ativo: use o e-mail")
+    return nomes.pop()
+
+
 def _run_decidir(conn: Any, a: argparse.Namespace) -> Resultado:
     valor = None
     if a.valor is not None:
@@ -365,7 +377,8 @@ def _run_decidir(conn: Any, a: argparse.Namespace) -> Resultado:
             raise _Uso(f"--valor não é JSON válido: {e}") from None
     if a.aplicar and a.acao not in dec.ACOES_QUE_APLICAM:
         raise _Uso(f"--aplicar não vale com {a.acao}: só aprovar e corrigir aplicam")
-    d = dec.decidir(conn, a.id, acao=a.acao, por_tipo="pessoa", por_nome=a.por, justificativa=a.justificativa, valor=valor)
+    nome_admin = _admin_ativo(conn, a.por)
+    d = dec.decidir(conn, a.id, acao=a.acao, por_tipo="pessoa", por_nome=nome_admin, justificativa=a.justificativa, valor=valor)
     doc: dict[str, Any] = {"decisao": {k: d[k] for k in ("id", "pendencia_id", "acao", "decidido_por_tipo", "decidido_por_nome", "justificativa", "campos_afetados", "valor", "aplicada", "criada_em")},
                            "aplicacao": None}
     estado = "pendência continua aberta (confirmação pedida)" if a.acao == "pedir_confirmacao" else "pendência decidida"

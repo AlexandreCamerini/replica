@@ -47,6 +47,8 @@ TABELAS_ADM = (
     "adm_pareceres",
     "adm_pedidos",
     "adm_pedidos_decisao",  # 0153: a constante segue o número real de tabelas adm_*
+    "adm_admins",  # 0156 (F3-T1)
+    "adm_admins_log",  # 0156: só acréscimo
 )
 ROLES_SEM_ACESSO = ("web_reader", "web_writer", "anon", "authenticated")
 SHA = "a" * 64

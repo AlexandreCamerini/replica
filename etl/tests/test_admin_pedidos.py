@@ -39,6 +39,27 @@ from conftest import database_url
 
 SUITE = ("adm_pedidos", "adm_pedidos_decisao", "adm_rodadas", "adm_pareceres", "adm_decisoes", "adm_pendencias", "adm_propostas", "sapl_houses", "data_coverage", "ingest_runs", "dataset_stamps")
 NO_RETRATO_FORA = ("adm_pareceres", "adm_pedidos", "adm_pedidos_decisao")  # o executor escreve nestas três; o resto de `public` tem de ficar idêntico (critério 22)
+# 0156 (F3-T1): todo pedido do admin_central traz o e-mail de um admin ativo, e o gatilho grava `por_nome` com o nome da tabela `adm_admins`. Os nomes que estes testes usam
+# como `por_nome` ganham um admin cada (e-mail derivado); assim o nome gravado, a chave de idempotência e as asserções existentes continuam os mesmos.
+ADMINS_TESTE = ("Fulana de Teste", "Outra Pessoa", "Beltrano", "Fulana")
+EMAIL_PADRAO = "operador.local@segueovoto.invalid"  # o admin de db/local/post_0004_admin_local.sql
+
+
+def email_de(nome: str) -> str:
+    return "t-" + nome.lower().replace(" ", "-") + "@segueovoto.invalid"
+
+
+def garantir_admins(url: str) -> None:
+    with psycopg.connect(url, autocommit=True) as c:
+        for nome in ADMINS_TESTE:
+            c.execute("insert into adm_admins (email, nome) values (%s, %s) on conflict (email) do nothing", (email_de(nome), nome))
+
+
+def com_email(sql: str, campo: str = "chave_idem") -> str:
+    """Acrescenta `por_email` (último parâmetro) ao insert de SQL_INSERIR_PEDIDO / SQL_INSERIR_PEDIDO_DECISAO, que o admin_central usa como a central."""
+    return sql.replace(f"{campo}) values (", f"{campo}, por_email) values (", 1).replace(") on conflict", ", %s) on conflict", 1)
+
+
 UF_PB, UF_AM, UF_PI = "25", "13", "22"  # ibge_code dos lugares `uf` (a PB e a AM ganham pendência na v2; a PI não)
 
 
@@ -93,6 +114,7 @@ def limpar_pedidos(url: str) -> None:
 @pytest.fixture
 def base(sapl_base):  # noqa: F811
     limpar_pedidos(sapl_base)
+    garantir_admins(sapl_base)
     try:
         yield sapl_base
     finally:
@@ -236,18 +258,19 @@ def test_criterio_20_dois_cliques_na_recoleta_geram_um_pedido_so(cx):
 def test_criterio_20_a_central_insere_como_admin_central_e_o_segundo_e_recusado(cx, base, tcp):
     par = EX.normalizar("recoleta", recoleta("vinculo_sapl", UF_PB, "uf"))
     k = EX.chave_idem("recoleta", par)
-    ins = "insert into adm_pedidos (tipo, parametros, chave_idem) values ('recoleta', %s, %s)"
+    ins = f"insert into adm_pedidos (tipo, parametros, chave_idem, por_email) values ('recoleta', %s, %s, '{EMAIL_PADRAO}')"
+    sql_central = com_email(EX.SQL_INSERIR_PEDIDO)  # SQL_INSERIR_PEDIDO + por_email (0156)
     with como_central(base, tcp=tcp) as c:
         c.execute(ins, (json.dumps(par), k))
         with pytest.raises(pe.UniqueViolation):  # o segundo clique sem `on conflict`: o índice único parcial recusa
             c.execute(ins, (json.dumps(par), k))
         # a forma que a central usa (SQL_INSERIR_PEDIDO): `on conflict` infere o índice parcial; sem linha devolvida, lê o existente
-        assert c.execute(EX.SQL_INSERIR_PEDIDO, ("recoleta", json.dumps(par), k)).fetchone() is None
+        assert c.execute(sql_central, ("recoleta", json.dumps(par), k, EMAIL_PADRAO)).fetchone() is None
         existente = c.execute(EX.SQL_PEDIDO_ATIVO, (k,)).fetchall()
         assert len(existente) == 1 and existente[0]["status"] == "na_fila" and existente[0]["parametros"] == par
         # a policy continua valendo: a central não cria pedido já em execução, nem com andamento
         with pytest.raises(pe.InsufficientPrivilege):
-            c.execute("insert into adm_pedidos (tipo, chave_idem, status) values ('recoleta', 'outra', 'em_execucao')")
+            c.execute(f"insert into adm_pedidos (tipo, chave_idem, status, por_email) values ('recoleta', 'outra', 'em_execucao', '{EMAIL_PADRAO}')")
     assert n(cx, "adm_pedidos") == 1
     # `pedir` (superusuário, a CLI) reconhece o pedido que a central gravou
     p, novo = EX.pedir(cx, "recoleta", recoleta("vinculo_sapl", UF_PB, "uf"))
@@ -257,7 +280,7 @@ def test_criterio_20_a_central_insere_como_admin_central_e_o_segundo_e_recusado(
     cx.execute("update adm_pedidos set status = 'concluido', finalizado_em = now() where id = %s", (p["id"],))
     cx.commit()
     with como_central(base, tcp=tcp) as c:
-        novo_id = c.execute(EX.SQL_INSERIR_PEDIDO, ("recoleta", json.dumps(par), k)).fetchone()
+        novo_id = c.execute(sql_central, ("recoleta", json.dumps(par), k, EMAIL_PADRAO)).fetchone()
     assert novo_id is not None and n(cx, "adm_pedidos") == 2
 
 
@@ -413,7 +436,7 @@ def test_criterio_22_pedido_de_parecer_nao_altera_tabela_de_dominio(cx, base, v1
 
 def _pedido_de_decisao(c, pendencia: str, *, acao: str = "aprovar", aplicar: bool = True, nome: str = "Fulana de Teste", just: str = "conferi na página da casa", valor=None) -> str:
     k = EX.chave_idem("decisao", EX.parametros_decisao(pendencia_id=pendencia, acao=acao, por_nome=nome, justificativa=just, valor=valor, aplicar=aplicar))
-    return str(c.execute(EX.SQL_INSERIR_PEDIDO_DECISAO, (pendencia, acao, nome, just, json.dumps(valor) if valor is not None else None, aplicar, k)).fetchone()["id"])
+    return str(c.execute(com_email(EX.SQL_INSERIR_PEDIDO_DECISAO), (pendencia, acao, nome, just, json.dumps(valor) if valor is not None else None, aplicar, k, email_de(nome))).fetchone()["id"])
 
 
 def test_decisao_pedida_pela_central_vira_decisao_de_pessoa_e_aplica(cx, base, v1_v2):
@@ -422,7 +445,7 @@ def test_decisao_pedida_pela_central_vira_decisao_de_pessoa_e_aplica(cx, base, v
     with como_central(base, tcp=False) as c:
         pid = _pedido_de_decisao(c, pb)
         k = EX.chave_idem("decisao", EX.parametros_decisao(pendencia_id=pb, acao="aprovar", por_nome="Fulana de Teste", justificativa="x", aplicar=True))
-        assert c.execute(EX.SQL_INSERIR_PEDIDO_DECISAO, (pb, "aprovar", "Fulana de Teste", "outra justificativa", None, True, k)).fetchone() is None  # segundo clique
+        assert c.execute(com_email(EX.SQL_INSERIR_PEDIDO_DECISAO), (pb, "aprovar", "Fulana de Teste", "outra justificativa", None, True, k, email_de("Fulana de Teste"))).fetchone() is None  # segundo clique
         assert c.execute(EX.SQL_PEDIDO_DECISAO_ATIVO, (k,)).fetchone()["id"] == pedido(cx, pid, "adm_pedidos_decisao")["id"]
         with pytest.raises(pe.InsufficientPrivilege):
             c.execute("update adm_pedidos_decisao set status = 'concluido' where id = %s", (pid,))
@@ -701,7 +724,7 @@ def test_chave_idem_forjada_pela_central_falha_no_executor_sem_efeito(cx, base):
     par = EX.normalizar("recoleta", recoleta("vinculo_sapl", UF_PB, "uf"))
     # a central (admin_central) insere como quiser a chave: aqui, uma que não é a dos parâmetros
     with como_central(base, tcp=False) as c:
-        pid = inserir_cru(c, "adm_pedidos", tipo="recoleta", parametros=json.dumps(par), chave_idem="forjada-0123")
+        pid = inserir_cru(c, "adm_pedidos", tipo="recoleta", parametros=json.dumps(par), chave_idem="forjada-0123", por_email=EMAIL_PADRAO)
     cx.commit()
     nr, nt = n(cx, "adm_rodadas"), n(cx, "adm_tentativas")
     r = EX.executar_um(cx)
@@ -721,7 +744,7 @@ def test_chave_idem_forjada_em_pedido_de_decisao_falha_sem_decidir(cx, base, v1_
     pend = pend_de(cx, "PB")
     cx.rollback()
     with como_central(base, tcp=False) as c:
-        pid = inserir_cru(c, "adm_pedidos_decisao", pendencia_id=pend, acao="aprovar", por_nome="Fulana", justificativa="conferi", aplicar=False, chave_idem="forjada-decisao")
+        pid = inserir_cru(c, "adm_pedidos_decisao", pendencia_id=pend, acao="aprovar", por_nome="Fulana", justificativa="conferi", aplicar=False, chave_idem="forjada-decisao", por_email=email_de("Fulana"))
     nd = n(cx, "adm_decisoes")
     r = EX.executar_um(cx)
     cx.rollback()
@@ -744,6 +767,42 @@ def test_criado_em_antigo_pela_central_e_recusado_e_o_padrao_e_aceito(cx, base):
     k = EX.chave_idem("recoleta", par)
     with como_central(base, tcp=False) as c:
         with pytest.raises(pe.InsufficientPrivilege):
-            c.execute("insert into adm_pedidos (tipo, parametros, chave_idem, criado_em) values ('recoleta', %s, %s, now() - interval '10 minutes')", (json.dumps(par), k))
-        assert c.execute("insert into adm_pedidos (tipo, parametros, chave_idem) values ('recoleta', %s, %s) returning id", (json.dumps(par), k)).fetchone()
+            c.execute(f"insert into adm_pedidos (tipo, parametros, chave_idem, criado_em, por_email) values ('recoleta', %s, %s, now() - interval '10 minutes', '{EMAIL_PADRAO}')", (json.dumps(par), k))
+        assert c.execute(f"insert into adm_pedidos (tipo, parametros, chave_idem, por_email) values ('recoleta', %s, %s, '{EMAIL_PADRAO}') returning id", (json.dumps(par), k)).fetchone()
     assert n(cx, "adm_pedidos") == 1
+
+
+# ------------------------------------------------------------------ F3-T1: anti-SSRF no pedido de decisão
+
+
+def test_decisao_com_base_url_interno_termina_falhou_com_o_motivo_e_nao_grava(cx, base, v1_v2, monkeypatch):
+    """`decisoes.decidir` recusa o `base_url` que não é https para host público (AC-23); o executor registra o motivo no pedido e não grava decisão nenhuma.
+    O DNS é falso (sem rede): `interno.example` resolve para um IP privado, os outros `.example` para um público."""
+    real = socket.getaddrinfo
+    monkeypatch.setattr(socket, "getaddrinfo", lambda host, *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.9.8.7" if host == "interno.example" else "93.184.216.34", 443))]
+                        if str(host).endswith(".example") else real(host, *a, **k))
+    pi = str(casa(cx, "PI")["id"])
+    PR.registrar(cx, PR.Proposta(classe="vinculo_sapl", registro_chave=pi, campo="base_url", valor_candidato="https://interno.example/sapl", url="https://fonte.example/pi",
+                                 trecho="a casa publica em interno.example", conteudo_sha256="9" * 64, lida_em=datetime(2026, 11, 15, 10, 0, tzinfo=timezone.utc)),
+                 agora=datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc))
+    cx.commit()
+    pend = str(cx.execute("select id from adm_pendencias where registro_chave = %s and campo = 'base_url'", (pi,)).fetchone()["id"])
+    nd, no = n(cx, "adm_decisoes"), n(cx, "adm_overrides")
+    with como_central(base, tcp=False) as c:
+        aprovar = _pedido_de_decisao(c, pend, acao="aprovar", aplicar=False)  # o candidato proposto é interno
+        corrigir = _pedido_de_decisao(c, pend, acao="corrigir", aplicar=True, valor="https://127.0.0.1/sapl")
+    r1, r2 = EX.executar_um(cx), EX.executar_um(cx)
+    cx.rollback()
+    assert (r1["status"], r2["status"]) == ("falhou", "falhou")
+    for pid_, trecho in ((aprovar, "10.9.8.7"), (corrigir, "127.0.0.1")):
+        linha = pedido(cx, pid_, "adm_pedidos_decisao")
+        assert linha["status"] == "falhou" and linha["decisao_id"] is None and "base_url recusado" in linha["erro"] and trecho in linha["erro"], linha["erro"]
+    assert n(cx, "adm_decisoes") == nd and n(cx, "adm_overrides") == no
+    assert cx.execute("select status from adm_pendencias where id = %s", (pend,)).fetchone()["status"] == "aberta"
+    # com um endereço público o mesmo caminho conclui
+    with como_central(base, tcp=False) as c:
+        ok = _pedido_de_decisao(c, pend, acao="corrigir", aplicar=False, valor="https://sapl.publico.example")
+    r3 = EX.executar_um(cx)
+    cx.rollback()
+    assert r3["status"] == "concluido" and pedido(cx, ok, "adm_pedidos_decisao")["decisao_id"] is not None
+    assert cx.execute("select decidido_por_nome, valor from adm_decisoes").fetchone() == {"decidido_por_nome": "Fulana de Teste", "valor": "https://sapl.publico.example"}

@@ -18,7 +18,7 @@ import pytest
 from banco_isolado import REPO, banco_isolado  # noqa: F401  (fixture de sessão; não vive no conftest)
 from conftest import database_url
 from psycopg.rows import dict_row
-from test_admin_decisoes import POR, n, um
+from test_admin_decisoes import POR, _dns_de_teste, n, um  # noqa: F401  (_dns_de_teste é autouse: o DNS falso do anti-SSRF de `decidir`, sem rede)
 from test_admin_propostas import AGORA, H, P, iso, m  # noqa: F401  (fixtures iso e m)
 from test_admin_vinculos import IBGE
 

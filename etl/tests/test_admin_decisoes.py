@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import socket
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -39,6 +40,26 @@ SUITE = ("adm_decisoes", "adm_overrides", "adm_pendencias", "adm_vinculos", "cor
 def _contagens(url: str) -> dict[str, int]:
     with psycopg.connect(url, row_factory=dict_row, autocommit=True) as c:
         return {t: c.execute(f"select count(*) as n from {t}").fetchone()["n"] for t in SUITE}  # noqa: S608 (nomes fixos)
+
+
+# F3-T1 (anti-SSRF em `decisoes.decidir`): a decisão que grava `base_url` resolve o nome no DNS. Os testes existentes usam hosts `.example` (que não resolvem); o DNS de teste os
+# resolve para um IP público fixo, sem rede. Os nomes de `DNS_TESTE` resolvem para o que o teste quiser; o resto passa para o resolvedor real (localhost do banco).
+DNS_TESTE: dict[str, list[str]] = {}
+
+
+@pytest.fixture(autouse=True)
+def _dns_de_teste(monkeypatch):
+    real = socket.getaddrinfo
+
+    def falso(host, *a, **k):
+        if str(host) in DNS_TESTE or str(host).endswith(".example"):
+            return [(socket.AF_INET6 if ":" in ip else socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 443)) for ip in DNS_TESTE.get(str(host), ["93.184.216.34"])]
+        return real(host, *a, **k)
+
+    monkeypatch.setattr(socket, "getaddrinfo", falso)
+    DNS_TESTE.clear()
+    yield
+    DNS_TESTE.clear()
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -642,6 +663,8 @@ def mundo_commit(banco_isolado, monkeypatch):
     c.execute("set timezone = 'UTC'")
     assert n(c, "corrections") == 0 and n(c, "adm_decisoes") == 0 and n(c, "adm_pendencias") == 0  # o banco isolado parte limpo
     mm = mundo(c)
+    # 0156: `admin decidir --por` exige admin ativo em adm_admins; a linha fica (o log de admins é só de acréscimo; o banco é isolado e some no fim da sessão)
+    c.execute("insert into adm_admins (email, nome) values ('t-fulana-de-teste@segueovoto.invalid', 'Fulana de Teste') on conflict (email) do nothing")
     c.commit()
     try:
         yield c, mm
@@ -736,3 +759,82 @@ def test_cli_codigos_de_saida_uso_erro_de_execucao_e_chaves_desligadas(mundo_com
     finally:
         os.environ.pop("ADMIN_COLETA_AGENTES", None)
     assert um(c, "select status from sapl_houses where id = %s", mm["h_cam"])["status"] == "ok"
+
+
+# ------------------------------------------------------------------ 8. F3-T1: anti-SSRF no base_url e admin ativo em `--por`
+
+
+def _pend_base_url(iso, m, valor: str, sha: str) -> str:
+    return PR.registrar(iso, P(m, campo="base_url", valor_candidato=valor, conteudo_sha256=H(sha), url="https://b.example/x"), agora=AGORA).pendencia_id
+
+
+def test_decidir_base_url_interno_e_recusado_sem_gravar_nada(iso, m):
+    DNS_TESTE["interno.example"] = ["10.0.0.7"]
+    DNS_TESTE["misto.example"] = ["93.184.216.34", "169.254.169.254"]
+    h = str(m["h_cam"])
+    antes = (n(iso, "adm_decisoes"), n(iso, "adm_overrides"), um(iso, "select base_url from sapl_houses where id = %s", h)["base_url"])
+    ruins = ("https://127.0.0.1/sapl", "https://10.1.2.3/sapl", "https://169.254.169.254/latest", "https://[::1]/sapl", "http://sapl.publico.example/api", "https://usuario:senha@sapl.publico.example/",
+             "https://sapl.publico.example:8443/", "https://interno.example/sapl", "https://misto.example/sapl")
+    for i, v in enumerate(ruins):
+        pid = _pend_base_url(iso, m, v, f"ssrf{i}")
+        # corrigir (valor informado)
+        with pytest.raises(DecisaoRecusada, match="base_url recusado"):
+            decide(iso, pid, "corrigir", valor=v)
+        # aprovar (o candidato proposto é o próprio valor ruim)
+        with pytest.raises(DecisaoRecusada, match="base_url recusado"):
+            decide(iso, pid)
+        assert pendencia(iso, "vinculo_sapl", h, "base_url")["status"] == "aberta"
+    assert (n(iso, "adm_decisoes"), n(iso, "adm_overrides"), um(iso, "select base_url from sapl_houses where id = %s", h)["base_url"]) == antes
+    # o motivo diz o que houve
+    with pytest.raises(DecisaoRecusada, match=r"10\.0\.0\.7"):
+        decide(iso, pendencia(iso, "vinculo_sapl", h, "base_url")["id"], "corrigir", valor="https://interno.example/sapl")
+
+
+def test_decidir_base_url_publico_passa_e_o_status_nao_passa_pela_checagem(iso, m):
+    pid = _pend_base_url(iso, m, "https://sapl.publico.example", "ssrf-ok")
+    d = decide(iso, pid, "corrigir", valor="https://sapl.publico.example")
+    assert d["valor"] == "https://sapl.publico.example" and n(iso, "adm_decisoes") == 1
+    # descartar não grava valor: a checagem não se aplica; `status` nunca é URL
+    pid2 = prop_status(iso, m, sha="ssrf-st")
+    assert decide(iso, pid2, "aprovar")["valor"] == "fora_do_ar"
+
+
+def test_cli_por_de_nao_admin_e_de_admin_inativo_sai_2_sem_gravar(mundo_commit, capsys):
+    c, mm = mundo_commit
+    p1 = PR.registrar(c, P(mm, valor_candidato="fora_do_ar", conteudo_sha256=H("por1")), agora=AGORA).pendencia_id
+    c.execute("insert into adm_admins (email, nome, ativo) values ('t-inativo@segueovoto.invalid', 'Inativo da Silva', false) on conflict (email) do nothing")
+    c.commit()
+    base = ("decidir", p1, "--acao", "aprovar", "--justificativa", "conferi")
+    for por in ("Qualquer Pessoa", "ninguem@segueovoto.invalid", "Inativo da Silva", "t-inativo@segueovoto.invalid", "  "):
+        rc, out, err = _cli(capsys, *base, "--por", por)
+        assert rc == 2 and "adm_admins" in err and out == "", (por, rc, err)
+    assert n(c, "adm_decisoes") == 0 and pendencia(c, "vinculo_sapl", str(mm["h_cam"]), "status")["status"] == "aberta"
+
+
+def test_cli_por_de_admin_ativo_grava_o_nome_da_tabela(mundo_commit, capsys):
+    c, mm = mundo_commit
+    p1 = PR.registrar(c, P(mm, valor_candidato="fora_do_ar", conteudo_sha256=H("por2")), agora=AGORA).pendencia_id
+    p2 = PR.registrar(c, P(mm, classe="cobertura", registro_chave=f"{IBGE}:propostas", campo="status", valor_candidato="so_portal", conteudo_sha256=H("por3"), url="https://cob.example/x"), agora=AGORA).pendencia_id
+    c.execute("insert into adm_admins (email, nome) values ('t-beltrana@segueovoto.invalid', 'Beltrana de Souza') on conflict (email) do nothing")
+    c.commit()
+    # por e-mail, em maiúsculas: o nome gravado é o da tabela, não o que veio
+    rc, out, err = _cli(capsys, "decidir", p1, "--acao", "aprovar", "--por", "T-Beltrana@SeguEoVoto.invalid", "--justificativa", "conferi", "--json")
+    assert rc == 0, err
+    assert json.loads(out)["decisao"]["decidido_por_nome"] == "Beltrana de Souza"
+    assert um(c, "select decidido_por_nome from adm_decisoes where pendencia_id = %s", p1)["decidido_por_nome"] == "Beltrana de Souza"
+    # por nome
+    rc, out, err = _cli(capsys, "decidir", p2, "--acao", "descartar", "--por", "Fulana de Teste", "--justificativa", "não vale", "--json")
+    assert rc == 0, err
+    assert um(c, "select decidido_por_nome from adm_decisoes where pendencia_id = %s", p2)["decidido_por_nome"] == "Fulana de Teste"
+    c.execute("delete from adm_admins where email = 't-beltrana@segueovoto.invalid'")  # o log de admins guarda o acréscimo; a linha some para não vazar para outros testes
+    c.commit()
+
+
+def test_cli_decidir_base_url_interno_sai_1_sem_gravar(mundo_commit, capsys):
+    c, mm = mundo_commit
+    DNS_TESTE["interno.example"] = ["192.168.0.9"]
+    p1 = PR.registrar(c, P(mm, campo="base_url", valor_candidato="https://interno.example/sapl", conteudo_sha256=H("ssrf-cli"), url="https://b.example/x"), agora=AGORA).pendencia_id
+    c.commit()
+    rc, out, err = _cli(capsys, "decidir", p1, "--acao", "aprovar", "--por", "Fulana de Teste", "--justificativa", "parece certo")
+    assert rc == 1 and "base_url recusado" in err and "192.168.0.9" in err and out == ""
+    assert n(c, "adm_decisoes") == 0 and pendencia(c, "vinculo_sapl", str(mm["h_cam"]), "base_url")["status"] == "aberta"

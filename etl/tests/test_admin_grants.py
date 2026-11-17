@@ -28,24 +28,44 @@ ROLE = "admin_central"
 SENHA_LOCAL = "admin_central"  # a de db/local/post_0003_admin_central.sql (só local)
 MIGRACAO = REPO / "db" / "migrations" / "0153_admin_central.sql"
 POST = REPO / "db" / "local" / "post_0003_admin_central.sql"
+ADMIN_EMAIL = "operador.local@segueovoto.invalid"  # o admin de db/local/post_0004_admin_local.sql: a 0156 exige admin ativo em todo pedido do admin_central
+ADMIN_NOME = "Operador local"
 
 ADM = {
     "adm_rodadas", "adm_tentativas", "adm_evidencias", "adm_vinculos", "adm_propostas", "adm_pendencias",
     "adm_pendencia_propostas", "adm_decisoes", "adm_overrides", "adm_pareceres", "adm_pedidos", "adm_pedidos_decisao",
+    "adm_admins",  # 0156: o admin_central só lê
 }
+ADM_SEM_ACESSO = {"adm_admins_log"}  # 0156: só o dono lê e acrescenta; nenhum grant, nenhuma policy
 DOMINIO = {
     "sapl_houses", "data_coverage", "mandate_contacts", "mandates", "places", "legislative_bodies", "offices",
     "identity_match_queue", "sources", "ingest_runs", "dataset_stamps", "etl_schedule_attempts",
 }
 # EXPECTATIVA exata: tabela -> privilégios do admin_central. Toda tabela de `public` fora desta lista não tem nenhum.
-SELECT_EM = ADM | DOMINIO
+SELECT_EM = ADM | DOMINIO  # tabelas com policy de leitura para o admin_central
+COLUNAS_SEM_SELECT = {("identity_match_queue", "raw")}  # 0156: `select` por coluna em identity_match_queue, sem `raw`
+SELECT_POR_COLUNA = {"identity_match_queue"}  # sem `select` de tabela inteira (has_table_privilege falso); o privilégio vive nas colunas
 INSERT_EM = {"adm_pedidos", "adm_pedidos_decisao"}
 PRIVS = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 ROLES_SEM_ACESSO = ("web_reader", "web_writer", "anon", "authenticated")
 
 
 def esperado(tabela: str, priv: str) -> bool:
-    return (priv == "SELECT" and tabela in SELECT_EM) or (priv == "INSERT" and tabela in INSERT_EM)
+    return (priv == "SELECT" and tabela in SELECT_EM and tabela not in SELECT_POR_COLUNA) or (priv == "INSERT" and tabela in INSERT_EM)
+
+
+def esperado_coluna(tabela: str, coluna: str, priv: str) -> bool:
+    """Privilégio efetivo na coluna (tabela inteira ou grant por coluna)."""
+    if priv == "SELECT" and tabela in SELECT_POR_COLUNA:
+        return (tabela, coluna) not in COLUNAS_SEM_SELECT
+    return esperado(tabela, priv)
+
+
+def com_admin(q: str, email: str = ADMIN_EMAIL) -> str:
+    """Acrescenta `por_email` a um `insert ... values (...)` literal: desde a 0156 o pedido do admin_central sem admin ativo é recusado."""
+    m = re.match(r"^(insert into \w+) \(([^)]*)\) values \((.*)\)( returning .*)?$", q, re.S)
+    assert m, q
+    return f"{m.group(1)} ({m.group(2)}, por_email) values ({m.group(3)}, '{email}'){m.group(4) or ''}"
 
 
 # ------------------------------------------------------------------ conexões
@@ -185,15 +205,19 @@ def test_matriz_de_colunas_exata_e_sem_grant_por_coluna(su):
     for r in cols:
         for priv in ("SELECT", "INSERT", "UPDATE", "REFERENCES"):
             tem = su.execute("select has_column_privilege(%s, %s::regclass, %s, %s) as p", (ROLE, f"public.{r['t']}", r["col"], priv)).fetchone()["p"]
-            if tem != esperado(r["t"], priv):
+            if tem != esperado_coluna(r["t"], r["col"], priv):
                 erros.append(f"{r['t']}.{r['col']} {priv}: tem={tem}")
     assert not erros, "\n".join(erros[:30])
-    # grant por coluna não existe: nenhum attacl cita o role
+    # grant por coluna só existe onde a 0156 o declara: identity_match_queue, todas as colunas menos `raw`; nenhum outro attacl cita o role
     direto = su.execute(
         "select c.relname t, a.attname col from pg_attribute a join pg_class c on c.oid = a.attrelid join pg_namespace n on n.oid = c.relnamespace, "
         "lateral aclexplode(a.attacl) x where n.nspname = 'public' and a.attacl is not null and x.grantee = (select oid from pg_roles where rolname = %s)", (ROLE,)
     ).fetchall()
-    assert direto == [], direto
+    esperado_direto = sorted(
+        (r["t"], r["col"]) for r in cols if r["t"] in SELECT_POR_COLUNA and (r["t"], r["col"]) not in COLUNAS_SEM_SELECT
+    )
+    assert sorted((d["t"], d["col"]) for d in direto) == esperado_direto, direto
+    assert all(d["t"] == "identity_match_queue" and d["col"] != "raw" for d in direto)
 
 
 def test_funcoes_so_as_publicas_por_padrao_e_nenhum_grant_direto(su):
@@ -239,14 +263,16 @@ def test_schemas_sequences_e_banco(su):
 
 
 def test_le_uma_linha_de_cada_tabela_concedida(central):
-    for t in sorted(SELECT_EM):
+    for t in sorted(SELECT_EM - SELECT_POR_COLUNA):
         deve_passar(central, f"select * from public.{t} limit 1")
+    # identity_match_queue: as colunas menos `raw` (0156); `select *` e `select raw` são negados (identity_match_queue.raw: ver test_admin_identidade.py)
+    deve_passar(central, "select id, source_id, external_id, candidate_person_id, confidence, status, resolved_by, resolved_at, created_at, updated_at from public.identity_match_queue limit 1")
 
 
 def test_insert_em_adm_pedidos(central):
-    ok = "insert into adm_pedidos (tipo, chave_idem, parametros) values ('rodada', %s, '{}') returning id, status"
+    ok = com_admin("insert into adm_pedidos (tipo, chave_idem, parametros) values ('rodada', %s, '{}') returning id, status")
     assert deve_passar(central, ok, (uuid.uuid4().hex,))[0]["status"] == "na_fila"
-    assert deve_passar(central, "insert into adm_pedidos (tipo, chave_idem, parametros) values ('parecer', %s, '{\"a\": 1}') returning id", (uuid.uuid4().hex,))
+    assert deve_passar(central, com_admin("insert into adm_pedidos (tipo, chave_idem, parametros) values ('parecer', %s, '{\"a\": 1}') returning id"), (uuid.uuid4().hex,))
     ruins = {
         "status concluido": "insert into adm_pedidos (tipo, chave_idem, status) values ('rodada', %s, 'concluido')",
         "status em_execucao": "insert into adm_pedidos (tipo, chave_idem, status) values ('rodada', %s, 'em_execucao')",
@@ -258,34 +284,39 @@ def test_insert_em_adm_pedidos(central):
         "erro": "insert into adm_pedidos (tipo, chave_idem, erro) values ('rodada', %s, 'x')",
     }
     for rotulo, q in ruins.items():
-        e, _ = tentar(central, q, (uuid.uuid4().hex,))
+        e, _ = tentar(central, com_admin(q), (uuid.uuid4().hex,))
         assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"{rotulo}: {type(e).__name__} {e}"
 
 
-def test_insert_em_adm_pedidos_decisao(central, pendencia):
-    ok = "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', 'Fulana', 'conferi', %s) returning status, aplicar"
+def test_insert_em_adm_pedidos_decisao(central, su, pendencia):
+    ok = com_admin("insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', 'Fulana', 'conferi', %s) returning status, aplicar")
     r = deve_passar(central, ok, (pendencia, uuid.uuid4().hex))[0]
     assert (r["status"], r["aplicar"]) == ("na_fila", False)
     base = "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem, {c}) values (%s, 'aprovar', 'Fulana', 'conferi', %s, {v})"
     for coluna, valor in (("decisao_id", "gen_random_uuid()"), ("erro", "'x'"), ("status", "'concluido'"), ("iniciado_em", "now()"), ("batimento_em", "now()"), ("finalizado_em", "now()")):
-        e, _ = tentar(central, base.format(c=coluna, v=valor), (pendencia, uuid.uuid4().hex))
+        e, _ = tentar(central, com_admin(base.format(c=coluna, v=valor)), (pendencia, uuid.uuid4().hex))
         assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"{coluna}: {type(e).__name__} {e}"
     # checks de domínio da tabela continuam valendo para o role
-    deve_negar(central, "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'apagar', 'F', 'j', %s)", (pendencia, "k"), pe.CheckViolation)
-    deve_negar(central, "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', ' ', 'j', %s)", (pendencia, "k"), pe.CheckViolation)
-    deve_negar(central, "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', 'F', '', %s)", (pendencia, "k"), pe.CheckViolation)
-    deve_negar(central, "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (gen_random_uuid(), 'aprovar', 'F', 'j', %s)", ("k",), pe.ForeignKeyViolation)
+    deve_negar(central, com_admin("insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'apagar', 'F', 'j', %s)"), (pendencia, "k"), pe.CheckViolation)
+    # 0156: `por_nome` do admin_central é SEMPRE sobrescrito pelo nome de adm_admins, então um `por_nome` em branco do cliente já não chega ao check (ele entra com o nome da tabela);
+    # o check de `por_nome` em branco continua valendo para os outros roles (o dono, aqui o superusuário do banco isolado), provado logo abaixo.
+    assert deve_passar(central, com_admin("insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', ' ', 'j', %s) returning por_nome"), (pendencia, "k"))[0]["por_nome"] == ADMIN_NOME
+    with pytest.raises(pe.CheckViolation):
+        with su.transaction(force_rollback=True):
+            su.execute("insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', ' ', 'j', %s)", (pendencia, "k"))
+    deve_negar(central, com_admin("insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', 'F', '', %s)"), (pendencia, "k"), pe.CheckViolation)
+    deve_negar(central, com_admin("insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (gen_random_uuid(), 'aprovar', 'F', 'j', %s)"), ("k",), pe.ForeignKeyViolation)
 
 
 def test_pedido_repetido_nao_abre_segundo_em_curso(central, pendencia):
     """Critério 20, no banco: a mesma chave_idem na fila ou em execução só entra uma vez."""
     k = uuid.uuid4().hex
     with central.transaction(force_rollback=True):
-        central.execute("insert into adm_pedidos (tipo, chave_idem) values ('rodada', %s)", (k,))
+        central.execute(com_admin("insert into adm_pedidos (tipo, chave_idem) values ('rodada', %s)"), (k,))
         with pytest.raises(pe.UniqueViolation):
             with central.transaction():
-                central.execute("insert into adm_pedidos (tipo, chave_idem) values ('rodada', %s)", (k,))
-    q = "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'descartar', 'F', 'j', %s)"
+                central.execute(com_admin("insert into adm_pedidos (tipo, chave_idem) values ('rodada', %s)"), (k,))
+    q = com_admin("insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'descartar', 'F', 'j', %s)")
     with central.transaction(force_rollback=True):
         central.execute(q, (pendencia, k))
         with pytest.raises(pe.UniqueViolation):
@@ -381,14 +412,14 @@ def test_revoke_efetivo_para_os_roles_do_site(su):
     roles = [r["rolname"] for r in su.execute("select rolname from pg_roles where rolname = any(%s)", (list(ROLES_SEM_ACESSO),)).fetchall()]
     assert {"web_reader", "web_writer", "anon", "authenticated"} <= set(roles), roles
     for role in roles:
-        for t in ADM:
+        for t in ADM | ADM_SEM_ACESSO:
             for priv in PRIVS:
                 assert not su.execute("select has_table_privilege(%s, %s, %s) as p", (role, f"public.{t}", priv)).fetchone()["p"], f"{role} tem {priv} em {t}"
             assert not su.execute("select has_any_column_privilege(%s, %s, 'select,insert,update,references') as p", (role, f"public.{t}")).fetchone()["p"], f"{role}: coluna em {t}"
 
 
 def test_rls_ligada_e_policies_exatas(su):
-    for t in ADM:
+    for t in ADM | ADM_SEM_ACESSO:
         assert su.execute("select relrowsecurity as r from pg_class where oid = %s::regclass", (f"public.{t}",)).fetchone()["r"], f"{t} sem RLS"
     # nenhuma policy de adm_* para outro role que não o admin_central, nenhuma `to public`
     pol = su.execute("select tablename, policyname, roles::text[] as roles, cmd from pg_policies where tablename like 'adm\\_%' order by 1, 2").fetchall()
@@ -414,30 +445,35 @@ def test_gatilhos_das_duas_tabelas_de_pedido_nao_disparam_em_insert(su):
     rows = su.execute(
         "select c.relname t, t.tgname, t.tgtype from pg_trigger t join pg_class c on c.oid = t.tgrelid where c.relname in ('adm_pedidos', 'adm_pedidos_decisao') and not t.tgisinternal"
     ).fetchall()
-    assert {(r["t"], r["tgname"]) for r in rows} == {("adm_pedidos", "adm_pedidos_guard"), ("adm_pedidos_decisao", "adm_pedidos_decisao_guard")}
+    # 0156 (F3-T1): o gatilho `adm_pedido_identidade` (before insert, só age para o admin_central) entra nas duas; os de transição continuam sem disparar em insert.
+    assert {(r["t"], r["tgname"]) for r in rows} == {("adm_pedidos", "adm_pedidos_guard"), ("adm_pedidos_decisao", "adm_pedidos_decisao_guard"),
+                                                     ("adm_pedidos", "adm_pedido_identidade"), ("adm_pedidos_decisao", "adm_pedido_identidade")}
     for r in rows:
-        assert r["tgtype"] & 4 == 0, f"{r['tgname']} dispara em insert"  # bit 4 = INSERT
+        if r["tgname"] == "adm_pedido_identidade":
+            assert r["tgtype"] & 4 and r["tgtype"] & 2 and r["tgtype"] & 1, "adm_pedido_identidade tem de ser `before insert for each row`"  # bits: 1 = row, 2 = before, 4 = insert
+        else:
+            assert r["tgtype"] & 4 == 0, f"{r['tgname']} dispara em insert"  # bit 4 = INSERT
 
 
 def test_criado_em_do_pedido_so_aceita_agora(central, pendencia):
     """0154 (G4-1): `criado_em` livre deixava o cliente furar a fila e acender "executor parado". Padrão passa; passado e futuro distantes não."""
     ped = "insert into adm_pedidos (tipo, chave_idem, criado_em) values ('rodada', %s, {v})"
     dec = "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem, criado_em) values (%s, 'aprovar', 'Fulana', 'conferi', %s, {v})"
-    assert deve_passar(central, ped.format(v="default") + " returning id", (uuid.uuid4().hex,))
-    assert deve_passar(central, dec.format(v="default") + " returning id", (pendencia, uuid.uuid4().hex))
-    assert deve_passar(central, ped.format(v="now()") + " returning id", (uuid.uuid4().hex,))
+    assert deve_passar(central, com_admin(ped.format(v="default") + " returning id"), (uuid.uuid4().hex,))
+    assert deve_passar(central, com_admin(dec.format(v="default") + " returning id"), (pendencia, uuid.uuid4().hex))
+    assert deve_passar(central, com_admin(ped.format(v="now()") + " returning id"), (uuid.uuid4().hex,))
     for v in ("now() - interval '10 minutes'", "now() + interval '10 minutes'", "'2000-01-01'"):
-        e, _ = tentar(central, ped.format(v=v), (uuid.uuid4().hex,))
+        e, _ = tentar(central, com_admin(ped.format(v=v)), (uuid.uuid4().hex,))
         assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"adm_pedidos {v}: {type(e).__name__} {e}"
-        e, _ = tentar(central, dec.format(v=v), (pendencia, uuid.uuid4().hex))
+        e, _ = tentar(central, com_admin(dec.format(v=v)), (pendencia, uuid.uuid4().hex))
         assert isinstance(e, pe.InsufficientPrivilege) and "row-level security" in str(e), f"adm_pedidos_decisao {v}: {type(e).__name__} {e}"
 
 
 def test_criado_em_pelo_relogio_e_nao_pelo_inicio_da_transacao(central, pendencia):
     """0155 (N2): `now()` é o início da transação; quem segura a transação e insere com o default grava `criado_em` retroagido. Com a policy pelo relógio,
     o default de uma transação de 6 s é recusado nas duas tabelas; o de uma transação curta passa."""
-    ped = "insert into adm_pedidos (tipo, chave_idem) values ('rodada', %s) returning id"
-    dec = "insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', 'Fulana', 'conferi', %s) returning id"
+    ped = com_admin("insert into adm_pedidos (tipo, chave_idem) values ('rodada', %s) returning id")
+    dec = com_admin("insert into adm_pedidos_decisao (pendencia_id, acao, por_nome, justificativa, chave_idem) values (%s, 'aprovar', 'Fulana', 'conferi', %s) returning id")
     with central.transaction(force_rollback=True):
         central.execute("select pg_sleep(0.2)")
         assert deve_passar(central, ped, (uuid.uuid4().hex,))
