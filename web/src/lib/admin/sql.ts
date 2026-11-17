@@ -7,11 +7,11 @@
 //   2. consultas PRÓPRIAS da central, que não existem no ETL (fichas por território, executor, rodadas, ficha com histórico).
 //   3. inserção de pedido: a central SÓ escreve em `adm_pedidos` e `adm_pedidos_decisao` (decisão AC-19; migração 0153).
 //
-// `chave_idem` dos pedidos (a forma que o executor deve conciliar; o executor da CLI é escrito por outra tarefa):
+// `chave_idem` dos pedidos: a MESMA de etl/civico_etl/admin/executor.py (`chave_idem`; o teste admin-sql.test.ts confere os VETORES_DE_OURO de lá):
 //   sha256 hex (UTF-8) do JSON CANÔNICO (chaves ordenadas em todos os níveis, sem espaços, texto não ASCII sem escape; igual a
 //   `classes.canonico` do ETL: sort_keys, ensure_ascii=False, separators=(",", ":")) de
-//     - adm_pedidos:         {"tipo": <tipo>, "parametros": <parametros>}
-//     - adm_pedidos_decisao: {"pendencia_id", "acao", "valor", "por_nome"}  (`valor` ausente = null; justificativa e `aplicar` ficam FORA da chave)
+//     - adm_pedidos:         {"tipo": <tipo>, "parametros": <parametros normalizados como em executor.normalizar>}
+//     - adm_pedidos_decisao: {"tipo": "decisao", "parametros": {"pendencia_id", "acao", "valor", "por_nome", "aplicar"}}  (`valor` ausente = null; justificativa fica FORA)
 //   Dois pedidos iguais enquanto o primeiro está na_fila/em_execucao dão o mesmo id (índice único parcial da tabela + `where not exists` abaixo).
 //
 // Parâmetros ($1, $2...) sempre com cast explícito: o driver manda tipo desconhecido e o Postgres infere pelo cast. Lista de valores vai
@@ -38,8 +38,8 @@ const sha256 = (s: string): string => createHash("sha256").update(s, "utf8").dig
 
 export const chaveIdemPedido = (tipo: string, parametros: unknown): string => sha256(jsonCanonico({ tipo, parametros }));
 
-export const chaveIdemDecisao = (d: { pendencia_id: string; acao: string; valor: unknown; por_nome: string }): string =>
-  sha256(jsonCanonico({ pendencia_id: d.pendencia_id, acao: d.acao, valor: d.valor === undefined ? null : d.valor, por_nome: d.por_nome }));
+export const chaveIdemDecisao = (d: { pendencia_id: string; acao: string; valor: unknown; por_nome: string; aplicar: boolean }): string =>
+  sha256(jsonCanonico({ tipo: "decisao", parametros: { pendencia_id: d.pendencia_id, acao: d.acao, valor: d.valor === undefined ? null : d.valor, por_nome: d.por_nome, aplicar: d.aplicar } }));
 
 // ============================================================================================================================
 // PARTE 1: constantes COPIADAS do ETL (critério 19). Só a sintaxe de parâmetro mudou (`%(nome)s` -> `$n`). Não edite à mão: o teste
@@ -589,9 +589,10 @@ export const CONSULTAS_PROPRIAS: Readonly<Record<string, string>> = {
 // PARTE 4: validação do pedido (pura). A tela nunca passa argv: o pedido leva só parâmetros estruturados e pequenos, que o EXECUTOR
 // valida de novo contra o catálogo (plano, seção 4a). Aqui se recusa o que não tem a forma; o que passa sai NORMALIZADO (listas ordenadas e sem
 // repetição, uuid em minúsculas), porque a `chave_idem` é calculada sobre os parâmetros normalizados.
-// Forma dos parâmetros (premissa desta tarefa; o orquestrador concilia com o executor):
-//   rodada:  { coletor, modo?, anos?, ufs?, casas?, ibges?, extras?, repete_id?, so_pendencias? }   (so_pendencias exige repete_id)
-//   recoleta:{ classe?, territorio?: { nivel: "uf" | "municipio" | "pais", ibge? } }                 (ao menos um dos dois; ibge obrigatório em uf e município)
+// Forma dos parâmetros: a de `executor.normalizar` (etl/civico_etl/admin/executor.py), saída idêntica byte a byte para a chave bater:
+//   rodada:  { coletor, modo?, recorte?: { anos?, ufs?, casas?, ibges?, extras? } } -> { coletor, modo (padrão recoletar), recorte: { anos, ufs, casas, ibges, extras } }
+//            ou { repetir, so_pendencias? } -> { repetir, so_pendencias (padrão false) }
+//   recoleta:{ classe, territorio: { ibge, nivel: "municipio" | "uf" | "pais" } }   (os dois obrigatórios; identidade não tem território)
 //   parecer: { pendencia_id } OU { rodada_id }
 // ============================================================================================================================
 
@@ -635,41 +636,43 @@ export function validarPedido(tipo: unknown, parametros: unknown): { tipo: TipoP
   const p = objeto(parametros ?? {}, "parametros");
   const out: Record<string, unknown> = {};
   if (tipo === "rodada") {
-    soChaves(p, ["coletor", "modo", "anos", "ufs", "casas", "ibges", "extras", "repete_id", "so_pendencias"], "rodada");
-    out.coletor = texto(p.coletor, "coletor", 80, /^[A-Za-z0-9_.-]+$/);
-    if (p.modo !== undefined) {
-      if (!(MODOS_RODADA as readonly unknown[]).includes(p.modo)) invalido("modo inválido (esperado descobrir, recoletar ou reprocessar)");
-      out.modo = p.modo;
-    }
-    if (p.anos !== undefined) out.anos = lista(p.anos, "anos", 20, (v) => (Number.isInteger(v) && (v as number) >= 1900 && (v as number) <= 2100 ? (v as number) : invalido("ano fora de 1900..2100")));
-    if (p.ufs !== undefined) out.ufs = lista(p.ufs, "ufs", 27, (v) => texto(v, "uf", 2, /^[A-Z]{2}$/));
-    if (p.casas !== undefined) out.casas = lista(p.casas, "casas", 50, (v) => texto(v, "casa", 80));
-    if (p.ibges !== undefined) out.ibges = lista(p.ibges, "ibges", 100, (v) => texto(v, "ibge", 7, /^\d{7}$/));
-    if (p.extras !== undefined) {
-      const e = objeto(p.extras, "extras");
-      if (Object.keys(e).length > 20) invalido("extras: no máximo 20 itens");
-      out.extras = Object.fromEntries(Object.keys(e).sort().map((k) => [texto(k, "chave de extras", 40, /^[A-Za-z0-9_]+$/), texto(e[k], `extras.${k}`, 200)]));
-    }
-    if (p.repete_id !== undefined) out.repete_id = ehUuid(p.repete_id) ? p.repete_id.toLowerCase() : invalido("repete_id tem de ser um uuid");
-    if (p.so_pendencias !== undefined) {
-      if (typeof p.so_pendencias !== "boolean") invalido("so_pendencias tem de ser verdadeiro ou falso");
-      if (p.so_pendencias && out.repete_id === undefined) invalido("so_pendencias exige repete_id");
-      out.so_pendencias = p.so_pendencias;
+    soChaves(p, ["coletor", "modo", "recorte", "repetir", "so_pendencias"], "rodada");
+    if (p.repetir !== undefined) {
+      if (p.coletor !== undefined || p.recorte !== undefined || p.modo !== undefined) invalido("repetir não se combina com coletor, modo nem recorte");
+      out.repetir = ehUuid(p.repetir) ? p.repetir.toLowerCase() : invalido("repetir tem de ser o uuid de uma rodada");
+      if (p.so_pendencias !== undefined && typeof p.so_pendencias !== "boolean") invalido("so_pendencias tem de ser verdadeiro ou falso");
+      out.so_pendencias = p.so_pendencias === true;
+    } else {
+      if (p.so_pendencias !== undefined) invalido("so_pendencias só vale com repetir");
+      out.coletor = texto(p.coletor, "coletor", 80, /^[A-Za-z0-9_.-]+$/);
+      const modo = p.modo === undefined ? "recoletar" : p.modo;
+      if (!(MODOS_RODADA as readonly unknown[]).includes(modo)) invalido("modo inválido (esperado descobrir, recoletar ou reprocessar)");
+      out.modo = modo;
+      const r = objeto(p.recorte ?? {}, "recorte");
+      soChaves(r, ["anos", "ufs", "casas", "ibges", "extras"], "recorte");
+      const anos = lista(r.anos ?? [], "anos", 20, (v) => (Number.isInteger(v) && (v as number) >= 1900 && (v as number) <= 2100 ? (v as number) : invalido("ano fora de 1900..2100")));
+      anos.sort((x, y) => x - y);
+      const extras = objeto(r.extras ?? {}, "extras");
+      if (Object.keys(extras).length > 20) invalido("extras: no máximo 20 itens");
+      out.recorte = {
+        anos,
+        ufs: lista(r.ufs ?? [], "ufs", 27, (v) => texto(v, "uf", 2, /^[A-Z]{2}$/)),
+        casas: lista(r.casas ?? [], "casas", 50, (v) => texto(v, "casa", 80)),
+        ibges: lista(r.ibges ?? [], "ibges", 100, (v) => texto(v, "ibge", 7, /^\d{7}$/)),
+        extras: Object.fromEntries(Object.keys(extras).sort().map((k) => [texto(k, "chave de extras", 40, /^[A-Za-z0-9_]+$/), texto(extras[k], `extras.${k}`, 200)])),
+      };
     }
   } else if (tipo === "recoleta") {
     soChaves(p, ["classe", "territorio"], "recoleta");
-    if (p.classe === undefined && p.territorio === undefined) invalido("recoleta exige classe, territorio ou os dois");
-    if (p.classe !== undefined) out.classe = typeof p.classe === "string" && CLASSES_VALIDAS.includes(p.classe) ? p.classe : invalido("classe inválida");
-    if (p.territorio !== undefined) {
-      const t = objeto(p.territorio, "territorio");
-      soChaves(t, ["nivel", "ibge"], "territorio");
-      if (t.nivel !== "uf" && t.nivel !== "municipio" && t.nivel !== "pais") invalido("nivel do território inválido (esperado uf, municipio ou pais)");
-      const ibge = t.ibge === undefined ? undefined : texto(t.ibge, "ibge", 7, /^\d+$/);
-      if (t.nivel === "uf" && ibge?.length !== 2) invalido("ibge de UF tem 2 dígitos");
-      if (t.nivel === "municipio" && ibge?.length !== 7) invalido("ibge de município tem 7 dígitos");
-      if (t.nivel === "pais" && ibge !== undefined) invalido("país não leva ibge");
-      out.territorio = ibge === undefined ? { nivel: t.nivel } : { nivel: t.nivel, ibge };
-    }
+    out.classe = typeof p.classe === "string" && CLASSES_VALIDAS.includes(p.classe) ? p.classe : invalido("classe inválida");
+    if (p.classe === "identidade") invalido("identidade não tem território: não há recoleta por território para ela");
+    const t = objeto(p.territorio, "territorio");
+    soChaves(t, ["nivel", "ibge"], "territorio");
+    if (t.nivel !== "uf" && t.nivel !== "municipio" && t.nivel !== "pais") invalido("nivel do território inválido (esperado municipio, uf ou pais)");
+    const ibge = texto(t.ibge, "ibge", 7, /^[A-Za-z0-9]+$/);
+    if (t.nivel === "uf" && ibge.length !== 2) invalido("ibge de UF tem 2 dígitos");
+    if (t.nivel === "municipio" && ibge.length !== 7) invalido("ibge de município tem 7 dígitos");
+    out.territorio = { ibge, nivel: t.nivel };
   } else {
     soChaves(p, ["pendencia_id", "rodada_id"], "parecer");
     if ((p.pendencia_id === undefined) === (p.rodada_id === undefined)) invalido("parecer exige pendencia_id ou rodada_id (um só)");

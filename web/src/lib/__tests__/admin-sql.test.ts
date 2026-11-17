@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -123,14 +124,40 @@ test("chave_idem do pedido: sha256 do JSON canônico de {tipo, parametros}; inde
   assert.notEqual(a, chaveIdemPedido("recoleta", { coletor: "x", modo: "recoletar" }));
 });
 
-test("chave_idem do pedido de decisão: {acao, pendencia_id, por_nome, valor}; valor ausente = null; justificativa fica fora", () => {
-  const base = { pendencia_id: "11111111-1111-1111-1111-111111111111", acao: "aprovar", por_nome: "Ana", valor: undefined };
+test("chave_idem do pedido de decisão: {tipo: decisao, parametros: {acao, aplicar, pendencia_id, por_nome, valor}}; valor ausente = null; justificativa fica fora", () => {
+  const base = { pendencia_id: "11111111-1111-1111-1111-111111111111", acao: "aprovar", por_nome: "Ana", valor: undefined, aplicar: false };
   assert.equal(
     chaveIdemDecisao(base),
-    createHash("sha256").update('{"acao":"aprovar","pendencia_id":"11111111-1111-1111-1111-111111111111","por_nome":"Ana","valor":null}', "utf8").digest("hex"),
+    createHash("sha256")
+      .update('{"parametros":{"acao":"aprovar","aplicar":false,"pendencia_id":"11111111-1111-1111-1111-111111111111","por_nome":"Ana","valor":null},"tipo":"decisao"}', "utf8")
+      .digest("hex"),
   );
   assert.equal(chaveIdemDecisao(base), chaveIdemDecisao({ ...base, valor: null }));
   assert.notEqual(chaveIdemDecisao(base), chaveIdemDecisao({ ...base, por_nome: "Bia" }));
+  assert.notEqual(chaveIdemDecisao(base), chaveIdemDecisao({ ...base, aplicar: true }));
+});
+
+// Vetores de ouro de etl/civico_etl/admin/executor.py (VETORES_DE_OURO): a central e o executor têm de dar a MESMA chave, senão dois cliques
+// (um pela tela, outro pela CLI) viram dois pedidos. Os valores são copiados; o teste seguinte confere contra o próprio Python, se houver.
+const VETORES_DE_OURO: ReadonlyArray<[string, Record<string, unknown>, string]> = [
+  ["recoleta", { classe: "vinculo_sapl", territorio: { ibge: "11", nivel: "uf" } }, "6b276886cd0c741fb732cb53d09643fc8f20fbbda6744fac12280dce3e43fce9"],
+  ["parecer", { pendencia_id: "0a1b2c3d-0000-4000-8000-000000000001" }, "46eb5f9e2f55670c464f227168e637401b9e225b9eb5870ae344d2a7f54ae953"],
+  ["rodada", { coletor: "sapl.assembleias", modo: "recoletar", recorte: { ufs: ["RO", "AC"] } }, "cccf3f45b0b24de626d3570f2c10e734b69b7bf833d74b90a7cbdaf3d7248270"],
+];
+
+test("chave_idem da central = vetores de ouro do executor (pedidos e decisão), depois de validarPedido/validarDecisao", () => {
+  for (const [tipo, parametros, esperado] of VETORES_DE_OURO) {
+    const v = validarPedido(tipo, parametros);
+    assert.equal(chaveIdemPedido(v.tipo, v.parametros), esperado, tipo);
+  }
+  const d = validarDecisao({ pendencia_id: "0a1b2c3d-0000-4000-8000-000000000001", acao: "corrigir", valor: "São João", por: "Maria", justificativa: "x", aplicar: true });
+  assert.equal(chaveIdemDecisao(d), "67c059df8cb2dfea16a5768cb7006727e3d569d07694e1a944062279bf4300d4");
+});
+
+test("os vetores de ouro copiados são os do executor.py", () => {
+  const fonte = readFileSync(new URL("../../../../etl/civico_etl/admin/executor.py", import.meta.url), "utf8");
+  for (const [, , h] of VETORES_DE_OURO) assert.ok(fonte.includes(h), `vetor ${h} não está em executor.py`);
+  assert.ok(fonte.includes("67c059df8cb2dfea16a5768cb7006727e3d569d07694e1a944062279bf4300d4"));
 });
 
 // A forma canônica é a de `classes.canonico` do ETL (sort_keys, ensure_ascii=False, separators=(",", ":")): confere contra o próprio Python, se houver.
@@ -145,7 +172,7 @@ test("jsonCanonico é igual a classes.canonico do Python", { skip: semPython }, 
   assert.equal(r.stdout.trimEnd(), jsonCanonico(amostra));
 });
 
-test("validarPedido: tipo e parâmetros inválidos são recusados; o válido sai normalizado", () => {
+test("validarPedido: tipo e parâmetros inválidos são recusados; o válido sai normalizado como executor.normalizar", () => {
   const recusa = (t: unknown, p: unknown) => assert.throws(() => validarPedido(t, p), ErroPedidoInvalido);
   recusa("decisao", {});
   recusa("rodada", {});
@@ -153,16 +180,23 @@ test("validarPedido: tipo e parâmetros inválidos são recusados; o válido sai
   recusa("rodada", { coletor: "x", modo: "apagar" });
   recusa("rodada", { coletor: "x", argv: ["--rm"] });
   recusa("rodada", { coletor: "x", so_pendencias: true });
-  recusa("rodada", { coletor: "x", ibges: ["123"] });
+  recusa("rodada", { coletor: "x", recorte: { ibges: ["123"] } });
+  recusa("rodada", { coletor: "x", recorte: { modo: "descobrir" } });
+  recusa("rodada", { repetir: "11111111-1111-1111-1111-111111111111", coletor: "x" });
+  recusa("rodada", { repetir: "nao-e-uuid" });
   recusa("recoleta", {});
-  recusa("recoleta", { territorio: { nivel: "uf", ibge: "3550308" } });
-  recusa("recoleta", { classe: "pessoa" });
+  recusa("recoleta", { classe: "cobertura" });
+  recusa("recoleta", { territorio: { nivel: "uf", ibge: "35" } });
+  recusa("recoleta", { classe: "cobertura", territorio: { nivel: "uf", ibge: "3550308" } });
+  recusa("recoleta", { classe: "identidade", territorio: { nivel: "uf", ibge: "35" } });
+  recusa("recoleta", { classe: "pessoa", territorio: { nivel: "uf", ibge: "35" } });
   recusa("parecer", {});
   recusa("parecer", { pendencia_id: "11111111-1111-1111-1111-111111111111", rodada_id: "22222222-2222-2222-2222-222222222222" });
   recusa("parecer", { pendencia_id: "nao-e-uuid" });
-  const r = validarPedido("rodada", { coletor: "tse.x", ufs: ["SP", "AC", "SP"], ibges: ["3550308"], anos: [2024, 2022], extras: { b: "2", a: "1" } });
-  assert.deepEqual(r.parametros, { coletor: "tse.x", ufs: ["AC", "SP"], ibges: ["3550308"], anos: [2022, 2024], extras: { a: "1", b: "2" } });
-  assert.deepEqual(validarPedido("recoleta", { classe: "cobertura", territorio: { nivel: "uf", ibge: "35" } }).parametros, { classe: "cobertura", territorio: { nivel: "uf", ibge: "35" } });
+  const r = validarPedido("rodada", { coletor: "tse.x", recorte: { ufs: ["SP", "AC", "SP"], ibges: ["3550308"], anos: [2024, 2022], extras: { b: "2", a: "1" } } });
+  assert.deepEqual(r.parametros, { coletor: "tse.x", modo: "recoletar", recorte: { anos: [2022, 2024], ufs: ["AC", "SP"], casas: [], ibges: ["3550308"], extras: { a: "1", b: "2" } } });
+  assert.deepEqual(validarPedido("rodada", { repetir: "AAAAAAAA-1111-1111-1111-111111111111" }).parametros, { repetir: "aaaaaaaa-1111-1111-1111-111111111111", so_pendencias: false });
+  assert.deepEqual(validarPedido("recoleta", { classe: "cobertura", territorio: { nivel: "uf", ibge: "35" } }).parametros, { classe: "cobertura", territorio: { ibge: "35", nivel: "uf" } });
   assert.deepEqual(validarPedido("parecer", { pendencia_id: "AAAAAAAA-1111-1111-1111-111111111111" }).parametros, { pendencia_id: "aaaaaaaa-1111-1111-1111-111111111111" });
 });
 
