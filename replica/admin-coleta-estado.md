@@ -85,6 +85,8 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 - Pontos em aberto para a fase A: (1) `sapl.assembleias` está com `reprocessar` não suportado no catálogo (carga por cursor), e o passo 5 da primeira rodada pede reprocessamento sem rede nesse recorte: decidir em A5, lendo `--full` em `jobs/sapl.py`; (2) `reprocessar` hoje usa o mesmo argv de `recoletar`: o executor decide se acrescenta `--force` onde o comando aceita.
 - Achados dos testes de caracterização a levar para `replica/bugs.md` na R11 (comportamento real, não corrigido): `camara.equipe` apaga toda a equipe se o CSV vier sem linha válida e não registra `rows_read` nem `rows_deleted`; `parlamento.extras` apaga contato de fonte `camara` ou `senado` em qualquer mandato com contato na rodada, contra o que a docstring diz, e o nome de comissão depende da ordem sem `order by`; `receita.arrecadacao` e `governos.indicadores` validam fora do `run()`, então falha de validação não deixa run `failed`; `governos.indicadores` não carimba `governos.bcb` na rodada pulada; `ibge.places` faz cada região pai de si mesma; `cli.py` tem `except SkipUnchanged` que nunca atua para job com checksum.
 
+- Fase F3 (central para admin.segueovoto.com.br, com login): concluída e verificada três vezes (AC-23 a AC-31). 11 subagentes de um teto de 20. Migração `0156` aplicada em `admin_coleta` (45). Builds: site (sem `ADMIN_CENTRAL`) e central (`ADMIN_CENTRAL=1` local, em `web/.next-admin-local`, ou `producao`). Adendo no relato final.
+
 ## Próximo passo
 
 Entrega concluída. Relato final: `replica/admin-coleta-relato-final.md`. Passos que ficam para o dono estão lá.
