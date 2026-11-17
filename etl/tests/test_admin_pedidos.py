@@ -819,3 +819,30 @@ def test_pedido_de_decisao_gravado_pela_cli_com_nome_que_nao_e_admin_falha_sem_d
     assert r["status"] == "falhou" and r["erro"] == EX.MOTIVO_SEM_ADMIN and r["decisao_id"] is None
     assert n(cx, "adm_decisoes") == 0
     assert cx.execute("select status from adm_pendencias where id = %s", (pb,)).fetchone()["status"] != "decidida"
+
+
+def test_pedido_da_central_com_email_de_admin_inativo_falha_mesmo_com_homonimo_ativo(cx, base, v1_v2):
+    """A7: com `por_email` a conferência é só por e-mail. O admin inativo X tem o mesmo nome do admin ativo 'Fulana de Teste': o pedido de X falha; o da CLI (sem e-mail) pelo nome passa."""
+    pb = pend_de(cx, "PB")
+    inativo = "t-homonimo-inativo@segueovoto.invalid"
+    cx.execute("insert into adm_admins (email, nome, ativo) values (%s, 'Fulana de Teste', false) on conflict (email) do nothing", (inativo,))
+    cx.commit()
+    try:
+        par = EX.parametros_decisao(pendencia_id=pb, acao="aprovar", por_nome="Fulana de Teste", justificativa="conferi", valor=None, aplicar=True)
+        pid = inserir_cru(cx, "adm_pedidos_decisao", pendencia_id=pb, acao="aprovar", por_nome="Fulana de Teste", justificativa="conferi", aplicar=True,
+                          chave_idem=EX.chave_idem("decisao", par), por_email=inativo)
+        cx.commit()
+        r = EX.executar_um(cx)
+        cx.rollback()
+        assert r["status"] == "falhou" and r["erro"] == EX.MOTIVO_SEM_ADMIN and r["decisao_id"] is None, r
+        assert n(cx, "adm_decisoes") == 0 and pedido(cx, pid, "adm_pedidos_decisao")["status"] == "falhou"
+        # contraprova: sem por_email (CLI) o nome do admin ativo vale
+        p2, novo = EX.pedir(cx, "decisao", {"pendencia_id": pb, "acao": "aprovar", "por_nome": "Fulana de Teste", "justificativa": "conferi", "aplicar": False})
+        cx.commit()
+        r2 = EX.executar_um(cx)
+        cx.rollback()
+        assert novo and r2["status"] == "concluido", r2
+    finally:
+        cx.rollback()
+        cx.execute("delete from adm_admins where email = %s", (inativo,))
+        cx.commit()

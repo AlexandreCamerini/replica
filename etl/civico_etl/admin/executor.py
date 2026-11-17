@@ -579,7 +579,12 @@ def _decisao(conn: Any, pedido_id: str) -> dict[str, Any]:
         return _falhou(MOTIVO_CHAVE)
     # Quem decide tem de ser admin ativo (AC-24): pedido da central traz `por_email` (o gatilho da 0156 já conferiu); pedido gravado pela CLI
     # (`admin pedido decidir --por`, role do dono, sem gatilho) é conferido aqui pelo nome. Sem isso, qualquer nome viraria "pessoa".
-    if conn.execute("select 1 from adm_admins where ativo and (email = lower(%s) or nome = %s)", (p.get("por_email") or "", p["por_nome"])).fetchone() is None:
+    # Com `por_email` a conferência é SÓ por e-mail (A7: `nome` não é único; admin inativo não passa por homônimo ativo); o nome só vale sem `por_email` (CLI).
+    if p.get("por_email"):
+        admin = conn.execute("select 1 from adm_admins where ativo and email = lower(%s)", (p["por_email"],)).fetchone()
+    else:
+        admin = conn.execute("select 1 from adm_admins where ativo and nome = %s", (p["por_nome"],)).fetchone()
+    if admin is None:
         return _falhou(MOTIVO_SEM_ADMIN)
     acao, aplicar = p["acao"], bool(p["aplicar"])
     if aplicar and acao not in dec.ACOES_QUE_APLICAM:

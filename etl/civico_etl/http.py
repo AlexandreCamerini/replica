@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import socket
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -27,6 +28,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import httpcore
 import httpx
 
 from . import rawstore
@@ -70,17 +72,102 @@ def _paths(url: str) -> tuple[Path, Path]:
     return d / f"{key}.body", d / f"{key}.meta.json"
 
 
+class DestinoInterno(Exception):
+    """Anti-SSRF (A2): o destino da requisição, ou de um redirecionamento, é IP não público (ou nome que resolve para um). Não é erro de transporte:
+    não é retentada (a recusa é permanente). Os coletores a tratam como qualquer falha de leitura (`except Exception`). Mensagem: o motivo."""
+
+
+def _rede_segura() -> bool:
+    return _env("ETL_REDE_SEGURA") != "0"  # ligada por padrão; só o valor literal "0" desliga (testes que sobem servidor local)
+
+
+def _gancho_destino_publico(resolver: Any = None):
+    """Gancho de requisição do httpx (`event_hooks["request"]`), chamado para CADA requisição, inclusive as de redirecionamento: recusa host IP não público
+    ou nome que resolve para IP não público (regra de admin/rede_segura.py; sem exigir https: há coletores de sites http legítimos). Resolução em cache por
+    host durante a vida do cliente. Nome que não resolve passa: o transporte falha sozinho com o erro de rede de sempre.
+    O rebinding é fechado pelo `_BackendSeguro` (confere e conecta no mesmo resultado de DNS) quando não há proxy; com proxy vale só este gancho. Fora desta checagem o comportamento é byte a byte o de antes.
+    Desligável só por ETL_REDE_SEGURA=0."""
+    from .admin.rede_segura import motivo_host
+
+    cache: dict[str, str | None] = {}
+
+    def gancho(request: httpx.Request) -> None:
+        if not _rede_segura():
+            return
+        host = request.url.host
+        if host not in cache:
+            cache[host] = motivo_host(host, resolver, nao_resolve_ok=True)
+        if cache[host]:
+            raise DestinoInterno(f"destino recusado ({request.url.scheme}://{host}): {cache[host]}")
+
+    return gancho
+
+
+class _BackendSeguro(httpcore.NetworkBackend):
+    """Confere NA CONEXÃO (fecha o DNS rebinding entre checagem e conexão): resolve o host, exige que TODOS os endereços sejam públicos (regra de
+    admin/rede_segura.py) e conecta num dos endereços conferidos. TLS/SNI e cabeçalho Host seguem o nome (o httpcore os tira da origem da requisição,
+    não do argumento de `connect_tcp`). Desligado por ETL_REDE_SEGURA=0 (delega direto)."""
+
+    def __init__(self, inner: httpcore.NetworkBackend, resolver: Any = None):
+        self._inner, self._resolver = inner, resolver
+
+    def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+        if not _rede_segura():
+            return self._inner.connect_tcp(host, port, timeout=timeout, local_address=local_address, socket_options=socket_options)
+        from .admin.rede_segura import motivo_enderecos
+
+        try:
+            infos = (self._resolver or socket.getaddrinfo)(host, port, type=socket.SOCK_STREAM)
+        except (OSError, UnicodeError) as e:
+            raise httpcore.ConnectError(f"{host} não resolve ({e})") from e
+        motivo = motivo_enderecos(host, infos)
+        if motivo:
+            raise DestinoInterno(f"destino recusado ({host}): {motivo}")
+        erro: Exception | None = None
+        for info in infos:
+            try:
+                return self._inner.connect_tcp(str(info[4][0]), port, timeout=timeout, local_address=local_address, socket_options=socket_options)
+            except httpcore.ConnectError as e:
+                erro = e
+        raise erro or httpcore.ConnectError(f"{host}: nenhum endereço")
+
+    def connect_unix_socket(self, path, timeout=None, socket_options=None):
+        return self._inner.connect_unix_socket(path, timeout=timeout, socket_options=socket_options)
+
+    def sleep(self, seconds):
+        return self._inner.sleep(seconds)
+
+
+def _transporte_seguro(resolver: Any = None) -> httpx.HTTPTransport:
+    """HTTPTransport padrão com o backend de rede seguro no pool do httpcore. Usa `_pool._network_backend` (API privada do httpcore; versões travadas
+    no uv.lock: httpcore 1.0.9 / httpx 0.28.1). Se o formato mudar ou houver proxy (o pool vira outro tipo), não troca nada: fica só o gancho por requisição."""
+    t = httpx.HTTPTransport()
+    pool = getattr(t, "_pool", None)
+    if type(pool) is httpcore.ConnectionPool and hasattr(pool, "_network_backend"):
+        pool._network_backend = _BackendSeguro(pool._network_backend, resolver)
+    else:  # pragma: no cover - só com versões novas
+        log.warning("transporte seguro: pool inesperado; só o gancho por requisição vale")
+    return t
+
+
+def _novo_cliente(**extra: Any) -> httpx.Client:
+    extra.setdefault("transport", _transporte_seguro())
+    return httpx.Client(
+        headers={"User-Agent": UA, "Accept": "application/json, text/csv, */*"},
+        timeout=httpx.Timeout(60.0, read=600.0),
+        follow_redirects=True,
+        event_hooks={"request": [_gancho_destino_publico()]},
+        **extra,
+    )
+
+
 _client: httpx.Client | None = None
 
 
 def client() -> httpx.Client:
     global _client
     if _client is None:
-        _client = httpx.Client(
-            headers={"User-Agent": UA, "Accept": "application/json, text/csv, */*"},
-            timeout=httpx.Timeout(60.0, read=600.0),
-            follow_redirects=True,
-        )
+        _client = _novo_cliente()
     return _client
 
 

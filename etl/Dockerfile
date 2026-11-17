@@ -21,7 +21,10 @@ RUN uv sync --frozen --no-dev --no-editable
 
 # ---- estágio 2: runtime enxuto, usuário não root ----
 FROM python:${PYTHON_VERSION}-slim AS runtime
-RUN groupadd --system --gid 10001 etl \
+# tini: init como PID 1 (colhe zumbis e repassa SIGTERM/SIGINT ao civico-etl); vem do repositório da distribuição
+RUN apt-get update && apt-get install -y --no-install-recommends tini \
+ && apt-get clean && find /var/lib/apt/lists -type f -delete \
+ && groupadd --system --gid 10001 etl \
  && useradd --system --uid 10001 --gid etl --home-dir /home/etl --create-home --shell /usr/sbin/nologin etl \
  && mkdir -p /data/cache && chown -R etl:etl /data
 COPY --from=build /opt/venv /opt/venv
@@ -33,6 +36,6 @@ ENV PATH="/opt/venv/bin:$PATH" \
 # Volume é opcional: sem ele o cache se perde no reinício e a rodada refaz as leituras.
 WORKDIR /data
 USER etl
-# SIGTERM chega ao executor (PID 1 via exec form): ele marca o pedido em execução como `interrompido` e sai com 0.
-ENTRYPOINT ["civico-etl"]
+# tini é o PID 1 (colhe netos órfãos dos subprocessos da rodada) e repassa o SIGTERM ao executor: ele marca o pedido em execução como `interrompido` e sai com 0.
+ENTRYPOINT ["tini", "--", "civico-etl"]
 CMD ["admin", "executor", "--intervalo", "2"]

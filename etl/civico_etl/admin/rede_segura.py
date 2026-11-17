@@ -9,6 +9,7 @@ Limite declarado: a resolução é a do momento da decisão. A busca posterior d
 from __future__ import annotations
 
 import ipaddress
+import re
 import socket
 from collections.abc import Callable
 from typing import Any
@@ -50,6 +51,18 @@ def url_publica(url: Any, resolver: Resolvedor | None = None) -> str | None:
         return "o endereço não pode ter usuário ou senha"
     if porta not in (None, 443):
         return f"só a porta 443 é aceita (veio {porta})"
+    return motivo_host(host, resolver)
+
+
+# Forma "de endereço numérico" que o `ipaddress` não aceita como IPv4 canônico: octal (0177.0.0.1), hex (0x7f.1), inteiro (2130706433), abreviada (127.1).
+# O resolvedor do sistema (inet_aton/glibc) as interpreta como IPv4 e o `ipaddress` não: recusa-se aqui em vez de deixar o resolvedor decidir (A12).
+_PARECE_NUMERICO = re.compile(r"(?:0[xX][0-9a-fA-F]*|[0-9]+)(?:\.(?:0[xX][0-9a-fA-F]*|[0-9]+))*")
+
+
+def motivo_host(host: str, resolver: Resolvedor | None = None, *, nao_resolve_ok: bool = False) -> str | None:
+    """None se o host é um IP público ou um nome cujos endereços resolvidos são todos públicos; senão o motivo. Sem checar esquema nem porta.
+
+    `nao_resolve_ok`: nome que não resolve devolve None (quem conecta falha sozinho com o próprio erro de rede); a decisão (`url_publica`) o recusa."""
     try:
         literal = ipaddress.ip_address(host)
     except ValueError:
@@ -57,10 +70,17 @@ def url_publica(url: Any, resolver: Resolvedor | None = None) -> str | None:
     if literal is not None:
         motivo = _proibido(literal)
         return f"o endereço {literal} é {motivo}: só IP público" if motivo else None
+    if _PARECE_NUMERICO.fullmatch(host):
+        return f"o host {host} parece endereço numérico fora da forma canônica de quatro octetos decimais"
     try:
         infos = (resolver or socket.getaddrinfo)(host, 443, type=socket.SOCK_STREAM)  # procurado na chamada: o teste pode trocar `socket.getaddrinfo`
     except (OSError, UnicodeError) as e:
-        return f"o host {host} não resolve ({e})"
+        return None if nao_resolve_ok else f"o host {host} não resolve ({e})"
+    return motivo_enderecos(host, infos)
+
+
+def motivo_enderecos(host: str, infos: Any) -> str | None:
+    """None se TODOS os endereços de `infos` (formato do `getaddrinfo`) são públicos; senão o motivo. Separada para quem confere e conecta no mesmo resultado (sem 2ª resolução)."""
     ips = []
     for info in infos:
         try:

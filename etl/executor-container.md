@@ -9,7 +9,7 @@ docker build -f etl/Dockerfile etl          # contexto = etl/ (a partir da raiz 
 ```
 
 - Base `python:3.12-slim` (o `pyproject.toml` pede `>=3.12`); dependências de `etl/uv.lock` com `uv sync --frozen --no-dev --no-editable`. O `uv` vem da imagem `ghcr.io/astral-sh/uv` na versão do argumento `UV_VERSION`.
-- Dois estágios: o runtime só leva o venv; sem compilador, sem `uv`, sem testes. Usuário `etl` (uid 10001), não root.
+- Dois estágios: o runtime leva o venv e o `tini` (apt, sem listas de pacotes); sem compilador, sem `uv`, sem testes. Usuário `etl` (uid 10001), não root.
 - Nenhum segredo na imagem. `.dockerignore` exclui `.env*`, `.cache`, `.raw`, `admin-rodadas`, `tests`, venvs.
 - Comando padrão: `civico-etl admin executor --intervalo 2`. Os argumentos do `docker run` depois do nome da imagem substituem o `CMD` (ex.: `admin executor --uma-vez`).
 
@@ -33,6 +33,7 @@ Variáveis lidas pelo código do executor (nomes; nenhum valor neste arquivo):
 | `ADMIN_COLETA_AGENTES` | não | Uma das duas chaves do `aplicar` por agentes (`on` liga). Deixe ausente a menos que o dono decida ligar. |
 | `ETL_LOG` | não | Nível de log (padrão `INFO`). |
 | `ETL_CODE_VERSION`, `ETL_INVOCATION` | não | Rótulos gravados em `ingest_runs` (versão do código e identificador da chamada). |
+| `ETL_REDE_SEGURA` | não | Anti-SSRF do cliente HTTP dos coletores: recusa destino (inclusive de redirecionamento) que seja IP não público. Ligado por padrão; só `0` desliga (uso de teste; não defina em produção). |
 | `ETL_RATE_LIMIT` | não | Limite de taxa das leituras HTTP, lido pelo cliente HTTP dos coletores. |
 | `ETL_RAW_STORE` e `ETL_RAW_*` | não | Cópia do bruto (desligada por padrão; `local`, `supabase` ou `r2`). Só ligue com a credencial do backend escolhido. |
 
@@ -41,7 +42,7 @@ Coletores de rodada que dependem de chave própria (por exemplo `TRANSPARENCIA_*
 ## Política de reinício e encerramento
 
 - Reinício: sempre (`--restart=always`, `restart: always`, ou o equivalente do host). O executor é sem estado; o estado vive no banco.
-- Encerramento: o `ENTRYPOINT` está em forma exec, então o `civico-etl` é o PID 1 e recebe o SIGTERM do orquestrador. O laço para de pegar pedido; se há pedido em execução, o batimento para, o pedido vira `interrompido` com o motivo "executor encerrado (SIGTERM)" e o processo sai com código 0. Sem pedido em execução, sai na hora. A tela não espera os 120 s do órfão.
+- Encerramento: o `ENTRYPOINT` é `tini -- civico-etl` (forma exec; o `tini`, do repositório da distribuição, é o PID 1: colhe os netos órfãos dos subprocessos da rodada e repassa o SIGTERM ao `civico-etl`; não use `--init` junto, seria um segundo init). O `civico-etl` recebe o SIGTERM do orquestrador via `tini`. O laço para de pegar pedido; se há pedido em execução, o batimento para, o pedido vira `interrompido` com o motivo "executor encerrado (SIGTERM)" e o processo sai com código 0. Sem pedido em execução, sai na hora. A tela não espera os 120 s do órfão.
 - Configure o prazo de parada do host (`docker stop -t`, `terminationGracePeriod`, etc.) em pelo menos 15 s. Morte por SIGKILL, falta de memória ou perda do host não passa pelo tratador: nesse caso vale o limite de 120 s sem batimento, e o próximo executor (ou o reinício) limpa o órfão e recupera a rodada ligada.
 - Pedido interrompido não retoma sozinho: a rodada é retomável por "Repetir" na central ou por `rodada executar`.
 
