@@ -49,6 +49,8 @@ psql "$DESTINO" -X -At -f db/railway/railway-verify.sql > destino.txt
 diff origem.txt destino.txt && echo IDÊNTICO
 psql "$DESTINO" -X -At -v ambiente=on -f db/railway/railway-verify.sql   # config por database, datacl, dono
 ```
+**Atalho:** `bash db/railway/ensaio-validar.sh snapshot antes.txt` **antes** da cópia e, depois dela, `bash db/railway/ensaio-validar.sh validar --db civico_ensaio --antes antes.txt` roda tudo abaixo (outras apps intactas, diff origem×destino, ambiente, testes por role com o timeout de 3 s de verdade, tamanho, conexões e tempo de consulta fria) e sai com 1 se algo falhar. O login ponta a ponta e o preview da Vercel continuam manuais.
+
 Critérios de aceite do ensaio (todos):
 - `diff` vazio, ou toda linha diferente explicada por escrito (ver §5);
 - `ambiente`: `public_pode_conectar false`, `datacl` sem `=...` de PUBLIC, `search_path`, `statement_timeout` 3 s (`web_reader`) e 8 s (`web_writer`) e `idle_in_transaction_session_timeout` presentes, `dono_do_database civico_etl`, `objetos_de_public_com_outro_dono 0`;
