@@ -131,3 +131,33 @@ test("nada do grupo escreve fora do pedido: sem SQL no grupo (só lib/admin) e s
     assert.ok(!/from "postgres"|\bsqlAdmin\b|\bselect\b.+\bfrom\b|\binsert\s+into\b/i.test(src), `${rel(f)} fala com o banco sem passar por consultas.ts`);
   }
 });
+
+test("toda página do grupo chama exigirAdmin() na primeira instrução, antes de qualquer await", () => {
+  const paginas = doGrupo.filter((f) => /\/page\.tsx$/.test(f));
+  const esperadas = ["", "uf/[uf]", "fila", "ficha/[classe]/[chave]", "rodadas", "rodadas/[id]", "registros"].map((p) => join(GRUPO, "admin", p, "page.tsx"));
+  assert.deepEqual(paginas, [...esperadas].sort());
+  for (const f of paginas) {
+    const src = semComentarios(ler(f));
+    assert.match(src, /export default async function \w+\([^)]*\)\s*(?::[^{]+)?\{\s*exigirAdmin\(\);/, `${rel(f)}: primeira instrução não é exigirAdmin()`);
+    assert.match(src, /import \{ exigirAdmin \} from "@\/lib\/admin\/guarda";/, rel(f));
+    assert.match(src, /export const dynamic = "force-dynamic";/, `${rel(f)} sem force-dynamic`);
+    const corpo = src.slice(src.search(/export default async function/));
+    assert.ok(corpo.indexOf("exigirAdmin();") < corpo.indexOf("await"), `${rel(f)}: há await antes da guarda`);
+    assert.ok(!/\bsqlAdmin\b|from "postgres"/.test(src), `${rel(f)} fala com o banco sem passar por consultas.ts`);
+  }
+});
+
+test("componentes da central: URL só relativa, sem recurso externo, e nada importa o site público", () => {
+  const COMP = join(WEB, "src/components/admin");
+  for (const f of arquivos(COMP).filter((x) => /\.tsx?$/.test(x))) {
+    const src = semComentarios(ler(f));
+    assert.ok(!/https?:\/\//i.test(src), `${rel(f)} tem URL absoluta`);
+    assert.ok(!/<script[^>]*\bsrc\s*=|<link[^>]*\bhref\s*=\s*["']?https?:|@import\s+url\(|<img[^>]*\bsrc\s*=\s*["']?https?:/i.test(src), `${rel(f)} carrega recurso externo`);
+    for (const m of src.matchAll(/(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g)) {
+      assert.ok(!/(^|\/)(votos|data|db)(\/|$)|brazil-map|@\/components\/(?!admin)/.test(m[1]), `${rel(f)} importa ${m[1]}`);
+    }
+    for (const m of src.matchAll(/\bfetch\s*\(\s*([^,)]*)/g)) {
+      assert.ok(/^(["'`]\/(?!\/)|endpoint\b|url\b)/.test(m[1].trim()), `${rel(f)}: fetch com destino que não é relativo: ${m[1]}`);
+    }
+  }
+});

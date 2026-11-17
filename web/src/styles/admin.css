@@ -59,3 +59,58 @@
 .admin-central .admin-mapa__amostra { flex: none; border: 1px solid var(--adm-ink); }
 .admin-central .admin-mapa__amostra rect.is-destaque { stroke: var(--adm-ink); stroke-width: 3; }
 .admin-central .admin-mapa__fonte { font-size: 12px; color: var(--adm-muted); margin: 8px 0 0; }
+
+/* ------------------------------------------------------------------------------------------------------------------------
+   Telas da central (C6). Mesmo tom do mapa: uma cor, raio 0, sem sombra, borda em tinta, foco visível, número sempre em texto. */
+.admin-central .adm-pagina { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+.admin-central .adm-pagina h1 { font-size: 28px; margin: 0; }
+.admin-central .adm-pagina h2 { font-size: 20px; margin: 0 0 8px; }
+.admin-central .adm-pagina h3 { font-size: 16px; margin: 16px 0 6px; }
+.admin-central .adm-pagina p { margin: 0 0 8px; line-height: 1.5; }
+.admin-central .adm-pagina a { color: var(--adm-ink); text-decoration: underline; text-underline-offset: 3px; }
+.admin-central .adm-pagina a[aria-current="page"] { font-weight: 700; text-decoration-thickness: 3px; }
+.admin-central a:focus-visible,
+.admin-central button:focus-visible,
+.admin-central input:focus-visible,
+.admin-central select:focus-visible,
+.admin-central textarea:focus-visible,
+.admin-central summary:focus-visible { outline: 3px solid var(--adm-focus); outline-offset: 2px; }
+
+.admin-central .adm-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; border-bottom: 1.5px solid var(--adm-ink); padding-bottom: 8px; }
+.admin-central .adm-marca-central { font-weight: 700; margin: 0; }
+.admin-central .adm-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.admin-central .adm-nav a,
+.admin-central .adm-visao a { min-height: 44px; display: inline-flex; align-items: center; }
+.admin-central .adm-visao { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+
+.admin-central .adm-vivo { display: grid; gap: 16px; }
+.admin-central .adm-bloco { background: var(--adm-sheet); border: 1px solid var(--adm-ink); outline: 1px solid var(--adm-ink); outline-offset: 4px; margin: 5px; padding: 16px; }
+.admin-central .adm-paineis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 900px) { .admin-central .adm-paineis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.admin-central .adm-painel { background: var(--adm-sheet); border: 1.5px solid var(--adm-ink); padding: 16px; }
+.admin-central .adm-totais { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.admin-central .adm-total__valor { font-variant-numeric: tabular-nums; }
+.admin-central .adm-ids summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; text-decoration: underline; text-underline-offset: 3px; }
+.admin-central .adm-ids ul { max-height: 260px; overflow: auto; margin: 4px 0 0; padding: 8px 8px 8px 24px; border: 1px solid var(--adm-ink); font-size: 13px; word-break: break-all; }
+.admin-central .adm-marca { display: inline-block; border: 1.5px solid var(--adm-ink); padding: 2px 8px; font-weight: 600; font-size: 13px; letter-spacing: 0.04em; }
+.admin-central .adm-ajuda { color: var(--adm-muted); font-size: 14px; }
+.admin-central .adm-codigo { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--adm-ink); background: var(--adm-paper); overflow: auto; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+
+.admin-central .adm-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.admin-central ol.adm-lista { list-style: decimal; padding-left: 24px; }
+.admin-central .adm-item { border: 1px solid var(--adm-ink); background: var(--adm-sheet); padding: 12px; }
+
+.admin-central .adm-form { display: grid; gap: 12px; max-width: 640px; }
+.admin-central .adm-campo { display: flex; flex-direction: column; gap: 4px; }
+.admin-central .adm-campo--linha { flex-direction: row; align-items: center; gap: 8px; }
+.admin-central .adm-campo label { font-size: 14px; font-weight: 600; }
+.admin-central .adm-campo input[type="text"],
+.admin-central .adm-campo select,
+.admin-central .adm-campo textarea { min-height: 44px; padding: 8px 12px; border: 1.5px solid var(--adm-ink); background: var(--adm-sheet); color: var(--adm-ink); font: inherit; }
+.admin-central .adm-campo input[type="checkbox"] { width: 24px; height: 24px; }
+.admin-central .adm-botao { min-height: 44px; padding: 0 20px; border: 1.5px solid var(--adm-ink); background: var(--adm-ink); color: var(--adm-paper); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; }
+.admin-central .adm-botao[disabled] { background: transparent; color: var(--adm-muted); border-style: dashed; cursor: not-allowed; }
+.admin-central .adm-acao { display: grid; gap: 8px; justify-items: start; }
+.admin-central .adm-acoes { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: start; }
+.admin-central .adm-aviso { border: 1.5px solid var(--adm-ink); padding: 8px 12px; margin: 0; }
+.admin-central .adm-aviso--erro { border-style: dashed; font-weight: 600; }
