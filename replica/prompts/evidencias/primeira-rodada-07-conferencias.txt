@@ -1,0 +1,7 @@
+SIMULADO: conferências do passo 07-repetir (respostas fabricadas)
+  rodada repetida: 36ed11b4-e27f-43a6-9bcf-7e214d4f0555 (repete be210685-beda-4269-942f-07608ece56d8)
+  [ok] a repetição terminou concluida e repete a rodada v2
+  [ok] tentativas reaproveitadas > 0 (cache atravessou os passos)
+  [ok] zero linha nova em adm_propostas, adm_pendencias, adm_pendencia_propostas, adm_vinculos, sapl_*, sapl_houses e data_coverage (contagens iguais)
+  [ok] nenhuma duplicata por chave natural
+  [ok] a repetição não criou proposta nem pendência

@@ -1,0 +1,502 @@
+{
+  "id": "be210685-beda-4269-942f-07608ece56d8",
+  "coletor": "sapl.assembleias",
+  "modo": "recoletar",
+  "status": "concluida",
+  "recorte": {
+    "ufs": [
+      "RO",
+      "AC",
+      "AM",
+      "PI",
+      "PB"
+    ],
+    "anos": [],
+    "modo": "recoletar",
+    "casas": [],
+    "ibges": [],
+    "extras": {}
+  },
+  "argv": [
+    "sapl.ales",
+    "--uf",
+    "RO",
+    "--uf",
+    "AC",
+    "--uf",
+    "AM",
+    "--uf",
+    "PI",
+    "--uf",
+    "PB"
+  ],
+  "forcar_urls": [
+    "https://sapl.al.ro.leg.br/api/",
+    "https://sapl.al.ro.leg.br/robots.txt",
+    "https://sapl.al.ac.leg.br/api/",
+    "https://sapl.al.ac.leg.br/robots.txt",
+    "https://sapl.al.am.leg.br/api/",
+    "https://sapl.al.am.leg.br/robots.txt",
+    "https://sapl.al.pi.leg.br/api/",
+    "https://sapl.al.pi.leg.br/robots.txt",
+    "https://sapl.al.pb.leg.br/api/",
+    "https://sapl.al.pb.leg.br/robots.txt"
+  ],
+  "so_pendencias": false,
+  "repete_id": null,
+  "invocation": "admin:be210685-beda-4269-942f-07608ece56d8",
+  "cache_dir": "/tmp/claude-501/admin-r1-cache",
+  "iniciada_em": "2026-11-17T00:54:52.203862+00:00",
+  "finalizada_em": "2026-11-17T00:54:52.434882+00:00",
+  "previa": {
+    "argv": [
+      "sapl.ales",
+      "--uf",
+      "RO",
+      "--uf",
+      "AC",
+      "--uf",
+      "AM",
+      "--uf",
+      "PI",
+      "--uf",
+      "PB"
+    ],
+    "modo": "recoletar",
+    "fontes": [
+      "sapl-ale"
+    ],
+    "coletor": "sapl.assembleias",
+    "comando": "sapl.ales",
+    "recorte": {
+      "ufs": [
+        "RO",
+        "AC",
+        "AM",
+        "PI",
+        "PB"
+      ],
+      "anos": [],
+      "modo": "recoletar",
+      "casas": [],
+      "ibges": [],
+      "extras": {}
+    },
+    "datasets": [
+      "sapl-ale.descoberta",
+      "sapl-ale.{uf}"
+    ],
+    "cache_dir": "/tmp/claude-501/admin-r1-cache",
+    "gerada_em": "2026-11-17T00:54:52.207092+00:00",
+    "observacao": "sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=ok, AC=ok, AM=ok, PI=robots_bloqueia, PB=fora_do_ar | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas",
+    "a_consultar": {
+      "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
+      "valor": 2,
+      "intervalo": [
+        2,
+        10
+      ],
+      "estimativa": true
+    },
+    "demais_urls": {
+      "base": "rodada b99f71ad-7ab7-4dd6-b8a9-dea208bdb445 de 2026-11-17",
+      "valor": 69,
+      "estimativa": true,
+      "rodada_base": "b99f71ad-7ab7-4dd6-b8a9-dea208bdb445"
+    },
+    "urls_entrada": [
+      {
+        "url": "https://sapl.al.ro.leg.br/api/",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "9c4863cdfaeaf526d83da9b653562fb82807c42f341bd5b222f8c89bbf3ca69b",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ro.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ac.leg.br/api/",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "c2bcba167146c89840b0efbc4bc5eefbc602f361371d175d9819c1381e577f65",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ac.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.am.leg.br/api/",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "bc154e4aab08437b2e4f7221cbc0311707e1781f0e5d95061e05d049855f3896",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.am.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pi.leg.br/api/",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pi.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pb.leg.br/api/",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pb.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ro.leg.br/api/parlamentares/legislatura/?page_size=100&page=1",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
+          "idade_horas": 0.0
+        },
+        "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
+      },
+      {
+        "url": "https://sapl.al.ac.leg.br/api/parlamentares/legislatura/?page_size=100&page=1",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
+          "idade_horas": 0.0
+        },
+        "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
+      },
+      {
+        "url": "https://sapl.al.am.leg.br/api/parlamentares/legislatura/?page_size=100&page=1",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
+          "idade_horas": 0.0
+        },
+        "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
+      }
+    ],
+    "entradas_tipo": "dinamicas",
+    "nao_suportado": null,
+    "lista_completa": false,
+    "n_urls_entrada": 10,
+    "n_urls_condicionais": 3,
+    "registros_elegiveis": {
+      "base": "Assembleias em legislative_bodies das UFs do recorte; sapl_houses_id nulo = casa ainda não registrada",
+      "valor": 5,
+      "chaves": [
+        {
+          "uf": "RO",
+          "orgao": "Assembleia Legislativa de Rondônia",
+          "sapl_houses_id": 1
+        },
+        {
+          "uf": "AC",
+          "orgao": "Assembleia Legislativa de Acre",
+          "sapl_houses_id": 2
+        },
+        {
+          "uf": "AM",
+          "orgao": "Assembleia Legislativa de Amazonas",
+          "sapl_houses_id": 3
+        },
+        {
+          "uf": "PI",
+          "orgao": "Assembleia Legislativa de Piauí",
+          "sapl_houses_id": 4
+        },
+        {
+          "uf": "PB",
+          "orgao": "Assembleia Legislativa de Paraíba",
+          "sapl_houses_id": 5
+        }
+      ],
+      "classe": "vinculo_sapl",
+      "motivo": null
+    },
+    "tentativas_registradas": true
+  },
+  "resultado": {
+    "fim": "2026-11-17T00:54:52.434790+00:00",
+    "regra": {
+      "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
+      "timeout": "código 124 (timeout) -> interrompida",
+      "codigo_0": "código 0 -> concluida",
+      "nao_suportado": "recorte deixou de ser suportado: coletor não roda -> falhou",
+      "codigo_com_leitura": "código != 0 com leitura (falha parcial, o coletor terminou por conta própria) -> concluida",
+      "codigo_sem_leitura": "código != 0 sem nenhuma leitura no registro -> falhou",
+      "sem_rede_sem_cache": "SemRedeSemCache no registro -> falhou",
+      "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
+      "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
+    },
+    "inicio": "2026-11-17T00:54:52.216326+00:00",
+    "motivo": "código 0 -> concluida",
+    "runner": "processo",
+    "status": "concluida",
+    "execucao": 1,
+    "simulado": "v2",
+    "vinculos": {
+      "mudou": true,
+      "criados": {
+        "cobertura": 3,
+        "identidade": 0,
+        "vinculo_sapl": 0,
+        "contato_mandato": 0
+      },
+      "mantidos": {
+        "cobertura": 9,
+        "identidade": 0,
+        "vinculo_sapl": 5,
+        "contato_mandato": 0
+      },
+      "ignorados": [],
+      "desativados": {
+        "cobertura": 0,
+        "identidade": 0,
+        "vinculo_sapl": 0,
+        "contato_mandato": 0
+      },
+      "manuais_preservados": 0
+    },
+    "propostas": {
+      "novas": 2,
+      "avisos": [],
+      "escopo": "UFs RO,AC,AM,PI,PB",
+      "executado": true,
+      "ids_novas": [
+        "1ca48e90-89b0-4b87-9f61-2b9ae261543d",
+        "c06a7fbb-c4ce-40d7-871a-2566fab730e2"
+      ],
+      "recusadas": [],
+      "repetidas": 0,
+      "duplicatas": {},
+      "inalterados": 35,
+      "sem_evidencia": [],
+      "anotadas_antes": [],
+      "pendencias_abertas": [
+        "77f606a3-ee64-414e-a81c-6534627876ca",
+        "dee4da87-7389-46c4-a820-a3a135e3984d"
+      ],
+      "pendencias_ligadas": [],
+      "reason_sem_proposta": [],
+      "pendencias_reabertas": [],
+      "identidade_sem_candidato": [],
+      "primeiros_preenchimentos": 9,
+      "suprimidos_nao_conferidos": [],
+      "contatos_removidos_pela_fonte": [],
+      "primeiros_preenchimentos_por_classe": {
+        "cobertura": 9
+      }
+    },
+    "sem_cache": [],
+    "invocation": "admin:be210685-beda-4269-942f-07608ece56d8",
+    "tentativas": {
+      "lidas": 25,
+      "falhas": {
+        "robots": 2
+      },
+      "tentadas": 33,
+      "registradas": true,
+      "reaproveitadas": 6,
+      "urls_distintas": 33,
+      "linhas_ignoradas": 0
+    },
+    "interrupcao": null,
+    "codigo_saida": 0,
+    "urls_entrada": {
+      "tentadas": [
+        "https://sapl.al.ac.leg.br/api/",
+        "https://sapl.al.ac.leg.br/robots.txt",
+        "https://sapl.al.am.leg.br/api/",
+        "https://sapl.al.am.leg.br/robots.txt",
+        "https://sapl.al.pb.leg.br/api/",
+        "https://sapl.al.pb.leg.br/robots.txt",
+        "https://sapl.al.pi.leg.br/api/",
+        "https://sapl.al.pi.leg.br/robots.txt",
+        "https://sapl.al.ro.leg.br/api/",
+        "https://sapl.al.ro.leg.br/robots.txt"
+      ],
+      "previstas": 10,
+      "n_tentadas": 10,
+      "firmes_nao_tentadas": [],
+      "condicionais_tentadas": []
+    },
+    "executou_coletor": true,
+    "robots_registrados": [
+      "https://sapl.al.am.leg.br/api/",
+      "https://sapl.al.pi.leg.br/api/"
+    ]
+  },
+  "execucoes": [
+    {
+      "fim": "2026-11-17T00:54:52.434790+00:00",
+      "regra": {
+        "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
+        "timeout": "código 124 (timeout) -> interrompida",
+        "codigo_0": "código 0 -> concluida",
+        "nao_suportado": "recorte deixou de ser suportado: coletor não roda -> falhou",
+        "codigo_com_leitura": "código != 0 com leitura (falha parcial, o coletor terminou por conta própria) -> concluida",
+        "codigo_sem_leitura": "código != 0 sem nenhuma leitura no registro -> falhou",
+        "sem_rede_sem_cache": "SemRedeSemCache no registro -> falhou",
+        "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
+        "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
+      },
+      "inicio": "2026-11-17T00:54:52.216326+00:00",
+      "motivo": "código 0 -> concluida",
+      "runner": "processo",
+      "status": "concluida",
+      "execucao": 1,
+      "simulado": "v2",
+      "vinculos": {
+        "mudou": true,
+        "criados": {
+          "cobertura": 3,
+          "identidade": 0,
+          "vinculo_sapl": 0,
+          "contato_mandato": 0
+        },
+        "mantidos": {
+          "cobertura": 9,
+          "identidade": 0,
+          "vinculo_sapl": 5,
+          "contato_mandato": 0
+        },
+        "ignorados": [],
+        "desativados": {
+          "cobertura": 0,
+          "identidade": 0,
+          "vinculo_sapl": 0,
+          "contato_mandato": 0
+        },
+        "manuais_preservados": 0
+      },
+      "propostas": {
+        "novas": 2,
+        "avisos": [],
+        "escopo": "UFs RO,AC,AM,PI,PB",
+        "executado": true,
+        "ids_novas": [
+          "1ca48e90-89b0-4b87-9f61-2b9ae261543d",
+          "c06a7fbb-c4ce-40d7-871a-2566fab730e2"
+        ],
+        "recusadas": [],
+        "repetidas": 0,
+        "duplicatas": {},
+        "inalterados": 35,
+        "sem_evidencia": [],
+        "anotadas_antes": [],
+        "pendencias_abertas": [
+          "77f606a3-ee64-414e-a81c-6534627876ca",
+          "dee4da87-7389-46c4-a820-a3a135e3984d"
+        ],
+        "pendencias_ligadas": [],
+        "reason_sem_proposta": [],
+        "pendencias_reabertas": [],
+        "identidade_sem_candidato": [],
+        "primeiros_preenchimentos": 9,
+        "suprimidos_nao_conferidos": [],
+        "contatos_removidos_pela_fonte": [],
+        "primeiros_preenchimentos_por_classe": {
+          "cobertura": 9
+        }
+      },
+      "sem_cache": [],
+      "invocation": "admin:be210685-beda-4269-942f-07608ece56d8",
+      "tentativas": {
+        "lidas": 25,
+        "falhas": {
+          "robots": 2
+        },
+        "tentadas": 33,
+        "registradas": true,
+        "reaproveitadas": 6,
+        "urls_distintas": 33,
+        "linhas_ignoradas": 0
+      },
+      "interrupcao": null,
+      "codigo_saida": 0,
+      "urls_entrada": {
+        "tentadas": [
+          "https://sapl.al.ac.leg.br/api/",
+          "https://sapl.al.ac.leg.br/robots.txt",
+          "https://sapl.al.am.leg.br/api/",
+          "https://sapl.al.am.leg.br/robots.txt",
+          "https://sapl.al.pb.leg.br/api/",
+          "https://sapl.al.pb.leg.br/robots.txt",
+          "https://sapl.al.pi.leg.br/api/",
+          "https://sapl.al.pi.leg.br/robots.txt",
+          "https://sapl.al.ro.leg.br/api/",
+          "https://sapl.al.ro.leg.br/robots.txt"
+        ],
+        "previstas": 10,
+        "n_tentadas": 10,
+        "firmes_nao_tentadas": [],
+        "condicionais_tentadas": []
+      },
+      "executou_coletor": true,
+      "robots_registrados": [
+        "https://sapl.al.am.leg.br/api/",
+        "https://sapl.al.pi.leg.br/api/"
+      ]
+    }
+  ],
+  "tentativas": {
+    "total": 33,
+    "por_resultado": {
+      "falha": 2,
+      "lida": 25,
+      "reaproveitada": 6
+    },
+    "falhas_por_motivo": {
+      "robots": 2
+    },
+    "urls_distintas": 33
+  },
+  "cadeia": {
+    "origem": [],
+    "repeticoes": []
+  }
+}

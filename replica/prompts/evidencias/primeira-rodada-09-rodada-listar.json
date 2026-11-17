@@ -1,0 +1,57 @@
+[
+  {
+    "id": "eb620d5f-57ec-45c2-82dc-f6e95335d1f2",
+    "coletor": "sapl.assembleias",
+    "modo": "reprocessar",
+    "status": "falhou",
+    "iniciada_em": "2026-11-17T00:55:48.934777+00:00",
+    "finalizada_em": "2026-11-17T00:55:48.955974+00:00",
+    "repete_id": null,
+    "invocation": "admin:eb620d5f-57ec-45c2-82dc-f6e95335d1f2",
+    "tentativas": 0
+  },
+  {
+    "id": "93cb48a6-9ef6-4290-bf1f-5684e7f96631",
+    "coletor": "sapl.assembleias",
+    "modo": "reprocessar",
+    "status": "concluida",
+    "iniciada_em": "2026-11-17T00:55:38.954818+00:00",
+    "finalizada_em": "2026-11-17T00:55:39.341371+00:00",
+    "repete_id": null,
+    "invocation": "admin:93cb48a6-9ef6-4290-bf1f-5684e7f96631",
+    "tentativas": 8
+  },
+  {
+    "id": "36ed11b4-e27f-43a6-9bcf-7e214d4f0555",
+    "coletor": "sapl.assembleias",
+    "modo": "recoletar",
+    "status": "concluida",
+    "iniciada_em": "2026-11-17T00:55:10.386649+00:00",
+    "finalizada_em": "2026-11-17T00:55:10.543960+00:00",
+    "repete_id": "be210685-beda-4269-942f-07608ece56d8",
+    "invocation": "admin:36ed11b4-e27f-43a6-9bcf-7e214d4f0555",
+    "tentativas": 10
+  },
+  {
+    "id": "be210685-beda-4269-942f-07608ece56d8",
+    "coletor": "sapl.assembleias",
+    "modo": "recoletar",
+    "status": "concluida",
+    "iniciada_em": "2026-11-17T00:54:52.203862+00:00",
+    "finalizada_em": "2026-11-17T00:54:52.434882+00:00",
+    "repete_id": null,
+    "invocation": "admin:be210685-beda-4269-942f-07608ece56d8",
+    "tentativas": 33
+  },
+  {
+    "id": "b99f71ad-7ab7-4dd6-b8a9-dea208bdb445",
+    "coletor": "sapl.assembleias",
+    "modo": "recoletar",
+    "status": "concluida",
+    "iniciada_em": "2026-11-17T00:54:34.363403+00:00",
+    "finalizada_em": "2026-11-17T00:54:36.600304+00:00",
+    "repete_id": null,
+    "invocation": "admin:b99f71ad-7ab7-4dd6-b8a9-dea208bdb445",
+    "tentativas": 79
+  }
+]

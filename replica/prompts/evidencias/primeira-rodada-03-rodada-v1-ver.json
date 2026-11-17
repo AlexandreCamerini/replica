@@ -1,0 +1,437 @@
+{
+  "id": "b99f71ad-7ab7-4dd6-b8a9-dea208bdb445",
+  "coletor": "sapl.assembleias",
+  "modo": "recoletar",
+  "status": "concluida",
+  "recorte": {
+    "ufs": [
+      "RO",
+      "AC",
+      "AM",
+      "PI",
+      "PB"
+    ],
+    "anos": [],
+    "modo": "recoletar",
+    "casas": [],
+    "ibges": [],
+    "extras": {}
+  },
+  "argv": [
+    "sapl.ales",
+    "--uf",
+    "RO",
+    "--uf",
+    "AC",
+    "--uf",
+    "AM",
+    "--uf",
+    "PI",
+    "--uf",
+    "PB"
+  ],
+  "forcar_urls": [],
+  "so_pendencias": false,
+  "repete_id": null,
+  "invocation": "admin:b99f71ad-7ab7-4dd6-b8a9-dea208bdb445",
+  "cache_dir": "/tmp/claude-501/admin-r1-cache",
+  "iniciada_em": "2026-11-17T00:54:34.363403+00:00",
+  "finalizada_em": "2026-11-17T00:54:36.600304+00:00",
+  "previa": {
+    "argv": [
+      "sapl.ales",
+      "--uf",
+      "RO",
+      "--uf",
+      "AC",
+      "--uf",
+      "AM",
+      "--uf",
+      "PI",
+      "--uf",
+      "PB"
+    ],
+    "modo": "recoletar",
+    "fontes": [
+      "sapl-ale"
+    ],
+    "coletor": "sapl.assembleias",
+    "comando": "sapl.ales",
+    "recorte": {
+      "ufs": [
+        "RO",
+        "AC",
+        "AM",
+        "PI",
+        "PB"
+      ],
+      "anos": [],
+      "modo": "recoletar",
+      "casas": [],
+      "ibges": [],
+      "extras": {}
+    },
+    "datasets": [
+      "sapl-ale.descoberta",
+      "sapl-ale.{uf}"
+    ],
+    "cache_dir": "/tmp/claude-501/admin-r1-cache",
+    "gerada_em": "2026-11-17T00:54:34.398653+00:00",
+    "observacao": "sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=sem registro, AC=sem registro, AM=sem registro, PI=sem registro, PB=sem registro | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas",
+    "a_consultar": {
+      "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
+      "valor": 10,
+      "intervalo": [
+        10,
+        10
+      ],
+      "estimativa": true
+    },
+    "demais_urls": {
+      "base": "desconhecido: nenhuma rodada anterior deste recorte",
+      "valor": null,
+      "estimativa": false
+    },
+    "urls_entrada": [
+      {
+        "url": "https://sapl.al.ro.leg.br/api/",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ro.leg.br/robots.txt",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ac.leg.br/api/",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ac.leg.br/robots.txt",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.am.leg.br/api/",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.am.leg.br/robots.txt",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pi.leg.br/api/",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pi.leg.br/robots.txt",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pb.leg.br/api/",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pb.leg.br/robots.txt",
+        "cache": {
+          "estado": "fora_do_cache"
+        },
+        "condicional": null
+      }
+    ],
+    "entradas_tipo": "dinamicas",
+    "nao_suportado": null,
+    "lista_completa": false,
+    "n_urls_entrada": 10,
+    "n_urls_condicionais": 0,
+    "registros_elegiveis": {
+      "base": "Assembleias em legislative_bodies das UFs do recorte; sapl_houses_id nulo = casa ainda não registrada",
+      "valor": 5,
+      "chaves": [
+        {
+          "uf": "RO",
+          "orgao": "Assembleia Legislativa de Rondônia",
+          "sapl_houses_id": null
+        },
+        {
+          "uf": "AC",
+          "orgao": "Assembleia Legislativa de Acre",
+          "sapl_houses_id": null
+        },
+        {
+          "uf": "AM",
+          "orgao": "Assembleia Legislativa de Amazonas",
+          "sapl_houses_id": null
+        },
+        {
+          "uf": "PI",
+          "orgao": "Assembleia Legislativa de Piauí",
+          "sapl_houses_id": null
+        },
+        {
+          "uf": "PB",
+          "orgao": "Assembleia Legislativa de Paraíba",
+          "sapl_houses_id": null
+        }
+      ],
+      "classe": "vinculo_sapl",
+      "motivo": null
+    },
+    "tentativas_registradas": true
+  },
+  "resultado": {
+    "fim": "2026-11-17T00:54:36.600140+00:00",
+    "regra": {
+      "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
+      "timeout": "código 124 (timeout) -> interrompida",
+      "codigo_0": "código 0 -> concluida",
+      "nao_suportado": "recorte deixou de ser suportado: coletor não roda -> falhou",
+      "codigo_com_leitura": "código != 0 com leitura (falha parcial, o coletor terminou por conta própria) -> concluida",
+      "codigo_sem_leitura": "código != 0 sem nenhuma leitura no registro -> falhou",
+      "sem_rede_sem_cache": "SemRedeSemCache no registro -> falhou",
+      "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
+      "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
+    },
+    "inicio": "2026-11-17T00:54:34.633950+00:00",
+    "motivo": "código 0 -> concluida",
+    "runner": "processo",
+    "status": "concluida",
+    "execucao": 1,
+    "simulado": "v1",
+    "vinculos": {
+      "mudou": true,
+      "criados": {
+        "cobertura": 9,
+        "identidade": 0,
+        "vinculo_sapl": 5,
+        "contato_mandato": 0
+      },
+      "mantidos": {
+        "cobertura": 0,
+        "identidade": 0,
+        "vinculo_sapl": 0,
+        "contato_mandato": 0
+      },
+      "ignorados": [],
+      "desativados": {
+        "cobertura": 0,
+        "identidade": 0,
+        "vinculo_sapl": 0,
+        "contato_mandato": 0
+      },
+      "manuais_preservados": 0
+    },
+    "propostas": {
+      "novas": 0,
+      "avisos": [],
+      "escopo": "UFs RO,AC,AM,PI,PB",
+      "executado": true,
+      "ids_novas": [],
+      "recusadas": [],
+      "repetidas": 0,
+      "duplicatas": {},
+      "inalterados": 0,
+      "sem_evidencia": [],
+      "anotadas_antes": [],
+      "pendencias_abertas": [],
+      "pendencias_ligadas": [],
+      "reason_sem_proposta": [],
+      "pendencias_reabertas": [],
+      "identidade_sem_candidato": [],
+      "primeiros_preenchimentos": 37,
+      "suprimidos_nao_conferidos": [],
+      "contatos_removidos_pela_fonte": [],
+      "primeiros_preenchimentos_por_classe": {
+        "cobertura": 27,
+        "vinculo_sapl": 10
+      }
+    },
+    "sem_cache": [],
+    "invocation": "admin:b99f71ad-7ab7-4dd6-b8a9-dea208bdb445",
+    "tentativas": {
+      "lidas": 77,
+      "falhas": {
+        "erro": 1,
+        "robots": 1
+      },
+      "tentadas": 79,
+      "registradas": true,
+      "reaproveitadas": 0,
+      "urls_distintas": 79,
+      "linhas_ignoradas": 0
+    },
+    "interrupcao": null,
+    "codigo_saida": 0,
+    "urls_entrada": {
+      "tentadas": [
+        "https://sapl.al.ac.leg.br/api/",
+        "https://sapl.al.ac.leg.br/robots.txt",
+        "https://sapl.al.am.leg.br/api/",
+        "https://sapl.al.am.leg.br/robots.txt",
+        "https://sapl.al.pb.leg.br/api/",
+        "https://sapl.al.pb.leg.br/robots.txt",
+        "https://sapl.al.pi.leg.br/api/",
+        "https://sapl.al.pi.leg.br/robots.txt",
+        "https://sapl.al.ro.leg.br/api/",
+        "https://sapl.al.ro.leg.br/robots.txt"
+      ],
+      "previstas": 10,
+      "n_tentadas": 10,
+      "firmes_nao_tentadas": [],
+      "condicionais_tentadas": []
+    },
+    "executou_coletor": true,
+    "robots_registrados": [
+      "https://sapl.al.pi.leg.br/api/"
+    ]
+  },
+  "execucoes": [
+    {
+      "fim": "2026-11-17T00:54:36.600140+00:00",
+      "regra": {
+        "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
+        "timeout": "código 124 (timeout) -> interrompida",
+        "codigo_0": "código 0 -> concluida",
+        "nao_suportado": "recorte deixou de ser suportado: coletor não roda -> falhou",
+        "codigo_com_leitura": "código != 0 com leitura (falha parcial, o coletor terminou por conta própria) -> concluida",
+        "codigo_sem_leitura": "código != 0 sem nenhuma leitura no registro -> falhou",
+        "sem_rede_sem_cache": "SemRedeSemCache no registro -> falhou",
+        "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
+        "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
+      },
+      "inicio": "2026-11-17T00:54:34.633950+00:00",
+      "motivo": "código 0 -> concluida",
+      "runner": "processo",
+      "status": "concluida",
+      "execucao": 1,
+      "simulado": "v1",
+      "vinculos": {
+        "mudou": true,
+        "criados": {
+          "cobertura": 9,
+          "identidade": 0,
+          "vinculo_sapl": 5,
+          "contato_mandato": 0
+        },
+        "mantidos": {
+          "cobertura": 0,
+          "identidade": 0,
+          "vinculo_sapl": 0,
+          "contato_mandato": 0
+        },
+        "ignorados": [],
+        "desativados": {
+          "cobertura": 0,
+          "identidade": 0,
+          "vinculo_sapl": 0,
+          "contato_mandato": 0
+        },
+        "manuais_preservados": 0
+      },
+      "propostas": {
+        "novas": 0,
+        "avisos": [],
+        "escopo": "UFs RO,AC,AM,PI,PB",
+        "executado": true,
+        "ids_novas": [],
+        "recusadas": [],
+        "repetidas": 0,
+        "duplicatas": {},
+        "inalterados": 0,
+        "sem_evidencia": [],
+        "anotadas_antes": [],
+        "pendencias_abertas": [],
+        "pendencias_ligadas": [],
+        "reason_sem_proposta": [],
+        "pendencias_reabertas": [],
+        "identidade_sem_candidato": [],
+        "primeiros_preenchimentos": 37,
+        "suprimidos_nao_conferidos": [],
+        "contatos_removidos_pela_fonte": [],
+        "primeiros_preenchimentos_por_classe": {
+          "cobertura": 27,
+          "vinculo_sapl": 10
+        }
+      },
+      "sem_cache": [],
+      "invocation": "admin:b99f71ad-7ab7-4dd6-b8a9-dea208bdb445",
+      "tentativas": {
+        "lidas": 77,
+        "falhas": {
+          "erro": 1,
+          "robots": 1
+        },
+        "tentadas": 79,
+        "registradas": true,
+        "reaproveitadas": 0,
+        "urls_distintas": 79,
+        "linhas_ignoradas": 0
+      },
+      "interrupcao": null,
+      "codigo_saida": 0,
+      "urls_entrada": {
+        "tentadas": [
+          "https://sapl.al.ac.leg.br/api/",
+          "https://sapl.al.ac.leg.br/robots.txt",
+          "https://sapl.al.am.leg.br/api/",
+          "https://sapl.al.am.leg.br/robots.txt",
+          "https://sapl.al.pb.leg.br/api/",
+          "https://sapl.al.pb.leg.br/robots.txt",
+          "https://sapl.al.pi.leg.br/api/",
+          "https://sapl.al.pi.leg.br/robots.txt",
+          "https://sapl.al.ro.leg.br/api/",
+          "https://sapl.al.ro.leg.br/robots.txt"
+        ],
+        "previstas": 10,
+        "n_tentadas": 10,
+        "firmes_nao_tentadas": [],
+        "condicionais_tentadas": []
+      },
+      "executou_coletor": true,
+      "robots_registrados": [
+        "https://sapl.al.pi.leg.br/api/"
+      ]
+    }
+  ],
+  "tentativas": {
+    "total": 79,
+    "por_resultado": {
+      "falha": 2,
+      "lida": 77
+    },
+    "falhas_por_motivo": {
+      "erro": 1,
+      "robots": 1
+    },
+    "urls_distintas": 79
+  },
+  "cadeia": {
+    "origem": [],
+    "repeticoes": []
+  }
+}

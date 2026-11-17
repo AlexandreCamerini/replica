@@ -1,0 +1,130 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requisição de rede)
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/robots.txt "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/ "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 etl.sapl INFO SAPL Assembleia RO: ok 
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/robots.txt "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/ "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 etl.sapl INFO SAPL Assembleia AC: ok 
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/robots.txt "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/ "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 etl.sapl INFO SAPL Assembleia AM: ok 
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.pi.leg.br/robots.txt "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 etl.sapl INFO SAPL Assembleia PI: robots_bloqueia robots.txt bloqueia https://sapl.al.pi.leg.br/api/
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.pb.leg.br/robots.txt "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.pb.leg.br/api/ "HTTP/1.1 500 Internal Server Error"
+2026-11-16 21:54:35 etl.http WARNING tentativa 1 falhou em https://sapl.al.pb.leg.br/api/: 500; aguardando 2s
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.pb.leg.br/api/ "HTTP/1.1 500 Internal Server Error"
+2026-11-16 21:54:35 etl.http WARNING tentativa 2 falhou em https://sapl.al.pb.leg.br/api/: 500; aguardando 4s
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.pb.leg.br/api/ "HTTP/1.1 500 Internal Server Error"
+2026-11-16 21:54:35 etl.http WARNING tentativa 3 falhou em https://sapl.al.pb.leg.br/api/: 500; aguardando 8s
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.pb.leg.br/api/ "HTTP/1.1 500 Internal Server Error"
+2026-11-16 21:54:35 etl.http WARNING tentativa 4 falhou em https://sapl.al.pb.leg.br/api/: 500; aguardando 16s
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.pb.leg.br/api/ "HTTP/1.1 500 Internal Server Error"
+2026-11-16 21:54:35 etl.sapl INFO SAPL Assembleia PB: fora_do_ar HTTPStatusError: 500
+2026-11-16 21:54:35 etl.db INFO sapl-ale.descoberta [a0e8e745]: ok em 0s, 5 upserts, 0 rejeitadas
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/parlamentares/legislatura/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/base/autor/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ac.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 etl.sapl INFO SAPL Acre: modos {'materias': 'full (sem cursor)', 'autorias': 'full (matérias completas)', 'presencas': 'full (sem cursor)', 'votos': 'full (sem cursor)'}
+2026-11-16 21:54:35 etl.sapl WARNING SAPL Acre: Parlamentar Fabricado 1 (AC) (101) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:35 etl.sapl WARNING SAPL Acre: Parlamentar Fabricado 2 (AC) (102) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:35 etl.sapl WARNING SAPL Acre: Parlamentar Fabricado 3 (AC) (103) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:35 etl.db INFO sapl-ale.ac [8d504e08]: ok em 0s, 30 upserts, 3 rejeitadas
+2026-11-16 21:54:35 etl.sapl INFO SAPL Acre em 0s: {'parlamentares': 4, 'mandatos': 3, 'materias': 3, 'autorias': 4, 'sessoes': 2, 'presencas': 5, 'votos': 5, 'sem_candidato': 3, 'fora_da_legislatura': 1}
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/parlamentares/legislatura/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/base/autor/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.am.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 etl.sapl INFO SAPL Amazonas: modos {'materias': 'full (sem cursor)', 'autorias': 'full (matérias completas)', 'presencas': 'full (sem cursor)', 'votos': 'full (sem cursor)'}
+2026-11-16 21:54:35 etl.sapl WARNING SAPL Amazonas: Parlamentar Fabricado 1 (AM) (101) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:35 etl.sapl WARNING SAPL Amazonas: Parlamentar Fabricado 2 (AM) (102) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:35 etl.sapl WARNING SAPL Amazonas: Parlamentar Fabricado 3 (AM) (103) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:35 etl.db INFO sapl-ale.am [bab7c6e5]: ok em 0s, 32 upserts, 3 rejeitadas
+2026-11-16 21:54:35 etl.sapl INFO SAPL Amazonas em 0s: {'parlamentares': 4, 'mandatos': 3, 'materias': 4, 'autorias': 5, 'sessoes': 2, 'presencas': 5, 'votos': 5, 'sem_candidato': 3, 'fora_da_legislatura': 1}
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/parlamentares/legislatura/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/base/autor/?page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:35 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:36 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:36 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:36 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:36 httpx INFO HTTP Request: GET https://sapl.al.ro.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1 "HTTP/1.1 200 OK"
+2026-11-16 21:54:36 etl.sapl INFO SAPL Rondônia: modos {'materias': 'full (sem cursor)', 'autorias': 'full (matérias completas)', 'presencas': 'full (sem cursor)', 'votos': 'full (sem cursor)'}
+2026-11-16 21:54:36 etl.sapl WARNING SAPL Rondônia: Parlamentar Fabricado 1 (RO) (101) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:36 etl.sapl WARNING SAPL Rondônia: Parlamentar Fabricado 2 (RO) (102) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:36 etl.sapl WARNING SAPL Rondônia: Parlamentar Fabricado 3 (RO) (103) sem_candidato: nenhum vereador eleito do TSE com esse nome no município e legislatura (suplente? nome diferente?)
+2026-11-16 21:54:36 etl.db INFO sapl-ale.ro [a59a0498]: ok em 1s, 32 upserts, 3 rejeitadas
+2026-11-16 21:54:36 etl.sapl INFO SAPL Rondônia em 1s: {'parlamentares': 4, 'mandatos': 3, 'materias': 4, 'autorias': 5, 'sessoes': 2, 'presencas': 5, 'votos': 5, 'sem_candidato': 3, 'fora_da_legislatura': 1}
+2026-11-16 21:54:36 etl.sapl INFO SAPL: {'ok': 3}
+SIMULADO: 82 URLs pedidas, 0 não previstas
+rodada                    b99f71ad-7ab7-4dd6-b8a9-dea208bdb445
+status                    concluida
+motivo                    código 0 -> concluida
+código de saída           0
+tentativas                79 (lidas 77, reaproveitadas 0, falhas {'erro': 1, 'robots': 1}); 79 URLs distintas
+URLs de entrada           10 tentadas de 10 firmes previstas
+bloqueadas por robots     https://sapl.al.pi.leg.br/api/
+vínculos                  14 criados, 0 desativados, 0 mantidos
+propostas novas           0
+propostas repetidas       0
+propostas recusadas       0
+primeiros preenchimentos  37
+sem evidência             0
+reason sem proposta       0
+pendências abertas        0
+pendências reabertas      0

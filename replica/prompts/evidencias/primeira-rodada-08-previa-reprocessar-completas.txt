@@ -1,0 +1,32 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+coletor              sapl.assembleias
+modo                 reprocessar
+recorte              ufs=RO,AC,AM,PB
+comando              sapl.ales
+argv                 sapl.ales --uf RO --uf AC --uf AM --uf PB
+fontes               sapl-ale
+datasets             sapl-ale.descoberta, sapl-ale.{uf}
+registros elegíveis  4 (vinculo_sapl; Assembleias em legislative_bodies das UFs do recorte; sapl_houses_id nulo = casa ainda não registrada)
+URLs de entrada      8 firmes + 3 condicionais; lista incompleta: só as conhecidas sem leitura
+a consultar          0 (modo sem rede (ETL_HTTP_OFFLINE): nenhuma consulta; URL ausente do cache recusa a rodada)
+demais URLs          desconhecido: nenhuma rodada anterior deste recorte
+faltam no cache      nenhuma
+observação           sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=ok, AC=ok, AM=robots_bloqueia, PB=ok | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas | reprocessar: sem rede, refaz só a sondagem das casas (status e cobertura) a partir do cache de robots.txt e /api/; a carga de parlamentares, matérias e sessões só se refaz para casa fora do prazo de recarga de 6 dias (STALE_DAYS) e, nesse caso, depende de as páginas estarem no cache (as consultas incrementais por data mudam a cada dia); URL ausente do cache aborta a execução (SemRedeSemCache); reler o cache não reproduz a rodada original
+
+URL DE ENTRADA                      CONDIÇÃO                            CACHE     IDADE (h)  HASH
+----------------------------------  ----------------------------------  --------  ---------  ------------
+https://sapl.al.ro.leg.br/api/      firme                               em_cache  0.01       9c4863cdfaea
+https://sapl.al.ro.leg.br/robots.…  firme                               em_cache  0.01       6f13b5c04f61
+https://sapl.al.ac.leg.br/api/      firme                               em_cache  0.01       c2bcba167146
+https://sapl.al.ac.leg.br/robots.…  firme                               em_cache  0.01       6f13b5c04f61
+https://sapl.al.am.leg.br/api/      firme                               em_cache  0.01       bc154e4aab08
+https://sapl.al.am.leg.br/robots.…  firme                               em_cache  0.01       ab75d28a39d3
+https://sapl.al.pb.leg.br/api/      firme                               em_cache  0.01       c7296d22537b
+https://sapl.al.pb.leg.br/robots.…  firme                               em_cache  0.01       6f13b5c04f61
+https://sapl.al.ro.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.01       181f561a6f4e
+https://sapl.al.ac.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.01       181f561a6f4e
+https://sapl.al.pb.leg.br/api/par…  condicional: só é pedida se a cas…  em_cache  0.01       181f561a6f4e
+
+8 URLs de entrada firmes de 11 listadas

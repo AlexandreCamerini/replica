@@ -1,0 +1,2 @@
+SIMULADO: conferências do passo 01-inventario (respostas fabricadas)
+  [ok] o inventário lista o coletor sapl.assembleias

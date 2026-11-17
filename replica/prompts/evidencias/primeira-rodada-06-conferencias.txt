@@ -1,0 +1,6 @@
+SIMULADO: conferências do passo 06-pendencia-aberta (respostas fabricadas)
+  [ok] a pergunta da pendência de AM está em aberto e termina em ?
+  [ok] o parecer saiu marcado ENSAIO e SIMULADO
+  [ok] o parecer é do motor local simulado (sem chamada a modelo)
+  [ok] nada foi aplicado: status de AM, pendência aberta, decisões, overrides e corrections iguais
+  [ok] as tabelas de domínio e de revisão têm as mesmas linhas e hashes antes e depois do parecer

@@ -1,0 +1,53 @@
+aplicando 0001_init.sql
+aplicando 0002_merge_person.sql
+aplicando 0003_web_writer.sql
+psql:migrations/0003_web_writer.sql:11: NOTICE:  role "web_writer" has already been granted membership in role "authenticated" by role "postgres"
+aplicando 0004_authenticated_extensions.sql
+aplicando 0005_suggestion_direito_resposta.sql
+aplicando 0010_party_observations.sql
+aplicando 0015_places_population.sql
+aplicando 0030_voting_events_secret.sql
+aplicando 0031_agenda.sql
+aplicando 0032_sapl.sql
+aplicando 0033_sanctions.sql
+aplicando 0040_w4_indicators_taxes.sql
+aplicando 0050_camara_fuso_horario.sql
+aplicando 0055_mandate_vacancy_note.sql
+aplicando 0058_identity_repair_log.sql
+aplicando 0060_identity_split_log.sql
+aplicando 0065_tse_titulo_candidatura.sql
+aplicando 0066_tse_titulo_nome_nascimento.sql
+aplicando 0070_sapl_incremental.sql
+aplicando 0075_etl_schedule.sql
+aplicando 0076_pauta.sql
+aplicando 0077_pocket_rule_v2.sql
+aplicando 0078_pauta_saida.sql
+aplicando 0079_pauta_proposal_url.sql
+aplicando 0080_answer_drafts.sql
+aplicando 0081_answer_drafts_guard.sql
+aplicando 0082_amendments_stages.sql
+aplicando 0083_sanctions_cgu.sql
+aplicando 0084_campaign_finance_by_origin.sql
+aplicando 0090_rascunho_batch.sql
+aplicando 0100_sapl_escala.sql
+aplicando 0120_raw_copy.sql
+aplicando 0130_verificacao_agentica.sql
+psql:migrations/0130_verificacao_agentica.sql:30: NOTICE:  constraint "answer_drafts_verified_by_check" of relation "answer_drafts" does not exist, skipping
+psql:migrations/0130_verificacao_agentica.sql:33: NOTICE:  constraint "answer_drafts_withdrawn_note_check" of relation "answer_drafts" does not exist, skipping
+psql:migrations/0130_verificacao_agentica.sql:37: NOTICE:  constraint "answer_drafts_public_verified_check" of relation "answer_drafts" does not exist, skipping
+psql:migrations/0130_verificacao_agentica.sql:41: NOTICE:  constraint "answer_drafts_agent_report_check" of relation "answer_drafts" does not exist, skipping
+aplicando 0131_answer_drafts_grant_por_coluna.sql
+aplicando 0131_run_record.sql
+aplicando 0140_indices_fk.sql
+aplicando 0141_drop_votes_index_duplicado.sql
+aplicando 0142_drop_expenses_supplier_doc_idx.sql
+aplicando 0150_admin_coleta.sql
+psql:migrations/0150_admin_coleta.sql:271: NOTICE:  trigger "adm_rodadas_guard" for relation "adm_rodadas" does not exist, skipping
+psql:migrations/0150_admin_coleta.sql:290: NOTICE:  trigger "adm_pendencias_guard" for relation "adm_pendencias" does not exist, skipping
+psql:migrations/0150_admin_coleta.sql:323: NOTICE:  trigger "adm_decisoes_guard" for relation "adm_decisoes" does not exist, skipping
+psql:migrations/0150_admin_coleta.sql:336: NOTICE:  trigger "adm_pedidos_guard" for relation "adm_pedidos" does not exist, skipping
+psql:migrations/0150_admin_coleta.sql:368: NOTICE:  trigger "adm_override" for relation "sapl_houses" does not exist, skipping
+psql:migrations/0150_admin_coleta.sql:395: NOTICE:  trigger "adm_override" for relation "data_coverage" does not exist, skipping
+psql:migrations/0150_admin_coleta.sql:413: NOTICE:  trigger "adm_override" for relation "mandate_contacts" does not exist, skipping
+aplicando 0151_admin_coleta_colisoes.sql
+ok: 40 migração(ões) aplicada(s)

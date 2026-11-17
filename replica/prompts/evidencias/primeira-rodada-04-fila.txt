@@ -1,0 +1,9 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+#  CLASSE        TIPO     REGISTRO                            CAMPO   VENCE       COBERTURA  REABERTA  PERGUNTA
+-  ------------  -------  ----------------------------------  ------  ----------  ---------  --------  ----------------------------------
+1  vinculo_sapl  mudanca  Assembleia Legislativa de Amazona…  status  2026-11-24  60%        -         O status do SAPL desta casa mudou…
+2  vinculo_sapl  mudanca  Assembleia Legislativa de Paraíba…  status  2026-11-24  60%        -         O status do SAPL desta casa mudou…
+
+2 pendências abertas (0 reabertas); ordem: classe, tipo, vencimento, cobertura do recorte, id

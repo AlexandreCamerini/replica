@@ -1,0 +1,13 @@
+SIMULADO. tentativas do reprocessamento por resultado
+   resultado   | motivo | n 
+---------------+--------+---
+ falha         | robots | 1
+ reaproveitada |        | 7
+(2 linhas)
+
+SIMULADO. tentativas do reprocessamento que NÃO são reaproveitada (esperado: só falha por robots, que não vai à rede)
+ resultado | motivo | entrada |              url               
+-----------+--------+---------+--------------------------------
+ falha     | robots | t       | https://sapl.al.am.leg.br/api/
+(1 linha)
+

@@ -1,0 +1,61 @@
+{
+  "id": "77f606a3-ee64-414e-a81c-6534627876ca",
+  "classe": "vinculo_sapl",
+  "registro_chave": "3",
+  "campo": "status",
+  "tipo": "mudanca",
+  "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
+  "reaberta": false,
+  "motivo_reabertura": null,
+  "vence_em": "2026-11-24T00:54:52.408668+00:00",
+  "cobertura_recorte": 0.6,
+  "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
+  "territorio": {
+    "ibge_code": "13",
+    "nivel": "uf"
+  },
+  "valor_vigente": "robots_bloqueia",
+  "propostas": [
+    {
+      "id": "1ca48e90-89b0-4b87-9f61-2b9ae261543d",
+      "valor_vigente_na_leitura": "ok",
+      "valor_candidato": "robots_bloqueia",
+      "url": "https://sapl.al.am.leg.br/robots.txt",
+      "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T00:54:52.286337+00:00)",
+      "bloco": null,
+      "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+      "lida_em": "2026-11-17T00:54:52.286337+00:00",
+      "fonte_declarada_em": null,
+      "fonte_slug": "sapl-ale",
+      "rodada_id": "be210685-beda-4269-942f-07608ece56d8",
+      "alcance": "registro",
+      "regra_criterio": null,
+      "regra_ids": null
+    }
+  ],
+  "desconhecidos": {},
+  "status": "aberta",
+  "evidencia_sha": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+  "vigente_sha": "2bc5ea5a66d1172d880b81db85c1cb02809971626e8397252c4e54f350b26f31",
+  "criada_em": "2026-11-17T00:54:52.405614+00:00",
+  "decisoes": [],
+  "historico": [
+    {
+      "id": "1ca48e90-89b0-4b87-9f61-2b9ae261543d",
+      "valor_vigente_na_leitura": "ok",
+      "valor_candidato": "robots_bloqueia",
+      "url": "https://sapl.al.am.leg.br/robots.txt",
+      "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T00:54:52.286337+00:00)",
+      "bloco": null,
+      "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+      "lida_em": "2026-11-17T00:54:52.286337+00:00",
+      "fonte_declarada_em": null,
+      "fonte_slug": "sapl-ale",
+      "rodada_id": "be210685-beda-4269-942f-07608ece56d8",
+      "alcance": "registro",
+      "regra_criterio": null,
+      "regra_ids": null,
+      "ligada_a_esta_pendencia": true
+    }
+  ]
+}

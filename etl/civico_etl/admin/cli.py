@@ -26,6 +26,7 @@ import psycopg
 from .. import db
 from ..catalogo.contrato import Recorte
 from . import aplicar as apl
+from . import candidata as cand
 from . import decisoes as dec
 from . import inventario as inv
 from . import parecer as par
@@ -445,6 +446,18 @@ def _run_parecer(conn: Any, a: argparse.Namespace) -> Resultado:
     return doc, _texto_parecer(docs) if docs else "ENSAIO: parecer não aplica nada\nnenhuma pendência aberta ligada a propostas da rodada", bool(docs)
 
 
+# ------------------------------------------------------------------ candidata (B5): a edição candidata
+
+
+def _cfg_candidata(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--rodada", action="append", metavar="ID", help="só as propostas desta rodada (repetível; padrão: todas as rodadas)")
+
+
+def _run_candidata(conn: Any, a: argparse.Namespace) -> Resultado:
+    doc = cand.candidata(conn, a.rodada)
+    return doc, cand.texto_candidata(doc), False
+
+
 class _Uso(Exception):
     """Combinação de opções inválida: sai com 2, como um erro do argparse."""
 
@@ -461,6 +474,7 @@ SUBCOMANDOS: dict[str, Subcomando] = {s.nome: s for s in (
     Subcomando("decidir", "registra a decisão de uma pessoa sobre uma pendência (aprovar, corrigir, descartar, pedir_confirmacao); --aplicar aplica em seguida", _cfg_decidir, _run_decidir),
     Subcomando("identidade", "leva à revisão os itens pendentes da fila de identidade que têm pessoa candidata (`identidade propor`); a decisão e a aplicação são `decidir` e `aplicar`", _cfg_identidade, _run_identidade),
     Subcomando("parecer", "parecer de IA em modo ENSAIO de uma pendência (--pendencia) ou de uma rodada (--rodada): proposta por campo com o trecho usado, ou \"falta confirmar\"; não aplica nada", _cfg_parecer, _run_parecer),
+    Subcomando("candidata", "edição candidata: diferenças em relação à base vigente por registro e campo, com evidência, as já aplicadas e as pendências restantes (só leitura)", _cfg_candidata, _run_candidata),
     Subcomando("aplicar", "aplica às tabelas de domínio as decisões aprovadas e ainda não aplicadas (agentes só com as duas chaves ligadas)", _cfg_aplicar, _run_aplicar),
 )}
 

@@ -1,0 +1,35 @@
+SIMULADO. conferência em SQL do passo 2 (banco admin_coleta_r1)
+-- sapl_houses.status de PB
+ id | uf | status |         base_url          
+----+----+--------+---------------------------
+  5 | PB | ok     | https://sapl.al.pb.leg.br
+(1 linha)
+
+-- adm_overrides do campo
+                  id                  |    classe    | registro_chave | campo  | valor | suprimir | vigente |              decisao_id              
+--------------------------------------+--------------+----------------+--------+-------+----------+---------+--------------------------------------
+ eb45bade-0183-4bb6-aa38-b5be56edb6b9 | vinculo_sapl | 5              | status | "ok"  | f        | t       | 2cb3fb72-93ee-4124-a974-72e10cd8d466
+(1 linha)
+
+-- adm_decisoes da pendência
+                  id                  |             pendencia_id             |  acao   | decidido_por_tipo |       decidido_por_nome       | aplicada |          aplicada_em          |                                                      justificativa                                                      
+--------------------------------------+--------------------------------------+---------+-------------------+-------------------------------+----------+-------------------------------+-------------------------------------------------------------------------------------------------------------------------
+ 2cb3fb72-93ee-4124-a974-72e10cd8d466 | dee4da87-7389-46c4-a820-a3a135e3984d | aprovar | pessoa            | Operador de Ensaio (SIMULADO) | t        | 2026-11-16 21:55:01.929396-03 | a /api/ da casa voltou a responder na leitura de 2026-11-17 (resposta fabricada, cenário v2); ver evidência da proposta
+(1 linha)
+
+-- adm_pendencias
+                  id                  |    classe    | registro_chave | campo  |  tipo   |  status  | reaberta 
+--------------------------------------+--------------+----------------+--------+---------+----------+----------
+ dee4da87-7389-46c4-a820-a3a135e3984d | vinculo_sapl | 5              | status | mudanca | decidida | f
+(1 linha)
+
+-- corrections (linhas: 0)
+ id | person_id | entity_table | entity_ref | field | before_value | after_value | reason | evidence_url | suggestion_id | published_at | created_at | updated_at 
+----+-----------+--------------+------------+-------+--------------+-------------+--------+--------------+---------------+--------------+------------+------------
+(0 linha)
+
+-- motivo dado pelo resultado da aplicação (saída do comando decidir):
+aplicada         sim
+aplicada: vinculo_sapl:5:status  'ok' -> 'ok'
+escreveu: adm_overrides: ['eb45bade-0183-4bb6-aa38-b5be56edb6b9']; sapl_houses: [5]
+sem corrections (o valor anterior é igual ao novo)

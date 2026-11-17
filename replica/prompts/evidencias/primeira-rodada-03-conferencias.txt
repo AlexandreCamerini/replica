@@ -1,0 +1,6 @@
+SIMULADO: conferências do passo 03-rodada-v1 (respostas fabricadas)
+  rodada v1: b99f71ad-7ab7-4dd6-b8a9-dea208bdb445
+  [ok] a rodada v1 terminou concluida
+  [ok] o relatório abre com o aviso SIMULADO e o JSON traz simulado=v1
+  [ok] critério 3: as URLs de entrada da prévia são as URLs de entrada tentadas
+  [ok] primeira rodada sobre banco vazio: nenhuma proposta (tudo é primeiro preenchimento)

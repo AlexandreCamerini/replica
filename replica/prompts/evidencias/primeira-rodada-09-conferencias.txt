@@ -1,0 +1,8 @@
+SIMULADO: conferências do passo 09-fechamento (respostas fabricadas)
+  [ok] o relatório da rodada v2, depois da decisão: 1 registro alterado de 2, 1 campo pendente (AM) e 1 confirmado por decisão (PB)
+  [ok] a edição candidata restrita à rodada v2 tem os mesmos 2 campos com proposta e a marca SIMULADO (v2)
+  [ok] a fila final traz a pendência de AM (aberta) e não traz a de PB (decidida)
+  [ok] a edição candidata final tem PB em aplicadas e AM pendente, SIMULADA
+  [ok] as 5 invariantes da linha de base seguem quebradas (carga real ausente) e nada foi quebrado pela rodada (mesmo conjunto de antes)
+  [ok] a única invariante extra é 'município: exatamente 1 prefeito' e vem do município fabricado de admin_base.sql
+  RESSALVA: invariante extra explicada pelo município fabricado (também presente antes da rodada)

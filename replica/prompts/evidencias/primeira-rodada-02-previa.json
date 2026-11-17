@@ -1,0 +1,167 @@
+{
+  "coletor": "sapl.assembleias",
+  "modo": "recoletar",
+  "recorte": {
+    "anos": [],
+    "ufs": [
+      "RO",
+      "AC",
+      "AM",
+      "PI",
+      "PB"
+    ],
+    "casas": [],
+    "ibges": [],
+    "extras": {},
+    "modo": "recoletar"
+  },
+  "nao_suportado": null,
+  "comando": "sapl.ales",
+  "argv": [
+    "sapl.ales",
+    "--uf",
+    "RO",
+    "--uf",
+    "AC",
+    "--uf",
+    "AM",
+    "--uf",
+    "PI",
+    "--uf",
+    "PB"
+  ],
+  "fontes": [
+    "sapl-ale"
+  ],
+  "datasets": [
+    "sapl-ale.descoberta",
+    "sapl-ale.{uf}"
+  ],
+  "tentativas_registradas": true,
+  "cache_dir": "/tmp/claude-501/admin-r1-cache",
+  "gerada_em": "2026-11-17T00:54:31.807090+00:00",
+  "registros_elegiveis": {
+    "classe": "vinculo_sapl",
+    "valor": 5,
+    "chaves": [
+      {
+        "uf": "RO",
+        "orgao": "Assembleia Legislativa de Rondônia",
+        "sapl_houses_id": null
+      },
+      {
+        "uf": "AC",
+        "orgao": "Assembleia Legislativa de Acre",
+        "sapl_houses_id": null
+      },
+      {
+        "uf": "AM",
+        "orgao": "Assembleia Legislativa de Amazonas",
+        "sapl_houses_id": null
+      },
+      {
+        "uf": "PI",
+        "orgao": "Assembleia Legislativa de Piauí",
+        "sapl_houses_id": null
+      },
+      {
+        "uf": "PB",
+        "orgao": "Assembleia Legislativa de Paraíba",
+        "sapl_houses_id": null
+      }
+    ],
+    "motivo": null,
+    "base": "Assembleias em legislative_bodies das UFs do recorte; sapl_houses_id nulo = casa ainda não registrada"
+  },
+  "urls_entrada": [
+    {
+      "url": "https://sapl.al.ro.leg.br/api/",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.ro.leg.br/robots.txt",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.ac.leg.br/api/",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.ac.leg.br/robots.txt",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.am.leg.br/api/",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.am.leg.br/robots.txt",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.pi.leg.br/api/",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.pi.leg.br/robots.txt",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.pb.leg.br/api/",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    },
+    {
+      "url": "https://sapl.al.pb.leg.br/robots.txt",
+      "condicional": null,
+      "cache": {
+        "estado": "fora_do_cache"
+      }
+    }
+  ],
+  "n_urls_entrada": 10,
+  "n_urls_condicionais": 0,
+  "lista_completa": false,
+  "entradas_tipo": "dinamicas",
+  "observacao": "sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=sem registro, AC=sem registro, AM=sem registro, PI=sem registro, PB=sem registro | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas",
+  "a_consultar": {
+    "valor": 10,
+    "estimativa": true,
+    "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
+    "intervalo": [
+      10,
+      10
+    ]
+  },
+  "demais_urls": {
+    "valor": null,
+    "estimativa": false,
+    "base": "desconhecido: nenhuma rodada anterior deste recorte"
+  }
+}

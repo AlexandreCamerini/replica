@@ -1,0 +1,233 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+SIMULADO: respostas fabricadas (cenário v1); nenhum número abaixo foi lido da fonte
+
+rodada   b99f71ad-7ab7-4dd6-b8a9-dea208bdb445
+coletor  sapl.assembleias
+modo     recoletar
+recorte  {'ufs': ['RO', 'AC', 'AM', 'PI', 'PB'], 'anos': [], 'modo': 'recoletar', 'casas': [], 'ibges': [], 'extras': {}}
+status   concluida
+início   2026-11-17 00:54:34.363403+00:00
+fim      2026-11-17 00:54:36.600304+00:00
+repete   -
+
+COLETA (leitura das URLs; não diz nada sobre revisão)
+  URLs tentadas                79 de 79
+        - https://sapl.al.ro.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1  (007f59ae4876)
+        - https://sapl.al.am.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1  (02921794b4fc)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1  (0612a2692044)
+        - https://sapl.al.pb.leg.br/robots.txt  (06a15704c1db)
+        - https://sapl.al.am.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1  (097ea79d725e)
+        - https://sapl.al.pi.leg.br/api/  (0f30782f1633)
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1  (1522cff3e323)
+        - https://sapl.al.ro.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1  (1909d24ba68d)
+        - https://sapl.al.ac.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1  (1ad6aefc9273)
+        - https://sapl.al.ac.leg.br/api/base/autor/?page_size=100&page=1  (1e82c8e8e658)
+        - https://sapl.al.ro.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2  (234f270a1983)
+        - https://sapl.al.ro.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1  (26dd975e2131)
+        - https://sapl.al.ac.leg.br/robots.txt  (2cddba312107)
+        - https://sapl.al.ro.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1  (328768b3f612)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1  (33d42189d805)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1  (341d1691784e)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1  (3644cda6b6e0)
+        - https://sapl.al.ro.leg.br/api/parlamentares/legislatura/?page_size=100&page=1  (36c3f32b18d4)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1  (374748649ff7)
+        - https://sapl.al.pi.leg.br/robots.txt  (37a0686e96e1)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1  (394c583218db)
+        - https://sapl.al.ro.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1  (3c16081afa58)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1  (3eb899bde588)
+        - https://sapl.al.am.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1  (4118cbe534c9)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1  (442eb56ff5ce)
+        - https://sapl.al.ac.leg.br/api/parlamentares/legislatura/?page_size=100&page=1  (447ee7080a3f)
+        - https://sapl.al.ac.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2  (449b5c3c4388)
+        - https://sapl.al.ac.leg.br/api/  (4597f65ca68e)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1  (469dfa494488)
+        - https://sapl.al.ac.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1  (57cba011fabe)
+        - https://sapl.al.am.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1  (5f09d4f11f58)
+        - https://sapl.al.ro.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1  (5f15ed51cf61)
+        - https://sapl.al.ac.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1  (608c8e59d015)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1  (638375733372)
+        - https://sapl.al.am.leg.br/robots.txt  (6e9c83474180)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1  (701bfb555967)
+        - https://sapl.al.am.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1  (744cc8574a27)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1  (769bcad9b1a8)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1  (7740b42fbe18)
+        - https://sapl.al.ac.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1  (789cfcad2e6e)
+        - https://sapl.al.am.leg.br/api/parlamentares/legislatura/?page_size=100&page=1  (7d57541df065)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1  (7d81f0dfcedd)
+        - https://sapl.al.am.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1  (7f2d12b98669)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1  (8388eb6ec922)
+        - https://sapl.al.ac.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1  (8480330fdb9e)
+        - https://sapl.al.ac.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1  (84c00b0add61)
+        - https://sapl.al.ac.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1  (858a9f543b44)
+        - https://sapl.al.ro.leg.br/api/base/autor/?page_size=100&page=1  (892c203b8c29)
+        - https://sapl.al.ac.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1  (8951fced82f5)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1  (8aa6e57cecaa)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1  (8f66e7bb754a)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1  (8f6ccee0acf4)
+        - https://sapl.al.am.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1  (961f010c1582)
+        - https://sapl.al.ro.leg.br/api/  (a4a971dfc6d9)
+        - https://sapl.al.ro.leg.br/robots.txt  (a7b8a9f5b658)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1  (aae45e8bdc0b)
+        - https://sapl.al.am.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1  (b0e784c709c1)
+        - https://sapl.al.ro.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1  (bdcde528b420)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1  (befb6e333418)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1  (c057cd4397e2)
+        - https://sapl.al.am.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1  (c12b5fabcd88)
+        - https://sapl.al.ac.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1  (c5f8c1aabe9a)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1  (c5ffbb15846a)
+        - https://sapl.al.am.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1  (d4067802a0b7)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1  (d56f56e6fdd0)
+        - https://sapl.al.am.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2  (db66d0ef410d)
+        - https://sapl.al.am.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1  (e0e4a48b384c)
+        - https://sapl.al.ac.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1  (e4d7c1b38ec5)
+        - https://sapl.al.ro.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1  (e8b1f360bab5)
+        - https://sapl.al.ro.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1  (e9a982360591)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1  (f0389184b9da)
+        - https://sapl.al.ro.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1  (f35a09d3161d)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1  (f525ffd82338)
+        - https://sapl.al.ac.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1  (f72295664be8)
+        - https://sapl.al.am.leg.br/api/base/autor/?page_size=100&page=1  (f8321a14a99c)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1  (f96618eb8d63)
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+        - https://sapl.al.ro.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1  (ffc0ab09456e)
+    lidas                      77 de 79
+        - https://sapl.al.ro.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1  (007f59ae4876)
+        - https://sapl.al.am.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1  (02921794b4fc)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1  (0612a2692044)
+        - https://sapl.al.pb.leg.br/robots.txt  (06a15704c1db)
+        - https://sapl.al.am.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1  (097ea79d725e)
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1  (1522cff3e323)
+        - https://sapl.al.ro.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1  (1909d24ba68d)
+        - https://sapl.al.ac.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1  (1ad6aefc9273)
+        - https://sapl.al.ac.leg.br/api/base/autor/?page_size=100&page=1  (1e82c8e8e658)
+        - https://sapl.al.ro.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2  (234f270a1983)
+        - https://sapl.al.ro.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1  (26dd975e2131)
+        - https://sapl.al.ac.leg.br/robots.txt  (2cddba312107)
+        - https://sapl.al.ro.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1  (328768b3f612)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1  (33d42189d805)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1  (341d1691784e)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1  (3644cda6b6e0)
+        - https://sapl.al.ro.leg.br/api/parlamentares/legislatura/?page_size=100&page=1  (36c3f32b18d4)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1  (374748649ff7)
+        - https://sapl.al.pi.leg.br/robots.txt  (37a0686e96e1)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1  (394c583218db)
+        - https://sapl.al.ro.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1  (3c16081afa58)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1  (3eb899bde588)
+        - https://sapl.al.am.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1  (4118cbe534c9)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1  (442eb56ff5ce)
+        - https://sapl.al.ac.leg.br/api/parlamentares/legislatura/?page_size=100&page=1  (447ee7080a3f)
+        - https://sapl.al.ac.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2  (449b5c3c4388)
+        - https://sapl.al.ac.leg.br/api/  (4597f65ca68e)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1  (469dfa494488)
+        - https://sapl.al.ac.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1  (57cba011fabe)
+        - https://sapl.al.am.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1  (5f09d4f11f58)
+        - https://sapl.al.ro.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1  (5f15ed51cf61)
+        - https://sapl.al.ac.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1  (608c8e59d015)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1  (638375733372)
+        - https://sapl.al.am.leg.br/robots.txt  (6e9c83474180)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1  (701bfb555967)
+        - https://sapl.al.am.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1  (744cc8574a27)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1  (769bcad9b1a8)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1  (7740b42fbe18)
+        - https://sapl.al.ac.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1  (789cfcad2e6e)
+        - https://sapl.al.am.leg.br/api/parlamentares/legislatura/?page_size=100&page=1  (7d57541df065)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1  (7d81f0dfcedd)
+        - https://sapl.al.am.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1  (7f2d12b98669)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1  (8388eb6ec922)
+        - https://sapl.al.ac.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1  (8480330fdb9e)
+        - https://sapl.al.ac.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1  (84c00b0add61)
+        - https://sapl.al.ac.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1  (858a9f543b44)
+        - https://sapl.al.ro.leg.br/api/base/autor/?page_size=100&page=1  (892c203b8c29)
+        - https://sapl.al.ac.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1  (8951fced82f5)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1  (8aa6e57cecaa)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1  (8f66e7bb754a)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1  (8f6ccee0acf4)
+        - https://sapl.al.am.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1  (961f010c1582)
+        - https://sapl.al.ro.leg.br/api/  (a4a971dfc6d9)
+        - https://sapl.al.ro.leg.br/robots.txt  (a7b8a9f5b658)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1  (aae45e8bdc0b)
+        - https://sapl.al.am.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1  (b0e784c709c1)
+        - https://sapl.al.ro.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1  (bdcde528b420)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1  (befb6e333418)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1  (c057cd4397e2)
+        - https://sapl.al.am.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1  (c12b5fabcd88)
+        - https://sapl.al.ac.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1  (c5f8c1aabe9a)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1  (c5ffbb15846a)
+        - https://sapl.al.am.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1  (d4067802a0b7)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1  (d56f56e6fdd0)
+        - https://sapl.al.am.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2  (db66d0ef410d)
+        - https://sapl.al.am.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1  (e0e4a48b384c)
+        - https://sapl.al.ac.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1  (e4d7c1b38ec5)
+        - https://sapl.al.ro.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1  (e8b1f360bab5)
+        - https://sapl.al.ro.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1  (e9a982360591)
+        - https://sapl.al.ro.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1  (f0389184b9da)
+        - https://sapl.al.ro.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1  (f35a09d3161d)
+        - https://sapl.al.am.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1  (f525ffd82338)
+        - https://sapl.al.ac.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1  (f72295664be8)
+        - https://sapl.al.am.leg.br/api/base/autor/?page_size=100&page=1  (f8321a14a99c)
+        - https://sapl.al.ac.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1  (f96618eb8d63)
+        - https://sapl.al.ro.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1  (ffc0ab09456e)
+    reaproveitadas             0 de 79
+    com falha                  2 de 79
+        - https://sapl.al.pi.leg.br/api/  (0f30782f1633)
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+      falha: robots            1 de 2
+        - https://sapl.al.pi.leg.br/api/  (0f30782f1633)
+      falha: erro              1 de 2
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+  URLs de entrada declaradas   10 de 10
+        - https://sapl.al.pb.leg.br/robots.txt  (06a15704c1db)
+        - https://sapl.al.pi.leg.br/api/  (0f30782f1633)
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+        - https://sapl.al.ac.leg.br/robots.txt  (2cddba312107)
+        - https://sapl.al.pi.leg.br/robots.txt  (37a0686e96e1)
+        - https://sapl.al.ac.leg.br/api/  (4597f65ca68e)
+        - https://sapl.al.am.leg.br/robots.txt  (6e9c83474180)
+        - https://sapl.al.ro.leg.br/api/  (a4a971dfc6d9)
+        - https://sapl.al.ro.leg.br/robots.txt  (a7b8a9f5b658)
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+    tentadas                   10 de 10
+        - https://sapl.al.pb.leg.br/robots.txt  (06a15704c1db)
+        - https://sapl.al.pi.leg.br/api/  (0f30782f1633)
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+        - https://sapl.al.ac.leg.br/robots.txt  (2cddba312107)
+        - https://sapl.al.pi.leg.br/robots.txt  (37a0686e96e1)
+        - https://sapl.al.ac.leg.br/api/  (4597f65ca68e)
+        - https://sapl.al.am.leg.br/robots.txt  (6e9c83474180)
+        - https://sapl.al.ro.leg.br/api/  (a4a971dfc6d9)
+        - https://sapl.al.ro.leg.br/robots.txt  (a7b8a9f5b658)
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+    declaradas e não tentadas  0 de 10
+  Registros elegíveis          5 de 5
+        - vinculo_sapl:1
+        - vinculo_sapl:2
+        - vinculo_sapl:3
+        - vinculo_sapl:4
+        - vinculo_sapl:5
+  Registros alcançados         3 de 5
+        - vinculo_sapl:1
+        - vinculo_sapl:2
+        - vinculo_sapl:3
+  Elegíveis não alcançados  2 de 5
+        - vinculo_sapl:4  URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada; última falha: robots
+        - vinculo_sapl:5  URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada; última falha: erro
+
+REVISÃO (campos com proposta; não diz nada sobre leitura de URL)
+  nenhuma proposta registrada nesta rodada
+  Campos com proposta       0 de 0
+    confirmados             0 de 0
+      pela fonte            0 de 0
+      por decisão           0 de 0
+    conflitantes            0 de 0
+    pendentes               0 de 0
+      sem pendência aberta  0 de 0
+  Pendências reabertas      0 de 0
+  Registros com proposta    0 de 0
+  Registros alterados       0 de 0
+  Decisões                  0 de 0
+    aplicadas               0 de 0
+    não aplicadas           0 de 0

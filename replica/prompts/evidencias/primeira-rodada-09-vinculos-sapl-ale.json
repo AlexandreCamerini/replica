@@ -1,0 +1,364 @@
+{
+  "consulta": {
+    "fonte": "sapl-ale"
+  },
+  "vinculos": [
+    {
+      "id": "07adc8f2-bc81-4384-8021-50cc90fe68d7",
+      "classe": "cobertura",
+      "registro_chave": "11:presenca",
+      "rotulo": "cobertura presenca · Rondônia/RO",
+      "url": "https://sapl.al.ro.leg.br/sessao/pesquisar-sessao",
+      "url_sha": "81e953b0928a1dba11a696804f6b2933f212222cf9187e2940730c2970949954",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "cfef7a6b-f10d-402d-a785-8eff5b5e9fff",
+      "classe": "cobertura",
+      "registro_chave": "11:propostas",
+      "rotulo": "cobertura propostas · Rondônia/RO",
+      "url": "https://sapl.al.ro.leg.br/materia/pesquisar-materia",
+      "url_sha": "a3b1c4c76ee54a079f5e8cf4642d5e232a0ff4a5ef2cd4ee48ffb9668655c734",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "8a5182b7-af90-407b-a705-e91c98667979",
+      "classe": "cobertura",
+      "registro_chave": "11:votos",
+      "rotulo": "cobertura votos · Rondônia/RO",
+      "url": "https://sapl.al.ro.leg.br/sessao/pesquisar-sessao",
+      "url_sha": "81e953b0928a1dba11a696804f6b2933f212222cf9187e2940730c2970949954",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "7b3bf525-aa78-4776-9106-96ec145b5038",
+      "classe": "cobertura",
+      "registro_chave": "12:presenca",
+      "rotulo": "cobertura presenca · Acre/AC",
+      "url": "https://sapl.al.ac.leg.br/sessao/pesquisar-sessao",
+      "url_sha": "d9f89d17e10a49964cd03b8907fbd6a3a9d63f18783b6dffc7f2b05400b95c2b",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "51b66546-9648-4587-9ef9-41d37f74cc6b",
+      "classe": "cobertura",
+      "registro_chave": "12:propostas",
+      "rotulo": "cobertura propostas · Acre/AC",
+      "url": "https://sapl.al.ac.leg.br/materia/pesquisar-materia",
+      "url_sha": "bb769fe92244d6aaf0fe681687e932c690c7ee97c3271a9e5e0f069e7bbef0a9",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "52c7f868-94ba-432b-a540-6b0e694f2b08",
+      "classe": "cobertura",
+      "registro_chave": "12:votos",
+      "rotulo": "cobertura votos · Acre/AC",
+      "url": "https://sapl.al.ac.leg.br/sessao/pesquisar-sessao",
+      "url_sha": "d9f89d17e10a49964cd03b8907fbd6a3a9d63f18783b6dffc7f2b05400b95c2b",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "80fbd56a-da88-4d71-a1c3-051bdb9a784d",
+      "classe": "cobertura",
+      "registro_chave": "13:presenca",
+      "rotulo": "cobertura presenca · Amazonas/AM",
+      "url": "https://sapl.al.am.leg.br/sessao/pesquisar-sessao",
+      "url_sha": "2e3d05920f4be7d641177824800e4f70fe2374dc9e4bcdf7b07b357ea78c2b3d",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "ffec3328-cebe-40d0-8a87-f82b44674841",
+      "classe": "cobertura",
+      "registro_chave": "13:propostas",
+      "rotulo": "cobertura propostas · Amazonas/AM",
+      "url": "https://sapl.al.am.leg.br/materia/pesquisar-materia",
+      "url_sha": "b2d889f3962250168041afc53585e507a9e702cc8c84a8e7bfff3316dbfa2d8f",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "f7e537f3-6cda-44dd-b6ff-bfefc3a917ea",
+      "classe": "cobertura",
+      "registro_chave": "13:votos",
+      "rotulo": "cobertura votos · Amazonas/AM",
+      "url": "https://sapl.al.am.leg.br/sessao/pesquisar-sessao",
+      "url_sha": "2e3d05920f4be7d641177824800e4f70fe2374dc9e4bcdf7b07b357ea78c2b3d",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "ff375fff-8deb-4070-910d-f2591dfab49b",
+      "classe": "cobertura",
+      "registro_chave": "25:presenca",
+      "rotulo": "cobertura presenca · Paraíba/PB",
+      "url": "https://sapl.al.pb.leg.br/sessao/pesquisar-sessao",
+      "url_sha": "f3770c8517eafb0dde35bf7ec62f3f1c6d7d7327f2417b2966a4d725f14cfc20",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:52.395399+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "ee1303b4-5bf1-46c3-8dbf-170b62e001e5",
+      "classe": "cobertura",
+      "registro_chave": "25:propostas",
+      "rotulo": "cobertura propostas · Paraíba/PB",
+      "url": "https://sapl.al.pb.leg.br/materia/pesquisar-materia",
+      "url_sha": "cb9a5e2e7476133c30be3b7368d29533af90005dd6994200ac71779949924c99",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:52.395399+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "60000138-4dcd-4ba7-8bb4-252e5cf2502d",
+      "classe": "cobertura",
+      "registro_chave": "25:votos",
+      "rotulo": "cobertura votos · Paraíba/PB",
+      "url": "https://sapl.al.pb.leg.br/sessao/pesquisar-sessao",
+      "url_sha": "f3770c8517eafb0dde35bf7ec62f3f1c6d7d7327f2417b2966a4d725f14cfc20",
+      "fonte_slug": "sapl-ale",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:52.395399+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "4e365de8-8b78-48c6-97fc-eb7ee693f376",
+      "classe": "vinculo_sapl",
+      "registro_chave": "1",
+      "rotulo": "Assembleia Legislativa de Rondônia · Rondônia/RO",
+      "url": "https://sapl.al.ro.leg.br",
+      "url_sha": "5b5fd506060ce57c6ba7fad700350b934f5f6742174348b99e773cc0b43a0714",
+      "fonte_slug": "sapl-ale",
+      "origem": "registro_oficial",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "153ece54-d519-44d7-967d-90021098ca11",
+      "classe": "vinculo_sapl",
+      "registro_chave": "2",
+      "rotulo": "Assembleia Legislativa de Acre · Acre/AC",
+      "url": "https://sapl.al.ac.leg.br",
+      "url_sha": "5c457edb17a1416c6963fc8ac10bfd533d49006c72d5a69d9245dd7b88d57960",
+      "fonte_slug": "sapl-ale",
+      "origem": "registro_oficial",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "e5cd6752-e6a0-4256-8b1e-d158b3480349",
+      "classe": "vinculo_sapl",
+      "registro_chave": "3",
+      "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
+      "url": "https://sapl.al.am.leg.br",
+      "url_sha": "fd4726597177e535c451dfd4371f57d2356e6c358ede1317293ac736b9588542",
+      "fonte_slug": "sapl-ale",
+      "origem": "registro_oficial",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "b03358a7-8c0a-4dfa-8695-6d80becccb8b",
+      "classe": "vinculo_sapl",
+      "registro_chave": "4",
+      "rotulo": "Assembleia Legislativa de Piauí · Piauí/PI",
+      "url": "https://sapl.al.pi.leg.br",
+      "url_sha": "b06fc01658dcad077eed5a2527ab3f8177a75d28e34f05543f4880cf4e1fa57f",
+      "fonte_slug": "sapl-ale",
+      "origem": "registro_oficial",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "0820746e-b039-47a9-94e9-f365714060b8",
+      "classe": "vinculo_sapl",
+      "registro_chave": "5",
+      "rotulo": "Assembleia Legislativa de Paraíba · Paraíba/PB",
+      "url": "https://sapl.al.pb.leg.br",
+      "url_sha": "46e33b2e09f6b19c56613ad4bb2e40518ae7d00271727360084c7df0feef8f79",
+      "fonte_slug": "sapl-ale",
+      "origem": "registro_oficial",
+      "vigente": true,
+      "desde": "2026-11-17T00:54:36.558268+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    }
+  ]
+}

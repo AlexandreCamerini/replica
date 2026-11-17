@@ -1,0 +1,184 @@
+{
+  "escopo": {
+    "rodadas": [
+      "be210685-beda-4269-942f-07608ece56d8"
+    ],
+    "todas_as_rodadas": false,
+    "rodadas_envolvidas": 1
+  },
+  "simulado": [
+    "v2"
+  ],
+  "rodadas": [
+    {
+      "id": "be210685-beda-4269-942f-07608ece56d8",
+      "simulado": "v2"
+    }
+  ],
+  "diferencas": [
+    {
+      "classe": "vinculo_sapl",
+      "registro_chave": "3",
+      "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
+      "campo": "status",
+      "valor_vigente": "robots_bloqueia",
+      "territorio": {
+        "ibge_code": "13",
+        "nivel": "uf"
+      },
+      "pendencia_id": "77f606a3-ee64-414e-a81c-6534627876ca",
+      "pendencia_status": "aberta",
+      "pendencia_reaberta": false,
+      "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
+      "decisao": null,
+      "desconhecidos": {},
+      "situacao": "pendente",
+      "candidatos": [
+        {
+          "valor": "robots_bloqueia",
+          "ja_e_o_vigente": true,
+          "vigente_na_leitura": "ok",
+          "proposta_id": "1ca48e90-89b0-4b87-9f61-2b9ae261543d",
+          "url": "https://sapl.al.am.leg.br/robots.txt",
+          "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T00:54:52.286337+00:00)",
+          "bloco": null,
+          "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+          "lida_em": "2026-11-17T00:54:52.286337+00:00",
+          "fonte_declarada_em": null,
+          "fonte_slug": "sapl-ale",
+          "rodada_id": "be210685-beda-4269-942f-07608ece56d8"
+        }
+      ],
+      "confirmam_vigente": 0
+    }
+  ],
+  "aplicadas": [
+    {
+      "classe": "vinculo_sapl",
+      "registro_chave": "5",
+      "rotulo": "Assembleia Legislativa de Paraíba · Paraíba/PB",
+      "campo": "status",
+      "valor_vigente": "ok",
+      "territorio": {
+        "ibge_code": "25",
+        "nivel": "uf"
+      },
+      "pendencia_id": "dee4da87-7389-46c4-a820-a3a135e3984d",
+      "pendencia_status": "decidida",
+      "pendencia_reaberta": false,
+      "pergunta": "O status do SAPL desta casa mudou de 'fora_do_ar' para 'ok'?",
+      "decisao": {
+        "id": "2cb3fb72-93ee-4124-a974-72e10cd8d466",
+        "acao": "aprovar",
+        "por_tipo": "pessoa",
+        "por_nome": "Operador de Ensaio (SIMULADO)",
+        "justificativa": "a /api/ da casa voltou a responder na leitura de 2026-11-17 (resposta fabricada, cenário v2); ver evidência da proposta",
+        "valor": "ok",
+        "aplicada": true,
+        "aplicada_em": "2026-11-17T00:55:01.929396+00:00",
+        "decidida_em": "2026-11-17T00:55:01.929396+00:00"
+      },
+      "desconhecidos": {},
+      "valor_anterior": "fora_do_ar",
+      "valor_anterior_origem": "vigente registrado na proposta no instante da leitura",
+      "valor_novo": "ok",
+      "candidatos": [
+        {
+          "valor": "ok",
+          "proposta_id": "c06a7fbb-c4ce-40d7-871a-2566fab730e2",
+          "url": "https://sapl.al.pb.leg.br/api/",
+          "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T00:54:52.296145+00:00)",
+          "bloco": null,
+          "conteudo_sha256": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118",
+          "lida_em": "2026-11-17T00:54:52.296145+00:00",
+          "fonte_declarada_em": null,
+          "fonte_slug": "sapl-ale",
+          "rodada_id": "be210685-beda-4269-942f-07608ece56d8"
+        }
+      ]
+    }
+  ],
+  "pendencias_restantes": [
+    {
+      "posicao": 1,
+      "id": "77f606a3-ee64-414e-a81c-6534627876ca",
+      "classe": "vinculo_sapl",
+      "registro_chave": "3",
+      "campo": "status",
+      "tipo": "mudanca",
+      "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
+      "reaberta": false,
+      "motivo_reabertura": null,
+      "vence_em": "2026-11-24T00:54:52.408668+00:00",
+      "cobertura_recorte": 0.6,
+      "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
+      "territorio": {
+        "ibge_code": "13",
+        "nivel": "uf"
+      },
+      "valor_vigente": "robots_bloqueia",
+      "propostas": [
+        {
+          "id": "1ca48e90-89b0-4b87-9f61-2b9ae261543d",
+          "valor_vigente_na_leitura": "ok",
+          "valor_candidato": "robots_bloqueia",
+          "url": "https://sapl.al.am.leg.br/robots.txt",
+          "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T00:54:52.286337+00:00)",
+          "bloco": null,
+          "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+          "lida_em": "2026-11-17T00:54:52.286337+00:00",
+          "fonte_declarada_em": null,
+          "fonte_slug": "sapl-ale",
+          "rodada_id": "be210685-beda-4269-942f-07608ece56d8",
+          "alcance": "registro",
+          "regra_criterio": null,
+          "regra_ids": null
+        }
+      ],
+      "desconhecidos": {}
+    }
+  ],
+  "totais": {
+    "campos_com_proposta": {
+      "valor": 2,
+      "de": 2
+    },
+    "diferencas": {
+      "valor": 1,
+      "de": 2
+    },
+    "aplicadas": {
+      "valor": 1,
+      "de": 2
+    },
+    "confirmados_pela_fonte": {
+      "valor": 0,
+      "de": 2
+    },
+    "sem_diferenca_por_decisao": {
+      "valor": 1,
+      "de": 2
+    },
+    "pendentes": {
+      "valor": 1,
+      "de": 1
+    },
+    "conflitantes": {
+      "valor": 0,
+      "de": 1
+    },
+    "decididas_nao_aplicadas": {
+      "valor": 0,
+      "de": 1
+    },
+    "descartadas": {
+      "valor": 0,
+      "de": 1
+    },
+    "pendencias_restantes": {
+      "valor": 1,
+      "de": 1
+    }
+  },
+  "mensagem": null
+}

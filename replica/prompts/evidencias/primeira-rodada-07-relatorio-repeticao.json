@@ -1,0 +1,384 @@
+{
+  "simulado": "v2",
+  "rodada": {
+    "id": "36ed11b4-e27f-43a6-9bcf-7e214d4f0555",
+    "coletor": "sapl.assembleias",
+    "modo": "recoletar",
+    "recorte": {
+      "ufs": [
+        "RO",
+        "AC",
+        "AM",
+        "PI",
+        "PB"
+      ],
+      "anos": [],
+      "modo": "recoletar",
+      "casas": [],
+      "ibges": [],
+      "extras": {}
+    },
+    "status": "concluida",
+    "iniciada_em": "2026-11-17T00:55:10.386649+00:00",
+    "finalizada_em": "2026-11-17T00:55:10.543960+00:00",
+    "repete_id": "be210685-beda-4269-942f-07608ece56d8"
+  },
+  "coleta": {
+    "urls_tentadas": {
+      "valor": 10,
+      "de": 10,
+      "ids": [
+        {
+          "url_sha": "06a15704c1db4a25a9721eb1820c2dd2d55d73b69a8ed89d74a67a100af1fdf2",
+          "url": "https://sapl.al.pb.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+          "url": "https://sapl.al.pi.leg.br/api/"
+        },
+        {
+          "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+          "url": "https://sapl.al.am.leg.br/api/"
+        },
+        {
+          "url_sha": "2cddba312107a2fbf3902689eb108ab15764f815dd8541f1fa8f1394f70ea66e",
+          "url": "https://sapl.al.ac.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "37a0686e96e111146aa7fde62414a622baa2044644e5e9a864d90c24553777cc",
+          "url": "https://sapl.al.pi.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "4597f65ca68ecd6e368b863ed233788385f71dac38129844e6ee84552d3a199d",
+          "url": "https://sapl.al.ac.leg.br/api/"
+        },
+        {
+          "url_sha": "6e9c8347418010f75bba4986342a0bab534dd8721642fd9cc6ae9111dc539669",
+          "url": "https://sapl.al.am.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "a4a971dfc6d985bc63bf949287998a9795edaf9c6c8b711d1eeb6e1aa1ca54c7",
+          "url": "https://sapl.al.ro.leg.br/api/"
+        },
+        {
+          "url_sha": "a7b8a9f5b658a3639a14c4c15dcb7ddc7c7e0a35386e3e33c07b3d6252bcb216",
+          "url": "https://sapl.al.ro.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "feae39cf796dce5afafeb8d9fb3021b14fc4e9e4858edc448be25df2f444b705",
+          "url": "https://sapl.al.pb.leg.br/api/"
+        }
+      ]
+    },
+    "urls_lidas": {
+      "valor": 0,
+      "de": 10,
+      "ids": []
+    },
+    "urls_reaproveitadas": {
+      "valor": 8,
+      "de": 10,
+      "ids": [
+        {
+          "url_sha": "06a15704c1db4a25a9721eb1820c2dd2d55d73b69a8ed89d74a67a100af1fdf2",
+          "url": "https://sapl.al.pb.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "2cddba312107a2fbf3902689eb108ab15764f815dd8541f1fa8f1394f70ea66e",
+          "url": "https://sapl.al.ac.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "37a0686e96e111146aa7fde62414a622baa2044644e5e9a864d90c24553777cc",
+          "url": "https://sapl.al.pi.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "4597f65ca68ecd6e368b863ed233788385f71dac38129844e6ee84552d3a199d",
+          "url": "https://sapl.al.ac.leg.br/api/"
+        },
+        {
+          "url_sha": "6e9c8347418010f75bba4986342a0bab534dd8721642fd9cc6ae9111dc539669",
+          "url": "https://sapl.al.am.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "a4a971dfc6d985bc63bf949287998a9795edaf9c6c8b711d1eeb6e1aa1ca54c7",
+          "url": "https://sapl.al.ro.leg.br/api/"
+        },
+        {
+          "url_sha": "a7b8a9f5b658a3639a14c4c15dcb7ddc7c7e0a35386e3e33c07b3d6252bcb216",
+          "url": "https://sapl.al.ro.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "feae39cf796dce5afafeb8d9fb3021b14fc4e9e4858edc448be25df2f444b705",
+          "url": "https://sapl.al.pb.leg.br/api/"
+        }
+      ]
+    },
+    "urls_com_falha": {
+      "valor": 2,
+      "de": 10,
+      "ids": [
+        {
+          "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+          "url": "https://sapl.al.pi.leg.br/api/"
+        },
+        {
+          "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+          "url": "https://sapl.al.am.leg.br/api/"
+        }
+      ],
+      "por_motivo": {
+        "bloqueio": {
+          "valor": 0,
+          "de": 2,
+          "ids": []
+        },
+        "robots": {
+          "valor": 2,
+          "de": 2,
+          "ids": [
+            {
+              "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+              "url": "https://sapl.al.pi.leg.br/api/"
+            },
+            {
+              "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+              "url": "https://sapl.al.am.leg.br/api/"
+            }
+          ]
+        },
+        "expiracao": {
+          "valor": 0,
+          "de": 2,
+          "ids": []
+        },
+        "erro": {
+          "valor": 0,
+          "de": 2,
+          "ids": []
+        },
+        "sem_conteudo": {
+          "valor": 0,
+          "de": 2,
+          "ids": []
+        }
+      }
+    },
+    "urls_entrada": {
+      "declaradas": {
+        "valor": 10,
+        "de": 10,
+        "ids": [
+          {
+            "url_sha": "06a15704c1db4a25a9721eb1820c2dd2d55d73b69a8ed89d74a67a100af1fdf2",
+            "url": "https://sapl.al.pb.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+            "url": "https://sapl.al.pi.leg.br/api/"
+          },
+          {
+            "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+            "url": "https://sapl.al.am.leg.br/api/"
+          },
+          {
+            "url_sha": "2cddba312107a2fbf3902689eb108ab15764f815dd8541f1fa8f1394f70ea66e",
+            "url": "https://sapl.al.ac.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "37a0686e96e111146aa7fde62414a622baa2044644e5e9a864d90c24553777cc",
+            "url": "https://sapl.al.pi.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "4597f65ca68ecd6e368b863ed233788385f71dac38129844e6ee84552d3a199d",
+            "url": "https://sapl.al.ac.leg.br/api/"
+          },
+          {
+            "url_sha": "6e9c8347418010f75bba4986342a0bab534dd8721642fd9cc6ae9111dc539669",
+            "url": "https://sapl.al.am.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "a4a971dfc6d985bc63bf949287998a9795edaf9c6c8b711d1eeb6e1aa1ca54c7",
+            "url": "https://sapl.al.ro.leg.br/api/"
+          },
+          {
+            "url_sha": "a7b8a9f5b658a3639a14c4c15dcb7ddc7c7e0a35386e3e33c07b3d6252bcb216",
+            "url": "https://sapl.al.ro.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "feae39cf796dce5afafeb8d9fb3021b14fc4e9e4858edc448be25df2f444b705",
+            "url": "https://sapl.al.pb.leg.br/api/"
+          }
+        ]
+      },
+      "tentadas": {
+        "valor": 10,
+        "de": 10,
+        "ids": [
+          {
+            "url_sha": "06a15704c1db4a25a9721eb1820c2dd2d55d73b69a8ed89d74a67a100af1fdf2",
+            "url": "https://sapl.al.pb.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+            "url": "https://sapl.al.pi.leg.br/api/"
+          },
+          {
+            "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+            "url": "https://sapl.al.am.leg.br/api/"
+          },
+          {
+            "url_sha": "2cddba312107a2fbf3902689eb108ab15764f815dd8541f1fa8f1394f70ea66e",
+            "url": "https://sapl.al.ac.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "37a0686e96e111146aa7fde62414a622baa2044644e5e9a864d90c24553777cc",
+            "url": "https://sapl.al.pi.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "4597f65ca68ecd6e368b863ed233788385f71dac38129844e6ee84552d3a199d",
+            "url": "https://sapl.al.ac.leg.br/api/"
+          },
+          {
+            "url_sha": "6e9c8347418010f75bba4986342a0bab534dd8721642fd9cc6ae9111dc539669",
+            "url": "https://sapl.al.am.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "a4a971dfc6d985bc63bf949287998a9795edaf9c6c8b711d1eeb6e1aa1ca54c7",
+            "url": "https://sapl.al.ro.leg.br/api/"
+          },
+          {
+            "url_sha": "a7b8a9f5b658a3639a14c4c15dcb7ddc7c7e0a35386e3e33c07b3d6252bcb216",
+            "url": "https://sapl.al.ro.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "feae39cf796dce5afafeb8d9fb3021b14fc4e9e4858edc448be25df2f444b705",
+            "url": "https://sapl.al.pb.leg.br/api/"
+          }
+        ]
+      },
+      "declaradas_nao_tentadas": {
+        "valor": 0,
+        "de": 10,
+        "ids": []
+      }
+    },
+    "registros_elegiveis": {
+      "valor": 5,
+      "de": 5,
+      "ids": [
+        "vinculo_sapl:1",
+        "vinculo_sapl:2",
+        "vinculo_sapl:3",
+        "vinculo_sapl:4",
+        "vinculo_sapl:5"
+      ]
+    },
+    "registros_alcancados": {
+      "valor": 3,
+      "de": 5,
+      "ids": [
+        "vinculo_sapl:1",
+        "vinculo_sapl:2",
+        "vinculo_sapl:5"
+      ]
+    },
+    "registros_elegiveis_nao_alcancados": {
+      "valor": 2,
+      "de": 5,
+      "ids": [
+        "vinculo_sapl:3",
+        "vinculo_sapl:4"
+      ],
+      "itens": [
+        {
+          "id": "vinculo_sapl:3",
+          "rotulo": "AM",
+          "situacao": "URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada",
+          "motivo_falha": "robots"
+        },
+        {
+          "id": "vinculo_sapl:4",
+          "rotulo": "PI",
+          "situacao": "URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada",
+          "motivo_falha": "robots"
+        }
+      ]
+    }
+  },
+  "revisao": {
+    "campos_com_proposta": {
+      "valor": 0,
+      "de": 0,
+      "ids": []
+    },
+    "conflitantes": {
+      "valor": 0,
+      "de": 0,
+      "ids": []
+    },
+    "pendentes": {
+      "valor": 0,
+      "de": 0,
+      "ids": [],
+      "sem_pendencia_aberta": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      }
+    },
+    "confirmados": {
+      "valor": 0,
+      "de": 0,
+      "ids": [],
+      "pela_fonte": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      },
+      "por_decisao": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      }
+    },
+    "pendencias_reabertas": {
+      "valor": 0,
+      "de": 0,
+      "ids": [],
+      "por_motivo": {}
+    },
+    "registros_com_proposta": {
+      "valor": 0,
+      "de": 0,
+      "ids": []
+    },
+    "registros_alterados": {
+      "valor": 0,
+      "de": 0,
+      "ids": []
+    },
+    "decisoes": {
+      "valor": 0,
+      "de": 0,
+      "ids": [],
+      "por_acao": {},
+      "por_decidido_por_tipo": {},
+      "aplicadas": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      },
+      "nao_aplicadas": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      }
+    },
+    "pendencias_ligadas": {
+      "valor": 0,
+      "de": 0,
+      "ids": []
+    },
+    "mensagem": "nenhuma proposta registrada nesta rodada"
+  }
+}

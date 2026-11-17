@@ -188,3 +188,13 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Escolha: (c). É aditiva no mesmo sentido dos gatilhos da `0150` (AC-03): nenhuma função existente muda.
 - Limite declarado: se o mandato de origem não tinha nenhuma linha de contato na hora da fusão (todos os valores dele estavam suprimidos e nenhum outro contato existia), o gatilho não dispara e o override fica órfão; o valor suprimido pode voltar no mandato que sobrou. Raro: `parlamento.extras` grava todos os contatos do mandato juntos.
 - Materializa: migração `0152` da tarefa B6.
+
+## AC-17 · Primeira rodada simulada: três desvios aceitos e um rótulo a esclarecer
+
+- Data e fase: 2026-11-16, fase B, tarefa B5.
+- Critério 14 no banco da primeira rodada: aparece uma sexta invariante quebrada ("município: exatamente 1 prefeito titular"), causada pelo município fabricado que `etl/tests/fixtures/admin_base.sql` cria sem prefeito. Ela já está quebrada antes de qualquer rodada, e o conjunto de invariantes quebradas é idêntico antes e depois. Escolha: manter o município (a fase da central o usa) e medir o critério 14 como "o conjunto de invariantes quebradas não muda com a rodada" (AC-07 revisada). No relato, o critério 14 literal sai "não atendido"; o substituto, atendido, com os dois arquivos de evidência.
+- Passo 5: no reprocessamento sem rede, a `/api/` de AM sai como falha por robots, decidida pelo `robots.txt` em cache, sem rede. A conferência aceita "zero lidas; as demais reaproveitadas, salvo falha por robots". Aceito.
+- Edição candidata: campo com pendência aberta cujo candidato já é o valor da tabela (o job gravou antes da decisão) entra em `diferencas`, marcado `ja_e_o_vigente`, com a diferença contra o valor da leitura. Sem isso, a pendência de AM sumiria da edição candidata. Aceito.
+- Rótulo "registros alterados" do relatório: aprovar uma mudança que o job já gravou (PB, `fora_do_ar` para `ok`) não troca o valor da tabela, mas grava override e conta como registro alterado. A contagem está certa pelo desenho (a decisão fixou o valor novo); o rótulo é que precisa dizer isso. A correção do texto do relatório e da edição candidata vai na B6.
+- O roteiro ganhou uma trava contra execuções simultâneas, depois de duas execuções concorrentes no banco `admin_coleta_r1`. A evidência final vem de duas execuções limpas e em sequência.
+- Materializa: commit da B5.

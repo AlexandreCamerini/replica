@@ -1,0 +1,5 @@
+SIMULADO: conferências do passo 05-decisao-aplicada (respostas fabricadas)
+  [ok] a decisão foi gravada como aplicada, por pessoa, com o nome literal
+  [ok] a pendência de PB ficou decidida e sapl_houses.status de PB é ok
+  [ok] a saída do decidir diz o que escreveu e o que houve com corrections
+  [ok] só uma decisão existe no banco (a de PB); nenhuma decisão de agentes

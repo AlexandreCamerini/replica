@@ -1,0 +1,30 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+coletor              sapl.assembleias
+modo                 recoletar
+recorte              ufs=RO,AC,AM,PI,PB
+comando              sapl.ales
+argv                 sapl.ales --uf RO --uf AC --uf AM --uf PI --uf PB
+fontes               sapl-ale
+datasets             sapl-ale.descoberta, sapl-ale.{uf}
+registros elegíveis  5 (vinculo_sapl; Assembleias em legislative_bodies das UFs do recorte; sapl_houses_id nulo = casa ainda não registrada)
+URLs de entrada      10 firmes + 0 condicionais; lista incompleta: só as conhecidas sem leitura
+a consultar          10 (estimativa; base: fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado); entre 10 e 10)
+demais URLs          desconhecido: nenhuma rodada anterior deste recorte
+observação           sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=sem registro, AC=sem registro, AM=sem registro, PI=sem registro, PB=sem registro | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas
+
+URL DE ENTRADA                      CONDIÇÃO  CACHE          IDADE (h)  HASH
+----------------------------------  --------  -------------  ---------  ----
+https://sapl.al.ro.leg.br/api/      firme     fora_do_cache  -          -
+https://sapl.al.ro.leg.br/robots.…  firme     fora_do_cache  -          -
+https://sapl.al.ac.leg.br/api/      firme     fora_do_cache  -          -
+https://sapl.al.ac.leg.br/robots.…  firme     fora_do_cache  -          -
+https://sapl.al.am.leg.br/api/      firme     fora_do_cache  -          -
+https://sapl.al.am.leg.br/robots.…  firme     fora_do_cache  -          -
+https://sapl.al.pi.leg.br/api/      firme     fora_do_cache  -          -
+https://sapl.al.pi.leg.br/robots.…  firme     fora_do_cache  -          -
+https://sapl.al.pb.leg.br/api/      firme     fora_do_cache  -          -
+https://sapl.al.pb.leg.br/robots.…  firme     fora_do_cache  -          -
+
+10 URLs de entrada firmes de 10 listadas
