@@ -1,7 +1,7 @@
 // Guarda da central na borda da requisição (critério 15; AC-23). Roda ANTES do roteador do Next, para QUALQUER método e qualquer requisição, inclusive RSC e prefetch:
 //   1. central fechada -> 404 sem corpo;  2. Host fora do permitido do modo (local: localhost; produção: admin.segueovoto.com.br) -> 404;
 //   3. modo produção: `updateSession` do @supabase/ssr (renova o token e regrava os cookies) e `getUser()`; sem usuário -> 404, EXCETO a página de e-mail e código (/admin/entrar).
-// Em TODA resposta (inclusive os 404) entram os cabeçalhos de segurança (CSP com nonce, X-Frame-Options, Referrer-Policy). O site público não passa por aqui: o matcher cobre só /admin.
+// Em TODA resposta (inclusive os 404) entram os cabeçalhos de segurança (CSP com nonce, X-Frame-Options, Referrer-Policy). Este arquivo só existe no build da central (AC-29); o site público não tem middleware.
 // (`next/server.js` com extensão: o `node --test` só resolve assim, e o webpack do Next aceita igual.)
 // Só módulos puros entram aqui (guarda-regra.ts, cabecalhos.ts): nada do site público, nada de `server-only`, nada de sessao.ts/guarda.ts. A identidade fina (e-mail na lista de
 // admins, aal2) é de lib/admin/sessao.ts, por requisição, no layout, nas páginas, nas rotas e nas consultas; aqui só se confere que há SESSÃO.
@@ -11,21 +11,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server.js";
 import { cabecalhosDeSeguranca, CABECALHO_NONCE, ehEntrada, ehEntradaSemSessao, ehPaginaDeEntrada, MARCA_ENTRADA, OPCOES_SSR_DA_CENTRAL, opcoesDeCookieDaCentral } from "./lib/admin/cabecalhos.ts";
-import { decidirAcesso, hostDeRequisicaoPermitido } from "./lib/admin/guarda-regra.ts";
+import { decidirAcesso, ehEstaticoDaCentral, hostDeRequisicaoPermitido } from "./lib/admin/guarda-regra.ts";
 import { comPrazo } from "./lib/admin/prazo.ts";
 
-// Matcher: /admin e, além dele, SÓ as variantes de caixa dos prefixos que o projeto admin serve (admin, _next, geo, favicon.ico), com a forma minúscula excluída por
-// lookahead. Achado N1 da reverificação F3: o rewrite do next.config é avaliado sem distinguir caixa (a exceção `admin` casava `/ADMIN`), e `/ADMIN`, `/_NEXT/STATIC/x`,
-// `/GEO/...` escapavam do rewrite e do middleware e serviam o not-found PÚBLICO na origem da central. Nenhum caminho minúsculo do site passa a ser coberto.
+// Matcher: TUDO, com `/(.*)` e não `/:path*` (este último não casa segmento vazio: `//admin` e `/admin//fila` escapariam do middleware). Este arquivo só existe no build da central (`middleware.admin.ts` + `pageExtensions` só com `.admin.*`; AC-29): não há site público neste build para proteger, então não há filtro por
+// caminho no matcher, que vazaria por variação (caixa, `%2F`, barras, o proxy de imagens do Next, `/_next/data`, prefetch RSC, rotas de metadado). O que não for rota da central, estático do build ou malha
+// `/geo` dá 404 aqui, com os cabeçalhos de segurança. O build do site não tem este arquivo (nem middleware algum).
 export const config = {
-  matcher: [
-    "/admin",
-    "/admin/:path*",
-    "/:p((?!admin)[aA][dD][mM][iI][nN].*)",
-    "/:p((?!_next)_[nN][eE][xX][tT].*)",
-    "/:p((?!geo)[gG][eE][oO].*)",
-    "/:p((?!favicon\\.ico)[fF][aA][vV][iI][cC][oO][nN]\\.[iI][cC][oO].*)",
-  ],
+  matcher: ["/(.*)"],
   runtime: "nodejs",
 };
 
@@ -47,13 +40,17 @@ export async function middleware(req: NextRequest): Promise<Response> {
   };
   const negar = (): Response => comSeguranca(new Response(null, { status: 404 }));
 
-  // variante de caixa de um prefixo servido (N1): nunca é rota da central; 404 com cabeçalhos, em qualquer modo
-  if (!(pathname === "/admin" || pathname.startsWith("/admin/"))) return negar();
   if (!acesso.liberada) return negar();
   if (!hostDeRequisicaoPermitido(req.headers.get("host"), acesso.modo)) return negar();
+  // Só são da central: /admin, /admin/* (sensível à caixa: `/ADMIN` não é rota) e os arquivos estáticos que ela serve (/_next/static/*, as malhas /geo, os SVG de public/ e o favicon). Todo o resto (inclusive `/`, o proxy de imagens do Next,
+  // `/_next/data`, `/icon`, `/robots.txt`, qualquer outro arquivo de /public) = 404 aqui, antes do roteador. Nenhuma server action roda sob os estáticos: a regra abaixo vale para os dois.
+  const rotaDaCentral = pathname === "/admin" || pathname.startsWith("/admin/");
+  if (!rotaDaCentral && !ehEstaticoDaCentral(pathname)) return negar();
   // NENHUMA server action roda na central (A1/A13): o Next roteia a action pelo ID, não pelo caminho, então uma action PÚBLICA executaria sob qualquer /admin/*. Cabeçalho `Next-Action`
   // (fetch) ou POST de formulário (multipart/urlencoded: o envio sem JavaScript leva o id no corpo) = 404 antes de tudo. As rotas de API da central só aceitam JSON.
   if (ehPedidoDeAction(req)) return negar();
+  // estático (sem sessão: o navegador carrega os chunks da página de entrada antes de ter sessão): passa, com os cabeçalhos
+  if (!rotaDaCentral) return comSeguranca(NextResponse.next());
 
   // Cabeçalhos da REQUISIÇÃO que o Next repassa às páginas: o CSP (de onde o Next tira o nonce dos seus scripts) e o nonce. A marca de entrada nunca vem do cliente.
   const proxima = (marcarEntrada: boolean): NextResponse => {

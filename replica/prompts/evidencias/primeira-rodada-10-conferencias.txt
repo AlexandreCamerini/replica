@@ -1,7 +1,7 @@
 SIMULADO: conferências do passo 10-municipio (respostas fabricadas)
-  rodada do município v1: 358a2989-9832-40a0-b10f-9ae09f337382
+  rodada do município v1: 65da4dda-065a-42ed-92d4-02985c30a9d5
   URL do registro (releitura forçada na v2): https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29
-  rodada do município v2: 1693cb8d-9ad7-471e-8ff5-58164a7e23ad
+  rodada do município v2: 23753640-6e65-40cf-bca4-176f418270fb
   [ok] as duas rodadas do município terminaram concluida
   [ok] a casa do município está na v2 (base_url do registro novo) e há exatamente 1 pendência aberta de município (vinculo_sapl/base_url, mudança), com evidência
   [ok] a pendência de AM (UF) continua aberta ao lado da do município

@@ -186,13 +186,21 @@ export async function subirNext(env) {
 // Modo local da central (AC-23): a identidade é ADMIN_LOCAL_EMAIL, que tem de ser admin ATIVO em adm_admins (o admin local nasce em db/local/post_0004_admin_local.sql, que `db/migrate.sh --local` roda).
 export const ADMIN_LOCAL_EMAIL = "operador.local@segueovoto.invalid";
 export const ADMIN_LOCAL_NOME = "Operador local";
-export const envCentral = (banco, extra = {}) => envCi({ ADMIN_CENTRAL: "1", ADMIN_DATABASE_URL: urlCentral(banco), ADMIN_LOCAL_EMAIL, ...extra });
+// AC-29 (F3-C3): a central é um BUILD à parte (`ADMIN_CENTRAL` no build e no runtime), em pasta própria; o build do site (.next, sem nenhuma ADMIN_*) não tem /admin nem middleware.
+export const DIST_ADMIN_LOCAL = ".next-admin-local";
+export const envCentral = (banco, extra = {}) => envCi({ ADMIN_CENTRAL: "1", ADMIN_DATABASE_URL: urlCentral(banco), ADMIN_LOCAL_EMAIL, NEXT_DIST_DIR: DIST_ADMIN_LOCAL, ...extra });
 
 // Modo produção SIMULADO (AC-23): o `next start` local com as variáveis do projeto admin. O Supabase é FALSO: aponta para uma porta local FECHADA (nenhuma requisição sai da máquina);
 // o provedor fora do ar tem de dar 404, nunca derrubar o servidor. O banco é o de ensaio com `sslmode=require` (a guarda só confere o formato; nada consulta o banco antes da sessão).
 export const HOST_PRODUCAO = "admin.segueovoto.com.br";
-// F3-C1: o projeto admin é um BUILD com ADMIN_CENTRAL=producao (rewrites e cabeçalhos entram no build, não no `next start`): pasta própria, para não pisar no build do site (.next).
+// O projeto admin é um BUILD com ADMIN_CENTRAL=producao (pageExtensions só `.admin.*`; AC-29): pasta própria, para não pisar no build do site (.next).
 export const DIST_ADMIN_PROD = ".next-admin-prod";
+
+/** `next build` do SITE (condições do CI: fonte demo, nenhuma ADMIN_*), em `.next`. */
+export const construirSite = (timeout = 580_000) => rodar(process.execPath, [path.join(WEB, "node_modules/next/dist/bin/next"), "build"], { cwd: WEB, env: envCi(), timeout });
+/** `next build` da CENTRAL: `modo` é "1" (local, pasta DIST_ADMIN_LOCAL) ou "producao" (pasta DIST_ADMIN_PROD). A variável vale no build E, depois, no `next start`. */
+export const construirCentral = (modo, timeout = 580_000) =>
+  rodar(process.execPath, [path.join(WEB, "node_modules/next/dist/bin/next"), "build"], { cwd: WEB, env: envCi({ ADMIN_CENTRAL: modo, NEXT_DIST_DIR: modo === "1" ? DIST_ADMIN_LOCAL : DIST_ADMIN_PROD }), timeout });
 export async function envProducao(banco, extra = {}) {
   const fechada = await portaLivre(); // livre agora = fechada: ninguém escuta
   const base = urlCentral(banco).replace("@localhost:", "@127.0.0.1:");
@@ -243,6 +251,23 @@ export function crua(base, caminho, { metodo = "GET", cabecalhos = {}, corpo } =
       res.setEncoding("utf8");
       res.on("data", (d) => (texto += d));
       res.on("end", () => resolve({ status: res.statusCode, cabecalhos: res.headers, texto }));
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+    if (corpo !== undefined) req.write(corpo);
+    req.end();
+  });
+}
+
+/** Requisição crua com o caminho EXATAMENTE como dado (sem a normalização de `new URL`: `//admin`, `/./admin`, `/admin/../x`, `%2F` seguem como estão). Só 127.0.0.1. */
+export function bruta(base, caminho, { metodo = "GET", cabecalhos = {}, corpo } = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(base);
+    if (u.hostname !== "127.0.0.1") return reject(new Error(`recusado: host ${u.hostname} não é 127.0.0.1`));
+    const req = nodeHttp.request({ host: "127.0.0.1", port: u.port, path: caminho, method: metodo, headers: { connection: "close", ...cabecalhos }, agent: false, timeout: 60_000 }, (res) => {
+      const partes = [];
+      res.on("data", (d) => partes.push(d));
+      res.on("end", () => { const buf = Buffer.concat(partes); resolve({ status: res.statusCode, cabecalhos: res.headers, texto: buf.toString("utf8"), bytes: buf.length }); });
     });
     req.on("timeout", () => req.destroy(new Error("timeout")));
     req.on("error", reject);

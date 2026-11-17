@@ -187,11 +187,13 @@ A Parte C põe uma central de administração sobre a coleta da Parte R e as par
 
 Estado: a central tem dois modos, escolhidos por `ADMIN_CENTRAL`. O modo local (`1`) é o da entrega original, agora com identidade (`ADMIN_LOCAL_EMAIL`). O modo produção (`producao`, F3) está pronto em código para `admin.segueovoto.com.br`, com login por e-mail, MFA e lista de admins; nada dela está publicado nem foi exercitado com Supabase real. Os dois modos estão na subseção 6; os passos de produção do dono estão na subseção 5.
 
+**Mudança de build (AC-29, F3-C3).** A central é um BUILD à parte do mesmo código: `ADMIN_CENTRAL` (`1` ou `producao`) tem de estar definida no build E na execução. Com ela, `next.config.ts` põe `pageExtensions: ["admin.tsx", "admin.ts"]`: só os arquivos `*.admin.*` entram (`page.admin.tsx`, `route.admin.ts`, `layout.admin.tsx`, `not-found.admin.tsx`, `src/middleware.admin.ts`) e nada do site. Sem a variável no build (o site, o CI, o projeto `www`), as extensões são as padrão: nenhum `*.admin.*` entra, as rotas `/admin*` não existem e o site não tem middleware. O build local da central usa a pasta `.next-admin-local` (`ADMIN_CENTRAL=1 NEXT_DIST_DIR=.next-admin-local npx next build`) e roda com a mesma variável; o build do site continua em `.next`. Quem rodava a central local sobre o build do site (variável só na execução) agora precisa desse build próprio, senão `/admin` dá 404.
+
 ### 1. Central de administração
 
 **O que é.** Um grupo de rotas do Next.js (`web/src/app/(admin)/`) com seis páginas e seis route handlers em `web/src/app/(admin)/admin/api/`. A leitura vem de `web/src/lib/admin/consultas.ts`; a escrita, só de pedidos, por `web/src/lib/admin/sql.ts` e pelas consultas do pool próprio de `web/src/lib/admin/db.ts`. O pool usa o driver `postgres`, que já é dependência do site, e só é criado sob demanda. O módulo é `server-only` e não importa `lib/data/pg.ts` nem `lib/db/writer.ts`.
 
-**Quando responde.** A guarda está em `web/src/lib/admin/guarda-regra.ts` (regra pura, `decidirAcesso`), em `web/src/lib/admin/guarda.ts` (ligação ao Next) e em `web/src/middleware.ts` (borda da requisição, só no matcher `/admin`). Em todo método e em toda rota do grupo, páginas e handlers, ela responde 404 sem corpo quando a central está fechada. Modo local (`ADMIN_CENTRAL=1`), na ordem em que a regra testa:
+**Quando responde.** A guarda está em `web/src/lib/admin/guarda-regra.ts` (regra pura, `decidirAcesso`), em `web/src/lib/admin/guarda.ts` (ligação ao Next) e em `web/src/middleware.admin.ts` (borda da requisição; só existe no build da central e nele cobre toda requisição: o que não é `/admin*`, `/_next/static/*` ou as malhas `/geo` dá 404). Em todo método e em toda rota do grupo, páginas e handlers, ela responde 404 sem corpo quando a central está fechada. Modo local (`ADMIN_CENTRAL=1`), na ordem em que a regra testa:
 
 - `VERCEL` definida (qualquer valor, inclusive vazio);
 - `VERCEL_ENV` definida;
@@ -214,16 +216,16 @@ Brecha residual do modo local, declarada: quem liga `ADMIN_CENTRAL=1` de propós
 
    Aplica `db/migrations/*.sql` em ordem e, com `--local`, também `db/local/*.sql`. O role `admin_central` é criado sem senha (`nologin`) pela migração `db/migrations/0153_admin_central.sql`. O login local e a senha de desenvolvimento estão em `db/local/post_0003_admin_central.sql`; o script é idempotente e roda a cada `--local`. Leia o arquivo para a senha; ela não está neste documento.
 
-2. Build, numa pasta própria, sem a variável da central (o build é o mesmo do CI; a central lê o ambiente em tempo de execução):
+2. Build da central, numa pasta própria e COM a variável no build (AC-29: o build do site, sem a variável, não tem a central):
 
    ```bash
-   cd web && NEXT_DIST_DIR=.next-admin npx next build
+   cd web && ADMIN_CENTRAL=1 NEXT_DIST_DIR=.next-admin-local npx next build
    ```
 
 3. Servidor, com a URL do role `admin_central` no banco local (host local, sem valor padrão):
 
    ```bash
-   cd web && ADMIN_CENTRAL=1 NEXT_DIST_DIR=.next-admin \
+   cd web && ADMIN_CENTRAL=1 NEXT_DIST_DIR=.next-admin-local \
      ADMIN_LOCAL_EMAIL=operador.local@segueovoto.invalid \
      ADMIN_DATABASE_URL='postgres://admin_central:<senha local>@localhost:54329/<banco>' \
      npx next start -p 3000 -H 127.0.0.1
@@ -340,16 +342,16 @@ Há três caminhos, e eles não são iguais:
 
 Tudo sai de `web/`. As provas não usam chamada a modelo nem rede externa.
 
-- `node e2e-admin/sem-navegador.mjs [--sem-build]`: sem navegador. Faz `next build` em `.next-admin` (ou reaproveita com `--sem-build`), sobe `next start` local, faz as requisições por `fetch` e confere status e HTML. Cobre os critérios 15 (modo local: 404 sem variável, com `VERCEL`, com `VERCEL_ENV` e com Host de fora; modo produção simulado: 404 sem sessão, com Host errado, com ambiente errado e com o provedor de login fora do ar), 19 (os números dos painéis contra `civico-etl admin relatorio --json`), 20 (dois POST iguais, um pedido), 22, 24, os estados de tela e, da F3, os cabeçalhos de segurança em resposta real, o CSRF estrito (POST sem `Origin` ou sem `Sec-Fetch-Site` = 403), o `por` do corpo ignorado, o admin desativado e o limite de 20 pedidos por minuto (429 com `Retry-After`). **Atenção:** o modo completo apaga e recria o banco `admin_coleta_c7`; não aponte para outro banco. As rodadas dele são simuladas (CLI real sobre respostas fabricadas de `etl/tests/fixtures/sapl_ale`).
+- `node e2e-admin/sem-navegador.mjs [--sem-build]`: sem navegador. Faz três `next build` (o do SITE em `.next`, sem nenhuma `ADMIN_*`; a central local em `.next-admin-local`; a central de produção em `.next-admin-prod`; ou reaproveita com `--sem-build`), sobe `next start` local, faz as requisições por `fetch` e confere status e HTML. Cobre os critérios 15 (modo local: 404 sem variável, com `VERCEL`, com `VERCEL_ENV` e com Host de fora; modo produção simulado: 404 sem sessão, com Host errado, com ambiente errado e com o provedor de login fora do ar), 19 (os números dos painéis contra `civico-etl admin relatorio --json`), 20 (dois POST iguais, um pedido), 22, 24, os estados de tela e, da F3, os cabeçalhos de segurança em resposta real, o CSRF estrito (POST sem `Origin` ou sem `Sec-Fetch-Site` = 403), o `por` do corpo ignorado, o admin desativado e o limite de 20 pedidos por minuto (429 com `Retry-After`). **Atenção:** o modo completo apaga e recria o banco `admin_coleta_c7`; não aponte para outro banco. As rodadas dele são simuladas (CLI real sobre respostas fabricadas de `etl/tests/fixtures/sapl_ale`).
 - `node e2e-admin/sem-navegador.mjs --fluxo --banco admin_coleta_c7|admin_coleta_r1`: passos 6 a 9 da primeira rodada, pela API, no modo local com o admin local (a decisão do passo 9 sai como "Operador local"). Não recria o banco; opera no que recebe. Sobe o `next start` por conta própria (com a central ligada, no banco dado) e exige fila sem pedido ativo no começo: se houver, o teste recusa e pede para rodar o executor ou recriar o banco.
-- `node e2e-admin/sem-rede-externa.mjs [--sem-build]`: critério 23. Varre o fonte de `web/src/app/(admin)`, `web/src/lib/admin`, `web/src/components/admin`, `web/src/components/admin-entrada`, `web/src/styles/admin.css`, `web/src/middleware.ts` e o widget do Turnstile atrás de URL absoluta, host sem esquema, `fetch` para fora e recurso remoto em `link`, `script` e `url()`; só `challenges.cloudflare.com` é aceito, e só em `cabecalhos.ts` e no widget. Depois, com a central ligada num `next start` local, varre o HTML de cada página e os recursos que ele referencia e, no modo produção simulado, as páginas de entrada e a CSP. Reaproveita `admin_coleta_c7` se ele for da F3 e já tiver rodadas. Sai com 1 se achar host externo.
+- `node e2e-admin/sem-rede-externa.mjs [--sem-build]`: critério 23. Varre o fonte de `web/src/app/(admin)`, `web/src/lib/admin`, `web/src/components/admin`, `web/src/components/admin-entrada`, `web/src/styles/admin.css`, `web/src/middleware.admin.ts` e o widget do Turnstile atrás de URL absoluta, host sem esquema, `fetch` para fora e recurso remoto em `link`, `script` e `url()`; só `challenges.cloudflare.com` é aceito, e só em `cabecalhos.ts` e no widget. Depois, com a central ligada num `next start` local, varre o HTML de cada página e os recursos que ele referencia e, no modo produção simulado, as páginas de entrada e a CSP. Reaproveita `admin_coleta_c7` se ele for da F3 e já tiver rodadas. Sai com 1 se achar host externo.
 - Playwright da central: `web/playwright.admin.config.ts`, com as specs `web/e2e-admin/*.spec.ts` (`acessibilidade`, `acoes`, `capturas`, `central-desligada`, `estados`, `rede`). É configuração própria: o conjunto público (`web/playwright.config.ts`, `web/e2e/`) não a enxerga. O config não tem valor padrão para `ADMIN_DATABASE_URL` e falha sem ele. Portas 3310 (ligada) e 3311 (desligada). As capturas do critério 26 vão para `replica/prompts/evidencias/central-<visao>-<largura>.png`.
 
   O dono roda fora do sandbox (AC-05, `replica/admin-coleta-decisoes.md`), com o banco da primeira rodada (`bash replica/prompts/evidencias/primeira-rodada.sh`):
 
   ```bash
-  cd web && NEXT_DIST_DIR=.next-admin npx next build
-  cd web && NEXT_DIST_DIR=.next-admin ADMIN_DATABASE_URL='postgres://admin_central:<senha local>@localhost:54329/admin_coleta_r1' \
+  cd web && ADMIN_CENTRAL=1 NEXT_DIST_DIR=.next-admin-local npx next build
+  cd web && ADMIN_CENTRAL=1 NEXT_DIST_DIR=.next-admin-local ADMIN_DATABASE_URL='postgres://admin_central:<senha local>@localhost:54329/admin_coleta_r1' \
     npx playwright test -c playwright.admin.config.ts
   ```
 
@@ -404,7 +406,7 @@ Com `user_id` preenchido, o pedido só entra se a sessão trouxer o mesmo `user_
 - Proteção contra bots (CAPTCHA) do Supabase Auth ligada com o Turnstile: a central entrega o token ao Supabase, que o verifica.
 - Turnstile (Cloudflare): `admin.segueovoto.com.br` na lista de hostnames da chave do widget.
 
-**CSP e cookies.** O middleware põe, em toda resposta de `/admin` (inclusive os 404): `Content-Security-Policy` com `frame-ancestors 'none'` e nonce por requisição (`challenges.cloudflare.com` só no modo produção; `'unsafe-eval'` só em desenvolvimento), `X-Frame-Options: DENY` e `Referrer-Policy: same-origin`. O site público não tem esses cabeçalhos. Cookies de sessão da central: host-only (nunca `domain=.segueovoto.com.br`), `Secure`, `HttpOnly`, `SameSite=Strict`, `path=/admin`. Efeito do `Strict`: abrir a central por um link de fora mostra 404 até a próxima navegação. POST da central exige `Content-Type: application/json`, `Origin` igual à origem da central e `Sec-Fetch-Site: same-origin`; ausente ou diferente = 403. O limite é de 20 pedidos por admin e por minuto (gatilho do banco; o 21º responde 429 com `Retry-After: 60`). O `por` do corpo é descartado: o pedido leva o admin da sessão.
+**CSP e cookies.** O middleware (que no build da central roda em toda requisição) põe, em toda resposta da origem da central, inclusive os 404 e os estáticos que ele deixa passar: `Content-Security-Policy` com `frame-ancestors 'none'` e nonce por requisição (`challenges.cloudflare.com` só no modo produção; `'unsafe-eval'` só em desenvolvimento), `X-Frame-Options: DENY` e `Referrer-Policy: same-origin`. O site público não tem esses cabeçalhos (nem middleware). Cookies de sessão da central: host-only (nunca `domain=.segueovoto.com.br`), `Secure`, `HttpOnly`, `SameSite=Strict`, `path=/admin`. Efeito do `Strict`: abrir a central por um link de fora mostra 404 até a próxima navegação. POST da central exige `Content-Type: application/json`, `Origin` igual à origem da central e `Sec-Fetch-Site: same-origin`; ausente ou diferente = 403. O limite é de 20 pedidos por admin e por minuto (gatilho do banco; o 21º responde 429 com `Retry-After: 60`). O `por` do corpo é descartado: o pedido leva o admin da sessão.
 
 **Executor em container.** `etl/executor-container.md` (imagem, variáveis, reinício, encerramento, reserva por GitHub Actions). O container leva a credencial de escrita do ETL e não pode ter `ADMIN_COLETA_AGENTES` no ambiente (critério 9, em `replica/admin-coleta-criterios-producao.md`).
 

@@ -36,3 +36,4 @@ web/test-results-*/
 etl/.state/
 web/.next-admin/
 web/.next-admin-prod/
+web/.next-admin-local/

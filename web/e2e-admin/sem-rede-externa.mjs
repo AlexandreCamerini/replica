@@ -18,7 +18,7 @@ const T0 = Date.now();
 
 // Inclui o que a central usa na ENTRADA (AC-23): components/admin-entrada, o widget Turnstile (components/account/turnstile.tsx, o mesmo do site) e o middleware.
 const DIRS = ["src/app/(admin)", "src/lib/admin", "src/components/admin", "src/components/admin-entrada"];
-const ARQS = ["src/styles/admin.css", "src/middleware.ts", "src/components/account/turnstile.tsx"];
+const ARQS = ["src/styles/admin.css", "src/middleware.admin.ts", "src/app/layout.admin.tsx", "src/app/not-found.admin.tsx", "src/components/account/turnstile.tsx"];
 // Hosts externos aceitos no FONTE (critério 23, AC-23): só o Turnstile da Cloudflare, e só nestes arquivos (a CSP o cita; o widget o carrega). O Supabase Auth do projeto vem de variável
 // de ambiente (NEXT_PUBLIC_SUPABASE_URL), nunca de literal, e só o servidor fala com ele. A própria origem da central (admin.segueovoto.com.br) é constante de guarda, não é requisição.
 const HOST_TURNSTILE = "challenges.cloudflare.com";
@@ -67,7 +67,7 @@ function estatica() {
     // QR do cadastro do fator: data URI (SVG) devolvido pelo Supabase; a CSP só aceita `data:` e a própria origem em img-src
     { arquivo: "src/components/admin-entrada/formularios.tsx", regra: "<img>, <iframe>, <video>, <audio>, <source>, <embed>, <object>, next/image", trecho: "<img" },
     // a própria origem da central e o alias que a guarda RECUSA (texto de comentário e de constante, nunca requisição)
-    ...["src/lib/admin/guarda-regra.ts", "src/lib/admin/cabecalhos.ts", "src/middleware.ts", "src/app/(admin)/layout.tsx"].flatMap((arquivo) => ["admin.segueovoto.com.br", "segueovoto.com.br"].map((trecho) => ({ arquivo, regra: "host sem esquema (domínio com TLD) em texto de código", trecho }))),
+    ...["src/lib/admin/guarda-regra.ts", "src/lib/admin/cabecalhos.ts", "src/middleware.admin.ts", "src/app/(admin)/layout.admin.tsx"].flatMap((arquivo) => ["admin.segueovoto.com.br", "segueovoto.com.br"].map((trecho) => ({ arquivo, regra: "host sem esquema (domínio com TLD) em texto de código", trecho }))),
     { arquivo: "src/lib/admin/guarda-regra.ts", regra: "host sem esquema (domínio com TLD) em texto de código", trecho: "vercel.app" },
   ];
   const nao = achados.filter((a) => !justificativas.some((j) => j.arquivo === a.arquivo && j.regra === a.regra && a.trecho.includes(j.trecho)));
@@ -101,6 +101,12 @@ function estatica() {
       const t = fs.readFileSync(path.join(C.WEB, c.arquivo), "utf8");
       provado = /const url = nivel\.tipo === "pais" \? "\/geo\/br\.json" : `\/geo\/uf\/\$\{nivel\.uf\}\.json`;/.test(t);
       como = "url = \"/geo/br.json\" ou `/geo/uf/${uf}.json` (const url do componente), malhas do próprio repositório em web/public/geo";
+    } else if (c.arg === "url" && c.arquivo.endsWith("formularios.tsx")) {
+      // F3-C1: a entrada fala com a própria central por `postar(url, corpo)`; toda chamada passa um literal "/admin/api/entrar/..."
+      const t = fs.readFileSync(path.join(C.WEB, c.arquivo), "utf8");
+      const chamadas = [...t.matchAll(/\bpostar\(\s*([^,)]+)/g)].map((m) => m[1].trim()).filter((v) => v !== "url: string");
+      provado = chamadas.length > 0 && chamadas.every((v) => /^["']\/admin\/api\/entrar\/[a-z/]+["']$/.test(v));
+      como = `todo postar( recebe um literal "/admin/api/entrar/..." (${chamadas.length} chamadas: ${chamadas.join(", ")})`;
     } else if (c.arg === "endpoint" && c.arquivo.endsWith("enviar.ts")) {
       const usos = [];
       for (const f of lista.filter((x) => /\.tsx$/.test(x))) for (const m of fs.readFileSync(f, "utf8").matchAll(/\bendpoint\s*[=:]\s*(\{?\s*[^\s}>]+)/g)) usos.push([rel(f), m[1]]);
@@ -179,7 +185,7 @@ function paginasDaCentral() {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, e.name);
       if (e.isDirectory()) anda(p);
-      else if (e.name === "page.tsx") out.push("/" + path.relative(raiz, d).split(path.sep).filter((s) => !/^\(.*\)$/.test(s)).join("/"));
+      else if (e.name === "page.admin.tsx") out.push("/" + path.relative(raiz, d).split(path.sep).filter((s) => !/^\(.*\)$/.test(s)).join("/"));
     }
   })(raiz);
   return out;
@@ -281,7 +287,7 @@ async function dinamica(ctx, estaticosDoManifest) {
     if (achadosHost.has(urlTs)) {
       let paginasDoChunk = null;
       try {
-        const mf = JSON.parse(fs.readFileSync(path.join(C.WEB, ".next", "app-build-manifest.json"), "utf8")).pages ?? {};
+        const mf = JSON.parse(fs.readFileSync(path.join(C.WEB, C.DIST_ADMIN_LOCAL, "app-build-manifest.json"), "utf8")).pages ?? {};
         const chunks = [...achadosHost.get(urlTs)].filter((o) => o.startsWith("/_next/")).map((o) => o.replace("/_next/", ""));
         paginasDoChunk = [...new Set(chunks.flatMap((c) => Object.entries(mf).filter(([, v]) => v.includes(c)).map(([k]) => k)))];
       } catch {}
@@ -333,16 +339,19 @@ async function producaoSimulada() {
   try {
     R.info("SIMULADO: critério 23 sem navegador. Banco de ensaio admin_coleta_c7 (rodadas fabricadas). Só localhost.");
     estatica();
-    const buildId = path.join(C.WEB, ".next", "BUILD_ID");
+    // AC-29: a central é um build próprio (ADMIN_CENTRAL no build e na execução): local em .next-admin-local, produção em .next-admin-prod. O build do site (.next) não tem a central.
+    const buildId = path.join(C.WEB, C.DIST_ADMIN_LOCAL, "BUILD_ID");
     if (!C.temFlag("--sem-build")) {
-      const b = C.rodar(process.execPath, [path.join(C.WEB, "node_modules/next/dist/bin/next"), "build"], { cwd: C.WEB, env: C.envCi(), timeout: 480_000 });
-      R.checa(b.rc === 0, `next build terminou com código ${b.rc}`, b.out.slice(-500));
-    } else R.checa(C.existe(buildId), "--sem-build: reaproveita o .next existente", "não há .next/BUILD_ID");
+      for (const modo of ["1", "producao"]) {
+        const b = C.construirCentral(modo);
+        R.checa(b.rc === 0, `next build da central (ADMIN_CENTRAL=${modo}) terminou com código ${b.rc}`, b.out.slice(-500));
+      }
+    } else R.checa(C.existe(buildId) && C.existe(path.join(C.WEB, C.DIST_ADMIN_PROD, "BUILD_ID")), `--sem-build: reaproveita ${C.DIST_ADMIN_LOCAL} e ${C.DIST_ADMIN_PROD}`, "falta BUILD_ID");
     if (!R.falhas || C.existe(buildId)) {
       const ctx = garantirBanco();
       let est = [];
       try {
-        const m = JSON.parse(fs.readFileSync(path.join(C.WEB, ".next", "app-build-manifest.json"), "utf8")).pages ?? {};
+        const m = JSON.parse(fs.readFileSync(path.join(C.WEB, C.DIST_ADMIN_LOCAL, "app-build-manifest.json"), "utf8")).pages ?? {};
         est = [...new Set(Object.entries(m).filter(([k]) => /^\/\(admin\)\//.test(k)).flatMap(([, v]) => v).filter((f) => /^static\/.*\.(js|css)$/.test(f)))];
         R.info(`app-build-manifest: ${Object.keys(m).filter((k) => /^\/\(admin\)\//.test(k)).length} entradas da central, ${est.length} arquivos js/css`);
       } catch (e) {

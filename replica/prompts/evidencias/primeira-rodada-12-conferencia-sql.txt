@@ -1,13 +1,13 @@
 SIMULADO. pedidos da central e rodada da recoleta (banco admin_coleta_r1)
    tipo   |  status   |              rodada_id               |                                     parametros                                      
 ----------+-----------+--------------------------------------+-------------------------------------------------------------------------------------
- recoleta | concluido | e59179fe-4c8b-4df7-81b6-ca3e50be6882 | {"classe": "vinculo_sapl", "territorio": {"ibge": "1190099", "nivel": "municipio"}}
- parecer  | concluido |                                      | {"pendencia_id": "034cb1c6-8e95-43cf-b4e7-65db6bda2d98"}
+ recoleta | concluido | e25eb91f-bed8-4b9a-8095-8fd5aaafec25 | {"classe": "vinculo_sapl", "territorio": {"ibge": "1190099", "nivel": "municipio"}}
+ parecer  | concluido |                                      | {"pendencia_id": "a0706dd5-8612-4d85-bb10-a8057860651d"}
 (2 linhas)
 
                   id                  |   coletor    |   modo    |  status   |                                            recorte                                            
 --------------------------------------+--------------+-----------+-----------+-----------------------------------------------------------------------------------------------
- e59179fe-4c8b-4df7-81b6-ca3e50be6882 | sapl.camaras | recoletar | concluida | {"ufs": [], "anos": [], "modo": "recoletar", "casas": [], "ibges": ["1190099"], "extras": {}}
+ e25eb91f-bed8-4b9a-8095-8fd5aaafec25 | sapl.camaras | recoletar | concluida | {"ufs": [], "anos": [], "modo": "recoletar", "casas": [], "ibges": ["1190099"], "extras": {}}
 (1 linha)
 
    resultado   | motivo | n  

@@ -6,7 +6,7 @@
   "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
   "vinculos": [
     {
-      "id": "27854525-db60-450c-bd58-b1b034a5bcd8",
+      "id": "73e304e3-32d8-45ac-b205-10eb52b2b5c0",
       "classe": "vinculo_sapl",
       "registro_chave": "20",
       "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
@@ -15,17 +15,17 @@
       "fonte_slug": "sapl",
       "origem": "registro_oficial",
       "vigente": true,
-      "desde": "2026-11-17T15:17:27.336330+00:00",
+      "desde": "2026-11-17T18:08:31.025639+00:00",
       "substitui_id": null,
       "substituido_por_id": null,
       "substituido_em": null,
       "evidencia": {
         "conteudo_sha256": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
-        "lida_em": "2026-11-17T15:17:28.352172+00:00",
+        "lida_em": "2026-11-17T18:08:32.861486+00:00",
         "fonte_declarada_em": null
       },
       "ultima_tentativa": {
-        "tentada_em": "2026-11-17T15:17:28.352172+00:00",
+        "tentada_em": "2026-11-17T18:08:32.861486+00:00",
         "resultado": "lida",
         "motivo": null,
         "http_status": 200
@@ -33,7 +33,7 @@
       "desconhecidos": {}
     },
     {
-      "id": "f62bec05-fa82-464f-84d0-70fb38cc637b",
+      "id": "a87f323e-cdf5-45a8-a09a-2978f61b41cc",
       "classe": "vinculo_sapl",
       "registro_chave": "20",
       "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
@@ -42,8 +42,8 @@
       "fonte_slug": "sapl",
       "origem": "descoberta_automatica",
       "vigente": true,
-      "desde": "2026-11-17T15:17:28.365412+00:00",
-      "substitui_id": "0b79d620-63cc-48f7-943f-db41b4f9e6f9",
+      "desde": "2026-11-17T18:08:32.880856+00:00",
+      "substitui_id": "1e89801b-0c33-4654-9374-6449833e8b23",
       "substituido_por_id": null,
       "substituido_em": null,
       "evidencia": null,
@@ -54,7 +54,7 @@
       }
     },
     {
-      "id": "0b79d620-63cc-48f7-943f-db41b4f9e6f9",
+      "id": "1e89801b-0c33-4654-9374-6449833e8b23",
       "classe": "vinculo_sapl",
       "registro_chave": "20",
       "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
@@ -63,10 +63,10 @@
       "fonte_slug": "sapl",
       "origem": "descoberta_automatica",
       "vigente": false,
-      "desde": "2026-11-17T15:17:27.336330+00:00",
+      "desde": "2026-11-17T18:08:31.025639+00:00",
       "substitui_id": null,
-      "substituido_por_id": "f62bec05-fa82-464f-84d0-70fb38cc637b",
-      "substituido_em": "2026-11-17T15:17:28.365412+00:00",
+      "substituido_por_id": "a87f323e-cdf5-45a8-a09a-2978f61b41cc",
+      "substituido_em": "2026-11-17T18:08:32.880856+00:00",
       "evidencia": null,
       "ultima_tentativa": null,
       "desconhecidos": {
@@ -77,11 +77,11 @@
   ],
   "cadeias_de_troca": [
     [
-      "0b79d620-63cc-48f7-943f-db41b4f9e6f9",
-      "f62bec05-fa82-464f-84d0-70fb38cc637b"
+      "1e89801b-0c33-4654-9374-6449833e8b23",
+      "a87f323e-cdf5-45a8-a09a-2978f61b41cc"
     ],
     [
-      "27854525-db60-450c-bd58-b1b034a5bcd8"
+      "73e304e3-32d8-45ac-b205-10eb52b2b5c0"
     ]
   ],
   "fontes": [
@@ -94,33 +94,33 @@
         "dataset": "sapl.descoberta",
         "observacao": "dataset compartilhado por todas as casas: o run da descoberta não registra quais casas leu",
         "ultimo_carimbo_do_dataset": {
-          "refreshed_at": "2026-11-17T15:17:28.356998+00:00",
-          "last_run_id": "e27a3347-5509-44ae-9689-bd353de47233"
+          "refreshed_at": "2026-11-17T18:08:32.867548+00:00",
+          "last_run_id": "69618c0d-f5e2-4a4b-b474-3fb44b588a79"
         },
         "ultimos_runs": [
           {
-            "id": "e27a3347-5509-44ae-9689-bd353de47233",
+            "id": "69618c0d-f5e2-4a4b-b474-3fb44b588a79",
             "fonte": "sapl",
-            "iniciado_em": "2026-11-17T15:17:28.332470+00:00",
-            "finalizado_em": "2026-11-17T15:17:28.356998+00:00",
+            "iniciado_em": "2026-11-17T18:08:32.833713+00:00",
+            "finalizado_em": "2026-11-17T18:08:32.867548+00:00",
             "status": "succeeded",
             "linhas_lidas": null,
             "linhas_gravadas": 1,
             "linhas_rejeitadas": 0,
             "linhas_apagadas": null,
-            "invocation": "admin:1693cb8d-9ad7-471e-8ff5-58164a7e23ad"
+            "invocation": "admin:23753640-6e65-40cf-bca4-176f418270fb"
           },
           {
-            "id": "8d512efe-1e9c-4266-a3ee-cfe4ef6c3555",
+            "id": "f4276de2-e086-4030-89f1-d813be13f5f0",
             "fonte": "sapl",
-            "iniciado_em": "2026-11-17T15:17:27.297898+00:00",
-            "finalizado_em": "2026-11-17T15:17:27.326175+00:00",
+            "iniciado_em": "2026-11-17T18:08:30.978653+00:00",
+            "finalizado_em": "2026-11-17T18:08:31.012689+00:00",
             "status": "succeeded",
             "linhas_lidas": null,
             "linhas_gravadas": 1,
             "linhas_rejeitadas": 0,
             "linhas_apagadas": null,
-            "invocation": "admin:358a2989-9832-40a0-b10f-9ae09f337382"
+            "invocation": "admin:65da4dda-065a-42ed-92d4-02985c30a9d5"
           }
         ]
       },
@@ -128,21 +128,21 @@
         "dataset": "sapl.1190099",
         "observacao": null,
         "ultimo_carimbo_do_dataset": {
-          "refreshed_at": "2026-11-17T15:17:31.959401+00:00",
-          "last_run_id": "2b8b6b9c-adc1-490c-8cee-6d8c0b2dbac6"
+          "refreshed_at": "2026-11-17T18:08:38.119708+00:00",
+          "last_run_id": "71e741b4-62d3-4a7b-8f8e-5b1aac719b6a"
         },
         "ultimos_runs": [
           {
-            "id": "2b8b6b9c-adc1-490c-8cee-6d8c0b2dbac6",
+            "id": "71e741b4-62d3-4a7b-8f8e-5b1aac719b6a",
             "fonte": "sapl",
-            "iniciado_em": "2026-11-17T15:17:31.942121+00:00",
-            "finalizado_em": "2026-11-17T15:17:31.959401+00:00",
+            "iniciado_em": "2026-11-17T18:08:38.093013+00:00",
+            "finalizado_em": "2026-11-17T18:08:38.119708+00:00",
             "status": "succeeded",
             "linhas_lidas": null,
             "linhas_gravadas": 32,
             "linhas_rejeitadas": 3,
             "linhas_apagadas": null,
-            "invocation": "admin:e59179fe-4c8b-4df7-81b6-ca3e50be6882"
+            "invocation": "admin:e25eb91f-bed8-4b9a-8095-8fd5aaafec25"
           }
         ]
       }

@@ -3,13 +3,13 @@ SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requis
 SIMULADO: 0 URLs pedidas, 0 não previstas
 SIMULADO: respostas fabricadas (cenário v1); nenhum número abaixo foi lido da fonte
 
-rodada   c80a4a29-2a8b-41f6-86d3-da0bb7009415
+rodada   fc898f71-173d-47be-8571-2ba076e706a4
 coletor  sapl.assembleias
 modo     recoletar
 recorte  {'ufs': ['RO', 'AC', 'AM', 'PI', 'PB'], 'anos': [], 'modo': 'recoletar', 'casas': [], 'ibges': [], 'extras': {}}
 status   concluida
-início   2026-11-17 15:17:04.940910+00:00
-fim      2026-11-17 15:17:05.357175+00:00
+início   2026-11-17 18:07:50.630713+00:00
+fim      2026-11-17 18:07:50.987704+00:00
 repete   -
 
 COLETA (leitura das URLs; não diz nada sobre revisão)

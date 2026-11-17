@@ -1,7 +1,7 @@
 SIMULADO: conferências do passo 08-reprocessar (respostas fabricadas)
   UFs com TODAS as URLs de entrada no cache (segundo a prévia): RO AC AM PB
   [ok] a prévia das UFs completas não tem URL faltando no cache
-  rodada de reprocessamento: 6422cef1-5deb-4646-863d-4b6a225d021b
+  rodada de reprocessamento: 8a91310e-48a1-45a7-945d-6684ade88757
   [ok] a rodada de reprocessamento terminou concluida
   [ok] nenhuma requisição ao transporte: 0 URLs pedidas
   [ok] nenhuma tentativa foi lida; as demais são reaproveitada, salvo a /api/ barrada pelo robots.txt já em cache (falha por robots, sem rede)

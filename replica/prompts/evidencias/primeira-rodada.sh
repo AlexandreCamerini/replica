@@ -592,16 +592,18 @@ PY
 # sem-navegador.mjs --fluxo NÃO recria nada: opera em admin_coleta_r1 (nome conferido por ele e por comum.mjs) e exige fila de pedidos vazia no começo.
 passo 11-passo6-mapa
 command -v node > /dev/null || { echo "ERRO: node não está no PATH" >&2; exit 2; }
-# build da central: reaproveita web/.next se ele tem as rotas /admin e nenhum arquivo de web/src, package.json ou next.config é mais novo que o BUILD_ID; senão um `next build` nas condições do CI (fonte demo, sem ADMIN_*, sem banco)
+# build da central (AC-29: build PRÓPRIO, com ADMIN_CENTRAL=1 no build e no runtime, em web/.next-admin-local; o build do site, web/.next, não tem a central): reaproveita web/.next-admin-local se ele tem as rotas /admin
+# e nenhum arquivo de web/src, package.json ou next.config é mais novo que o BUILD_ID; senão um `next build` nas condições do CI (fonte demo, sem banco), com ADMIN_CENTRAL=1
+DIST_CENTRAL=.next-admin-local
 build_ok() {
-  [ -f "$RAIZ/web/.next/BUILD_ID" ] && grep -q '/admin' "$RAIZ/web/.next/app-path-routes-manifest.json" 2> /dev/null \
-    && [ -z "$(find "$RAIZ/web/src" "$RAIZ/web/package.json" "$RAIZ/web/next.config.ts" -newer "$RAIZ/web/.next/BUILD_ID" -type f 2> /dev/null | head -n 1)" ]
+  [ -f "$RAIZ/web/$DIST_CENTRAL/BUILD_ID" ] && grep -q '/admin' "$RAIZ/web/$DIST_CENTRAL/app-path-routes-manifest.json" 2> /dev/null \
+    && [ -z "$(find "$RAIZ/web/src" "$RAIZ/web/package.json" "$RAIZ/web/next.config.ts" -newer "$RAIZ/web/$DIST_CENTRAL/BUILD_ID" -type f 2> /dev/null | head -n 1)" ]
 }
 if build_ok; then
-  nota "build: reaproveitado web/.next (tem as rotas /admin e nada em web/src é mais novo que o BUILD_ID)"
+  nota "build: reaproveitado web/$DIST_CENTRAL (tem as rotas /admin e nada em web/src é mais novo que o BUILD_ID)"
 else
-  nota "build: web/.next ausente ou velho; rodando next build (fonte demo, sem ADMIN_*, sem banco)"
-  ( cd "$RAIZ/web" && env -u DATABASE_URL -u ETL_DATABASE_URL DATA_SOURCE=demo ALLOW_DEMO_DATA=1 NEXT_TELEMETRY_DISABLED=1 timeout 480 node node_modules/next/dist/bin/next build ) > "$(T 11-build)" 2>&1 || { tail -n 20 "$(T 11-build)" >&2; exit 1; }
+  nota "build: web/$DIST_CENTRAL ausente ou velho; rodando next build da central (ADMIN_CENTRAL=1, fonte demo, sem banco)"
+  ( cd "$RAIZ/web" && env -u DATABASE_URL -u ETL_DATABASE_URL ADMIN_CENTRAL=1 NEXT_DIST_DIR="$DIST_CENTRAL" DATA_SOURCE=demo ALLOW_DEMO_DATA=1 NEXT_TELEMETRY_DISABLED=1 timeout 480 node node_modules/next/dist/bin/next build ) > "$(T 11-build)" 2>&1 || { tail -n 20 "$(T 11-build)" >&2; exit 1; }
   conf "o build terminou e a central está nele" build_ok
 fi
 FLUXO_BRUTO="$EV/.fluxo.$$"

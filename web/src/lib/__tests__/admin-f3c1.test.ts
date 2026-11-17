@@ -1,59 +1,85 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { test } from "node:test";
 import { NextRequest } from "next/server.js";
-import { configuracao, CSP_MINIMA, DESTINO_404, FORA_DA_CENTRAL } from "../../../next.config.ts";
-import { middleware } from "../../middleware.ts";
+import { configuracao, CSP_MINIMA, EXTENSOES_DA_CENTRAL } from "../../../next.config.ts";
+import { middleware } from "../../middleware.admin.ts";
 import { cabecalhosDeSeguranca, ehEntradaSemSessao, ehPaginaDeEntrada, NOME_COOKIE_SESSAO, OPCOES_SSR_DA_CENTRAL, politicaCsp } from "../admin/cabecalhos.ts";
 import { escolherFator } from "../admin/escolha-fator.ts";
 import { completarAte, PISO_ENTRADA_MS, responderNoPiso, type Relogio } from "../admin/tempo-minimo.ts";
 
 // F3-C1: A1/A9/A13 (next.config do projeto admin + nenhuma server action na central), A3 (tempo mínimo), A4 (fator), A5 (Turnstile só na entrada), A10 (cookie próprio).
 
-const require = createRequire(import.meta.url);
-const { pathToRegexp } = require("next/dist/compiled/path-to-regexp/index.js") as { pathToRegexp: (s: string) => RegExp };
+const SITE = {
+  distDir: ".next",
+  images: { remotePatterns: [{ protocol: "https", hostname: "www.camara.leg.br" }, { protocol: "http", hostname: "www.senado.leg.br" }] },
+};
 
-test("next.config: sem ADMIN_CENTRAL=producao devolve exatamente o objeto de sempre (site, dev, CI, central local)", () => {
-  const esperado = {
-    distDir: ".next",
-    images: { remotePatterns: [{ protocol: "https", hostname: "www.camara.leg.br" }, { protocol: "http", hostname: "www.senado.leg.br" }] },
-  };
-  for (const env of [{}, { ADMIN_CENTRAL: "1" }, { ADMIN_CENTRAL: "" }, { ADMIN_CENTRAL: "PRODUCAO" }, { VERCEL_ENV: "production" }, { ADMIN_DATABASE_URL: "x" }]) assert.deepEqual(configuracao(env), esperado, JSON.stringify(env));
-  assert.equal(configuracao({}).rewrites, undefined);
-  assert.equal(configuracao({}).headers, undefined);
+test("next.config, build do SITE: sem ADMIN_CENTRAL (ou com valor que não é 1/producao) devolve EXATAMENTE o objeto do ponto de partida da fase (5148ddd: distDir e images)", () => {
+  for (const env of [{}, { ADMIN_CENTRAL: "" }, { ADMIN_CENTRAL: "PRODUCAO" }, { ADMIN_CENTRAL: "0" }, { VERCEL_ENV: "production" }, { ADMIN_DATABASE_URL: "x" }]) assert.deepEqual(configuracao(env), SITE, JSON.stringify(env));
+  for (const k of ["rewrites", "headers", "pageExtensions", "experimental", "skipTrailingSlashRedirect"] as const) assert.equal(configuracao({})[k], undefined, k);
   assert.equal(configuracao({ NEXT_DIST_DIR: ".next-x" }).distDir, ".next-x");
 });
 
-test("next.config: com ADMIN_CENTRAL=producao acrescenta SÓ rewrites, headers, skipTrailingSlashRedirect e caseSensitiveRoutes; o resto é idêntico", async () => {
-  const site = configuracao({});
-  const adm = configuracao({ ADMIN_CENTRAL: "producao" });
-  const { rewrites, headers, skipTrailingSlashRedirect, experimental, ...resto } = adm;
-  assert.equal(skipTrailingSlashRedirect, true, "o 308 de barra final sai antes dos cabeçalhos: no projeto admin a barra passa pelo middleware");
-  // N1: rotas e rewrites sensíveis à caixa, senão /ADMIN e /_NEXT/STATIC escapam do rewrite e do middleware
-  assert.deepEqual(experimental, { ...(site.experimental ?? {}), caseSensitiveRoutes: true });
-  assert.deepEqual(resto, site);
-  assert.equal(site.experimental, undefined, "o build do site não ganha experimental");
-  const rw = await rewrites!();
-  assert.ok(!Array.isArray(rw));
-  assert.deepEqual(rw, { beforeFiles: [{ source: FORA_DA_CENTRAL, destination: DESTINO_404 }], afterFiles: [], fallback: [] });
-  const h = await headers!();
-  assert.equal(h.length, 1);
-  assert.equal(h[0].source, "/:path*");
-  const mapa = Object.fromEntries(h[0].headers.map((x) => [x.key, x.value]));
-  assert.deepEqual(mapa, { "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin", "Content-Security-Policy": "frame-ancestors 'none'" });
+test("next.config, build da CENTRAL (ADMIN_CENTRAL=1 ou producao): pageExtensions só `admin.*`; acrescenta SÓ pageExtensions, headers e skipTrailingSlashRedirect; sem rewrite e sem remendo de caixa", async () => {
+  assert.deepEqual([...EXTENSOES_DA_CENTRAL], ["admin.tsx", "admin.ts"]);
+  for (const modo of ["1", "producao"]) {
+    const adm = configuracao({ ADMIN_CENTRAL: modo });
+    const { pageExtensions, headers, skipTrailingSlashRedirect, ...resto } = adm;
+    assert.deepEqual(pageExtensions, ["admin.tsx", "admin.ts"], modo);
+    assert.equal(skipTrailingSlashRedirect, true, "o 308 de barra final sai antes dos cabeçalhos: na central a barra passa pelo middleware");
+    assert.deepEqual(resto, SITE, modo);
+    const h = await headers!();
+    assert.equal(h.length, 1);
+    assert.equal(h[0].source, "/:path*");
+    assert.deepEqual(Object.fromEntries(h[0].headers.map((x) => [x.key, x.value])), { "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin", "Content-Security-Policy": "frame-ancestors 'none'" }, modo);
+  }
   assert.equal(CSP_MINIMA, "frame-ancestors 'none'");
+  assert.equal(configuracao({ ADMIN_CENTRAL: "1", NEXT_DIST_DIR: ".next-admin-prod" }).distDir, ".next-admin-prod");
+  // nenhuma extensão da central é aceita pelas extensões padrão do site (tsx, ts, jsx, js): `page.admin.tsx` não é página do site
+  const padrao = ["tsx", "ts", "jsx", "js"];
+  for (const ext of EXTENSOES_DA_CENTRAL) for (const arq of ["page", "route", "layout", "not-found", "middleware"]) assert.ok(!padrao.some((p) => `${arq}.${ext}` === `${arq}.${p}`), `${arq}.${ext}`);
+  for (const arq of ["page.admin.tsx", "route.admin.ts", "layout.admin.tsx", "not-found.admin.tsx", "middleware.admin.ts"]) {
+    assert.ok(!new RegExp(`^(?:page|route|layout|not-found|middleware)\\.(?:${padrao.join("|")})$`).test(arq), `${arq} entraria no build do site`);
+    assert.ok(new RegExp(`^(?:page|route|layout|not-found|middleware)\\.(?:${EXTENSOES_DA_CENTRAL.join("|")})$`).test(arq), `${arq} não entra no build da central`);
+  }
 });
 
-test("rewrite: caminho público de exemplo vai ao 404; /admin, /admin/x, /_next/static, /geo e /favicon.ico ficam", () => {
-  const re = pathToRegexp(FORA_DA_CENTRAL);
-  const vai = ["/geo/nao-existe.json", "/geo/uf/99.json", "/geo/uf/35.json.x", "/geo/br.json/x", "/geo/uf/", "/", "/entrar", "/conta", "/api/me", "/api/places", "/pessoas", "/p/fulano/opengraph-image", "/votacao/1", "/v2/x", "/administrador", "/admin-x", "/adminx/y", "/geo", "/geo-x/a.json", "/_nextx/a", "/_next/data/x.json", "/_next/image", "/_next/admin-central-fora-do-escopo", "/favicon.icox", "/favicon.ico/x", "/public/robots.txt", "/robots.txt", "/sitemap.xml", "/file.svg"];
-  const fica = [...readdirSync(new URL("../../../public/geo/uf", import.meta.url)).map((f) => `/geo/uf/${f}`), "/admin", "/admin/", "/admin/x", "/admin/api/estado", "/admin/entrar", "/_next/static/x", "/_next/static/chunks/a.js", "/geo/br.json", "/favicon.ico"];
-  for (const p of vai) assert.ok(re.test(p), `${p} devia ir ao 404`);
-  for (const p of fica) assert.ok(!re.test(p), `${p} devia continuar`);
-  // o destino fica sob /_next/static (servidor de estáticos: 404 de 9 B, sem renderizar o not-found do site) e nunca casa o próprio rewrite (sem laço)
-  assert.ok(DESTINO_404.startsWith("/_next/static/"));
-  assert.ok(!re.test(DESTINO_404));
+test("middleware, build da central: só /admin, /admin/* (sensível à caixa), /_next/static/* e as 28 malhas passam; o resto é 404 com cabeçalhos, em qualquer modo", async () => {
+  const { ehEstaticoDaCentral, CODIGOS_UF_DA_MALHA, SVG_DE_PUBLIC } = await import("../admin/guarda-regra.ts");
+  assert.deepEqual([...CODIGOS_UF_DA_MALHA], readdirSync(new URL("../../../public/geo/uf", import.meta.url)).map((f) => f.replace(".json", "")).sort(), "a lista de UFs é a pasta public/geo/uf");
+  for (const p of ["/_next/static/chunks/a.js", "/_next/static/css/b.css", "/geo/br.json", "/geo/uf/35.json", "/geo/uf/11.json", ...SVG_DE_PUBLIC, "/favicon.ico", "/_next/static/chunks/app/(admin)/admin/ficha/%5Bclasse%5D/%5Bchave%5D/page.admin-8047949e9aa51f57.js"]) assert.equal(ehEstaticoDaCentral(p), true, p);
+  // tudo o que existe em public/ é servido (malhas e SVG) e nada mais: a lista é a pasta
+  const emPublic = readdirSync(new URL("../../../public", import.meta.url), { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).map((e) => `/${(e.parentPath + "/" + e.name).split("/public/")[1]}`).sort();
+  assert.deepEqual(emPublic, ["/geo/br.json", ...CODIGOS_UF_DA_MALHA.map((c) => `/geo/uf/${c}.json`), ...SVG_DE_PUBLIC].sort(), "public/ == o que a central serve");
+  for (const p of emPublic) assert.equal(ehEstaticoDaCentral(p), true, p);
+  for (const p of ["/", "/admin", "/_next/image", "/_next/data/x/y.json", "/_next/static", "/_next/x", "/_NEXT/STATIC/x", "/_next/static/../../etc", "/_next/static/%2e%2e/a", "/_next/static/%2F/x", "/_next/static/%5Cx", "/_next/static/%5B%2e%2e/x", "/_next/static//x", "/geo/uf/99.json", "/geo/uf/35.json/x", "/GEO/br.json", "/geo/br.json/", "/geo/", "/FILE.svg", "/file.svg/x", "/FAVICON.ICO", "/favicon.ico/x", "/icon", "/robots.txt", "/administrador", "/admin-x", "/adminx/y", "/geo/uf/35.json.x", "/geo/br.json/x", "/geo/uf/", "/favicon.icox", "/_nextx/a", "/conta", "/v2/x", "/public/robots.txt"]) assert.equal(ehEstaticoDaCentral(p), false, p);
+  const salvo = { ...process.env };
+  const H = "admin.segueovoto.com.br";
+  const pede = (path: string, extra: Record<string, string> = {}, metodo = "GET") => middleware(new NextRequest(`http://${H}${path}`, { method: metodo, headers: { host: H, ...extra } }));
+  Object.assign(process.env, { ADMIN_CENTRAL: "producao", VERCEL_ENV: "production", AUTH_PROVIDER: "supabase", ADMIN_DATABASE_URL: "postgres://u:p@db.exemplo.com:5432/d?sslmode=require", NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:9", NEXT_PUBLIC_SUPABASE_ANON_KEY: "x" });
+  try {
+    for (const p of ["/", "/entrar", "/pessoas", "/api/me", "/ADMIN", "/aDmin/fila", "/_NEXT/STATIC/x", "//admin", "/admin%2Ffila", "/%61dmin", "/_next/image", "/_next/data/x/y.json", "/icon", "/opengraph-image", "/p/x/opengraph-image", "/manifest.webmanifest", "/robots.txt", "/sitemap.xml", "/geo/uf/99.json", "/administrador", "/admin-x", "/adminx/y", "/geo/uf/35.json.x", "/geo/br.json/x", "/geo/uf/", "/favicon.icox", "/_nextx/a", "/conta", "/v2/x", "/FILE.svg"]) {
+      const r = await pede(p);
+      assert.equal(r.status, 404, p);
+      assert.equal(r.headers.get("x-frame-options"), "DENY", p);
+      assert.equal(await r.text(), "", `${p}: corpo`);
+    }
+    // estático: passa SEM sessão (a entrada carrega os chunks antes de ter sessão), com cabeçalhos; com Next-Action ou POST de formulário, 404
+    for (const p of ["/_next/static/chunks/a.js", "/_next/static/chunks/app/(admin)/admin/uf/%5Buf%5D/page.admin-b.js", "/geo/br.json", "/geo/uf/35.json", "/file.svg", "/favicon.ico"]) {
+      const r = await pede(p);
+      assert.equal(r.headers.get("x-middleware-next"), "1", p);
+      assert.equal(r.headers.get("x-frame-options"), "DENY", p);
+      assert.equal((await pede(p, { "next-action": "x" }, "POST")).status, 404, `action ${p}`);
+    }
+  } finally {
+    for (const k of Object.keys(process.env)) if (!(k in salvo)) delete process.env[k];
+    Object.assign(process.env, salvo);
+  }
+  // central fechada: nem os estáticos
+  const fechada = await pede("/_next/static/chunks/a.js");
+  assert.equal(fechada.status, 404);
+  assert.equal(fechada.headers.get("x-frame-options"), "DENY");
 });
 
 test("CSP: Turnstile só nas páginas de entrada, em produção; demais páginas da central, API e modo local sem o host", () => {
@@ -116,7 +142,7 @@ test("cookie de sessão da central: nome próprio, igual no middleware e no clie
   assert.equal(OPCOES_SSR_DA_CENTRAL.name, NOME_COOKIE_SESSAO);
   assert.match(NOME_COOKIE_SESSAO, /^sb-admin-central-/);
   assert.ok(!/^sb-[a-z0-9]{20}-auth-token$/.test(NOME_COOKIE_SESSAO));
-  const mw = readFileSync(new URL("../../middleware.ts", import.meta.url), "utf8");
+  const mw = readFileSync(new URL("../../middleware.admin.ts", import.meta.url), "utf8");
   const cli = readFileSync(new URL("../admin/cliente-auth.ts", import.meta.url), "utf8");
   for (const [n, src] of [["middleware", mw], ["cliente-auth", cli]] as const) {
     assert.match(src, /createServerClient\(url, anon, \{\s*cookieOptions: OPCOES_SSR_DA_CENTRAL,/, `${n}: createServerClient sem cookieOptions da central`);

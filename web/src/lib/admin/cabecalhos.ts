@@ -4,9 +4,8 @@
 // CSP, fonte por fonte (e por quê):
 //   default-src 'self'      tudo o que não tem diretiva própria só vem da própria origem.
 //   script-src              'self' (chunks do Next) + 'nonce-<por requisição>' (os scripts inline do Next: o Next lê o nonce do cabeçalho CSP DA REQUISIÇÃO e o põe neles;
-//                           a página é dinâmica, o que o nonce exige) + o hash do script do tema do layout raiz (app/layout.tsx, `themeScript`), que é inline, não leva nonce e
-//                           não pode ser editado por esta tarefa. Com nonce na política, 'unsafe-inline' seria ignorado; por isso o hash. Um teste confere o hash contra o texto
-//                           real do layout. 'unsafe-eval' SÓ em desenvolvimento (o React o usa para reconstruir pilhas); nunca em produção.
+//                           a página é dinâmica, o que o nonce exige) + o hash do script do tema do layout raiz da central (app/layout.admin.tsx, `themeScript`, texto idêntico ao do layout do site), que é inline e não leva nonce. Com nonce na política, 'unsafe-inline' seria ignorado; por isso o hash. Um teste confere o hash contra o texto
+//                           real dos layouts. 'unsafe-eval' SÓ em desenvolvimento (o React o usa para reconstruir pilhas); nunca em produção.
 //                           Em produção E só nas páginas de entrada, challenges.cloudflare.com: o Turnstile (o mesmo componente do site). As demais páginas da central não o citam.
 //   style-src 'self' 'unsafe-inline'   atributo `style=` e <style> inline não aceitam nonce no CSP2/3 sem custo alto; o ganho de um CSS inline injetado é pequeno perto do script
 //                           e esta é a única diretiva afrouxada. Alternativa (nonce em todo estilo) exige mexer nos componentes, fora do escopo.
@@ -21,7 +20,7 @@
 
 import type { ModoCentral } from "./guarda-regra.ts";
 
-/** sha256 (base64) do `themeScript` de src/app/layout.tsx. Se o layout mudar, o teste admin-cabecalhos "hash do tema" quebra. */
+/** sha256 (base64) do `themeScript` de src/app/layout.admin.tsx (e de src/app/layout.tsx, que tem o mesmo texto). Se um dos layouts mudar, o teste admin-cabecalhos "hash do tema" quebra. */
 export const HASH_SCRIPT_TEMA = "sha256-opRjTqQ1E5eUpc4SE9v3YoU5wuVpgtqT7zsobCj245Q=";
 export const HOST_TURNSTILE = "challenges.cloudflare.com";
 

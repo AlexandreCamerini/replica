@@ -25,8 +25,8 @@ const rel = (f: string): string => relative(WEB, f);
 const doGrupo = arquivos(GRUPO);
 const doLib = arquivos(LIB).filter((f) => /\.tsx?$/.test(f));
 const codigo = [...doGrupo, ...doLib];
-const layout = join(GRUPO, "layout.tsx");
-const todasAsRotas = doGrupo.filter((f) => /\/route\.ts$/.test(f));
+const layout = join(GRUPO, "layout.admin.tsx");
+const todasAsRotas = doGrupo.filter((f) => /\/route\.admin\.ts$/.test(f));
 // F3-C1: as rotas da ENTRADA (/admin/api/entrar (subcaminhos)) não têm sessão no início; a guarda delas é `rotaDeEntrada`/`exigirEntradaApi` (testada mais abaixo). As demais seguem a regra de sempre.
 const ehDaEntrada = (f: string): boolean => f.includes("/admin/api/entrar/");
 const rotas = todasAsRotas.filter((f) => !ehDaEntrada(f));
@@ -34,10 +34,10 @@ const rotasDeEntrada = todasAsRotas.filter(ehDaEntrada);
 
 test("o grupo (admin) existe: layout e as seis rotas de API", () => {
   assert.ok(doGrupo.includes(layout));
-  const esperadas = ["estado", "relatorio/[rodada]", "fila", "ficha/[classe]/[chave]", "pedidos", "decisoes"].map((p) => join(GRUPO, "admin/api", p, "route.ts"));
+  const esperadas = ["estado", "relatorio/[rodada]", "fila", "ficha/[classe]/[chave]", "pedidos", "decisoes"].map((p) => join(GRUPO, "admin/api", p, "route.admin.ts"));
   assert.deepEqual(rotas, [...esperadas].sort());
   // F3-C1: mais as quatro rotas de API da entrada (as server actions de entrada.ts deixaram de existir)
-  assert.deepEqual(rotasDeEntrada, ["codigo", "fator/confirmar", "fator/iniciar", "verificar"].map((p) => join(GRUPO, "admin/api/entrar", p, "route.ts")).sort());
+  assert.deepEqual(rotasDeEntrada, ["codigo", "fator/confirmar", "fator/iniciar", "verificar"].map((p) => join(GRUPO, "admin/api/entrar", p, "route.admin.ts")).sort());
 });
 
 test("F3-C1: as rotas da entrada só exportam POST real (via rotaDeEntrada, guarda na primeira instrução) e 404 nos outros métodos; nenhuma server action na central", () => {
@@ -189,9 +189,9 @@ test("nada do grupo escreve fora do pedido: sem SQL no grupo (só lib/admin) e s
 });
 
 test("toda página do grupo chama exigirAdmin() na primeira instrução, antes de qualquer await", () => {
-  const paginas = doGrupo.filter((f) => /\/page\.tsx$/.test(f));
-  const esperadas = ["", "uf/[uf]", "fila", "ficha/[classe]/[chave]", "rodadas", "rodadas/[id]", "registros"].map((p) => join(GRUPO, "admin", p, "page.tsx"));
-  const entrada = ["entrar", "entrar/fator"].map((p) => join(GRUPO, "admin", p, "page.tsx"));
+  const paginas = doGrupo.filter((f) => /\/page\.admin\.tsx$/.test(f));
+  const esperadas = ["", "uf/[uf]", "fila", "ficha/[classe]/[chave]", "rodadas", "rodadas/[id]", "registros"].map((p) => join(GRUPO, "admin", p, "page.admin.tsx"));
+  const entrada = ["entrar", "entrar/fator"].map((p) => join(GRUPO, "admin", p, "page.admin.tsx"));
   assert.deepEqual(paginas, [...esperadas, ...entrada].sort());
   for (const f of entrada) {
     // as duas páginas de entrada são as ÚNICAS sem exigirAdmin (quem entra ainda não tem sessão): a guarda delas é exigirEntrada(), na primeira instrução, com await

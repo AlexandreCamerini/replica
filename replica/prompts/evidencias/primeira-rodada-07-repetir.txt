@@ -1,19 +1,19 @@
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
 SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
-2026-11-17 12:17:15 etl.sapl INFO SAPL Assembleia RO: ok 
-2026-11-17 12:17:15 etl.sapl INFO SAPL Assembleia AC: ok 
-2026-11-17 12:17:15 etl.sapl INFO SAPL Assembleia AM: robots_bloqueia robots.txt bloqueia https://sapl.al.am.leg.br/api/
-2026-11-17 12:17:15 etl.sapl INFO SAPL Assembleia PI: robots_bloqueia robots.txt bloqueia https://sapl.al.pi.leg.br/api/
-2026-11-17 12:17:15 etl.sapl INFO SAPL Assembleia PB: ok 
-2026-11-17 12:17:15 etl.db INFO sapl-ale.descoberta [1da43e85]: ok em 0s, 5 upserts, 0 rejeitadas
-2026-11-17 12:17:15 etl.sapl INFO SAPL: nenhuma câmara 'ok' na fila deste lote (em backoff ou já em dia)
-2026-11-17 12:17:15 etl.sapl INFO SAPL: {}
+2026-11-17 15:08:08 etl.sapl INFO SAPL Assembleia RO: ok 
+2026-11-17 15:08:08 etl.sapl INFO SAPL Assembleia AC: ok 
+2026-11-17 15:08:08 etl.sapl INFO SAPL Assembleia AM: robots_bloqueia robots.txt bloqueia https://sapl.al.am.leg.br/api/
+2026-11-17 15:08:08 etl.sapl INFO SAPL Assembleia PI: robots_bloqueia robots.txt bloqueia https://sapl.al.pi.leg.br/api/
+2026-11-17 15:08:08 etl.sapl INFO SAPL Assembleia PB: ok 
+2026-11-17 15:08:08 etl.db INFO sapl-ale.descoberta [61e6cbb7]: ok em 0s, 5 upserts, 0 rejeitadas
+2026-11-17 15:08:08 etl.sapl INFO SAPL: nenhuma câmara 'ok' na fila deste lote (em backoff ou já em dia)
+2026-11-17 15:08:08 etl.sapl INFO SAPL: {}
 SIMULADO: 0 URLs pedidas, 0 não previstas
-rodada                    a2f68a11-71e5-4b36-85a9-692cc1ae1243
+rodada                    db114278-d2c4-4e74-85d0-9e8d8fea88cd
 status                    concluida
 motivo                    código 0 -> concluida
 código de saída           0
-repete                    e820716a-4f12-4252-9cb0-da1ff0a221de
+repete                    6358ee82-eb3f-499d-ae31-a64fd1f7e1ca
 tentativas                10 (lidas 0, reaproveitadas 8, falhas {'robots': 2}); 10 URLs distintas
 URLs de entrada           10 tentadas de 10 firmes previstas
 bloqueadas por robots     https://sapl.al.am.leg.br/api/, https://sapl.al.pi.leg.br/api/

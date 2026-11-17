@@ -1,5 +1,5 @@
 {
-  "id": "a899db95-7ebe-48a6-9ed1-19592959c0c2",
+  "id": "01e2b92d-662b-4c9a-afde-a25274af8407",
   "classe": "vinculo_sapl",
   "registro_chave": "5",
   "campo": "status",
@@ -7,7 +7,7 @@
   "pergunta": "O status do SAPL desta casa mudou de 'fora_do_ar' para 'ok'?",
   "reaberta": false,
   "motivo_reabertura": null,
-  "vence_em": "2026-11-24T15:17:08.468140+00:00",
+  "vence_em": "2026-11-24T18:07:54.906339+00:00",
   "cobertura_recorte": 0.6,
   "rotulo": "Assembleia Legislativa de Paraíba · Paraíba/PB",
   "territorio": {
@@ -17,17 +17,17 @@
   "valor_vigente": "ok",
   "propostas": [
     {
-      "id": "625e7b87-1cbf-4c16-97df-2178c7cc67b0",
+      "id": "993307c7-3b8b-4c24-a011-142b3ccb8162",
       "valor_vigente_na_leitura": "fora_do_ar",
       "valor_candidato": "ok",
       "url": "https://sapl.al.pb.leg.br/api/",
-      "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T15:17:08.389316+00:00)",
+      "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T18:07:54.771526+00:00)",
       "bloco": null,
       "conteudo_sha256": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118",
-      "lida_em": "2026-11-17T15:17:08.389316+00:00",
+      "lida_em": "2026-11-17T18:07:54.771526+00:00",
       "fonte_declarada_em": null,
       "fonte_slug": "sapl-ale",
-      "rodada_id": "e820716a-4f12-4252-9cb0-da1ff0a221de",
+      "rodada_id": "6358ee82-eb3f-499d-ae31-a64fd1f7e1ca",
       "alcance": "registro",
       "regra_criterio": null,
       "regra_ids": null
@@ -37,10 +37,10 @@
   "status": "decidida",
   "evidencia_sha": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118",
   "vigente_sha": "c48b5b1a9776c84602de2306d7903a7241158a5077e7a8519af75c33441b8334",
-  "criada_em": "2026-11-17T15:17:08.456887+00:00",
+  "criada_em": "2026-11-17T18:07:54.887508+00:00",
   "decisoes": [
     {
-      "id": "81649c27-3f79-4254-b6bf-4354e278d7e4",
+      "id": "abbaae41-0840-49c0-adf1-c6348ce6f23e",
       "acao": "aprovar",
       "decidido_por_tipo": "pessoa",
       "decidido_por_nome": "Operador local",
@@ -50,23 +50,23 @@
         "vinculo_sapl:5:status"
       ],
       "aplicada": true,
-      "aplicada_em": "2026-11-17T15:17:12.150620+00:00",
-      "criada_em": "2026-11-17T15:17:12.150620+00:00"
+      "aplicada_em": "2026-11-17T18:08:01.790441+00:00",
+      "criada_em": "2026-11-17T18:08:01.790441+00:00"
     }
   ],
   "historico": [
     {
-      "id": "625e7b87-1cbf-4c16-97df-2178c7cc67b0",
+      "id": "993307c7-3b8b-4c24-a011-142b3ccb8162",
       "valor_vigente_na_leitura": "fora_do_ar",
       "valor_candidato": "ok",
       "url": "https://sapl.al.pb.leg.br/api/",
-      "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T15:17:08.389316+00:00)",
+      "trecho": "resposta de https://sapl.al.pb.leg.br/api/; o job a aceitou como índice da API REST do SAPL 3.x (HTTP 200; lida em 2026-11-17T18:07:54.771526+00:00)",
       "bloco": null,
       "conteudo_sha256": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118",
-      "lida_em": "2026-11-17T15:17:08.389316+00:00",
+      "lida_em": "2026-11-17T18:07:54.771526+00:00",
       "fonte_declarada_em": null,
       "fonte_slug": "sapl-ale",
-      "rodada_id": "e820716a-4f12-4252-9cb0-da1ff0a221de",
+      "rodada_id": "6358ee82-eb3f-499d-ae31-a64fd1f7e1ca",
       "alcance": "registro",
       "regra_criterio": null,
       "regra_ids": null,

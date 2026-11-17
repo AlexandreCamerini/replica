@@ -134,3 +134,19 @@ export function origemRecusada(e: EntradaCsrf): boolean {
   } else if (o.protocol !== "http:" || o.host.toLowerCase() !== (e.host ?? "").trim().toLowerCase()) return true;
   return e.exigirJson === false ? false : !(e.contentType ?? "").toLowerCase().startsWith("application/json");
 }
+
+/** Códigos IBGE das 27 UFs: as únicas malhas `/geo/uf/<código>.json` que existem em public/ (um teste confere contra a pasta). */
+export const CODIGOS_UF_DA_MALHA = ["11", "12", "13", "14", "15", "16", "17", "21", "22", "23", "24", "25", "26", "27", "28", "29", "31", "32", "33", "35", "41", "42", "43", "50", "51", "52", "53"] as const;
+const MALHA_UF = new RegExp(`^/geo/uf/(?:${CODIGOS_UF_DA_MALHA.join("|")})\\.json$`);
+/** `/favicon.ico` (metadado estático do site, `src/app/favicon.ico`, que o Next incorpora ao build da central e que as páginas da central referenciam num `<link rel="icon">`): ícone binário, sem HTML. Exceção declarada. */
+export const FAVICON = "/favicon.ico";
+/** Os cinco SVG do modelo do Next que estão em public/ (sem texto nem marca do site; conferido: nenhum tem HTML). Um teste confere esta lista contra a pasta (junto com as malhas): arquivo novo em public/ é 404 até entrar aqui. */
+export const SVG_DE_PUBLIC = ["/file.svg", "/globe.svg", "/next.svg", "/vercel.svg", "/window.svg"] as const;
+/**
+ * Arquivos estáticos que o build da central serve além de /admin (AC-29), por comparação EXATA e sensível à caixa: `/_next/static/*` (chunks e CSS do build; sem `..`, barras repetidas nem `%` além dos colchetes `%5B` e `%5D` das rotas dinâmicas), `/geo/br.json`,
+ * as 27 malhas de UF, os cinco SVG de public/ e o favicon. Tudo o mais é 404 no middleware (inclusive o proxy de imagens do Next e `/_next/data`).
+ */
+export function ehEstaticoDaCentral(pathname: string): boolean {
+  if (pathname.startsWith("/_next/static/")) return !/\.\.|%(?!5[BD])|\/{2}/.test(pathname); // `%5B`/`%5D`: colchetes das rotas dinâmicas (`[classe]`) nos nomes dos chunks; qualquer outro `%` é recusado
+  return pathname === "/geo/br.json" || MALHA_UF.test(pathname) || pathname === FAVICON || (SVG_DE_PUBLIC as readonly string[]).includes(pathname);
+}

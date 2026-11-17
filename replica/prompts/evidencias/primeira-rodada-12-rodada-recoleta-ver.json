@@ -1,5 +1,5 @@
 {
-  "id": "e59179fe-4c8b-4df7-81b6-ca3e50be6882",
+  "id": "e25eb91f-bed8-4b9a-8095-8fd5aaafec25",
   "coletor": "sapl.camaras",
   "modo": "recoletar",
   "status": "concluida",
@@ -21,10 +21,10 @@
   "forcar_urls": [],
   "so_pendencias": false,
   "repete_id": null,
-  "invocation": "admin:e59179fe-4c8b-4df7-81b6-ca3e50be6882",
+  "invocation": "admin:e25eb91f-bed8-4b9a-8095-8fd5aaafec25",
   "cache_dir": "/tmp/claude-501/admin-r1-cache",
-  "iniciada_em": "2026-11-17T15:17:31.924707+00:00",
-  "finalizada_em": "2026-11-17T15:17:32.015467+00:00",
+  "iniciada_em": "2026-11-17T18:08:38.066450+00:00",
+  "finalizada_em": "2026-11-17T18:08:38.202225+00:00",
   "previa": {
     "argv": [
       "sapl.carregar",
@@ -52,7 +52,7 @@
       "sapl.{ibge}"
     ],
     "cache_dir": "/tmp/claude-501/admin-r1-cache",
-    "gerada_em": "2026-11-17T15:17:31.924934+00:00",
+    "gerada_em": "2026-11-17T18:08:38.066928+00:00",
     "observacao": "só a 1ª página de cada casa; matérias, autorias, sessões, presenças e votos dependem das respostas",
     "a_consultar": {
       "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
@@ -64,10 +64,10 @@
       "estimativa": true
     },
     "demais_urls": {
-      "base": "rodada 1693cb8d-9ad7-471e-8ff5-58164a7e23ad de 2026-11-17",
+      "base": "rodada 23753640-6e65-40cf-bca4-176f418270fb de 2026-11-17",
       "valor": 2,
       "estimativa": true,
-      "rodada_base": "1693cb8d-9ad7-471e-8ff5-58164a7e23ad"
+      "rodada_base": "23753640-6e65-40cf-bca4-176f418270fb"
     },
     "urls_entrada": [
       {
@@ -100,7 +100,7 @@
     "tentativas_registradas": true
   },
   "resultado": {
-    "fim": "2026-11-17T15:17:32.015430+00:00",
+    "fim": "2026-11-17T18:08:38.202162+00:00",
     "regra": {
       "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
       "timeout": "código 124 (timeout) -> interrompida",
@@ -112,7 +112,7 @@
       "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
       "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
     },
-    "inicio": "2026-11-17T15:17:31.926796+00:00",
+    "inicio": "2026-11-17T18:08:38.070392+00:00",
     "motivo": "código 0 -> concluida",
     "runner": "processo",
     "status": "concluida",
@@ -166,7 +166,7 @@
       }
     },
     "sem_cache": [],
-    "invocation": "admin:e59179fe-4c8b-4df7-81b6-ca3e50be6882",
+    "invocation": "admin:e25eb91f-bed8-4b9a-8095-8fd5aaafec25",
     "tentativas": {
       "lidas": 23,
       "falhas": {},
@@ -192,7 +192,7 @@
   },
   "execucoes": [
     {
-      "fim": "2026-11-17T15:17:32.015430+00:00",
+      "fim": "2026-11-17T18:08:38.202162+00:00",
       "regra": {
         "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
         "timeout": "código 124 (timeout) -> interrompida",
@@ -204,7 +204,7 @@
         "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
         "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
       },
-      "inicio": "2026-11-17T15:17:31.926796+00:00",
+      "inicio": "2026-11-17T18:08:38.070392+00:00",
       "motivo": "código 0 -> concluida",
       "runner": "processo",
       "status": "concluida",
@@ -258,7 +258,7 @@
         }
       },
       "sem_cache": [],
-      "invocation": "admin:e59179fe-4c8b-4df7-81b6-ca3e50be6882",
+      "invocation": "admin:e25eb91f-bed8-4b9a-8095-8fd5aaafec25",
       "tentativas": {
         "lidas": 23,
         "falhas": {},

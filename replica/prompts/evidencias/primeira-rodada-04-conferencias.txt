@@ -1,8 +1,8 @@
 SIMULADO: conferências do passo 04-mudanca-v2 (respostas fabricadas)
   URLs com releitura forçada (robots.txt e /api/ das casas): 10
-  rodada v2: e820716a-4f12-4252-9cb0-da1ff0a221de
+  rodada v2: 6358ee82-eb3f-499d-ae31-a64fd1f7e1ca
   sapl_houses.id: PB=5 AM=3
-  pendência do status de PB: a899db95-7ebe-48a6-9ed1-19592959c0c2; de AM: 86d9665e-fb19-48cf-a685-afb37061c0ee
+  pendência do status de PB: 01e2b92d-662b-4c9a-afde-a25274af8407; de AM: 593788af-eb93-414a-ae70-552aadfed98d
   [ok] a rodada v2 terminou concluida e o relatório é SIMULADO (v2)
   [ok] pendência aberta de PB: status fora_do_ar -> ok, com evidência (URL, trecho, hash, leitura)
   [ok] pendência aberta de AM: status ok -> robots_bloqueia, com evidência do robots.txt

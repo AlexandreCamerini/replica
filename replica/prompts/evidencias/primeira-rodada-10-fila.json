@@ -1,7 +1,7 @@
 [
   {
     "posicao": 1,
-    "id": "86d9665e-fb19-48cf-a685-afb37061c0ee",
+    "id": "593788af-eb93-414a-ae70-552aadfed98d",
     "classe": "vinculo_sapl",
     "registro_chave": "3",
     "campo": "status",
@@ -9,7 +9,7 @@
     "pergunta": "O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?",
     "reaberta": false,
     "motivo_reabertura": null,
-    "vence_em": "2026-11-24T15:17:08.459074+00:00",
+    "vence_em": "2026-11-24T18:07:54.890824+00:00",
     "cobertura_recorte": 0.6,
     "rotulo": "Assembleia Legislativa de Amazonas · Amazonas/AM",
     "territorio": {
@@ -19,17 +19,17 @@
     "valor_vigente": "robots_bloqueia",
     "propostas": [
       {
-        "id": "d10ff69f-9961-4fe4-9155-7b90734166a1",
+        "id": "f32f2efd-f78f-4b82-b58d-14a61165203d",
         "valor_vigente_na_leitura": "ok",
         "valor_candidato": "robots_bloqueia",
         "url": "https://sapl.al.am.leg.br/robots.txt",
-        "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T15:17:08.382123+00:00)",
+        "trecho": "robots.txt de https://sapl.al.am.leg.br/robots.txt lido; o job considerou https://sapl.al.am.leg.br/api/ bloqueada (HTTP 200; lida em 2026-11-17T18:07:54.754963+00:00)",
         "bloco": null,
         "conteudo_sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
-        "lida_em": "2026-11-17T15:17:08.382123+00:00",
+        "lida_em": "2026-11-17T18:07:54.754963+00:00",
         "fonte_declarada_em": null,
         "fonte_slug": "sapl-ale",
-        "rodada_id": "e820716a-4f12-4252-9cb0-da1ff0a221de",
+        "rodada_id": "6358ee82-eb3f-499d-ae31-a64fd1f7e1ca",
         "alcance": "registro",
         "regra_criterio": null,
         "regra_ids": null
@@ -39,7 +39,7 @@
   },
   {
     "posicao": 2,
-    "id": "034cb1c6-8e95-43cf-b4e7-65db6bda2d98",
+    "id": "a0706dd5-8612-4d85-bb10-a8057860651d",
     "classe": "vinculo_sapl",
     "registro_chave": "20",
     "campo": "base_url",
@@ -47,7 +47,7 @@
     "pergunta": "O endereço do SAPL desta casa mudou de 'https://sapl.camara-fabricada.invalid' para 'https://sapl.camara-fabricada-nova.invalid'?",
     "reaberta": false,
     "motivo_reabertura": null,
-    "vence_em": "2026-11-24T15:17:28.371248+00:00",
+    "vence_em": "2026-11-24T18:08:32.889457+00:00",
     "cobertura_recorte": 1.0,
     "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
     "territorio": {
@@ -57,17 +57,17 @@
     "valor_vigente": "https://sapl.camara-fabricada-nova.invalid",
     "propostas": [
       {
-        "id": "e2a229e4-c1f1-424b-9e5c-6c8c97c14da8",
+        "id": "73acf942-e6b1-4de9-9933-17c98d754d56",
         "valor_vigente_na_leitura": "https://sapl.camara-fabricada.invalid",
         "valor_candidato": "https://sapl.camara-fabricada-nova.invalid",
         "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
-        "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T15:17:28.352172+00:00)",
+        "trecho": "endereço do SAPL lido na linha SAPL do cartão da Câmara Municipal de Município Fabricado (teste) na página do registro: https://sapl.camara-fabricada-nova.invalid (HTTP 200; lida em 2026-11-17T18:08:32.861486+00:00)",
         "bloco": null,
         "conteudo_sha256": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
-        "lida_em": "2026-11-17T15:17:28.352172+00:00",
+        "lida_em": "2026-11-17T18:08:32.861486+00:00",
         "fonte_declarada_em": null,
         "fonte_slug": "sapl",
-        "rodada_id": "1693cb8d-9ad7-471e-8ff5-58164a7e23ad",
+        "rodada_id": "23753640-6e65-40cf-bca4-176f418270fb",
         "alcance": "registro",
         "regra_criterio": null,
         "regra_ids": null

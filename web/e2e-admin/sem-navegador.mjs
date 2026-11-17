@@ -26,19 +26,19 @@ function descobrirRotas() {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, e.name);
       if (e.isDirectory()) anda(p);
-      else if (e.name === "page.tsx" || e.name === "route.ts") {
+      else if (e.name === "page.admin.tsx" || e.name === "route.admin.ts") {
         const rel = path.relative(app, d).split(path.sep);
         const dentro = rel[0] === "(admin)";
         const seg = rel.filter((s) => !/^\(.*\)$/.test(s));
         if (!dentro && seg[0] !== "admin") continue;
-        const api = e.name === "route.ts";
+        const api = e.name === "route.admin.ts";
         const src = fs.readFileSync(p, "utf8");
         // método "não usado": stub que responde 404 com a central fechada e 405 aberta (não conta como exportado no controle positivo)
         const naoUsados = new Set([...src.matchAll(/export (?:async )?function (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\(\) \{\s*const negado = (?:await )?exigirAdminApi\(\);\s*if \(negado\) return negado;\s*return new Response\(null, \{ status: 405 \}\);/g)].map((m) => m[1]));
         const metodos = api ? [...src.matchAll(/export\s+(?:async\s+function|const|function)\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/g)].map((m) => m[1]).filter((m) => !naoUsados.has(m)) : ["GET"];
         // /admin/entrar e /admin/entrar/fator só existem no modo produção (AC-23): no modo local respondem 404 por desenho
         rotas.push({ arquivo: path.relative(C.WEB, p), seg, api, metodos, foraDoGrupo: !dentro, soProducao: seg[0] === "admin" && (seg[1] === "entrar" || (seg[1] === "api" && seg[2] === "entrar")) });
-      } else if (/^(loading|template|default|error|not-found)\.tsx$/.test(e.name) && path.relative(app, d).split(path.sep)[0] === "(admin)") extras.push(path.relative(C.WEB, p));
+      } else if (/^(loading|template|default|error|not-found)\.(?:admin\.)?tsx$/.test(e.name) && path.relative(app, d).split(path.sep)[0] === "(admin)") extras.push(path.relative(C.WEB, p));
     }
   })(app);
   return { rotas, extras };
@@ -86,7 +86,7 @@ async function criterio15(rotas, extras) {
   const dentro = rotas.filter((r) => !r.foraDoGrupo);
   R.info(`rotas achadas em web/src/app/(admin): ${dentro.length} (${dentro.filter((r) => !r.api).length} páginas, ${dentro.filter((r) => r.api).length} de API); métodos exportados: ${dentro.filter((r) => r.api).map((r) => `${urlDe(r, {})} [${r.metodos.join(",")}]`).join(" ")}`);
   R.checa(rotas.filter((r) => r.foraDoGrupo).length === 0, "nenhuma rota /admin fora do grupo (admin)", rotas.filter((r) => r.foraDoGrupo).map((r) => r.arquivo).join(", "));
-  R.checa(extras.length === 0, "o grupo (admin) não tem loading.tsx, template, default, error ou not-found (o 404 não pode sair depois de um stream iniciado)", extras.join(", "));
+  R.checa(extras.length === 0, "o grupo (admin) não tem loading, template, default, error ou not-found (o 404 não pode sair depois de um stream iniciado; o not-found.admin.tsx é só o da raiz)", extras.join(", "));
   const ex = { classe: "vinculo_sapl", chave: "1", rodada: UUID0, id: UUID0, uf: "35" };
   const modos = [
     ["(a) sem ADMIN_CENTRAL", {}],
@@ -95,7 +95,8 @@ async function criterio15(rotas, extras) {
   ];
   for (const [nome, extra] of modos) {
     // ADMIN_DATABASE_URL local válido em todos: o 404 tem de vir da regra que se prova, não da ausência do banco
-    const srv = await C.subirNext(C.envCi({ ADMIN_DATABASE_URL: C.urlCentral(C.BANCO_C7), ...extra }));
+    // AC-29: a central é o build `.next-admin-local`; aqui varia só o ambiente de EXECUÇÃO (a central fechada por variável tem de dar 404 em toda rota)
+    const srv = await C.subirNext(C.envCi({ ADMIN_DATABASE_URL: C.urlCentral(C.BANCO_C7), NEXT_DIST_DIR: C.DIST_ADMIN_LOCAL, ...extra }));
     try {
       const a = await varrer(srv.base, dentro, ex);
       const ruins = a.filter((x) => x.exportado && x.status !== 404);
@@ -107,7 +108,7 @@ async function criterio15(rotas, extras) {
       const traceFora = trace.filter((x) => x.status !== 404);
       const limite = srv.log().includes("'TRACE' HTTP method is unsupported");
       R.checa(traceFora.length === 0 || (limite && traceFora.every((x) => x.status === 500)), `${nome}: TRACE nas ${trace.length} rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central`, traceFora.map((x) => `${x.u} -> ${x.status}`).join("; "));
-      if (traceFora.length > 0) R.aviso(`EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): ${nome}: TRACE -> ${traceFora.length} de ${trace.length} rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)`);
+    if (traceFora.length > 0) R.aviso(`EXCEÇÃO ao critério 15 (aprovada pelo dono, AC-22): ${nome}: TRACE -> ${traceFora.length} de ${trace.length} rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)`);
       else R.info(`${nome}: TRACE -> 404 em todas`);
       const cru = await varrerCrua(srv.base, dentro, ex);
       const ruinsCru = cru.filter((x) => x.status !== 404);
@@ -116,8 +117,9 @@ async function criterio15(rotas, extras) {
       const pr404 = problemasDeSeguranca(h404.cabecalhos, { turnstile: false });
       R.checa(h404.status === 404 && pr404.length === 0, `${nome}: o 404 da central fechada leva os três cabeçalhos (CSP com frame-ancestors 'none', X-Frame-Options DENY, Referrer-Policy same-origin)`, `status ${h404.status}; ${pr404.join("; ")}`);
       if (nome.startsWith("(a)")) {
+        // AC-29: o build da central não tem o site: `/` é 404 sem corpo (o middleware fecha tudo o que não é da central)
         const h = await C.http(srv.base, "/");
-        R.checa(h.status === 200, "(a) o site público (/) continua 200", `status ${h.status}`);
+        R.checa(h.status === 404 && h.texto === "", "(a) o build da central não serve o site: `/` é 404 sem corpo", `status ${h.status} ${h.texto.length} B`);
         const outras = await Promise.all(["/admin", "/admin/", "/admin?rodada=x", "/admin/api/estado/"].map((p) => C.http(srv.base, p, { seguir: true })));
         R.checa(outras.every((x) => x.status === 404), "(a) variações de caminho (/admin/, ?rodada=, barra final, seguindo o 308 do Next) também 404", outras.map((x) => x.status).join(","));
       }
@@ -322,10 +324,11 @@ async function cabecalhosLocal(base) {
     const pr = problemasDeSeguranca(r.cabecalhos, { turnstile: false });
     R.checa(r.status === esperado && pr.length === 0, `${rotulo}: ${r.status}, CSP com frame-ancestors 'none' (sem Turnstile no modo local), X-Frame-Options DENY, Referrer-Policy same-origin`, `status ${r.status}; ${pr.join("; ")}`);
   }
+  // AC-29: no build da central NÃO HÁ site; os cabeçalhos valem para toda a origem (a ausência no site é provada no build do site, em siteSemCentral)
   const pub = await C.http(base, "/");
-  R.checa(pub.status === 200 && semSeguranca(pub.cabecalhos).length === 0, "site público (/): sem Content-Security-Policy, X-Frame-Options nem Referrer-Policy (só a central os leva)", `status ${pub.status}; presentes: ${semSeguranca(pub.cabecalhos)}`);
+  R.checa(pub.status === 404 && pub.texto === "" && semSeguranca(pub.cabecalhos).length === 3, "`/` no build da central: 404 sem corpo, COM os três cabeçalhos (não há site nesta origem)", `status ${pub.status}; presentes: ${semSeguranca(pub.cabecalhos)}`);
   const geo = await C.http(base, "/geo/br.json");
-  R.checa(geo.status === 200 && semSeguranca(geo.cabecalhos).length === 0, "malha pública (/geo/br.json): sem os três cabeçalhos", `status ${geo.status}; presentes: ${semSeguranca(geo.cabecalhos)}`);
+  R.checa(geo.status === 200 && semSeguranca(geo.cabecalhos).length === 3, "malha /geo/br.json (estático que a central serve): 200 COM os três cabeçalhos", `status ${geo.status}; presentes: ${semSeguranca(geo.cabecalhos)}`);
 }
 
 // (a) CSRF estrito: POST sem Origin, sem Sec-Fetch-Site ou com Sec-Fetch-Site que não é same-origin = 403, e nada é gravado.
@@ -401,10 +404,20 @@ async function criterio15Producao(rotas) {
     const traceFora = trace.filter((x) => x.status !== 404);
     const limite = srv.log().includes("'TRACE' HTTP method is unsupported");
     R.checa(traceFora.length === 0 || (limite && traceFora.every((x) => x.status === 500)), `TRACE nas ${trace.length} rotas: 404 ou, no limite conhecido do Next (log "'TRACE' HTTP method is unsupported"), 500 genérico sem corpo da central`, traceFora.map((x) => `${x.u} -> ${x.status}`).join("; "));
+    // AC-29: o middleware da central cobre TODA requisição; o TRACE fora de /admin (a origem inteira) mede-se também: status, corpo, cabeçalhos. O TRACE morre no adaptador do Next ANTES do middleware (500 genérico do Next,
+    // sem cabeçalho do middleware); o que se exige é que o corpo não seja página do site e que não traga dado.
+    const traceOrigem = [];
+    for (const u of ["/", "/entrar", "/geo/br.json", "/_next/static/x.js", "/favicon.ico", "/qualquer", "/admin"]) {
+      const x = await C.bruta(srv.base, u, { metodo: "TRACE", cabecalhos: { host: HP } });
+      traceOrigem.push(`TRACE ${u} -> ${x.status} (${x.bytes} B; XFO ${x.cabecalhos["x-frame-options"] ?? "ausente"}; CSP ${x.cabecalhos["content-security-policy"] ? "presente" : "ausente"}; corpo ${JSON.stringify(x.texto.slice(0, 60))})`);
+      R.checa([404, 500].includes(x.status) && !/segue o voto|quem·representa|pauta lida|o que está rolando|<nav\b|<main\b|<header\b/i.test(x.texto), `TRACE ${u}: 404 ou 500 genérico do Next, sem página do site no corpo`, `${x.status} ${x.bytes} B`);
+    }
+    R.info("TRACE medido no build da central (Host da central, origem inteira): " + traceOrigem.join("\n  "));
+    R.info(`TRACE em /admin/*: ${[...new Set(trace.map((x) => x.status))].join(",")} nas ${trace.length} rotas${traceFora.length === 0 ? " (404: a exceção da AC-29 deixa de ser necessária)" : " (a exceção da AC-29 continua necessária)"}`);
     if (traceFora.length > 0) R.aviso(`EXCEÇÃO ao critério 15 (aprovada pelo dono no AC-22 para a central LOCAL; para a internet é a decisão 5 da seção 7 de reavaliacao-central-e-dominio.md, ainda aberta): TRACE -> ${traceFora.length} de ${trace.length} rotas com 500 em vez de 404 (limite do Next 15.5; sem dado)`);
     else R.info("TRACE -> 404 em todas");
 
-    // 2. /admin/entrar com sessão ausente: a única exceção. O que o código diz (middleware.ts: ehEntradaSemSessao; entrar/page.tsx: exigirEntrada + resolverOperador): 200 com o formulário de e-mail.
+    // 2. /admin/entrar com sessão ausente: a única exceção. O que o código diz (middleware.admin.ts: ehEntradaSemSessao; entrar/page.admin.tsx: exigirEntrada + resolverOperador): 200 com o formulário de e-mail.
     const e = await C.crua(srv.base, "/admin/entrar", { cabecalhos: { host: HP } });
     R.checa(e.status === 200 && /Entrar na central/.test(e.texto), "/admin/entrar (Host certo, sem cookie): 200 com o formulário de e-mail (a exceção que o middleware abre)", `status ${e.status}`);
     R.checa(problemasDeSeguranca(e.cabecalhos, { turnstile: true }).length === 0, "/admin/entrar leva os cabeçalhos: CSP cita challenges.cloudflare.com (Turnstile só aqui) e nenhum outro host", problemasDeSeguranca(e.cabecalhos, { turnstile: true }).join("; "));
@@ -471,60 +484,133 @@ async function criterio15Producao(rotas) {
 
 const lerJson = (arq) => JSON.parse(fs.readFileSync(arq, "utf8"));
 
-/** Build do projeto admin (ADMIN_CENTRAL=producao, pasta própria) e comparação com o build do site: o das actions públicas tem de ser o mesmo; as actions da central não existem em nenhum. */
+/** Build do projeto admin (ADMIN_CENTRAL=producao, pasta própria): o build da central não tem server action alguma, nenhuma rota fora de /admin, e o do site não tem rewrite, cabeçalho nem middleware. */
 function construirAdminProducao(t) {
-  R.cabecalho("F3-C1: build do projeto admin (ADMIN_CENTRAL=producao, pasta .next-admin-prod) e comparação com o build do site");
+  R.cabecalho("AC-29: build do projeto admin (ADMIN_CENTRAL=producao, pasta .next-admin-prod) e partição entre o build do site e o da central");
   const dist = path.join(C.WEB, C.DIST_ADMIN_PROD);
   const bid = path.join(dist, "BUILD_ID");
   if (C.temFlag("--sem-build") && C.existe(bid)) R.ok(`--sem-build: reaproveita ${C.DIST_ADMIN_PROD}`);
   else {
-    const b = C.rodar(process.execPath, [path.join(C.WEB, "node_modules/next/dist/bin/next"), "build"], { cwd: C.WEB, env: C.envCi({ ADMIN_CENTRAL: "producao", NEXT_DIST_DIR: C.DIST_ADMIN_PROD }), timeout: 580_000 });
+    const b = C.construirCentral("producao");
     R.checa(b.rc === 0 && /Compiled successfully/.test(b.out), `next build do projeto admin (ADMIN_CENTRAL=producao) terminou com código ${b.rc} em ${t()}`, b.out.slice(-600));
+    R.info("tabela de rotas do build da central (produção):\n" + (b.out.match(/Route \(app\)[\s\S]*/)?.[0] ?? b.out.slice(-1500)).replace(/\n{2,}/g, "\n"));
   }
   if (!C.existe(bid)) return;
   const site = lerJson(path.join(C.WEB, ".next/server/server-reference-manifest.json")).node;
   const adm = lerJson(path.join(dist, "server/server-reference-manifest.json")).node;
-  // os ids mudam a cada build (salt por build): compara-se arquivo, nome exportado e workers (rota e camada) de cada action
-  const norm = (m) => Object.values(m).map((v) => JSON.stringify([v.filename, v.exportedName, Object.keys(v.workers ?? {}).sort().map((w) => [w, v.workers[w]?.layer])])).sort();
-  R.checa(JSON.stringify(norm(site)) === JSON.stringify(norm(adm)), `as server actions do build do site e do projeto admin são as mesmas (${Object.keys(site).length}: arquivo, nome e workers; os ids mudam por build)`, `site ${Object.keys(site).length}, admin ${Object.keys(adm).length}`);
-  const daCentral = [...Object.values(site), ...Object.values(adm)].filter((v) => /lib\/admin|app\/\(admin\)|components\/admin/.test(v.filename ?? ""));
-  R.checa(daCentral.length === 0, "nenhuma server action da central em nenhum dos dois builds (as de entrada.ts viraram rotas de API)", daCentral.map((v) => `${v.filename}:${v.exportedName}`).join(", "));
+  R.checa(Object.keys(site).length >= 10, `o build do SITE lista ${Object.keys(site).length} server actions públicas (a lista que o ataque abaixo usa)`, String(Object.keys(site).length));
+  R.checa(Object.keys(adm).length === 0, "o build da CENTRAL não tem NENHUMA server action (nem as públicas, nem as da central)", `${Object.keys(adm).length}: ${Object.values(adm).map((v) => `${v.filename}:${v.exportedName}`).slice(0, 3).join(", ")}`);
+  const daCentral = Object.values(site).filter((v) => /lib\/admin|app\/\(admin\)|components\/admin/.test(v.filename ?? ""));
+  R.checa(daCentral.length === 0, "nenhuma server action da central no build do site (as de entrada.ts viraram rotas de API)", daCentral.map((v) => `${v.filename}:${v.exportedName}`).join(", "));
   const rs = lerJson(path.join(C.WEB, ".next/routes-manifest.json"));
   const ra = lerJson(path.join(dist, "routes-manifest.json"));
   R.checa((rs.rewrites?.beforeFiles ?? []).length === 0 && (rs.headers ?? []).length === 0, "o build do SITE não tem rewrite nem cabeçalho de configuração (build idêntico ao de antes)", JSON.stringify({ rw: rs.rewrites, h: rs.headers }).slice(0, 200));
-  R.checa((ra.rewrites?.beforeFiles ?? []).length === 1 && (ra.headers ?? []).length === 1, "o build do projeto admin tem 1 rewrite beforeFiles e 1 regra de cabeçalhos", JSON.stringify({ rw: ra.rewrites, h: ra.headers }).slice(0, 300));
+  R.checa((ra.rewrites?.beforeFiles ?? []).length === 0 && (ra.headers ?? []).length === 1, "o build da central não tem rewrite e tem 1 regra de cabeçalhos (frame-ancestors, XFO, Referrer-Policy)", JSON.stringify({ rw: ra.rewrites, h: ra.headers }).slice(0, 300));
+  const rotasSite = [...rs.staticRoutes, ...rs.dynamicRoutes].map((r) => r.page);
+  const rotasCentral = [...ra.staticRoutes, ...ra.dynamicRoutes].map((r) => r.page);
+  R.checa(rotasSite.every((p) => !/^\/admin(?:\/|$)/.test(p)), `o build do SITE não tem nenhuma rota /admin (${rotasSite.length} rotas)`, rotasSite.filter((p) => /^\/admin/.test(p)).join(", "));
+  // ESTRANHEZA (declarada): `src/app/favicon.ico` é metadado ESTÁTICO do site e o Next o incorpora ao build da central mesmo com `pageExtensions` só `.admin.*` (rota `/favicon.ico`, só em routes-manifest). Não é página nem HTML,
+  // e o middleware da central o serve só como ícone estático (200, sem HTML; as páginas da central o referenciam; provado no ataque abaixo); fora essa exceção explícita, o build da central só tem rotas /admin.
+  const foraDeAdmin = rotasCentral.filter((p) => !/^\/admin(?:\/|$)/.test(p)).sort();
+  R.checa(foraDeAdmin.join() === "/_not-found,/favicon.ico", `o build da central só tem rotas /admin, mais /_not-found (o da central) e a exceção declarada /favicon.ico (${rotasCentral.length} rotas)`, foraDeAdmin.join(", "));
+  // middleware nodejs: o arquivo `server/middleware.js` existe só onde há middleware (o `middleware-manifest.json` lista só o de runtime edge)
+  R.checa(!C.existe(path.join(C.WEB, ".next/server/middleware.js")), "o build do SITE não tem middleware (nenhum server/middleware.js)", "existe .next/server/middleware.js");
+  R.checa(C.existe(path.join(dist, "server/middleware.js")), "o build da central tem o middleware (server/middleware.js, de middleware.admin.ts)", "falta server/middleware.js");
 }
 
+// Marcas do site público e tags que só uma página do site teria (a central tem a própria faixa "INTERNO"; a única resposta da origem da central com html é a página de entrada).
+const MARCAS_DO_SITE = /<(?:html|nav|header|main|footer)\b|segue o voto|quem·representa|pauta lida|o que está rolando/i;
+
+/** Build do SITE em `next start` (sem nenhuma ADMIN_*): /admin* não existe (404 de rota inexistente, sem middleware) e as páginas públicas-chave respondem como antes. */
+async function siteSemCentral() {
+  R.cabecalho("AC-29: build do SITE (nenhuma ADMIN_*): /admin* é rota inexistente (404), sem middleware; páginas públicas-chave com os mesmos status de antes");
+  const site = await C.subirNext(C.envCi());
+  try {
+    const h = { host: `127.0.0.1:${site.porta}` };
+    const adm = [];
+    for (const [m, u] of [["GET", "/admin"], ["GET", "/admin/fila"], ["GET", "/admin/api/estado"], ["GET", "/admin/entrar"], ["POST", "/admin/api/pedidos"], ["POST", "/admin/api/entrar/codigo"], ["GET", "/admin/api/relatorio/x"]]) {
+      const r = await C.bruta(site.base, u, { metodo: m, cabecalhos: { ...h, ...(m === "POST" ? { "content-type": "application/json", origin: site.base, "sec-fetch-site": "same-origin" } : {}) }, corpo: m === "POST" ? "{}" : undefined });
+      adm.push(`${m} ${u} ${r.status} (${r.bytes} B)`);
+      R.checa(r.status === 404 && !r.cabecalhos["x-admin-nonce"] && !r.cabecalhos["x-middleware-next"], `site: ${m} ${u} -> 404, sem cabeçalho de middleware (a rota não existe neste build)`, `${r.status}`);
+    }
+    R.info(`site, /admin*: ${adm.join(", ")}`);
+    // status AFIRMADOS (200 nas páginas, 404 na rota inexistente); comparados à mão, uma vez, com um `next start` do build `.next-base` (site da fase anterior, não versionado): mesmos status em 15 caminhos; só /admin* difere (404 sem corpo do guarda antigo, 404 de rota inexistente agora)
+    const esperados = { "/": 200, "/pessoas": 200, "/votacoes": 200, "/como-funciona": 200, "/decisoes": 200, "/temas": 200, "/acompanhando": 200, "/entrar": 200, "/rota-que-nao-existe": 404, "/api/me": null, "/favicon.ico": 200, "/geo/br.json": 200, "/file.svg": 200 };
+    const medidos = [];
+    for (const [u, esp] of Object.entries(esperados)) {
+      const r = await C.bruta(site.base, u, { cabecalhos: h });
+      medidos.push(`${u} ${r.status}`);
+      if (esp !== null) R.checa(r.status === esp, `site: GET ${u} -> ${esp}`, `status ${r.status}`);
+      else R.checa(r.status < 500, `site: GET ${u} -> sem 5xx`, `status ${r.status}`);
+      R.checa(!r.cabecalhos["content-security-policy"]?.includes("frame-ancestors 'none'") && !r.cabecalhos["x-frame-options"], `site: GET ${u} sem os cabeçalhos da central (nenhum rewrite, header nem middleware da central no site)`, JSON.stringify([r.cabecalhos["x-frame-options"], r.cabecalhos["content-security-policy"]]));
+    }
+    R.info(`site, páginas públicas-chave: ${medidos.join(", ")}`);
+  } finally {
+    await site.parar();
+  }
+}
+
+/** ATAQUE OBRIGATÓRIO (AC-29): no build da central, modo produção simulado, Host da central, sem cookie: nenhuma resposta da origem contém HTML do site público. Devolve a tabela. */
 async function a1PublicoFechado(srv) {
-  R.cabecalho("F3-C1 (A1, A9, A13): o projeto admin (Host da central) não serve o site público; todo 404 e todo 308 levam os cabeçalhos");
+  R.cabecalho("AC-29 (ataque obrigatório): o build da central, no Host da central, nunca devolve HTML do site público; todo 404 e toda resposta levam os cabeçalhos");
   const h = { host: HP };
-  const fora = ["/", "/entrar", "/api/me", "/pessoas", "/conta", "/api/places", "/api/qualquer", "/_next/data/x/y.json", "/p/x/opengraph-image", "/proposta/x/opengraph-image", "/robots.txt", "/rota-que-nao-existe", "/v2/x", "/votacoes", "/_next/admin-central-fora-do-escopo", "/ADMIN", "/aDmin", "/Admin/fila", "/ADMIN/api/estado", "/_NEXT/STATIC/x", "/_Next/static/chunks/x.js", "/GEO/br.json", "/Geo/uf/35.json", "/FAVICON.ICO"];
-  const rs = [];
-  for (const u of fora) rs.push([u, await C.crua(srv.base, u, { cabecalhos: h })]);
-  R.checa(rs.every(([, r]) => r.status === 404), `${fora.length} caminhos do site público (/, /entrar, /api/me, /pessoas, /conta, /api/places, imagens OG, /v2, ...) respondem 404`, rs.filter(([, r]) => r.status !== 404).map(([u, r]) => `${u} -> ${r.status}`).join("; "));
-  const semCab = rs.filter(([, r]) => problemasDeSeguranca(r.cabecalhos).length > 0);
-  R.checa(semCab.length === 0, "todo 404 do projeto admin fora de /admin leva X-Frame-Options DENY, Referrer-Policy same-origin e CSP com frame-ancestors 'none'", semCab.map(([u, r]) => `${u}: ${problemasDeSeguranca(r.cabecalhos).join("/")}`).join("; "));
-  const publico = rs.filter(([, r]) => /<(html|nav|header|main|footer)\b|segue o voto|quem·representa/i.test(r.texto));
-  R.checa(publico.length === 0, "o corpo do 404 não renderiza página pública (sem html, nav, header, main nem marca do site)", publico.map(([u]) => u).join(", "));
-  R.info(`corpo do 404 fora da central: ${JSON.stringify(rs[0][1].texto.slice(0, 80))} (${rs[0][1].texto.length} B)`);
+  const publicos = [];
+  (function anda(d) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) (e.isDirectory() ? anda(path.join(d, e.name)) : publicos.push("/" + path.relative(path.join(C.WEB, "public"), path.join(d, e.name)).split(path.sep).join("/")));
+  })(path.join(C.WEB, "public"));
+  const emPublic = (u) => publicos.includes(u) || u === "/favicon.ico"; // estáticos que a central serve (public/: malhas /geo e SVG; mais o favicon, ícone binário): 200, sem html
+  const fixos = ["/", "/entrar", "/pessoas", "/api/me", "/api/places", "/ADMIN", "/aDmin/fila", "/_NEXT/STATIC/x", "//admin", "/admin//fila", "/admin/fila/", "/%61dmin", "/admin%2Ffila", "/./admin", "/admin/./fila",
+    "/_next/image?url=/x&w=64&q=75", "/_next/data/x/y.json", "/admin?_rsc=1", "/icon", "/icon.png", "/apple-icon", "/opengraph-image", "/p/x/opengraph-image", "/manifest.webmanifest", "/robots.txt", "/sitemap.xml", "/favicon.ico"];
+  const caminhos = [...fixos, ...publicos.filter((u) => !fixos.includes(u))];
+  const tabela = [];
+  const ruins = [];
+  // ESTRANHEZA (declarada): o Next normaliza barras repetidas com um 308 que sai ANTES do middleware (sem cabeçalhos de segurança, Location relativo na própria origem, sem corpo de página). Não é vazamento de HTML; o destino do 308 é conferido abaixo
+  const REPETIDAS = new Set(["//admin", "/admin//fila"]);
+  for (const u of caminhos) {
+    const normal = await C.bruta(srv.base, u, { cabecalhos: h });
+    const rsc = await C.bruta(srv.base, u, { cabecalhos: { ...h, RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-State-Tree": "%5B%22%22%5D" } });
+    tabela.push({ u, normal, rsc });
+    const esperaOk = emPublic(u);
+    for (const [rot, r] of [["GET", normal], ["RSC+prefetch", rsc]]) {
+      if (MARCAS_DO_SITE.test(r.texto)) ruins.push(`${rot} ${u}: HTML/marca do site no corpo`);
+      if (REPETIDAS.has(u)) {
+        const loc = String(r.cabecalhos.location ?? "");
+        if (r.status !== 308 || !/^\/(?!\/)/.test(loc) || r.bytes > 64) ruins.push(`${rot} ${u}: esperado 308 para um caminho da própria origem, veio ${r.status} location ${loc} (${r.bytes} B)`);
+        else {
+          const seg = await C.bruta(srv.base, loc, { cabecalhos: h });
+          if (seg.status !== 404 || seg.bytes > 0 || problemasDeSeguranca(seg.cabecalhos).length) ruins.push(`${rot} ${u} -> ${loc}: o destino do 308 deu ${seg.status} (${seg.bytes} B)`);
+        }
+        continue;
+      }
+      if (esperaOk ? r.status !== 200 : r.status !== 404) ruins.push(`${rot} ${u}: status ${r.status} (esperado ${esperaOk ? 200 : 404})`);
+      const pr = problemasDeSeguranca(r.cabecalhos);
+      if (pr.length) ruins.push(`${rot} ${u}: cabeçalhos: ${pr.join("/")}`);
+      if (!esperaOk && r.bytes > 0) ruins.push(`${rot} ${u}: corpo de ${r.bytes} B (o 404 da guarda não tem corpo)`);
+    }
+  }
+  R.checa(ruins.length === 0, `${caminhos.length} caminhos x 2 formas (GET e RSC+Next-Router-Prefetch): todos 404 sem corpo, com os cabeçalhos (exceto os estáticos servidos: as 28 malhas /geo, os 5 SVG e o /favicon.ico, 200), nenhum corpo com html, nav, header, main, footer nem marca do site`, ruins.slice(0, 8).join("; "));
+  const linhas = tabela.map(({ u, normal, rsc }) => `  ${u.padEnd(34)} GET ${normal.status} ${String(normal.bytes).padStart(6)} B   RSC+prefetch ${rsc.status} ${String(rsc.bytes).padStart(6)} B`);
+  R.info("TABELA DO ATAQUE (caminho, status, tamanho do corpo):\n" + linhas.join("\n"));
+  // métodos: o mesmo caminho do site com POST/PUT/DELETE/OPTIONS/HEAD também 404 sem corpo
+  const metodos = [];
+  for (const u of ["/", "/entrar", "/api/me", "/pessoas", "/icon", "/robots.txt", "/_next/image?url=/x&w=64&q=75"]) for (const m of ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) {
+    const r = await C.bruta(srv.base, u, { metodo: m, cabecalhos: { ...h, origin: `https://${HP}`, ...(["POST", "PUT", "PATCH"].includes(m) ? { "content-type": "application/json" } : {}) }, corpo: ["POST", "PUT", "PATCH"].includes(m) ? "{}" : undefined });
+    if (r.status !== 404 || r.bytes > 0 || MARCAS_DO_SITE.test(r.texto)) metodos.push(`${m} ${u} -> ${r.status} ${r.bytes} B`);
+  }
+  R.checa(metodos.length === 0, "POST, PUT, PATCH, DELETE e OPTIONS em caminhos do site: 404 sem corpo", metodos.join("; "));
+  // a página de entrada é a única com html; não tem marca do site
+  const ent = await C.bruta(srv.base, "/admin/entrar", { cabecalhos: h });
+  R.checa(ent.status === 200 && /<html/i.test(ent.texto), "a única resposta com html é a página de entrada (/admin/entrar, 200)", `status ${ent.status}`);
+  const marca = ent.texto.match(/segue o voto|quem·representa|pauta lida|o que está rolando/i);
+  R.checa(!marca, "a página de entrada da central não tem marca do site ('Segue o Voto', 'quem·representa', 'pauta lida', 'o que está rolando')", String(marca?.[0]));
+  R.info(`/admin/entrar: ${ent.bytes} B; tags presentes: ${["nav", "header", "main", "footer"].filter((t) => new RegExp(`<${t}\\b`, "i").test(ent.texto)).join(", ") || "nenhuma de nav/header/main/footer"}`);
   const post = await C.crua(srv.base, "/", { metodo: "POST", cabecalhos: { ...cabPost, "next-action": "60416afe3fe7", "content-type": "text/plain;charset=UTF-8" }, corpo: "[]" });
   R.checa(post.status === 404 && problemasDeSeguranca(post.cabecalhos).length === 0, "POST / com Next-Action: 404 (e com os cabeçalhos)", `status ${post.status}`);
-  for (const u of ["/geo/br.json", "/geo/uf/35.json", "/favicon.ico"]) {
-    const r = await C.crua(srv.base, u, { cabecalhos: h });
-    R.checa(r.status === 200, `${u} (malha e favicon que a central usa) continua 200`, `status ${r.status}`);
-  }
-  for (const u of ["/geo/nao-existe.json", "/geo/uf/99.json", "/geo/", "/_next/static/nao-existe.js"]) {
-    const r = await C.crua(srv.base, u, { cabecalhos: h });
-    R.checa(r.status === 404 && r.texto.length < 64 && !/<html/i.test(r.texto) && problemasDeSeguranca(r.cabecalhos).length === 0, `${u}: 404 curto (${r.texto.length} B), sem página pública, com os cabeçalhos`, `status ${r.status} ${r.texto.length} B ${JSON.stringify(r.texto.slice(0, 40))}`);
-  }
   for (const u of ["/admin/fila/", "/admin/entrar/", "/admin/"]) {
     const r = await C.crua(srv.base, u, { cabecalhos: h });
     const pr = problemasDeSeguranca(r.cabecalhos);
-    R.checa((u === "/admin/entrar/" ? [200, 404] : [404]).includes(r.status) && pr.length === 0, `${u} (barra final, sem sessão): ${r.status} do middleware (a entrada, sem barra, é 200), sem o 308 que saía antes dos cabeçalhos (skipTrailingSlashRedirect), com X-Frame-Options DENY, Referrer-Policy e CSP com frame-ancestors 'none'`, `status ${r.status}; ${pr.join("; ")}`);
+    R.checa((u === "/admin/entrar/" ? [200, 404] : [404]).includes(r.status) && pr.length === 0, `${u} (barra final, sem sessão): ${r.status} do middleware, sem o 308 que saía antes dos cabeçalhos (skipTrailingSlashRedirect), com os cabeçalhos de segurança`, `status ${r.status} ${pr.join("/")}`);
   }
-  const d404 = await C.crua(srv.base, "/rota-que-nao-existe", { cabecalhos: h });
-  R.checa(d404.texto.length < 64 && !/<html/i.test(d404.texto), `o corpo do 404 fora da central é o do servidor de estáticos (${d404.texto.length} B), não uma página`, JSON.stringify(d404.texto.slice(0, 80)));
-  // o 404 da central e o do projeto levam a MESMA política efetiva (a do middleware é a completa; a do config só soma frame-ancestors 'none')
   const c404 = await C.crua(srv.base, "/admin/fila", { cabecalhos: h });
   R.info(`CSP do 404 de /admin/fila: ${c404.cabecalhos["content-security-policy"]}`);
 }
@@ -532,8 +618,8 @@ async function a1PublicoFechado(srv) {
 /** Nenhuma server action roda sob /admin (o id da action vale em qualquer caminho): o id de CADA action pública do build, POST em páginas da central e fora dela = 404 e nenhuma ida ao Supabase. */
 async function a1ActionsPublicas() {
   R.cabecalho("F3-C1 (A13): nenhuma server action roda na central: o id de cada action pública do build, em /, /admin, /admin/fila e /admin/entrar (JSON text/plain e multipart), responde 404 sem efeito");
-  const ids = Object.keys(lerJson(path.join(C.WEB, C.DIST_ADMIN_PROD, "server/server-reference-manifest.json")).node);
-  R.checa(ids.length >= 10, `o manifesto do build admin lista ${ids.length} actions públicas (as do site)`, String(ids.length));
+  const ids = Object.keys(lerJson(path.join(C.WEB, ".next/server/server-reference-manifest.json")).node); // as actions PÚBLICAS: as do build do SITE (o build da central não tem nenhuma)
+  R.checa(ids.length >= 10, `o manifesto do build do SITE lista ${ids.length} actions públicas`, String(ids.length));
   const falso = await C.supabaseFalso("drop");
   const srv = await C.subirNext(await C.envProducao(C.BANCO_C7, { NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${falso.porta}` }));
   // centenas de conexões curtas em sequência esgotam portas efêmeras no macOS (EADDRNOTAVAIL): repete com pausa
@@ -787,17 +873,26 @@ async function completo() {
   const { rotas, extras } = descobrirRotas();
   const dentro = rotas.filter((r) => !r.foraDoGrupo);
 
-  // ---- build
-  R.cabecalho("build");
+  // ---- build (AC-29: três builds disjuntos do mesmo código: o SITE em .next (nenhuma ADMIN_*), a central LOCAL em .next-admin-local e a central de PRODUÇÃO em .next-admin-prod)
+  R.cabecalho("build do SITE (condições do CI: fonte demo, nenhuma ADMIN_*) e da central local (ADMIN_CENTRAL=1)");
   const buildId = path.join(C.WEB, ".next", "BUILD_ID");
   if (C.temFlag("--sem-build")) {
     R.checa(C.existe(buildId), "--sem-build: reaproveita o .next existente", "não há .next/BUILD_ID: rode sem --sem-build");
   } else {
-    const b = C.rodar(process.execPath, [path.join(C.WEB, "node_modules/next/dist/bin/next"), "build"], { cwd: C.WEB, env: C.envCi(), timeout: 480_000 });
-    R.checa(b.rc === 0 && /Compiled successfully/.test(b.out), `next build (fonte demo, sem ADMIN_*, sem banco) terminou com código ${b.rc} em ${t()}`, b.out.slice(-600) + b.err.replace(/ERROR: failed to copy trust settings.*\n/g, "").slice(-400));
-    const faltam = dentro.filter((r) => !b.out.includes("/" + r.seg.join("/") + " "));
-    R.checa(faltam.length === 0, "todas as rotas da central aparecem na tabela de rotas do build", faltam.map((r) => r.arquivo).join(", "));
+    const b = C.construirSite();
+    R.checa(b.rc === 0 && /Compiled successfully/.test(b.out), `next build do SITE (fonte demo, sem ADMIN_*, sem banco) terminou com código ${b.rc} em ${t()}`, b.out.slice(-600) + b.err.replace(/ERROR: failed to copy trust settings.*\n/g, "").slice(-400));
+    R.checa(!/\/admin/.test(b.out) && !/Middleware/.test(b.out), "a tabela de rotas do build do SITE não tem nenhuma rota /admin nem a linha de Middleware", (b.out.match(/.*(?:\/admin|Middleware).*/g) ?? []).slice(0, 4).join(" | "));
   }
+  restauraTsconfig();
+  await siteSemCentral();
+  const bl = C.temFlag("--sem-build") && C.existe(path.join(C.WEB, C.DIST_ADMIN_LOCAL, "BUILD_ID")) ? null : C.construirCentral("1");
+  if (bl) {
+    R.checa(bl.rc === 0 && /Compiled successfully/.test(bl.out), `next build da central local (ADMIN_CENTRAL=1, pasta ${C.DIST_ADMIN_LOCAL}) terminou com código ${bl.rc} em ${t()}`, bl.out.slice(-600));
+    const faltam = dentro.filter((r) => !bl.out.includes("/" + r.seg.join("/") + " "));
+    R.checa(faltam.length === 0, "todas as rotas da central aparecem na tabela de rotas do build da central", faltam.map((r) => r.arquivo).join(", "));
+    const fora = (bl.out.match(/^[├└┌│ ]*[ƒ○●]\s+(\/\S*)/gm) ?? []).map((l) => l.match(/\/\S*/)[0]).filter((u) => !(u === "/_not-found" || u === "/admin" || u.startsWith("/admin/")));
+    R.checa(fora.length === 0, "a tabela de rotas do build da central só tem /admin* (nenhuma página, rota ou metadado do site)", fora.join(", "));
+  } else R.ok(`--sem-build: reaproveita ${C.DIST_ADMIN_LOCAL}`);
   restauraTsconfig();
   construirAdminProducao(t);
   restauraTsconfig();
@@ -1019,7 +1114,7 @@ async function completo() {
     try {
       const st = await Promise.all(["/admin", "/admin/fila", "/admin/api/estado"].map((p) => C.http(fora.base, p)));
       R.checa(st[0].status === 500 && st[1].status === 500 && st[2].status === 503 && /Não foi possível ler o banco/.test(st[2].texto), "banco inalcançável (porta fechada), modo local: páginas 500 e API 503 com \"Não foi possível ler o banco\" (nunca 404 \"sessão expirou\" nem 200)", st.map((x) => x.status).join(","));
-      R.checa((await C.http(fora.base, "/")).status === 200, "o site público continua 200 com o banco da central fora do ar");
+      R.checa((await C.http(fora.base, "/")).status === 404, "o build da central não tem site: `/` segue 404 (sem corpo) com o banco da central fora do ar");
     } finally {
       await fora.parar();
     }
