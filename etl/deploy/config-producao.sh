@@ -330,6 +330,9 @@ if has_v SITE_URL Production && ! confirm "SITE_URL já existe. Regravar com $SI
 else vset SITE_URL production plain "$SITE" || true; fi
 say "SESSION_SECRET salga o hash diário de IP do limite de sugestões (sem ela o sal é fixo e público)."
 if has_v SESSION_SECRET Production && has_v SESSION_SECRET Preview && ! confirm "SESSION_SECRET já existe. Gerar outra?"; then say "Mantida."
+elif [[ "$AUTH_ALVO" == pg ]]; then
+  # com o login pg o SESSION_SECRET assina o cookie de sessão: Preview com o mesmo segredo forjaria sessão de produção
+  SS=$(gen); vset SESSION_SECRET production sensitive "$SS" || true; SS=$(gen); vset SESSION_SECRET preview sensitive "$SS" || true; unset SS
 else SS=$(gen); vset SESSION_SECRET production,preview sensitive "$SS" || true; unset SS; fi
 pause "Enter para seguir"
 
