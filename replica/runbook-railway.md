@@ -105,7 +105,7 @@ pg_dump "$DESTINO_CIVICO" -Fc --no-owner -f civico-$(date +%F-%H%M).dump   # ant
 pg_restore --list civico-*.dump | head                                      # conferir que abre
 ```
 - Antes do corte: um dump do `civico` de destino (ele tem de estar vazio ou ser o ensaio promovido) **e** a origem continua intacta no Supabase (não apagar por pelo menos 14 dias; Supabase Pro tem PITR).
-- Diário depois do corte: agendar fora do Railway (Mac via launchd ou GitHub Actions com a URI em secret), guardar 7 dias em disco local e 1 por semana fora da máquina. **Pendente**: o agendamento em si não foi criado no P1 (precisa do destino do arquivo e de decisão sua).
+- Diário depois do corte: agendar fora do Railway (Mac via launchd ou GitHub Actions com a URI em secret), guardar 7 dias em disco local e 1 por semana fora da máquina. Agendamento pronto: `bash db/railway/backup-launchd.sh install` (URI do `civico_etl` no Keychain, agente `org.civico.backup.railway` às 03:20, dumps em `~/Backups/segueovoto`, confere cada dump com `pg_restore --list`, rotação de 7 diários + 4 domingos, alerta pelo webhook do ETL; `status` e `run-now` para acompanhar). Ainda **não instalado**: instale depois do corte, com a URI de produção. Cópia semanal fora da máquina continua manual.
 - Alerta de disco: alerta do Railway no volume em 70% e 85%. Medir no ensaio quanto um `run-due` completo cresce o banco e o WAL (tabela do §2). Fazer conta: `folga / crescimento por run-due completo` em runs; se for menos que um mês de runs, pedir mais volume antes do corte.
 - Tabelas que mais crescem: `expenses`, `votes`, `raw_*` (`replica/runbook-raw-storage.md`) e o `identity_repair_log`.
 
