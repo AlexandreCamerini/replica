@@ -10,6 +10,7 @@ import { placarDe } from "@/components/sv/placar";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Placar, Proxima, Quadro, Resposta, Selo, VotoMarca } from "@/components/sv/ui";
 import { data, type VoteValue, type VotingEventDetail } from "@/lib/data";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 const ID = /^[A-Za-z0-9-]{1,80}$/;
 const load = (id: string) => (ID.test(id) ? data.getVotingEvent(id) : Promise.resolve(null));
@@ -49,7 +50,7 @@ function PlacarDaUf({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
 
 /** Quem votou, por voto (ordem fixa) e, dentro de cada voto, em ordem alfabética. Um <ul> por voto. */
 function Nomes({ ev, uf }: { ev: VotingEventDetail; uf: string }) {
-  const people = ev.votes.filter((v) => v.uf === uf).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const people = ev.votes.filter((v) => v.uf === uf).sort((a, b) => compararNomes(a.name, b.name));
   if (people.length === 0) return <Lacuna>Não consta voto registrado de parlamentares de {uf} nesta votação.</Lacuna>;
   return (
     <div className="sv-vt-grupos">

@@ -8,6 +8,7 @@ import { lerOuFalhar } from "@/components/sv/simular";
 import { Cobertura, Fonte, Lacuna, Nota, Quadro, VotoMarca } from "@/components/sv/ui";
 import { data, type CoberturaConjunto, type MandateStatus, type OfficeSlug, type PersonVote, type Place } from "@/lib/data";
 import { dayKey, fmtLong } from "./datas";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 // Esfera em palavra, derivada do cargo do mandato. Mesma forma para toda pessoa; sem estilo próprio por esfera.
 const ESFERA: Record<OfficeSlug, string> = {
@@ -92,7 +93,7 @@ async function carregar(slugs: string[], falhar: boolean): Promise<{ lista: Esco
     const votos = votosR ? (votosR[person.id]?.items ?? []) : null;
     return { slug: person.slug, nome: person.displayName, esfera: m ? ESFERA[m.office] : null, cargo, office: m?.office ?? null, uf, votos, posse, cobVotos: cobR ? (cobDe.get(person.id) ?? null) : null };
   });
-  return { lista: rows.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), falhas: 0 };
+  return { lista: rows.sort((a, b) => compararNomes(a.nome, b.nome)), falhas: 0 };
 }
 
 function SemVotos({ e }: { e: Escolhido }) {

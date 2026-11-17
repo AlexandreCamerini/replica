@@ -45,6 +45,7 @@ import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 const SLUG = /^[a-z0-9-]{1,120}$/;
 // cache(): generateMetadata e a página leem a mesma pessoa numa só ida ao banco por requisição
@@ -267,7 +268,7 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
   const lidoEm = refresh.ok ? refresh.v : null;
   const outras = outros
     .flatMap((o) => (o.ok && o.v && !o.v.redirectTo ? [o.v.person] : []))
-    .sort((a, b) => a.displayName.localeCompare(b.displayName, "pt-BR"));
+    .sort((a, b) => compararNomes(a.displayName, b.displayName));
   const fonteMandato = main ? (FONTE_MANDATO[main.statusSource] ?? "fonte oficial do mandato") : "";
 
   return (

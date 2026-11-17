@@ -6,6 +6,7 @@ import { FOLLOW_MAX } from "./follow-shared";
 import { fraseMarcados } from "./marcados-frase";
 import { COOKIE_TEXTO } from "./prefs-shared";
 import { Nota } from "./ui";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 // Lista de pessoas da D2 (/pessoas e o passo 2 de /comecar), com o botão de marcar em cada linha (D324).
 // Toda pessoa tem a mesma moldura: nome (link), cargo e lugar com o partido em palavra, esfera em palavra, botão.
@@ -68,7 +69,7 @@ export function Marcados({ guardadas, pessoas, sobrando = [] }: { guardadas: num
  * aparece marcado, e desmarcar tira todos os endereços dela. null (a leitura falhou) = vale só o slug cru do cookie.
  */
 export function ListaPessoas({ items, marcados, porPessoa = null }: { items: Officeholder[]; marcados: readonly string[] | null; porPessoa?: Record<string, string[]> | null }) {
-  const sorted = [...items].sort((a, b) => a.person.displayName.localeCompare(b.person.displayName, "pt-BR"));
+  const sorted = [...items].sort((a, b) => compararNomes(a.person.displayName, b.person.displayName));
   const cheio = !!marcados && marcados.length >= FOLLOW_MAX;
   return (
     <ul className="sv-pp">
