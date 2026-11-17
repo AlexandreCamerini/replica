@@ -16,6 +16,7 @@ import { Lacuna, Nota, Notice, Quadro, Resposta } from "@/components/sv/ui";
 import { data, type OfficeSlug, type Place } from "@/lib/data";
 import { salvarUf } from "../ajustes/actions";
 import { salvarCidadeDoComeco } from "./actions";
+import { AvisoDeEnvio } from "@/components/sv/carregando";
 
 // Começo em dois passos (D324): 1) estado e, se quiser, cidade; 2) marcar em quem votou. Sem conta e sem banco: só os
 // cookies que já existiam (sv_uf, sv_esferas, sv_sigo), gravados pelas mesmas ações dos Ajustes e da página da pessoa.
@@ -82,6 +83,7 @@ async function Passo1({ prefs, erro, falhar }: { prefs: Prefs; erro: boolean; /*
           <button type="submit" className="sv-enviar">
             {uf ? "Trocar estado" : "Guardar estado"}
           </button>
+          <AvisoDeEnvio />
           <p className="sv-nota" id="cm-uf-d">
             {COOKIE_TEXTO}
           </p>
@@ -109,6 +111,7 @@ async function Passo1({ prefs, erro, falhar }: { prefs: Prefs; erro: boolean; /*
               <button type="submit" className="sv-enviar">
                 Guardar cidade e continuar
               </button>
+              <AvisoDeEnvio />
             </form>
           ) : (
             <Lacuna motivo={`A lista de municípios que o site carregou não traz nenhum de ${uf.sigla}. Sem cidade, você segue com o estado e o Congresso.`}>Ainda não temos cidades de {uf.sigla} para escolher.</Lacuna>

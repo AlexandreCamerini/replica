@@ -1,3 +1,4 @@
+import { AvisoDeEnvio } from "./carregando";
 import { alternarEscolhido } from "./follow-actions";
 import { FOLLOW_MAX } from "./follow-shared";
 import { COOKIE_TEXTO } from "./prefs-shared";
@@ -14,6 +15,7 @@ export function FollowButton({ slug, name, on, cheio }: { slug: string; name: st
       <button className="sv-follow" type="submit" aria-pressed={on} disabled={!on && cheio}>
         {on ? "Você acompanha" : "Votei nesta pessoa: acompanhar"}
       </button>
+      <AvisoDeEnvio />
       <p className="sv-meta sv-mt-1" style={{ fontWeight: 400 }} role="status">
         {on ? `${name} aparece em destaque na sua página inicial.` : cheio ? `Você já acompanha ${FOLLOW_MAX} pessoas, o limite. Tire alguém para incluir.` : COOKIE_TEXTO}
       </p>

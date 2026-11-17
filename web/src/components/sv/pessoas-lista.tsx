@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Officeholder } from "@/lib/data";
 import { esferaDoCargo } from "./esfera";
+import { AvisoDeEnvio } from "./carregando";
 import { alternarEscolhido, esquecerMarcacoes } from "./follow-actions";
 import { FOLLOW_MAX } from "./follow-shared";
 import { fraseMarcados } from "./marcados-frase";
@@ -27,6 +28,7 @@ export function MarcarPessoa({ slug, nome, on, cheio, tambem = [] }: { slug: str
       <button className="sv-follow" type="submit" aria-pressed={on} aria-label={`${texto}: ${nome}`} disabled={!on && cheio}>
         {texto}
       </button>
+      <AvisoDeEnvio />
     </form>
   );
 }
@@ -50,6 +52,7 @@ export function Marcados({ guardadas, pessoas, sobrando = [] }: { guardadas: num
           <button className="sv-follow" type="submit">
             {sobrando.length === 1 ? "Tirar a marcação que não entra na conta" : `Tirar as ${sobrando.length} marcações que não entram na conta`}
           </button>
+          <AvisoDeEnvio />
         </form>
       )}
       {guardadas > 0 && (
