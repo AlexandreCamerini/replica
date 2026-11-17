@@ -46,6 +46,7 @@ TABELAS_ADM = (
     "adm_overrides",
     "adm_pareceres",
     "adm_pedidos",
+    "adm_pedidos_decisao",  # 0153: a constante segue o número real de tabelas adm_*
 )
 ROLES_SEM_ACESSO = ("web_reader", "web_writer", "anon", "authenticated")
 SHA = "a" * 64
@@ -238,7 +239,8 @@ def test_onze_tabelas_com_rls_sem_policy_e_sem_privilegio(db):
     assert existentes == set(TABELAS_ADM)
     for t in TABELAS_ADM:
         assert db.one("select relrowsecurity as r from pg_class where oid = %s::regclass", (f"public.{t}",))["r"], f"{t} sem RLS"
-    assert db.x("select tablename, policyname from pg_policies where tablename like 'adm\\_%'").fetchall() == []
+    # a 0153 cria só as policies do admin_central; qualquer policy de outro role (ou `to public`) continua falhando aqui (as do admin_central: test_admin_grants.py)
+    assert db.x("select tablename, policyname from pg_policies where tablename like 'adm\\_%' and roles <> '{admin_central}'").fetchall() == []
     roles = [r["rolname"] for r in db.x("select rolname from pg_roles where rolname = any(%s)", (list(ROLES_SEM_ACESSO),)).fetchall()]
     assert {"web_reader", "anon", "authenticated"} <= set(roles), roles  # os que a migração local cria
     for role in roles:
@@ -610,7 +612,7 @@ def test_0151_colunas_novas_nulas_ou_com_default(db):
     assert (cols["tentou_valor"]["data_type"], cols["tentou_valor"]["is_nullable"]) == ("jsonb", "YES")
     assert (cols["tentou_em"]["data_type"], cols["tentou_em"]["is_nullable"]) == ("timestamp with time zone", "YES")
     assert (cols["tentou_vezes"]["is_nullable"], cols["tentou_vezes"]["column_default"]) == ("NO", "0")
-    assert db.one("select relrowsecurity, (select count(*) from pg_policies where tablename = 'adm_overrides') as pol from pg_class where relname = 'adm_overrides'") == {"relrowsecurity": True, "pol": 0}
+    assert db.one("select relrowsecurity, (select count(*) from pg_policies where tablename = 'adm_overrides' and roles <> '{admin_central}') as pol from pg_class where relname = 'adm_overrides'") == {"relrowsecurity": True, "pol": 0}
     assert db.one("select count(*) as n from pg_trigger where tgrelid = 'sapl_houses'::regclass and tgname = 'adm_override'")["n"] == 1  # o gatilho da 0150 não foi recriado nem duplicado
 
 

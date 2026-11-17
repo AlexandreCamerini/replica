@@ -366,6 +366,9 @@ Onze tabelas internas, com RLS ligada, sem policy e sem grant a `web_reader`, `w
 - `adm_overrides`: o valor que uma decisão fixou, lido pelos gatilhos abaixo.
 - `adm_pareceres`: parecer de IA guardado (nesta entrega, só motor de ensaio, com `simulado`).
 - `adm_pedidos`: fila entre a central e o executor, com `chave_idem` única enquanto o pedido está ativo.
+- `adm_pedidos_decisao` (migração `db/migrations/0153_admin_central.sql`): pedido de decisão feito pela tela; o executor o valida com `decisoes.decidir` e grava a decisão em `adm_decisoes` (a central nunca grava ali). Mesma regra de `chave_idem` e de estados de `adm_pedidos`.
+
+O role `admin_central` (0153, `nologin` e sem senha; login só local em `db/local/post_0003_admin_central.sql`) lê as `adm_*` e doze tabelas de domínio por policy própria e só insere em `adm_pedidos` e `adm_pedidos_decisao`; não tem update, delete nem acesso a `people` e `pipeline_switches`.
 
 Gatilhos novos em tabelas existentes, sem coluna nova: `adm_override` em `sapl_houses` (`base_url`, `status`), em `data_coverage` (`status`, `reason`, `evidence_url`) e em `mandate_contacts` (descarta o insert de contato suprimido). Sem linha vigente em `adm_overrides`, o que o job grava não muda. A fonte `curadoria` entra em `sources` pela mesma migração, para contatos corrigidos à mão.
 
