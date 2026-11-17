@@ -265,7 +265,7 @@ O mapa usa outros estados por território (`lida`, `falhou`, `em_andamento`, `se
 
 ### 2. Pedidos e executor
 
-**Regra.** Toda ação da tela é um pedido (AC-19). A central grava; o executor aplica. O role `admin_central` só tem `select` nas tabelas que a central lê e `insert` em `adm_pedidos` e `adm_pedidos_decisao`. Não tem `update`, `delete` nem acesso a `people`, `pipeline_switches` ou `corrections` (migração `db/migrations/0153_admin_central.sql`).
+**Regra.** Toda ação da tela é um pedido (AC-19). A central grava; o executor aplica. O role `admin_central` só tem `select` nas tabelas que a central lê e `insert` em `adm_pedidos` e `adm_pedidos_decisao`, com `criado_em` preso ao relógio do banco (migrações 0154 e 0155, AC-21 e AC-22). Não tem `update`, `delete` nem acesso a `people`, `pipeline_switches` ou `corrections` (migração `db/migrations/0153_admin_central.sql`).
 
 **Endpoints de envio.** Ambos aceitam JSON de até 64 KiB, recusam campo fora do esperado e recusam origem externa (`recusarOrigemExterna`). Respondem `{ "id", "novo" }`.
 
@@ -360,10 +360,10 @@ Estado de execução nesta entrega: o Playwright não roda no sandbox, e a prova
 
 Nada disto foi feito. Produção está na `0120_raw_copy.sql` segundo `replica/runbook-migracoes-producao.md`.
 
-1. **Aplicar 0150 a 0153 em produção.** O runbook atual cobre só 0130, 0131, 0140 e 0141. Ele precisa ser estendido antes de qualquer aplicação. Ordem e risco de cada uma: ver os cabeçalhos das migrações e a seção 4.1 de `replica/fluxo-de-dados.md`. A branch também tem `db/migrations/0142_drop_expenses_supplier_doc_idx.sql`, que o `main` ainda não tem; o runbook deve cobri-la ou ser conferido contra ela.
+1. **Aplicar 0150 a 0155 em produção.** O runbook atual cobre só 0130, 0131, 0140 e 0141. Ele precisa ser estendido antes de qualquer aplicação. Ordem e risco de cada uma: ver os cabeçalhos das migrações e a seção 4.1 de `replica/fluxo-de-dados.md`. A branch também tem `db/migrations/0142_drop_expenses_supplier_doc_idx.sql`, que o `main` ainda não tem; o runbook deve cobri-la ou ser conferido contra ela.
 2. **Publicar a central com login e papel de admin.** Hoje não há autenticação. Falta:
    - autenticação do operador (hoje a central confia na rede local);
    - papel de admin, separado do usuário comum do site;
    - auditoria de quem pediu: `por_nome` é texto livre do formulário, não identidade autenticada, e não há registro de sessão;
    - hospedagem fora da Vercel pública ou proteção equivalente, já que a guarda depende de `VERCEL` e `VERCEL_ENV` e da URL local, que um túnel ou um deploy sem essas variáveis contorna.
-3. **Renumerar se o `main` andou.** As migrações 0150 a 0153 e as decisões AC-19 e AC-20 foram numeradas sobre a base desta branch. Se outra migração ou decisão entrar no `main` antes, renumere: migração publicada não se edita (`db/migrate.sh` falha por checksum), e a referência cruzada nos cabeçalhos e neste documento muda junto.
+3. **Renumerar se o `main` andou.** As migrações 0150 a 0155, as decisões D325 e D326 de `replica/decisions.md` e as AC-01 a AC-22 foram numeradas sobre a base desta branch. Se outra migração ou decisão entrar no `main` antes, renumere: migração publicada não se edita (`db/migrate.sh` falha por checksum), e a referência cruzada nos cabeçalhos e neste documento muda junto.
