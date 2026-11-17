@@ -1,4 +1,4 @@
-# Admin de coleta · relato final (RASCUNHO, a conferir pelo verificador do relato)
+# Admin de coleta · relato final (verificado por agente independente e corrigido)
 
 Fonte de cada linha: o arquivo ou teste citado. Onde não há prova, está escrito "sem prova encontrada". Nada aqui foi lido de fonte real: toda rodada de coleta desta entrega é SIMULADA (respostas fabricadas em `etl/tests/fixtures/sapl_ale`).
 
