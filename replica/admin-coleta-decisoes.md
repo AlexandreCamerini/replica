@@ -31,7 +31,7 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Escolha: (d), com (c) quando o erro é o vínculo. Para contato: linha com fonte própria `curadoria`, que o delete do job não alcança, e supressão do valor descartado por gatilho `before insert`.
 - Motivo: (a) e (b) editam três coletores por dentro e não valem para o Mac em versão antiga. (d) não toca coletor e, sem linha em `adm_overrides`, grava o mesmo que hoje.
 - Risco assumido: é o ponto mais discutível contra a restrição 4 ("só aditiva"). O gatilho não altera coluna nem dado existente, mas passa a reescrever valor de job em tabela existente quando há override. O custo por linha é medido na tarefa A1.
-- Materializa: seção 2 do plano; migração `db/migrations/0150_admin_coleta.sql` (commit da tarefa A1); D326 em `replica/decisions.md`.
+- Materializa: seção 2 do plano; migração `db/migrations/0150_admin_coleta.sql` (commit da tarefa A1); D334 em `replica/decisions.md`.
 - Custo medido na A1 (33 mil linhas de `data_coverage`, `on conflict do nothing`, melhor de 3): sem override, 49 ms sem gatilho e 115 ms com gatilho quando as linhas já existem (o caso de `derive.stats`), e 288 ms contra 337 ms com linhas novas; com um override vigente de cobertura, 268 ms e 533 ms.
 - Limite achado na A1: o gatilho roda com o privilégio de quem grava e lê `adm_overrides`. Hoje só o dono do banco grava nessas três tabelas. Um role sem leitura em `adm_overrides` que passe a gravar nelas faria o gatilho falhar.
 - Desfazer: `drop trigger` nas três tabelas e `git revert` da migração. Migração já aplicada no banco local não volta só com o revert.
@@ -85,10 +85,10 @@ Decisões tomadas sem consulta ao dono, uma entrada por decisão. Formato: o que
 - Data e fase: 2026-11-15, fim da fase R.
 - Verificação: Sonnet de contexto limpo sobre `git diff 39ee3ec..2743a74` (relatório `verificacao/parte-r.md`); correções no commit `3758712`; reverificação única por outro Sonnet, só leitura (`verificacao/parte-r-v2.md`).
 - Veredito dos dois: a reorganização não mudou comportamento. Nenhum arquivo de `etl/civico_etl/` fora de `catalogo/` foi tocado, nenhum teste que já existia foi alterado, e nenhum módulo de produção importa `catalogo`.
-- Corrigido: referências erradas do BUG-056; teste de entrada inalterada com `db.run` real (para `ibge.populacao`); linha de `PAGE` e a explicação de `--ibge` em `sapl.ales`; `assert` trocado por `RuntimeError`; mensagem de `SystemExit` no runner em processo; decisão renumerada de D324 para D325, porque o `main` já tem uma D324.
+- Corrigido: referências erradas do BUG-056; teste de entrada inalterada com `db.run` real (para `ibge.populacao`); linha de `PAGE` e a explicação de `--ibge` em `sapl.ales`; `assert` trocado por `RuntimeError`; mensagem de `SystemExit` no runner em processo; decisão renumerada de D324 para D333, porque o `main` já tem uma D324.
 - Não corrigido, por decisão:
   - R-7 fica "parcial" se lido ao pé da letra. A frase "entrada inalterada interrompe a cadeia" é falsa no código (BUG-056); o teste fixa o comportamento real. Para `camara.diario` e `senado.diario` a prova de entrada inalterada usa gravadores; com `db.run` real, só `ibge.populacao`. Fabricar a entrada inteira desses dois comandos custa mais do que rende nesta entrega.
-  - O catálogo repete URLs, tabelas e sete consultas de leitura que espelham a seleção dos jobs, e nenhum teste pega URL ou tabela declarada errada. Declarado na D325.
+  - O catálogo repete URLs, tabelas e sete consultas de leitura que espelham a seleção dos jobs, e nenhum teste pega URL ou tabela declarada errada. Declarado na D333.
   - 15 dos 24 coletores seguem sem teste que chame a função de entrada. O catálogo marca cada um (`caracterizado`), e nenhum deles foi tocado por dentro.
   - `banco_isolado` supõe um processo de teste por servidor Postgres (usa o PID no nome do banco).
 - SQL novo da fase R, para o critério R-9 (só leitura, dentro de `descrever` e só quando recebe conexão): `catalogo/contrato.py` (deputados com mandato aberto; municípios por código; casas do SAPL por código), `catalogo/adaptadores_a.py` (casas do SAPL das Assembleias), `catalogo/adaptadores_b.py` (duas consultas de parlamentares em exercício), `catalogo/adaptadores_c.py` (UFs). Nenhum SQL de domínio, parser ou regra de identidade foi alterado.

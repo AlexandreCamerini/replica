@@ -49,7 +49,7 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 
 - Plano: `replica/admin-coleta-plano.md`, versão final no commit `ce1316a` (AC-06).
 - Decisões: `replica/admin-coleta-decisoes.md`, AC-01 a AC-07. `replica/decisions.md` ainda sem entrada nova (último número existente: D323). Última migração existente: `0142`; nenhuma criada.
-- Fase R: concluída e verificada (AC-08). 16 subagentes de um teto de 16. A linha da R11 abaixo cita o commit em que a decisão ainda se chamava D324; ela foi renumerada para D325 em `97c7930`.
+- Fase R: concluída e verificada (AC-08). 16 subagentes de um teto de 16. A linha da R11 abaixo cita o commit em que a decisão ainda se chamava D324; ela foi renumerada para D325 em `97c7930` e, na junção com o `main` de 17/11/2026 (que já usava D325 a D332), para D333; a D326 desta entrega virou D334.
 - Fase A: concluída (AC-11). 6 subagentes de um teto de 14. Commits: A1 `068e2c6`, A2 `9085621`, A3 `ae681ac`, A4 `1737029`, A5 `9900a7b`, A6 no commit seguinte a este estado.
 - Fase B: concluída e verificada (AC-18). 10 subagentes de um teto de 16. Commits: B1 `16fa1a9`, B2 `565c687`, B3a `ab55781`, B3b `538be3a`, B4 `50f96af`, B5 `e2c2005`, B6 `ac43528`, ajuste do `env_extra` no commit seguinte a este estado. Migrações `0150` a `0152` aplicadas em `admin_coleta` (41). O banco `admin_coleta_r1` foi criado antes da `0152`: rodar o roteiro da primeira rodada de novo antes do relato.
 - Fase C: concluída e verificada (AC-21, AC-22; exceção de TRACE no critério 15 aprovada pelo dono). Subagentes da fase: 16 de 20 (C1 a C9 Sonnet, C10 Haiku, verificador Opus, C11 Sonnet, reverificador Opus, rascunho do relato Sonnet, verificador do relato Sonnet, correção do relato Sonnet; Haiku 1, Sonnet 13, Opus 2). Commits adicionais: C11 `51463d1`, C12 `4f41947`, aprovação `fd34c1f`, evidências do fechamento `9177692`. Migrações `0150` a `0155` aplicadas em `admin_coleta` (44).
@@ -74,14 +74,14 @@ Saídas completas na pasta de notas da sessão, subpasta `linha-de-base/` (fora 
 | R9 entradas simples (IBGE, governos, receita) | Haiku | aceita; devolveu duas perguntas antes de escrever, respondidas | 0 | `ee9b3a9` |
 | Integração dos três lotes em `COLETORES` | orquestrador | feita | | `ee9b3a9` |
 | R10 testes de R-5 e R-7 e ajuste de 7 testes da própria entrega | Sonnet | aceita | 0 | `ee9b3a9` |
-| R11 documentação, BUG-056 a BUG-060, D325 | Haiku | aceita | 0 | `2743a74` |
+| R11 documentação, BUG-056 a BUG-060, D333 | Haiku | aceita | 0 | `2743a74` |
 | Verificador da Parte R | Sonnet | concluído: sem mudança de comportamento; 8 achados menores | | relatório `verificacao/parte-r.md` |
 | R12 correções do verificador | Sonnet | aceita | 0 | `3758712` |
 | Reverificador da Parte R | Sonnet | concluído: achados resolvidos, salvo os mantidos em AC-08 | | relatório `verificacao/parte-r-v2.md` |
 
 - Suíte ao fim da fase R: `994 passed, 33 skipped, 4 xfailed` (linha de base: 767, 33, 4).
 - Critérios com prova, antes do verificador: R-1 (nenhum teste antigo alterado), R-2 (sete comandos caracterizados; cinco módulos declarados sem caracterização e não tocados), R-3, R-4, R-5 (com AC-04), R-6, R-7 (comportamento real fixado; BUG-056), R-8, R-9 (`git diff --stat 39ee3ec..ee9b3a9 -- etl/civico_etl` só acrescenta `catalogo/`), R-10 (mesmos 7 problemas).
-- Decisões: AC-01 a AC-07. `replica/decisions.md`: D325 (AC-02) gravada; a do item 2 do plano (AC-03) entra com a migração, na fase A. Última migração existente: `0142`; nenhuma criada.
+- Decisões: AC-01 a AC-07. `replica/decisions.md`: D333 (AC-02) gravada; a do item 2 do plano (AC-03) entra com a migração, na fase A. Última migração existente: `0142`; nenhuma criada.
 - Pontos em aberto para a fase A: (1) `sapl.assembleias` está com `reprocessar` não suportado no catálogo (carga por cursor), e o passo 5 da primeira rodada pede reprocessamento sem rede nesse recorte: decidir em A5, lendo `--full` em `jobs/sapl.py`; (2) `reprocessar` hoje usa o mesmo argv de `recoletar`: o executor decide se acrescenta `--force` onde o comando aceita.
 - Achados dos testes de caracterização a levar para `replica/bugs.md` na R11 (comportamento real, não corrigido): `camara.equipe` apaga toda a equipe se o CSV vier sem linha válida e não registra `rows_read` nem `rows_deleted`; `parlamento.extras` apaga contato de fonte `camara` ou `senado` em qualquer mandato com contato na rodada, contra o que a docstring diz, e o nome de comissão depende da ordem sem `order by`; `receita.arrecadacao` e `governos.indicadores` validam fora do `run()`, então falha de validação não deixa run `failed`; `governos.indicadores` não carimba `governos.bcb` na rodada pulada; `ibge.places` faz cada região pai de si mesma; `cli.py` tem `except SkipUnchanged` que nunca atua para job com checksum.
 
