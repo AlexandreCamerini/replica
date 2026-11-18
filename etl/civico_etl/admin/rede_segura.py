@@ -92,5 +92,8 @@ def motivo_enderecos(host: str, infos: Any) -> str | None:
     for ip in ips:
         motivo = _proibido(ip)
         if motivo:
-            return f"o host {host} resolve para {ip}, que é {motivo}: só IP público"
+            # IPv4 mapeado em IPv6: o Python 3.12 escreve `::ffff:a00:1` e o 3.13+ `::ffff:10.0.0.1`; a mensagem usa sempre a forma com pontos (a que se lê e a que o teste confere)
+            mapeado = getattr(ip, "ipv4_mapped", None)
+            texto = f"::ffff:{mapeado}" if mapeado is not None else str(ip)
+            return f"o host {host} resolve para {texto}, que é {motivo}: só IP público"
     return None
