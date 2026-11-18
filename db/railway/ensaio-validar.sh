@@ -2,7 +2,8 @@
 # Valida o ensaio (runbook-railway.md §2) sem escrever nada de dado: só leitura, mais testes que se desfazem sozinhos.
 # Uso:
 #   bash db/railway/ensaio-validar.sh snapshot ANTES.txt    # ANTES da cópia: foto do que é de outras apps no cluster
-#   bash db/railway/ensaio-validar.sh validar [--db civico_ensaio] [--antes ANTES.txt] [--roles ~/.config/segueovoto/railway-roles.env]
+#   bash db/railway/ensaio-validar.sh validar [--db civico_ensaio] [--antes ANTES.txt] [--roles ~/.config/segueovoto/railway-roles.env] [--guardar DIR]
+#        --guardar DIR: grava em DIR origem.txt, destino.txt, verify.diff e ambiente.txt (evidência; sem segredo)
 # Entradas: ORIGEM_URL (senão pergunta oculto), DESTINO_URL (senão Railway CLI, como o railway-copy.sh).
 # Saída: PASS/FAIL por checagem e resumo (tempos de consulta, conexões, tamanho). Exit 1 se algum FAIL.
 # Senhas nunca em argv: ficam num .pgpass 0600 temporário.
@@ -10,10 +11,10 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/lib-uri.sh"
 CMD="${1:-}"; shift || true
-DB=civico_ensaio; ANTES=""; ROLES="$HOME/.config/segueovoto/railway-roles.env"; SNAPFILE=""
+DB=civico_ensaio; ANTES=""; ROLES="$HOME/.config/segueovoto/railway-roles.env"; SNAPFILE=""; GUARDAR=""
 if [[ "$CMD" == snapshot ]]; then SNAPFILE="${1:?uso: snapshot ARQUIVO}"; shift; fi
-while [[ $# -gt 0 ]]; do case "$1" in --db) DB="$2"; shift ;; --antes) ANTES="$2"; shift ;; --roles) ROLES="$2"; shift ;; *) echo "opção desconhecida: $1" >&2; exit 2 ;; esac; shift; done
-[[ "$CMD" == snapshot || "$CMD" == validar ]] || { sed -n '2,9p' "$0"; exit 2; }
+while [[ $# -gt 0 ]]; do case "$1" in --db) DB="$2"; shift ;; --antes) ANTES="$2"; shift ;; --roles) ROLES="$2"; shift ;; --guardar) GUARDAR="$2"; shift ;; *) echo "opção desconhecida: $1" >&2; exit 2 ;; esac; shift; done
+[[ "$CMD" == snapshot || "$CMD" == validar ]] || { sed -n '2,10p' "$0"; exit 2; }
 [[ "$DB" =~ ^[a-z_][a-z0-9_]*$ ]] || { echo "--db inválido" >&2; exit 2; }
 case "$DB" in postgres|railway|template0|template1) echo "recuso o database $DB" >&2; exit 2 ;; esac
 export PGOPTIONS="${PGOPTIONS:-} -c client_min_messages=warning"
@@ -73,6 +74,7 @@ else no "diff origem x destino não vazio (a tabela divergente é a 94ª do runb
 
 echo "== 3. ambiente do destino"
 AMB="$(psql "$DEST" "${Q[@]}" -v ambiente=on -f "$HERE/railway-verify.sql")"
+if [[ -n "$GUARDAR" ]]; then install -d -m 700 "$GUARDAR"; cp "$PGDIR/o.txt" "$GUARDAR/origem.txt"; cp "$PGDIR/d.txt" "$GUARDAR/destino.txt"; cp "$PGDIR/v.diff" "$GUARDAR/verify.diff"; printf '%s\n' "$AMB" > "$GUARDAR/ambiente.txt"; echo "  (evidência gravada em $GUARDAR)"; fi
 grep -q '^public_pode_conectar false' <<<"$AMB" && ok "PUBLIC sem CONNECT" || no "PUBLIC ainda conecta"
 grep -E '^datacl' <<<"$AMB" | grep -Eq '(^|[{,])=' && no "datacl tem entrada de PUBLIC" || ok "datacl sem PUBLIC"
 grep -q '^dono_do_database civico_etl' <<<"$AMB" && ok "dono do database = civico_etl" || no "dono do database errado"
