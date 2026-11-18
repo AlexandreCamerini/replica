@@ -5,7 +5,7 @@ Estado: **não executado**. P1 (código, scripts e testes locais) entregue na D3
 Premissas declaradas (corrija se alguma estiver errada):
 - Destino: database próprio do Segue o Voto no Postgres 18 central do Railway, que também serve `mydata` e `casacheia`. O database do corte se chama `civico`; o do ensaio, `civico_ensaio` (`--db civico_ensaio`). Nenhum script grava o nome `civico` fixo: tudo vale para o database de `--db`.
 - Origem: Supabase `bigdata` (Postgres 17, ~4,2 GB medidos em 10/11). Só leitura durante a cópia.
-- Cliente: `pg_dump` e `pg_restore` 17 ou mais novos (o script recusa cliente mais velho que o servidor de origem). `brew install postgresql@17`.
+- Cliente: `pg_dump` e `pg_restore` **18** (`brew install postgresql@18` e `PATH=/opt/homebrew/opt/postgresql@18/bin:$PATH`). A cópia só exige ≥ 17 (origem), mas o backup do destino (§6) e qualquer `pg_dump` do Railway exigem ≥ 18: o `pg_dump` recusa servidor de versão principal mais nova. O `psql` padrão do Homebrew é o 16 (achado do ensaio P2).
 
 ## 0. O que existe agora
 | Arquivo | Para quê |
@@ -38,8 +38,11 @@ O provedor `supabase` continua intacto: a volta do corte é trocar `AUTH_PROVIDE
 ## 2. Ensaio (P2), repetível quantas vezes for preciso
 ```bash
 # origem: URI de leitura do Supabase, pedida oculta (ou ORIGEM_URL no ambiente do shell, nunca em arquivo)
-bash db/railway/railway-copy.sh --db civico_ensaio --refazer 2>&1 | tee ensaio-$(date +%F-%H%M).log
+bash db/railway/railway-copy.sh --db civico_ensaio --refazer --aceitar-escritores 2>&1 | tee ensaio-$(date +%F-%H%M).log
 ```
+`--aceitar-escritores` (P2): no ensaio os escritores de produção continuam ligados; a opção troca o aborto da trava S7 por aviso, imprime o início do dump e só vale para database com `ensaio` no nome (recusada para `civico`). No corte, sem ela.
+
+Medições (S4, S13), só leitura: `bash db/railway/medir-conexoes.sh amostrar --db civico_ensaio` num terminal à parte durante login, e2e e `run-due` (Ctrl-C imprime o pico por database/usuário e o `max_connections`); `disco marcar antes.txt` e `disco comparar antes.txt` em volta do `run-due`.
 `--refazer` apaga **só** o database `civico_ensaio` (confirmação digitada), recria, roda o `bootstrap.sql`, copia `auth.users`, restaura e roda ANALYZE. O script recusa se houver conexão de escritor conhecido na origem (roles `web_writer`, `web_reader`, `admin_central`, `civico_etl`, `application_name` com "civico", ou qualquer sessão com trava consultiva: a agenda do ETL segura uma) e lista as conexões. Sem `--refazer` ele reaproveita o database, mas apaga `public` e `login` antes (confirmação digitada).
 
 Conferência (origem e destino com a mesma saída):

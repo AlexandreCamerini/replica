@@ -3,6 +3,7 @@
 # Dump de `public` (+ `login`, se existir) -> preparação -> bootstrap -> auth.users -> restore como civico_etl -> ANALYZE.
 #
 # Uso:  bash db/railway/railway-copy.sh [--refazer] [--db NOME] [--sim] [--pooler-role ROLE] [--criar-roles-do-dump] [--manter-dump DIR]
+#                                        [--aceitar-escritores]
 #   --refazer       apaga SÓ o database de destino (--db), recria e roda o bootstrap.sql antes do restore
 #   --db NOME       database de destino no cluster (padrão: civico)
 #   --sim           não pede a confirmação digitada (uso não interativo: ensaio local)
@@ -10,6 +11,9 @@
 #   --criar-roles-do-dump  cria NOLOGIN, com a marca 'segueovoto:dump', os roles citados nos GRANTs do dump que não existam no destino
 #                   (sem a opção, role desconhecido aborta a cópia antes de tocar no destino)
 #   --manter-dump DIR      guarda o dump em DIR (padrão: pasta temporária, apagada ao fim)
+#   --aceitar-escritores   SÓ ENSAIO (--db com 'ensaio' no nome; recusado para civico): escritor conectado na origem vira AVISO,
+#                   não aborto. A cópia não é consistente com o que for gravado durante o dump; o início do dump (relógio da
+#                   origem) é impresso para explicar a diferença do verify (S10). No corte (P3) a trava S7 continua bloqueando.
 # Entradas (nada é impresso nem gravado em arquivo):
 #   ORIGEM_URL   URI do Supabase; sem a variável, pergunta com entrada oculta (como prod-migrate.sh)
 #   DESTINO_URL  URI do cluster central; sem a variável, lê do Railway CLI (railway variables --kv do serviço $RAILWAY_PG_SERVICE,
@@ -19,7 +23,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HERE="$ROOT/db/railway"
-DB=civico; REFAZER=0; SIM=0; POOLER=""; CRIAR_ROLES=0; KEEP=""
+DB=civico; REFAZER=0; SIM=0; POOLER=""; CRIAR_ROLES=0; KEEP=""; ACEITAR_ESCRITORES=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --refazer) REFAZER=1 ;;
@@ -28,7 +32,8 @@ while [[ $# -gt 0 ]]; do
     --pooler-role) POOLER="${2:?--pooler-role precisa de um role}"; shift ;;
     --criar-roles-do-dump) CRIAR_ROLES=1 ;;
     --manter-dump) KEEP="${2:?--manter-dump precisa de um diretório}"; shift ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    --aceitar-escritores) ACEITAR_ESCRITORES=1 ;;
+    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
     *) echo "opção desconhecida: $1" >&2; exit 2 ;;
   esac
   shift
@@ -36,6 +41,9 @@ done
 for c in psql pg_dump pg_restore vacuumdb python3; do command -v "$c" >/dev/null || { echo "$c não encontrado" >&2; exit 1; }; done
 [[ "$DB" =~ ^[a-z_][a-z0-9_]*$ ]] || { echo "--db inválido: $DB" >&2; exit 2; }
 case "$DB" in postgres|railway|template0|template1) echo "Recuso '$DB' como destino: use um database próprio do Segue o Voto." >&2; exit 2 ;; esac
+if [[ $ACEITAR_ESCRITORES == 1 && ( "$DB" == civico || "$DB" != *ensaio* ) ]]; then
+  echo "--aceitar-escritores só vale para database de ensaio (nome com 'ensaio'), nunca para '$DB': no corte os escritores ficam pausados (S7)." >&2; exit 2
+fi
 
 # ---- URLs --------------------------------------------------------------------------------------------------------------------
 # shellcheck source=db/railway/lib-uri.sh
@@ -98,18 +106,22 @@ WRITERS="$(psql "$ORIGEM" "${Q[@]}" -F ' | ' -c "
           or a.application_name ilike '%civico%'
           or a.pid in (select l.pid from pg_locks l where l.locktype = 'advisory' and l.granted))
    order by a.pid")"
-if [[ -n "$WRITERS" ]]; then
+if [[ -n "$WRITERS" && $ACEITAR_ESCRITORES == 1 ]]; then
+  echo "   AVISO (--aceitar-escritores, ensaio): escritores conectados na origem; a cópia pode divergir no que eles gravarem durante o dump:" >&2
+  sed 's/^/     /' <<<"$WRITERS" >&2
+elif [[ -n "$WRITERS" ]]; then
   echo "Há conexões de escritores conhecidos (site/ETL) na origem. Pause os escritores (runbook-railway.md) e rode de novo:" >&2
   sed 's/^/  /' <<<"$WRITERS" >&2
   exit 1
 fi
-echo "   origem sem escritores conhecidos conectados"
+[[ -n "$WRITERS" ]] || echo "   origem sem escritores conhecidos conectados"
 fim
 
 # ---- 2. dump ----------------------------------------------------------------------------------------------------------------------------
 etapa "dump (formato custom, sem dono)"
 HAS_LOGIN="$(psql "$ORIGEM" "${Q[@]}" -c "select exists (select 1 from pg_namespace where nspname = 'login')")"
 SCHEMAS=(-n public); [[ "$HAS_LOGIN" == t ]] && SCHEMAS+=(-n login)
+echo "   início do dump (relógio da origem): $(psql "$ORIGEM" "${Q[@]}" -c "select to_char(now() at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')")"
 pg_dump "$ORIGEM" -Fc "${SCHEMAS[@]}" --no-owner -f "$WORK/dump.custom"
 echo "   $(du -h "$WORK/dump.custom" | cut -f1) (schemas: ${SCHEMAS[*]//-n /})"
 fim

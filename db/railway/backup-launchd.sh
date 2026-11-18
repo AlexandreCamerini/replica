@@ -4,7 +4,7 @@
 # Uso: bash db/railway/backup-launchd.sh install | uninstall [--purge-secret] | status | run-now | run | print-plist
 #   install  -> pede a URI no próprio `security` (oculta; não passa por argv, plist, arquivo ou log), grava no Keychain
 #               (serviço civico-backup, conta BACKUP_DATABASE_URL) e instala o agente org.civico.backup.railway às 03:20, todo dia.
-#               Use a URI do role civico_etl no database de produção (precisa ler tudo). Dump com pg_dump 17+ (brew install postgresql@17).
+#               Use a URI do role civico_etl no database de produção (precisa ler tudo). Dump com pg_dump >= versão do servidor: o Railway é 18 (brew install postgresql@18).
 #   run      -> o que o launchd chama: dump -Fc --no-owner, confere com pg_restore --list, rotação (7 diários + 4 domingos), alerta.
 # Saída: ~/Backups/segueovoto/civico-AAAA-MM-DD.dump (pasta 0700, arquivos 0600). Log: ~/Library/Logs/civico-backup.log.
 # Falha (dump quebrado, pouco disco, cliente velho) avisa pelo webhook ETL_ALERT_WEBHOOK do Keychain civico-etl-prod, se existir.
@@ -29,7 +29,7 @@ plist() {
     <string>/bin/bash</string><string>$(xml "$HERE/backup-launchd.sh")</string><string>run</string>
   </array>
   <key>EnvironmentVariables</key><dict>
-    <key>PATH</key><string>/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PATH</key><string>/opt/homebrew/opt/postgresql@18/bin:/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>StartCalendarInterval</key><dict><key>Hour</key><integer>3</integer><key>Minute</key><integer>20</integer></dict>
   <key>RunAtLoad</key><false/>
@@ -58,7 +58,7 @@ run_backup() {
   local FULL; FULL="$(secure "$URI")"; unset URI
   uri pgpass "$FULL" > "$PGDIR/pgpass"; chmod 600 "$PGDIR/pgpass"; export PGPASSFILE="$PGDIR/pgpass"
   local TARGET; TARGET="$(uri nopass "$FULL")"; unset FULL
-  command -v pg_dump >/dev/null && command -v pg_restore >/dev/null || die "pg_dump/pg_restore não encontrados (brew install postgresql@17)"
+  command -v pg_dump >/dev/null && command -v pg_restore >/dev/null || die "pg_dump/pg_restore não encontrados (brew install postgresql@18)"
   local SRV DUMPV; SRV="$(psql "$TARGET" -X -At -c 'show server_version_num' 2>&1)" || die "não conectou ao banco: ${SRV:0:200}"
   DUMPV="$(pg_dump --version | sed -E 's/[^0-9]*([0-9]+).*/\1/')"
   (( DUMPV >= SRV / 10000 )) || die "pg_dump $DUMPV é mais velho que o servidor (${SRV:0:2}); brew install postgresql@${SRV:0:2}"
