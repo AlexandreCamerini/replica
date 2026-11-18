@@ -42,7 +42,9 @@ etapa_roles() {
     # senha por stdin: não aparece em argv
     printf "alter role %s login password '%s'\n" "$r" "$pw" | adm >/dev/null
     grep -v "^${r}_URL=" "$OUT" > "$OUT.tmp" || true; mv "$OUT.tmp" "$OUT"; chmod 600 "$OUT"
-    printf '%s_URL=postgres://%s:%s@%s:%s/%s?sslmode=require\n' "$r" "$r" "$pw" "$host" "$port" "$DB" >> "$OUT"
+    # keepalive TCP: no ensaio P2 o proxy TCP do Railway derrubou as conexões ociosas do ETL (job e trava da agenda) no meio de um
+    # camara.diario; com keepalive o mesmo job terminou. Vale para os três roles (o site também segura conexão ociosa no pool).
+    printf '%s_URL=postgres://%s:%s@%s:%s/%s?sslmode=require&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=3\n' "$r" "$r" "$pw" "$host" "$port" "$DB" >> "$OUT"
     echo "   $r: LOGIN ok, URI gravada em $OUT"
   done
   unset pw url

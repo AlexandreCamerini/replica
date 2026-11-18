@@ -123,7 +123,7 @@ Janela: dia útil, 23:00-08:00 BRT, fora de 21:45 BRT. Antes (véspera): `0143` 
 | 4 | Senhas e `login` dos roles (§1); testar `psql` como `web_reader`, `web_writer`, `civico_etl`: `show statement_timeout` (3s, 8s, vazio) | ~5 min |
 | 5 | `DB_URL=<web_reader> bash etl/deploy/vercel-env-fix.sh` e a URI de escrita do `web_writer` em `DATABASE_WRITE_URL`; `AUTH_PROVIDER=pg`; `PG_*_POOL_MAX` (§4); redeploy de produção | ~10 min |
 | 6 | Verificação ao vivo: home e pessoa sem erro, aquecimento (§4), login real, seguir e deixar de seguir, sair, apagar conta de teste | ~15 min |
-| 7 | ETL: `bash etl/deploy/etl-db-secret.sh` (URI do `civico_etl`, com `?sslmode=require`), `launchd-sapl-prod.sh install` (Keychain), `civico-etl run-due --dry-run` contra o destino | ~10 min |
+| 7 | ETL: `bash etl/deploy/etl-db-secret.sh` (URI do `civico_etl`, com `?sslmode=require&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=3`: sem keepalive o proxy TCP do Railway derrubou as conexões ociosas do ETL no ensaio P2, ver `ensaio-p2.md`), `launchd-sapl-prod.sh install` (Keychain), `civico-etl run-due --dry-run` contra o destino | ~10 min |
 | 8 | Reativar escritores (§3) | ~3 min |
 | 9 | Observação: 24 h de `vigia`, `gh run list`, log do launchd, disco, conexões | 24 h |
 
