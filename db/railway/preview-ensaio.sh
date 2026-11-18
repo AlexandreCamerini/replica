@@ -21,16 +21,16 @@ VARS=(DATA_SOURCE DATABASE_URL DATABASE_WRITE_URL AUTH_PROVIDER SESSION_SECRET R
 
 listar() {
   echo "== Variáveis de Preview hoje (vercel env ls preview; valores cifrados não aparecem)"
-  v env ls preview 2>&1 | grep -E "$(IFS='|'; echo "${VARS[*]}")|name|Environments" || true
-  echo "== da branch $BR:"; v env ls preview "$BR" 2>&1 | grep -E "$(IFS='|'; echo "${VARS[*]}")" || echo "   (nenhuma)"
+  v env ls --environment preview 2>&1 | grep -E "$(IFS='|'; echo "${VARS[*]}")|name|Environments" || true
+  echo "== da branch $BR:"; v env ls --environment preview --git-branch "$BR" 2>&1 | grep -E "$(IFS='|'; echo "${VARS[*]}")" || echo "   (nenhuma)"
 }
 
 case "$CMD" in
   listar) listar ;;
   restaurar)
     listar
-    for n in "${VARS[@]}"; do v env rm "$n" preview "$BR" --yes >/dev/null 2>&1 && echo "   removida $n ($BR)" || true; done
-    echo "== depois:"; v env ls preview "$BR" 2>&1 | grep -E "$(IFS='|'; echo "${VARS[*]}")" || echo "   nenhuma variável da branch $BR: restaurado" ;;
+    for n in "${VARS[@]}"; do v env rm "$n" --environment preview --git-branch "$BR" --yes >/dev/null 2>&1 && echo "   removida $n ($BR)" || true; done
+    echo "== depois:"; v env ls --environment preview --git-branch "$BR" 2>&1 | grep -E "$(IFS='|'; echo "${VARS[*]}")" || echo "   nenhuma variável da branch $BR: restaurado" ;;
   aplicar)
     ROLES="$HOME/.config/segueovoto/railway-roles.env"
     [[ -r "$ROLES" ]] || { echo "falta $ROLES" >&2; exit 1; }
@@ -42,9 +42,9 @@ case "$CMD" in
     listar
     read -r -p "Gravar as variáveis acima SÓ na branch $BR (Preview)? Digite 'sim': " ok; [[ "$ok" == sim ]] || { echo "nada alterado"; exit 1; }
     put() { # put NOME VALOR sensitive|plain
-      v env rm "$1" preview "$BR" --yes >/dev/null 2>&1 || true
-      if [[ "$3" == sensitive ]]; then printf '%s' "$2" | v env add "$1" preview "$BR" --sensitive --yes >/dev/null
-      else printf '%s' "$2" | v env add "$1" preview "$BR" --no-sensitive --yes >/dev/null; fi
+      v env rm "$1" --environment preview --git-branch "$BR" --yes >/dev/null 2>&1 || true
+      if [[ "$3" == sensitive ]]; then printf '%s' "$2" | v env add "$1" --environment preview --git-branch "$BR" --sensitive --yes >/dev/null
+      else printf '%s' "$2" | v env add "$1" --environment preview --git-branch "$BR" --no-sensitive --yes >/dev/null; fi
       echo "   $1 ok"
     }
     put DATA_SOURCE pg plain
@@ -59,6 +59,6 @@ case "$CMD" in
     put NEXT_PUBLIC_TURNSTILE_SITE_KEY 1x00000000000000000000AA plain
     put TURNSTILE_SECRET_KEY 1x0000000000000000000000000000000AA plain
     unset RD WR RESEND
-    echo "== depois:"; v env ls preview "$BR" 2>&1 | grep -E "$(IFS='|'; echo "${VARS[*]}")" || true
+    echo "== depois:"; v env ls --environment preview --git-branch "$BR" 2>&1 | grep -E "$(IFS='|'; echo "${VARS[*]}")" || true
     echo "Agora faça o push da branch $BR (o deploy de preview lê estas variáveis no build)." ;;
 esac
