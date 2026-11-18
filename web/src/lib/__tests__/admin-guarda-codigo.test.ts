@@ -123,8 +123,8 @@ test("sqlAdmin() recusa com a central fechada e só cria o pool dentro da funç�
 });
 
 test("guarda, db e consultas são server-only; sql e as regras puras não importam Next", () => {
-  for (const n of ["guarda.ts", "db.ts", "consultas.ts", "sessao.ts", "cliente-auth.ts"]) assert.match(ler(join(LIB, n)), /^import "server-only";/, n);
-  for (const n of ["sql.ts", "guarda-regra.ts", "tipos.ts", "agregacao.ts", "cabecalhos.ts", "tempo-minimo.ts", "escolha-fator.ts"]) {
+  for (const n of ["guarda.ts", "db.ts", "consultas.ts", "sessao.ts", "login.ts", "provedores.ts", "entrada.ts"]) assert.match(ler(join(LIB, n)), /^import "server-only";/, n);
+  for (const n of ["sql.ts", "guarda-regra.ts", "tipos.ts", "agregacao.ts", "cabecalhos.ts", "tempo-minimo.ts", "totp.ts", "sessao-cookie.ts", "login-core.ts", "login-store.ts"]) {
     const src = semComentarios(ler(join(LIB, n)));
     assert.ok(!/server-only|from "next|from "react|from "@\//.test(src), `${n} é puro: não importa server-only, Next, React nem alias`);
   }
@@ -149,7 +149,7 @@ test("a central não importa as páginas públicas (AC-23): nada de @/app/, nada
         const alvo = join(f, "..", m[1]);
         assert.ok(alvo.startsWith(GRUPO) || alvo.startsWith(LIB), `${rel(f)} importa ${m[1]}, que sai de (admin) e de lib/admin`);
       }
-      // o que a central pode pedir ao resto do código: React, Next, o Supabase SSR, o driver, os módulos próprios, os componentes admin* e o widget Turnstile do site (sem dado)
+      // o que a central pode pedir ao resto do código: React, Next, o driver, os módulos próprios, os componentes admin* e o widget Turnstile do site (sem dado)
       if (m[1].startsWith("@/")) assert.ok(/^@\/(lib\/admin\/|components\/admin\/|components\/admin-entrada\/|components\/account\/turnstile$|styles\/admin\.css$)/.test(m[1]), `${rel(f)} importa ${m[1]}`);
     }
   }
@@ -170,14 +170,27 @@ test("a central inteira (menos o widget Turnstile) não carrega nada de fora: ne
   }
 });
 
-test("nenhum arquivo do grupo nem de lib/admin faz requisição para fora", () => {
+test("nenhum arquivo do grupo nem de lib/admin faz requisição para fora, exceto provedores.ts (D335: e-mail do código e Turnstile, pelo servidor)", () => {
+  const SAIDA = join(LIB, "provedores.ts");
   for (const f of codigo) {
     const src = semComentarios(ler(f));
-    assert.ok(!/https?:\/\//i.test(src), `${rel(f)} tem URL absoluta`);
     assert.ok(!/["'`]\s*\/\//.test(src), `${rel(f)} tem string começando com // (URL sem esquema)`);
-    assert.ok(!/\bfetch\s*\(/.test(src), `${rel(f)} chama fetch(`);
     assert.ok(!/XMLHttpRequest|WebSocket|EventSource|sendBeacon|navigator\.sendBeacon/.test(src), `${rel(f)} abre conexão do navegador`);
     assert.ok(!/<script[^>]*\bsrc\s*=|<link[^>]*\bhref\s*=\s*["']?https?:|@import\s+url\(|<img[^>]*\bsrc\s*=\s*["']?https?:/i.test(src), `${rel(f)} carrega recurso externo`);
+    if (f === SAIDA) continue;
+    assert.ok(!/https?:\/\//i.test(src), `${rel(f)} tem URL absoluta`);
+    assert.ok(!/\bfetch\s*\(/.test(src), `${rel(f)} chama fetch(`);
+  }
+  // a única saída: dois endereços fixos, em constante, e `fetch` só com essas constantes
+  assert.ok(codigo.includes(SAIDA), "provedores.ts tem de estar entre os arquivos conferidos");
+  const src = semComentarios(ler(SAIDA));
+  assert.match(src, /^import "server-only";/);
+  assert.deepEqual([...src.matchAll(/https?:\/\/[^"'`\s]+/g)].map((m) => m[0]).sort(), ["https://api.resend.com/emails", "https://challenges.cloudflare.com/turnstile/v0/siteverify"]);
+  assert.deepEqual([...src.matchAll(/\bfetch\s*\(\s*([^,)]*)/g)].map((m) => m[1].trim()).sort(), ["URL_RESEND", "URL_TURNSTILE"]);
+  assert.deepEqual([...src.matchAll(/^import .*$/gm)].map((m) => m[0]), ['import "server-only";', 'import { HOST_CENTRAL_PRODUCAO } from "./guarda-regra.ts";'], "provedores.ts só importa a constante do host: nem banco, nem sessão, nem cookie");
+  // quem pode chamar a saída: só a entrada (captcha) e a ligação do login (e-mail)
+  for (const f of codigo) {
+    if (/from "(?:\.\/|@\/lib\/admin\/)provedores(?:\.ts)?"/.test(semComentarios(ler(f)))) assert.ok(["entrada.ts", "login.ts"].some((n) => f === join(LIB, n)), `${rel(f)} importa provedores.ts`);
   }
 });
 

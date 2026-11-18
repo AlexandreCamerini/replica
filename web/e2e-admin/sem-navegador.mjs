@@ -357,7 +357,7 @@ async function csrfEstrito(base, corpo, corpoDecisao) {
   R.checa(n() === antes, `nenhuma linha gravada em adm_pedidos nem em adm_pedidos_decisao pelos ${casos.length * 2} POST recusados (${antes})`, `${antes} -> ${n()}`);
 }
 
-// ---- modo produção simulado (AC-23): `next start` com as variáveis do projeto admin; Supabase FALSO numa porta local fechada; sem sessão.
+// ---- modo produção simulado (AC-23): `next start` com as variáveis do projeto admin; login próprio (AUTH_PROVIDER=pg, D335), sem chave de e-mail nem de captcha; sem sessão.
 const HP = C.HOST_PRODUCAO;
 const cabPost = { host: HP, origin: `https://${HP}`, "sec-fetch-site": "same-origin", "content-type": "application/json" };
 
@@ -386,7 +386,7 @@ async function criterio15Producao(rotas) {
   const dentro = rotas.filter((r) => !r.foraDoGrupo);
   const ex = { classe: "vinculo_sapl", chave: "1", rodada: UUID0, id: UUID0, uf: "35" };
   const env = await C.envProducao(C.BANCO_C7);
-  R.info(`variáveis: ADMIN_CENTRAL=producao VERCEL_ENV=production AUTH_PROVIDER=supabase NEXT_PUBLIC_SUPABASE_URL=${env.NEXT_PUBLIC_SUPABASE_URL} (porta local FECHADA) NEXT_PUBLIC_SUPABASE_ANON_KEY=x ADMIN_DATABASE_URL=...@127.0.0.1:54329/${C.BANCO_C7}?sslmode=require`);
+  R.info(`variáveis: ADMIN_CENTRAL=producao VERCEL_ENV=production AUTH_PROVIDER=pg SESSION_SECRET=(de prova) ADMIN_DATABASE_URL=...@127.0.0.1:54329/${C.BANCO_C7}?sslmode=require; sem RESEND_API_KEY e sem TURNSTILE_SECRET_KEY (nada sai da máquina)`);
   const srv = await C.subirNext(env);
   try {
     // 1. Host da central, sem cookie: 404 em toda rota e método; a única exceção é /admin/entrar (a página de e-mail e código)
@@ -424,7 +424,7 @@ async function criterio15Producao(rotas) {
     const e2 = await C.crua(srv.base, "/admin/entrar?etapa=codigo", { cabecalhos: { host: HP } });
     R.checa(e2.status === 200 && /Confira seu e-mail/.test(e2.texto), "/admin/entrar?etapa=codigo (Host certo, sem cookie): 200 com o formulário do código", `status ${e2.status}`);
     const f = await C.crua(srv.base, "/admin/entrar/fator", { cabecalhos: { host: HP } });
-    R.checa(f.status === 404, "/admin/entrar/fator sem sessão: 404 (o cadastro do fator exige sessão de admin com aal1)", `status ${f.status}`);
+    R.checa(f.status === 404, "/admin/entrar/fator sem sessão: 404 (o cadastro do fator exige sessão de admin de nível 1)", `status ${f.status}`);
     const outros = [];
     for (const [m, c] of [["HEAD", {}], ["OPTIONS", {}], ["PUT", {}], ["DELETE", {}], ["PATCH", {}], ["POST", cabPost], ["POST text/plain", { host: HP, origin: `https://${HP}`, "sec-fetch-site": "same-origin", "content-type": "text/plain" }]]) {
       const x = await C.crua(srv.base, "/admin/entrar", { metodo: m.split(" ")[0], cabecalhos: { host: HP, ...c }, corpo: m.startsWith("POST") ? "{}" : undefined });
@@ -463,6 +463,9 @@ async function criterio15Producao(rotas) {
     ["VERCEL_ENV=development", {}, (e) => ({ ...e, VERCEL_ENV: "development" })],
     ["VERCEL_ENV ausente", {}, (e) => { const n = { ...e }; delete n.VERCEL_ENV; return n; }],
     ["AUTH_PROVIDER=dev", {}, (e) => ({ ...e, AUTH_PROVIDER: "dev" })],
+    ["AUTH_PROVIDER=supabase (D335: a central só aceita pg)", {}, (e) => ({ ...e, AUTH_PROVIDER: "supabase" })],
+    ["SESSION_SECRET ausente", {}, (e) => { const n = { ...e }; delete n.SESSION_SECRET; return n; }],
+    ["SESSION_SECRET curto (31 caracteres)", {}, (e) => ({ ...e, SESSION_SECRET: "x".repeat(31) })],
     ["ADMIN_DATABASE_URL sem sslmode", {}, (e) => ({ ...e, ADMIN_DATABASE_URL: e.ADMIN_DATABASE_URL.replace("?sslmode=require", "") })],
     ["ADMIN_DATABASE_URL com sslmode=disable", {}, (e) => ({ ...e, ADMIN_DATABASE_URL: e.ADMIN_DATABASE_URL.replace("sslmode=require", "sslmode=disable") })],
     ["ADMIN_DATABASE_URL ausente", {}, (e) => { const n = { ...e }; delete n.ADMIN_DATABASE_URL; return n; }],
@@ -615,13 +618,12 @@ async function a1PublicoFechado(srv) {
   R.info(`CSP do 404 de /admin/fila: ${c404.cabecalhos["content-security-policy"]}`);
 }
 
-/** Nenhuma server action roda sob /admin (o id da action vale em qualquer caminho): o id de CADA action pública do build, POST em páginas da central e fora dela = 404 e nenhuma ida ao Supabase. */
+/** Nenhuma server action roda sob /admin (o id da action vale em qualquer caminho): o id de CADA action pública do build, POST em páginas da central e fora dela = 404 e nenhum efeito. */
 async function a1ActionsPublicas() {
   R.cabecalho("F3-C1 (A13): nenhuma server action roda na central: o id de cada action pública do build, em /, /admin, /admin/fila e /admin/entrar (JSON text/plain e multipart), responde 404 sem efeito");
   const ids = Object.keys(lerJson(path.join(C.WEB, ".next/server/server-reference-manifest.json")).node); // as actions PÚBLICAS: as do build do SITE (o build da central não tem nenhuma)
   R.checa(ids.length >= 10, `o manifesto do build do SITE lista ${ids.length} actions públicas`, String(ids.length));
-  const falso = await C.supabaseFalso("drop");
-  const srv = await C.subirNext(await C.envProducao(C.BANCO_C7, { NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${falso.porta}` }));
+  const srv = await C.subirNext(await C.envProducao(C.BANCO_C7));
   // centenas de conexões curtas em sequência esgotam portas efêmeras no macOS (EADDRNOTAVAIL): repete com pausa
   const C_crua = async (...a) => {
     for (let i = 0; ; i++) {
@@ -650,7 +652,7 @@ async function a1ActionsPublicas() {
       if (f.status !== 404) ruins.push(`/admin/entrar MPA ${id.slice(0, 8)} -> ${f.status}`);
     }
     R.checa(ruins.length === 0, `${n} POST (${ids.length} ids x páginas x tipos de corpo, mais o envio de formulário sem JavaScript) todos 404`, ruins.slice(0, 6).join("; "));
-    // caminhos que o projeto admin serve de arquivo (malhas, favicon, estáticos) e um /geo inexistente: com Next-Action, nunca devolvem resultado de action nem falam com o Supabase
+    // caminhos que o projeto admin serve de arquivo (malhas, favicon, estáticos) e um /geo inexistente: com Next-Action, nunca devolvem resultado de action
     const estaticos = [];
     for (const u of ["/geo/br.json", "/geo/uf/35.json", "/geo/nao-existe.json", "/favicon.ico", "/_next/static/x.js"]) {
       for (const id of ids.slice(0, 3)) {
@@ -659,13 +661,11 @@ async function a1ActionsPublicas() {
       }
     }
     R.checa(estaticos.length === 0, "POST com Next-Action em /geo/*, /favicon.ico e /_next/static/*: nenhuma resposta de action (nem text/x-component nem redirecionamento de action)", estaticos.join("; "));
-    R.checa(falso.conexoes() === 0, "nenhuma action executou: zero conexões ao Supabase (sendCode, verifyCode e demais teriam falado com ele)", `${falso.conexoes()} conexões`);
     R.checa(!/\[admin\] entrada|Server Action|unhandled|uncaught/i.test(srv.log()), "o log do servidor não registra execução de action nem exceção", srv.log().slice(-300));
     const outras = await Promise.all(["/_next/data/x.json", "/api/me", "/api/qualquer", "/p/x/opengraph-image", "/rota-que-nao-existe"].map((u) => C.crua(srv.base, u, { cabecalhos: { host: HP } })));
     R.checa(outras.every((x) => x.status === 404), "GET /_next/data/x.json, /api/me, /api/qualquer, uma imagem OG pública e uma rota inexistente: 404", outras.map((x) => x.status).join(","));
   } finally {
     await srv.parar();
-    falso.fechar();
   }
   // controle positivo da sonda: no build do SITE (sem rewrite nem middleware sobre o caminho) o mesmo POST com um id de action pública chega à action (status que não é 404)
   const site = await C.subirNext(C.envCi());
@@ -678,11 +678,10 @@ async function a1ActionsPublicas() {
   }
 }
 
-/** A entrada pela API (sem server action): tempo igual, recusas de origem, cookie de e-mail, métodos. O Supabase é falso (conexão derrubada), então o envio de código nunca chega a sair. */
+/** A entrada pela API (sem server action): tempo igual, recusas de origem, cookie de e-mail, métodos. Sem chave de captcha o envio falha fechado: nenhum código é emitido e nenhum e-mail sai. */
 async function entradaPorApi() {
   R.cabecalho("F3-C1 (A3): entrada da central por rotas de API (JSON, mesma origem), mesma resposta e mesmo tempo para qualquer e-mail");
-  const falso = await C.supabaseFalso("drop");
-  const srv = await C.subirNext(await C.envProducao(C.BANCO_C7, { NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${falso.porta}` }));
+  const srv = await C.subirNext(await C.envProducao(C.BANCO_C7));
   const postar = async (u, corpo, extra = {}) => {
     const t0 = Date.now();
     const r = await C.crua(srv.base, u, { metodo: "POST", cabecalhos: { ...cabPost, ...extra }, corpo: typeof corpo === "string" ? corpo : JSON.stringify(corpo) });
@@ -723,67 +722,61 @@ async function entradaPorApi() {
     }
     for (const u of ["/admin/api/entrar/fator/iniciar", "/admin/api/entrar/fator/confirmar"]) {
       const r = await postar(u, { code: "123456" });
-      R.checa(r.status === 404, `${u} sem sessão: 404 (as de fator exigem sessão aal1)`, `status ${r.status}`);
+      R.checa(r.status === 404, `${u} sem sessão: 404 (as de fator exigem sessão de nível 1)`, `status ${r.status}`);
     }
     const pag = await C.crua(srv.base, "/admin/entrar", { cabecalhos: { host: HP } });
     R.checa(pag.status === 200 && !/\$ACTION|name="\$/.test(pag.texto), "a página /admin/entrar continua 200 e o formulário não leva campo de server action ($ACTION_*)", `status ${pag.status}`);
-    R.checa(falso.conexoes() <= 3, `o Supabase falso recebeu ${falso.conexoes()} conexões (o envio de código só sai para admin ativo, e a conexão cai: nada é enviado)`);
+    R.checa(!/Resend|sendCode: limite/.test(srv.log()), "sem TURNSTILE_SECRET_KEY o captcha falha fechado: nenhum código foi emitido e o envio de e-mail nem foi tentado (log do servidor)", srv.log().slice(-300));
   } finally {
     await srv.parar();
-    falso.fechar();
   }
 }
 
 
-// Provedor de autenticação fora do ar, com um cookie de sessão que obriga a falar com ele: 404 e o servidor continua de pé.
-// ACHADO: com o provedor fora do ar, cada requisição com cookie de sessão espera o backoff do supabase-js (~25 s, 8 conexões) antes do 404 (o middleware não tem prazo). As requisições vão
-// em paralelo e os dois modos de falha também, para a prova não gastar minutos; o tempo medido vai no relato como AVISO (defeito da central, não da prova).
-async function provedorForaDoAr(rotas) {
-  R.cabecalho("modo produção simulado: provedor de autenticação fora do ar (conexão derrubada; resposta 500) com cookie de sessão presente");
+// D335: a sessão da central é um cookie assinado pela própria central. Sem banco (o Postgres local não fala TLS): aqui só o que o middleware decide sozinho.
+// Cookie forjado, de outro segredo, vencido ou com o nome do site = 404 em toda rota, na hora (não há provedor de login para esperar). O fluxo completo (código, TOTP, nível 2,
+// admin desativado, fator apagado) roda com banco em e2e-admin/login-http.mjs.
+async function sessaoForjada(rotas) {
+  R.cabecalho("modo produção simulado (D335): cookie de sessão forjado, de outro segredo, vencido ou com o nome do site = 404; nenhuma espera");
   void rotas;
-  const um = async (modo) => {
-    const falso = await C.supabaseFalso(modo);
-    const env = await C.envProducao(C.BANCO_C7, { NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${falso.porta}` });
-    const srv = await C.subirNext(env);
-    const saida = { modo };
-    try {
-      const sessao = { access_token: "a.b.c", token_type: "bearer", expires_in: 1, expires_at: 1, refresh_token: "r", user: { id: "00000000-0000-4000-8000-000000000001", email: "alguem@example.invalid" } };
-      const valor = `base64-${Buffer.from(JSON.stringify(sessao)).toString("base64url")}`;
-      // A10: o cookie do SITE (nome sb-<ref>-auth-token) não é lido pela central: nem chega a falar com o provedor
-      const velho = await C.crua(srv.base, "/admin/fila", { cabecalhos: { host: HP, cookie: `sb-127-auth-token=${valor}` } });
-      saida.velho = [velho.status, falso.conexoes()];
-      const cookie = `sb-admin-central-auth-token=${valor}`; // nome próprio da central (NOME_COOKIE_SESSAO)
-      const cab = { host: HP, cookie };
-      const t0 = Date.now();
-      const caminhos = ["/admin", "/admin/fila", "/admin/api/estado", "/admin/entrar/fator", "/admin/rodadas"];
-      const [rs, post, ent] = await Promise.all([
-        Promise.all(caminhos.map(async (c) => [c, (await C.crua(srv.base, c, { cabecalhos: cab })).status])),
-        C.crua(srv.base, "/admin/api/pedidos", { metodo: "POST", cabecalhos: { ...cabPost, cookie }, corpo: "{}" }),
-        C.crua(srv.base, "/admin/entrar", { cabecalhos: cab }),
-      ]);
-      saida.seg = (Date.now() - t0) / 1000;
-      saida.rs = rs;
-      saida.post = post.status;
-      saida.ent = ent.status;
-      saida.conexoes = falso.conexoes();
-      const vivo = await C.crua(srv.base, "/admin/fila", { cabecalhos: { host: HP } });
-      const pub = await C.http(srv.base, "/");
-      saida.vivo = [vivo.status, pub.status];
-      saida.log = srv.log();
-    } finally {
-      await srv.parar();
-      falso.fechar();
+  const { assinarSessao } = await import("../src/lib/admin/sessao-cookie.ts");
+  const { NOME_COOKIE_SESSAO } = await import("../src/lib/admin/cabecalhos.ts");
+  const env = await C.envProducao(C.BANCO_C7);
+  const chave = { SESSION_SECRET: env.SESSION_SECRET };
+  const agora = Date.now();
+  const bom = assinarSessao(chave, "alguem@example.invalid", 2, agora).valor;
+  const casos = [
+    ["lixo", "abc.def"],
+    ["assinatura adulterada", `${bom.slice(0, -1)}${bom.endsWith("A") ? "B" : "A"}`],
+    ["assinado com outro segredo", assinarSessao({ SESSION_SECRET: "outro-segredo-".repeat(4) }, C.ADMIN_LOCAL_EMAIL, 2, agora).valor],
+    ["nível 2 vencido (13 h)", assinarSessao(chave, C.ADMIN_LOCAL_EMAIL, 2, agora - 13 * 3600_000).valor],
+    ["nível 1 vencido (16 min)", assinarSessao(chave, C.ADMIN_LOCAL_EMAIL, 1, agora - 16 * 60_000).valor],
+  ];
+  const srv = await C.subirNext(env);
+  try {
+    const caminhos = ["/admin", "/admin/fila", "/admin/api/estado", "/admin/entrar/fator", "/admin/rodadas"];
+    const t0 = Date.now();
+    for (const [rotulo, valor] of casos) {
+      const cookie = `${NOME_COOKIE_SESSAO}=${valor}`;
+      const rs = await Promise.all(caminhos.map(async (c) => [c, (await C.crua(srv.base, c, { cabecalhos: { host: HP, cookie } })).status]));
+      const post = await C.crua(srv.base, "/admin/api/pedidos", { metodo: "POST", cabecalhos: { ...cabPost, cookie }, corpo: "{}" });
+      R.checa(rs.every(([, st]) => st === 404) && post.status === 404, `cookie ${rotulo}: ${rs.map(([c, st]) => `${c} ${st}`).join(", ")}, POST pedidos ${post.status} (tudo 404)`);
+      const ent = await C.crua(srv.base, "/admin/entrar", { cabecalhos: { host: HP, cookie } });
+      R.checa(ent.status === 200, `cookie ${rotulo}: /admin/entrar continua 200 (quem tem cookie ruim pode entrar de novo)`, `status ${ent.status}`);
     }
-    return saida;
-  };
-  for (const x of await Promise.all(["drop", "http500"].map(um))) {
-    const m = x.modo;
-    R.checa(x.rs.every(([, st]) => st === 404) && x.post === 404, `[${m}] com cookie de sessão e o Supabase fora do ar: ${x.rs.map(([c, st]) => `${c} ${st}`).join(", ")}, POST pedidos ${x.post} (tudo 404)`);
-    R.checa(x.ent === 200, `[${m}] /admin/entrar com o provedor fora do ar: 200 (renderiza o formulário; quem não passa pelo provedor não entra, mas a página abre)`, `status ${x.ent}`);
-    R.checa(x.velho[0] === 404 && x.velho[1] === 0, `[${m}] A10: cookie com o nome do SITE (sb-127-auth-token) na central: 404 e ZERO conexões ao provedor (a central só lê o cookie de nome próprio)`, `status ${x.velho[0]}, conexões ${x.velho[1]}`);
-    R.checa(x.conexoes >= 1, `[${m}] o servidor TENTOU falar com o Supabase falso (${x.conexoes} conexões): a prova não passou por um caminho que nem tenta`);
-    R.checa(x.vivo[0] === 404 && x.vivo[1] === 404 && !/unhandled|uncaught|TypeError/i.test(x.log), `[${m}] depois de ${x.conexoes} conexões ao provedor falso o servidor continua de pé (404 na central e / também 404 no projeto admin) e o log não tem exceção solta`, `central ${x.vivo[0]}, / ${x.vivo[1]}; log: ${x.log.slice(-300)}`);
-    R.checa(x.seg <= 12, `[${m}] com o provedor fora do ar o 404 sai no prazo (comPrazo, 4 s por chamada ao Auth; /admin/entrar faz até duas): o conjunto em paralelo levou ${x.seg.toFixed(1)} s (antes do prazo: ~25 s por requisição e ~51 s em /admin/entrar)`, `${x.seg.toFixed(1)} s`);
+    // A10: assinatura válida, mas com o nome dos cookies do SITE: a central só lê o cookie de nome próprio
+    for (const nome of ["__Host-sessao", "sessao", "sb-127-auth-token"]) {
+      const r = await C.crua(srv.base, "/admin/fila", { cabecalhos: { host: HP, cookie: `${nome}=${bom}` } });
+      R.checa(r.status === 404, `A10: cookie válido com o nome ${nome} (do site) na central: 404`, `status ${r.status}`);
+    }
+    // sessão bem assinada passa do middleware, mas sem banco (TLS) a identidade não se resolve: fecha em 404, nunca 500 nem página
+    const semBanco = await C.crua(srv.base, "/admin/fila", { cabecalhos: { host: HP, cookie: `${NOME_COOKIE_SESSAO}=${bom}` } });
+    R.checa(semBanco.status === 404, "sessão bem assinada com o banco inalcançável: 404 (falha de banco fecha)", `status ${semBanco.status}`);
+    const seg = (Date.now() - t0) / 1000;
+    R.checa(seg <= 20, `tudo isso sai sem espera de provedor: ${seg.toFixed(1)} s para ${casos.length * (caminhos.length + 2) + 4} requisições`, `${seg.toFixed(1)} s`);
+    R.checa(!/unhandled|uncaught|TypeError/i.test(srv.log()), "o log do servidor não tem exceção solta", srv.log().slice(-300));
+  } finally {
+    await srv.parar();
   }
 }
 
@@ -908,7 +901,7 @@ async function completo() {
   await criterio15(rotas, extras);
   await criterio15Host(rotas);
   await criterio15Producao(rotas);
-  await provedorForaDoAr(rotas);
+  await sessaoForjada(rotas);
 
   // ---- central ligada
   const central = await C.subirNext(C.envCentral(C.BANCO_C7));

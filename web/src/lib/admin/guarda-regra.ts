@@ -10,10 +10,11 @@
 //        (o driver `postgres` usa o `host` da query antes do host da URL: a checagem do hostname sozinha não basta)
 //   MODO PRODUÇÃO (`ADMIN_CENTRAL=producao`): a central no projeto Vercel próprio, em HOST_CENTRAL_PRODUCAO.
 //     1. VERCEL_ENV exatamente "production" (Preview e Development ficam fechados)
-//     2. AUTH_PROVIDER exatamente "supabase" (o provedor "dev" nunca autentica a central)
+//     2. AUTH_PROVIDER exatamente "pg" (D335: login próprio em Postgres; "supabase" e "dev" nunca autenticam a central) e SESSION_SECRET com 32+ caracteres
+//        (assina o cookie de sessão, o hash do código e cifra o segredo do segundo fator)
 //     3. ADMIN_DATABASE_URL postgres válida, com as MESMAS recusas do modo local (`#`, espaço, controle, vírgula, host/hostaddr/service na query), em qualquer host,
 //        com `sslmode` único e igual a require, verify-ca ou verify-full
-//   Sessão do Supabase, aal2 e lista de admins são conferidos por requisição (lib/admin/sessao.ts), não aqui.
+//   Sessão (cookie assinado), segundo fator e lista de admins são conferidos por requisição (lib/admin/sessao.ts), não aqui.
 // NODE_ENV não entra: `next start` local roda com production.
 
 export type ModoCentral = "local" | "producao";
@@ -65,11 +66,12 @@ export function decidirAcesso(env: Record<string, string | undefined>): DecisaoA
   }
   if (env.ADMIN_CENTRAL === "producao") {
     if (env.VERCEL_ENV !== "production") return nega("modo produção exige VERCEL_ENV=production");
-    if (env.AUTH_PROVIDER !== "supabase") return nega("modo produção exige AUTH_PROVIDER=supabase");
+    if (env.AUTH_PROVIDER !== "pg") return nega("modo produção exige AUTH_PROVIDER=pg");
+    if (typeof env.SESSION_SECRET !== "string" || env.SESSION_SECRET.length < 32) return nega("modo produção exige SESSION_SECRET com 32+ caracteres");
     const l = lerUrlDoBanco(env.ADMIN_DATABASE_URL);
     if (!l.ok) return nega(l.motivo);
     if (l.sslmodes.length !== 1 || !SSLMODES_ACEITOS.includes(l.sslmodes[0])) return nega("ADMIN_DATABASE_URL sem sslmode require, verify-ca ou verify-full (um só)");
-    return { liberada: true, motivo: "modo produção: Vercel production, Supabase Auth, banco com TLS", modo: "producao" };
+    return { liberada: true, motivo: "modo produção: Vercel production, login pg, banco com TLS", modo: "producao" };
   }
   return nega("ADMIN_CENTRAL não é 1 nem producao");
 }

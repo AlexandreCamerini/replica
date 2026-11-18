@@ -4,8 +4,7 @@ import { test } from "node:test";
 import { NextRequest } from "next/server.js";
 import { configuracao, CSP_MINIMA, EXTENSOES_DA_CENTRAL } from "../../../next.config.ts";
 import { middleware } from "../../middleware.admin.ts";
-import { cabecalhosDeSeguranca, ehEntradaSemSessao, ehPaginaDeEntrada, NOME_COOKIE_SESSAO, OPCOES_SSR_DA_CENTRAL, politicaCsp } from "../admin/cabecalhos.ts";
-import { escolherFator } from "../admin/escolha-fator.ts";
+import { cabecalhosDeSeguranca, ehEntradaSemSessao, ehPaginaDeEntrada, NOME_COOKIE_SESSAO, politicaCsp } from "../admin/cabecalhos.ts";
 import { completarAte, PISO_ENTRADA_MS, responderNoPiso, type Relogio } from "../admin/tempo-minimo.ts";
 
 // F3-C1: A1/A9/A13 (next.config do projeto admin + nenhuma server action na central), A3 (tempo mínimo), A4 (fator), A5 (Turnstile só na entrada), A10 (cookie próprio).
@@ -57,7 +56,7 @@ test("middleware, build da central: só /admin, /admin/* (sensível à caixa), /
   const salvo = { ...process.env };
   const H = "admin.segueovoto.com.br";
   const pede = (path: string, extra: Record<string, string> = {}, metodo = "GET") => middleware(new NextRequest(`http://${H}${path}`, { method: metodo, headers: { host: H, ...extra } }));
-  Object.assign(process.env, { ADMIN_CENTRAL: "producao", VERCEL_ENV: "production", AUTH_PROVIDER: "supabase", ADMIN_DATABASE_URL: "postgres://u:p@db.exemplo.com:5432/d?sslmode=require", NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:9", NEXT_PUBLIC_SUPABASE_ANON_KEY: "x" });
+  Object.assign(process.env, { ADMIN_CENTRAL: "producao", VERCEL_ENV: "production", AUTH_PROVIDER: "pg", SESSION_SECRET: "s".repeat(48), ADMIN_DATABASE_URL: "postgres://u:p@db.exemplo.com:5432/d?sslmode=require" });
   try {
     for (const p of ["/", "/entrar", "/pessoas", "/api/me", "/ADMIN", "/aDmin/fila", "/_NEXT/STATIC/x", "//admin", "/admin%2Ffila", "/%61dmin", "/_next/image", "/_next/data/x/y.json", "/icon", "/opengraph-image", "/p/x/opengraph-image", "/manifest.webmanifest", "/robots.txt", "/sitemap.xml", "/geo/uf/99.json", "/administrador", "/admin-x", "/adminx/y", "/geo/uf/35.json.x", "/geo/br.json/x", "/geo/uf/", "/favicon.icox", "/_nextx/a", "/conta", "/v2/x", "/FILE.svg"]) {
       const r = await pede(p);
@@ -101,7 +100,7 @@ test("CSP: Turnstile só nas páginas de entrada, em produção; demais páginas
 
 test("middleware: CSP com Turnstile só em /admin/entrar e /admin/entrar/fator (resposta real do middleware)", async () => {
   const salvo = { ...process.env };
-  Object.assign(process.env, { ADMIN_CENTRAL: "producao", VERCEL_ENV: "production", AUTH_PROVIDER: "supabase", ADMIN_DATABASE_URL: "postgres://u:p@db.exemplo.com:5432/d?sslmode=require", NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:9", NEXT_PUBLIC_SUPABASE_ANON_KEY: "x" });
+  Object.assign(process.env, { ADMIN_CENTRAL: "producao", VERCEL_ENV: "production", AUTH_PROVIDER: "pg", SESSION_SECRET: "s".repeat(48), ADMIN_DATABASE_URL: "postgres://u:p@db.exemplo.com:5432/d?sslmode=require" });
   const H = "admin.segueovoto.com.br";
   const pede = (path: string, extra: Record<string, string> = {}, metodo = "GET") => middleware(new NextRequest(`http://${H}${path}`, { method: metodo, headers: { host: H, ...extra } }));
   try {
@@ -138,19 +137,21 @@ test("entrada sem sessão: só a página (qualquer método) e as APIs de pedir e
   for (const p of ["/admin/api/entrar/fator/iniciar", "/admin/api/entrar/fator/confirmar", "/admin/entrar/fator", "/admin/api/entrar", "/admin/api/pedidos"]) assert.equal(ehEntradaSemSessao(p, "POST"), false, p);
 });
 
-test("cookie de sessão da central: nome próprio, igual no middleware e no cliente, distinto do cookie do site", () => {
-  assert.equal(OPCOES_SSR_DA_CENTRAL.name, NOME_COOKIE_SESSAO);
-  assert.match(NOME_COOKIE_SESSAO, /^sb-admin-central-/);
-  assert.ok(!/^sb-[a-z0-9]{20}-auth-token$/.test(NOME_COOKIE_SESSAO));
+test("cookie de sessão da central (D335): nome próprio com prefixo __Secure-, o mesmo no middleware e em login.ts, distinto dos cookies do site", () => {
+  assert.equal(NOME_COOKIE_SESSAO, "__Secure-adm-sessao");
+  assert.ok(!/^sb-|^__Host-sessao$|^sessao$/.test(NOME_COOKIE_SESSAO));
   const mw = readFileSync(new URL("../../middleware.admin.ts", import.meta.url), "utf8");
-  const cli = readFileSync(new URL("../admin/cliente-auth.ts", import.meta.url), "utf8");
-  for (const [n, src] of [["middleware", mw], ["cliente-auth", cli]] as const) {
-    assert.match(src, /createServerClient\(url, anon, \{\s*cookieOptions: OPCOES_SSR_DA_CENTRAL,/, `${n}: createServerClient sem cookieOptions da central`);
-    assert.match(src, /import \{[^}]*\bOPCOES_SSR_DA_CENTRAL\b[^}]*\} from "\.\/lib\/admin\/cabecalhos\.ts"|import \{[^}]*\bOPCOES_SSR_DA_CENTRAL\b[^}]*\} from "\.\/cabecalhos\.ts"/, `${n}: não importa do mesmo módulo`);
-  }
-  // o site público não importa o nome da central
-  const site = readFileSync(new URL("../auth/supabase.ts", import.meta.url), "utf8");
-  assert.ok(!site.includes("OPCOES_SSR_DA_CENTRAL") && !site.includes(NOME_COOKIE_SESSAO));
+  const login = readFileSync(new URL("../admin/login.ts", import.meta.url), "utf8");
+  assert.match(mw, /import \{[^}]*\bNOME_COOKIE_SESSAO\b[^}]*\} from "\.\/lib\/admin\/cabecalhos\.ts"/);
+  assert.match(mw, /lerSessao\(process\.env, req\.cookies\.get\(NOME_COOKIE_SESSAO\)\?\.value, Date\.now\(\)\)/);
+  assert.match(login, /import \{[^}]*\bNOME_COOKIE_SESSAO\b[^}]*\} from "\.\/cabecalhos\.ts"/);
+  // toda gravação do cookie de sessão passa pelas opções da central (host-only, Strict, Secure, HttpOnly, path /admin)
+  const gravacoes = [...login.matchAll(/\.set\(NOME_COOKIE_SESSAO,[^\n]*/g)].map((m) => m[0]);
+  assert.equal(gravacoes.length, 1);
+  assert.match(gravacoes[0], /opcoesDeCookieDaCentral\(\{ maxAge: maxAgeS \}\)/);
+  // o site público não importa o nome da central, e a central não importa o provedor do site
+  for (const f of ["../auth/supabase.ts", "../auth/pg.ts", "../auth/pg-core.ts"]) assert.ok(!readFileSync(new URL(f, import.meta.url), "utf8").includes(NOME_COOKIE_SESSAO), f);
+  assert.ok(!/lib\/auth|@supabase/.test(login) && !/lib\/auth|@supabase/.test(mw));
 });
 
 /** Relógio virtual: `dormir` avança o tempo na hora, sem esperar de verdade. */
@@ -193,17 +194,16 @@ test("tempo mínimo: responderNoPiso responde sempre no piso, com o trabalho fei
   assert.equal(terminou, true);
 });
 
-test("fator (A4): com fator verificado, o fatorId do cliente é ignorado; unverified só no primeiro cadastro", () => {
-  const v = { id: "v1", factor_type: "totp", status: "verified" };
-  const u = { id: "u1", factor_type: "totp", status: "unverified" };
-  const fone = { id: "p1", factor_type: "phone", status: "verified" };
-  assert.equal(escolherFator([v, u], "u1")?.id, "v1", "id de unverified com verificado na conta: ignora o pedido");
-  assert.equal(escolherFator([u, v], "u1")?.id, "v1");
-  assert.equal(escolherFator([v], "")?.id, "v1");
-  assert.equal(escolherFator([v], "qualquer")?.id, "v1");
-  assert.equal(escolherFator([u], "u1")?.id, "u1", "primeiro cadastro");
-  assert.equal(escolherFator([u], "outro"), undefined);
-  assert.equal(escolherFator([u], ""), undefined);
-  assert.equal(escolherFator([fone, u], "p1"), undefined, "só TOTP");
-  assert.equal(escolherFator([], "x"), undefined);
+test("fator (A4, D335): nada do corpo escolhe o fator; ele é sempre o do e-mail da sessão", () => {
+  const src = readFileSync(new URL("../admin/entrada.ts", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  assert.ok(!/fatorId|corpo\.email\b[\s\S]*confirmarFator\(/.test(src.slice(src.indexOf("export async function iniciarCadastroFator"))), "as rotas de fator não leem identificador do corpo");
+  assert.match(src, /loginDaCentral\(\)\.iniciarCadastro\(s\.email\)/);
+  assert.match(src, /loginDaCentral\(\)\.confirmarFator\(s\.email, codigo\)/);
+  assert.match(src, /await gravarSessao\(s\.email, 2\);/);
+  // o nível 2 só é gravado em UM lugar, depois de o fator conferir; o nível 1, só depois de o código de e-mail conferir
+  assert.equal([...src.matchAll(/gravarSessao\([^)]*, 2\)/g)].length, 1);
+  assert.equal([...src.matchAll(/gravarSessao\([^)]*, 1\)/g)].length, 1);
+  assert.equal([...src.matchAll(/gravarSessao\(/g)].length, 2);
+  const form = readFileSync(new URL("../../components/admin-entrada/formularios.tsx", import.meta.url), "utf8");
+  assert.ok(!/fatorId/.test(form));
 });

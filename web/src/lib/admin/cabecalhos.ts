@@ -9,10 +9,10 @@
 //                           Em produção E só nas páginas de entrada, challenges.cloudflare.com: o Turnstile (o mesmo componente do site). As demais páginas da central não o citam.
 //   style-src 'self' 'unsafe-inline'   atributo `style=` e <style> inline não aceitam nonce no CSP2/3 sem custo alto; o ganho de um CSS inline injetado é pequeno perto do script
 //                           e esta é a única diretiva afrouxada. Alternativa (nonce em todo estilo) exige mexer nos componentes, fora do escopo.
-//   img-src 'self' data:    `data:` é o QR do cadastro do fator (o Supabase devolve o QR como SVG em data URI).
+//   img-src 'self'          sem `data:`: o cadastro do fator mostra o segredo em texto e um link `otpauth:`, não um QR em data URI (D335).
 //   font-src 'self'         as fontes do Fontsource são empacotadas.
-//   connect-src 'self'      o navegador só fala com a própria central (fetch de /admin/api e RSC). O Supabase Auth é chamado SÓ pelo servidor (server actions); por isso a URL do
-//                           Supabase NÃO está na política. Nas páginas de entrada em produção, challenges.cloudflare.com também (o Turnstile faz requisição da própria página).
+//   connect-src 'self'      o navegador só fala com a própria central (fetch de /admin/api e RSC). E-mail e conferência do Turnstile saem SÓ do servidor (lib/admin/provedores.ts).
+//                           Nas páginas de entrada em produção, challenges.cloudflare.com também (o Turnstile faz requisição da própria página).
 //   frame-src               só nas páginas de entrada em produção: challenges.cloudflare.com (o iframe do Turnstile). Fora disso, 'none'.
 //   frame-ancestors 'none'  ninguém enquadra a central (clickjacking: as ações disparam num clique).
 //   base-uri 'none'; form-action 'self'; object-src 'none'
@@ -40,7 +40,7 @@ export function politicaCsp({ modo, nonce, desenvolvimento = false, paginaDeEntr
     "default-src 'self'",
     `script-src ${script.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
+    "img-src 'self'",
     "font-src 'self'",
     `connect-src 'self'${turnstile ? ` ${HOST_TURNSTILE}` : ""}`,
     `frame-src ${turnstile ? HOST_TURNSTILE : "'none'"}`,
@@ -69,7 +69,7 @@ export const CABECALHO_NONCE = "x-admin-nonce";
 export const CAMINHO_ENTRADA = "/admin/entrar";
 /** As APIs da entrada (nenhuma server action roda na central: o roteamento de action é por id, e uma action pública executaria sob qualquer caminho /admin). */
 export const CAMINHO_API_ENTRADA = "/admin/api/entrar";
-/** As duas rotas de API da entrada que respondem SEM sessão (POST): pedir o código e verificá-lo. As de fator exigem sessão aal1. */
+/** As duas rotas de API da entrada que respondem SEM sessão (POST): pedir o código e verificá-lo. As de fator exigem sessão de nível 1 (só e-mail). */
 export const APIS_DE_ENTRADA_SEM_SESSAO = [`${CAMINHO_API_ENTRADA}/codigo`, `${CAMINHO_API_ENTRADA}/verificar`] as const;
 const sob = (pathname: string, base: string): boolean => pathname === base || pathname.startsWith(`${base}/`);
 /** Marca de entrada (cabeçalho de requisição do middleware): páginas e APIs da entrada. */
@@ -80,16 +80,17 @@ export const ehPaginaDeEntrada = (pathname: string): boolean => sob(pathname, CA
 export const ehEntradaSemSessao = (pathname: string, metodo = "GET"): boolean =>
   pathname === CAMINHO_ENTRADA || (metodo.toUpperCase() === "POST" && (APIS_DE_ENTRADA_SEM_SESSAO as readonly string[]).includes(pathname));
 
-/** Nome próprio do cookie de sessão da central (A10), distinto do `sb-<ref>-auth-token` do site: um cookie plantado pelo site, ou para o site, nunca é lido pela central. O mesmo no middleware e no cliente. */
-export const NOME_COOKIE_SESSAO = "sb-admin-central-auth-token";
-/** `cookieOptions` do `@supabase/ssr` da central (só o nome; o resto das opções é imposto por `opcoesDeCookieDaCentral` na gravação). */
-export const OPCOES_SSR_DA_CENTRAL = { name: NOME_COOKIE_SESSAO } as const;
+/**
+ * Nome próprio do cookie de sessão da central (A10; D335), distinto do `__Host-sessao` e do `sb-<ref>-auth-token` do site: um cookie plantado pelo site, ou para o site, nunca é lido
+ * pela central. Prefixo `__Secure-` (o navegador só o aceita com `Secure`); não é `__Host-` porque o cookie vale só em /admin, e `__Host-` exige `path=/`.
+ */
+export const NOME_COOKIE_SESSAO = "__Secure-adm-sessao";
 
 type OpcoesCookie = { name?: string; domain?: string; path?: string; maxAge?: number; expires?: Date; httpOnly?: boolean; secure?: boolean; sameSite?: boolean | "lax" | "strict" | "none" };
 
 /**
  * Opções dos cookies de sessão da central: host-only (sem `domain`: nunca `.segueovoto.com.br`, que vazaria a sessão para o site), `SameSite=Strict`, `Secure`, `HttpOnly`,
- * `path=/admin`. Preserva só a validade (`maxAge`/`expires`), que é o que o Supabase decide.
+ * `path=/admin`. Preserva só a validade (`maxAge`/`expires`), que é de quem grava.
  */
 export function opcoesDeCookieDaCentral(o: OpcoesCookie = {}): { path: string; httpOnly: true; secure: true; sameSite: "strict"; maxAge?: number; expires?: Date } {
   return { path: "/admin", httpOnly: true, secure: true, sameSite: "strict", ...(o.maxAge !== undefined ? { maxAge: o.maxAge } : {}), ...(o.expires !== undefined ? { expires: o.expires } : {}) };

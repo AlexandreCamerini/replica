@@ -1,5 +1,7 @@
 # Reavaliação da central de coleta e publicação em www.segueovoto.com.br
 
+> **Atualização de 17/11/2026 (D335, AC-32):** o login da central deixou de usar o Supabase Auth. Onde este documento diz "Supabase", "aal1", "aal2" ou "MFA do provedor", vale o login próprio em Postgres: sessão de nível 1 (e-mail), sessão de nível 2 (e-mail + TOTP), `AUTH_PROVIDER=pg` e `SESSION_SECRET`. O restante do texto fica como histórico. Ver `replica/decisions.md`, D335.
+
 Data: 17/11/2026. Objeto: a central de administração de coleta entregue no branch `claude/hopeful-lewin-176541` (63 commits locais, HEAD `5148ddd`), e o que o site público precisa para ir ao domínio próprio.
 
 Pedido do dono: reavaliar UX, UI e arquitetura; a central deve ser acessada de qualquer lugar, não de uma máquina local; o site vai para `www.segueovoto.com.br`.

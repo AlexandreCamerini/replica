@@ -6,7 +6,7 @@ import { NextRequest } from "next/server.js";
 import { middleware } from "../../middleware.admin.ts";
 import { cabecalhosDeSeguranca, CABECALHO_NONCE, HASH_SCRIPT_TEMA, MARCA_ENTRADA, opcoesDeCookieDaCentral, politicaCsp } from "../admin/cabecalhos.ts";
 
-// F3-T2 (AC-23): cabeçalhos de segurança só nas rotas da central, em toda resposta; CSP; opções de cookie; middleware com NextRequest fabricado (sem Supabase, sem rede).
+// F3-T2 (AC-23): cabeçalhos de segurança só nas rotas da central, em toda resposta; CSP; opções de cookie; middleware com NextRequest fabricado (sem rede, sem banco).
 
 const LOCAL = "postgres://admin_central@localhost:5432/civico";
 const NA_CENTRAL = ["content-security-policy", "x-frame-options", "referrer-policy"];
@@ -14,7 +14,7 @@ const NA_CENTRAL = ["content-security-policy", "x-frame-options", "referrer-poli
 /** Roda `fn` com o ambiente trocado (o middleware lê process.env a cada requisição) e restaura depois. */
 async function comEnv<T>(env: Record<string, string | undefined>, fn: () => Promise<T>): Promise<T> {
   const antes: Record<string, string | undefined> = {};
-  const chaves = ["ADMIN_CENTRAL", "ADMIN_DATABASE_URL", "VERCEL", "VERCEL_ENV", "AUTH_PROVIDER", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"];
+  const chaves = ["ADMIN_CENTRAL", "ADMIN_DATABASE_URL", "VERCEL", "VERCEL_ENV", "AUTH_PROVIDER", "SESSION_SECRET"];
   for (const k of chaves) antes[k] = process.env[k];
   for (const k of chaves) delete process.env[k];
   Object.assign(process.env, Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined)));
@@ -40,15 +40,15 @@ test("política CSP: as quatro diretivas obrigatórias e default-src 'self', sem
   }
 });
 
-test("política CSP: Turnstile (e só ele) liberado em produção; nada externo no modo local; Supabase nunca (o navegador não fala com ele)", () => {
+test("política CSP: Turnstile (e só ele) liberado em produção; nada externo no modo local; nenhum provedor de login nem de e-mail na política", () => {
   const local = politicaCsp({ modo: "local", nonce: "n" });
   // F3-C1 (A5): o Turnstile só vale nas páginas de entrada; este teste passou a pedir `paginaDeEntrada: true` (antes o host entrava em toda página da central em produção)
   const prod = politicaCsp({ modo: "producao", nonce: "n", paginaDeEntrada: true });
   assert.ok(!local.includes("cloudflare") && local.includes("frame-src 'none'"));
   assert.ok(prod.includes("script-src") && /script-src [^;]*challenges\.cloudflare\.com/.test(prod));
   assert.ok(/frame-src challenges\.cloudflare\.com(;|$)/.test(prod) && /connect-src 'self' challenges\.cloudflare\.com/.test(prod));
-  for (const csp of [local, prod]) assert.ok(!/supabase/i.test(csp), "o Supabase só é chamado pelo servidor");
-  assert.ok(prod.includes("img-src 'self' data:"), "o QR do fator é um data URI");
+  for (const csp of [local, prod]) assert.ok(!/supabase|resend/i.test(csp), "e-mail e conferência do captcha saem só do servidor");
+  for (const csp of [local, prod]) assert.ok(/(^|; )img-src 'self'(;|$)/.test(csp) && !/data:|blob:/.test(csp), "D335: sem QR em data URI, a CSP não tem data: em lugar nenhum");
   assert.ok(politicaCsp({ modo: "local", nonce: "n", desenvolvimento: true }).includes("'unsafe-eval'"));
   assert.ok(!politicaCsp({ modo: "producao", nonce: "n", desenvolvimento: false }).includes("'unsafe-eval'"));
 });
@@ -128,12 +128,16 @@ test("middleware: a marca de entrada que o cliente manda é APAGADA (só o middl
   });
 });
 
-test("middleware: modo produção sem Supabase configurado fecha (404 com cabeçalhos); Host certo é exigido antes de qualquer coisa", async () => {
-  const prod = { ADMIN_CENTRAL: "producao", VERCEL_ENV: "production", AUTH_PROVIDER: "supabase", ADMIN_DATABASE_URL: "postgres://u:p@db.exemplo.com:5432/d?sslmode=require" };
+test("middleware: modo produção sem SESSION_SECRET (ou com provedor que não é pg) fecha (404 com cabeçalhos); Host certo é exigido antes de qualquer coisa", async () => {
+  const prod = { ADMIN_CENTRAL: "producao", VERCEL_ENV: "production", AUTH_PROVIDER: "pg", SESSION_SECRET: "s".repeat(48), ADMIN_DATABASE_URL: "postgres://u:p@db.exemplo.com:5432/d?sslmode=require" };
+  for (const fechada of [{ ...prod, SESSION_SECRET: undefined }, { ...prod, SESSION_SECRET: "curto" }, { ...prod, AUTH_PROVIDER: "supabase" }]) {
+    await comEnv(fechada, async () => {
+      const r = await middleware(pedido("/admin/entrar", "admin.segueovoto.com.br"));
+      assert.equal(r.status, 404);
+      for (const h of NA_CENTRAL) assert.ok(r.headers.get(h), `falta ${h}`);
+    });
+  }
   await comEnv(prod, async () => {
-    const semSupabase = await middleware(pedido("/admin/entrar", "admin.segueovoto.com.br"));
-    assert.equal(semSupabase.status, 404);
-    assert.match(semSupabase.headers.get("content-security-policy")!, /challenges\.cloudflare\.com/);
     for (const host of ["localhost:3000", "replica.vercel.app", "admin.segueovoto.com.br:3000", "www.segueovoto.com.br"]) {
       const r = await middleware(pedido("/admin/entrar", host));
       assert.equal(r.status, 404, host);
@@ -146,14 +150,13 @@ test("middleware: modo produção sem Supabase configurado fecha (404 com cabeç
   });
 });
 
-test("middleware, produção, SEM sessão (sem cookie: o Supabase nem sai para a rede): só /admin/entrar responde, com a marca; todo o resto é 404; a marca do cliente nunca vale", async () => {
+test("middleware, produção, SEM sessão (sem cookie, cookie de outro segredo, vencido ou adulterado): só /admin/entrar responde, com a marca; todo o resto é 404; a marca do cliente nunca vale", async () => {
   const prod = {
     ADMIN_CENTRAL: "producao",
     VERCEL_ENV: "production",
-    AUTH_PROVIDER: "supabase",
+    AUTH_PROVIDER: "pg",
+    SESSION_SECRET: "s".repeat(48),
     ADMIN_DATABASE_URL: "postgres://u:p@db.exemplo.com:5432/d?sslmode=require",
-    NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:9",
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: "chave-falsa",
   };
   await comEnv(prod, async () => {
     const entrar = await middleware(pedido("/admin/entrar", "admin.segueovoto.com.br"));
@@ -166,6 +169,23 @@ test("middleware, produção, SEM sessão (sem cookie: o Supabase nem sai para a
       assert.equal(r.status, 404, path);
       assert.equal(r.headers.get("x-frame-options"), "DENY", path);
     }
+    // D335: o middleware só confere que HÁ sessão válida (assinatura e prazo), sem rede nem banco. Nível 1 e nível 2 passam aqui; quem decide o que cada um vê é sessao.ts.
+    const { assinarSessao } = await import("../admin/sessao-cookie.ts");
+    const { NOME_COOKIE_SESSAO } = await import("../admin/cabecalhos.ts");
+    const com = (valor: string, path = "/admin/fila") => middleware(pedido(path, "admin.segueovoto.com.br", { cookie: `${NOME_COOKIE_SESSAO}=${valor}` }));
+    const agora = Date.now();
+    for (const nivel of [1, 2] as const) {
+      const { valor } = assinarSessao(process.env, "a@exemplo.org", nivel, agora);
+      assert.notEqual((await com(valor)).status, 404, `sessão de nível ${nivel} passa do middleware`);
+      assert.equal((await com(valor)).headers.get(`x-middleware-request-${MARCA_ENTRADA}`), null, "fora da entrada não há marca");
+      assert.equal((await com(`${valor.slice(0, -1)}${valor.endsWith("A") ? "B" : "A"}`)).status, 404, "assinatura adulterada");
+    }
+    assert.equal((await com(assinarSessao({ SESSION_SECRET: "t".repeat(48) }, "a@exemplo.org", 2, agora).valor)).status, 404, "assinado com outro segredo");
+    assert.equal((await com(assinarSessao(process.env, "a@exemplo.org", 2, agora - 13 * 3600_000).valor)).status, 404, "nível 2 vencido (12 h)");
+    assert.equal((await com(assinarSessao(process.env, "a@exemplo.org", 1, agora - 16 * 60_000).valor)).status, 404, "nível 1 vencido (15 min)");
+    // cookie com o nome do site não é lido pela central
+    const { valor } = assinarSessao(process.env, "a@exemplo.org", 2, agora);
+    assert.equal((await middleware(pedido("/admin/fila", "admin.segueovoto.com.br", { cookie: `__Host-sessao=${valor}; sessao=${valor}` }))).status, 404);
   });
 });
 
@@ -179,15 +199,8 @@ test("o middleware cobre TUDO (build da central, AC-29) e roda em Node; só impo
   for (const u of ["/", "/entrar", "/pessoas", "/api/me", "/_next/static/chunks/a.js", "/_next/data/x.json", "/_next/image", "/geo/br.json", "/favicon.ico", "/icon", "/robots.txt", "/ADMIN", "/aDmin/fila", "/_NEXT/STATIC/x", "/admin", "/admin/fila", "/admin/fila/", "/admin//fila", "//admin", "/admin%2Ffila", "/%61dmin", "/p/x/opengraph-image"]) assert.ok(casa(u), `tem de cobrir ${u}`);
   assert.equal(config.runtime, "nodejs");
   const fonte = readFileSync(new URL("../../middleware.admin.ts", import.meta.url), "utf8");
-  for (const m of fonte.matchAll(/from\s+["']([^"']+)["']/g)) assert.ok(["@supabase/ssr", "next/server.js"].includes(m[1]) || /^\.\/lib\/admin\/(guarda-regra|cabecalhos|prazo)\.ts$/.test(m[1]), `middleware importa ${m[1]}`);
-});
-
-test("comPrazo: promessa que não termina falha no prazo; a que termina antes passa", async () => {
-  const { comPrazo } = await import("../admin/prazo.ts");
-  const inicio = Date.now();
-  await assert.rejects(comPrazo(new Promise(() => {}), 50), /prazo/);
-  assert.ok(Date.now() - inicio < 1000);
-  assert.equal(await comPrazo(Promise.resolve(7), 50), 7);
+  for (const m of fonte.matchAll(/from\s+["']([^"']+)["']/g)) assert.ok(m[1] === "next/server.js" || /^\.\/lib\/admin\/(guarda-regra|cabecalhos|sessao-cookie)\.ts$/.test(m[1]), `middleware importa ${m[1]}`);
+  assert.ok(!/\bfetch\s*\(|supabase|sqlAdmin|from "postgres"/i.test(fonte.replace(/\/\/.*$/gm, "")), "D335: o middleware não fala com rede nem com banco");
 });
 
 test("V1 e V3: página da central só com GET/HEAD; prefetch sem RSC = 404; API e GET normal seguem", async () => {

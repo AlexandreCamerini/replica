@@ -248,7 +248,8 @@ def test_schemas_sequences_e_banco(su):
         n = r["nspname"]
         usage = su.execute("select has_schema_privilege(%s, %s, 'USAGE') as p", (ROLE, n)).fetchone()["p"]
         create = su.execute("select has_schema_privilege(%s, %s, 'CREATE') as p", (ROLE, n)).fetchone()["p"]
-        assert usage == (n in ("public", "extensions")), f"USAGE em {n}: {usage}"  # extensions: unaccent/pg_trgm nos índices que o planejador simplifica ao ler `places`
+        # extensions: unaccent/pg_trgm nos índices que o planejador simplifica ao ler `places`; login: as duas tabelas do login próprio da central (0157, D335)
+        assert usage == (n in ("public", "extensions", "login")), f"USAGE em {n}: {usage}"
         assert not create, f"CREATE em {n}"
     for r in su.execute("select c.oid::regclass::text s from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.relkind = 'S' and n.nspname not like 'pg\\_%' and n.nspname <> 'information_schema'").fetchall():
         for priv in ("USAGE", "SELECT", "UPDATE"):
@@ -257,6 +258,26 @@ def test_schemas_sequences_e_banco(su):
     assert not su.execute("select has_database_privilege(%s, %s, 'CREATE') as p", (ROLE, db)).fetchone()["p"]
     # Residual declarado (não é desta migração): CONNECT e TEMPORARY no banco vêm de PUBLIC; só se tirariam revogando de PUBLIC, o que atingiria os outros roles.
     assert su.execute("select has_database_privilege(%s, %s, 'CONNECT') as p", (ROLE, db)).fetchone()["p"]
+
+
+def test_schema_login_so_as_tabelas_da_central(su):
+    """0157 (D335): no schema `login` o admin_central lê, insere e atualiza SÓ `central_codigos` e `central_fatores`; nunca apaga; nada nas tabelas do login do site."""
+    tabelas = {r["relname"] for r in su.execute("select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'login' and c.relkind in ('r', 'p', 'v', 'm')").fetchall()}
+    assert {"central_codigos", "central_fatores", "codes", "sessoes_validas_desde"} <= tabelas
+    esperado = {"central_codigos": {"SELECT", "INSERT", "UPDATE"}, "central_fatores": {"SELECT", "INSERT", "UPDATE"}}
+    for t in sorted(tabelas):
+        tem = {p for p in ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER") if su.execute("select has_table_privilege(%s, %s, %s) as p", (ROLE, f"login.{t}", p)).fetchone()["p"]}
+        assert tem == esperado.get(t, set()), (t, tem)
+    # os roles do site não alcançam as tabelas da central
+    for role in ("web_reader", "web_writer", "anon", "authenticated"):
+        for t in esperado:
+            for p in ("SELECT", "INSERT", "UPDATE", "DELETE"):
+                assert not su.execute("select has_table_privilege(%s, %s, %s) as p", (role, f"login.{t}", p)).fetchone()["p"], (role, t, p)
+    # nenhuma função do schema login é executável por grant direto ao role (o gatilho roda como quem atualiza)
+    assert su.execute(
+        "select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace, lateral aclexplode(p.proacl) x "
+        "where n.nspname = 'login' and p.proacl is not null and x.grantee = (select oid from pg_roles where rolname = %s)", (ROLE,)
+    ).fetchall() == []
 
 
 # ------------------------------------------------------------------ 3. comportamento

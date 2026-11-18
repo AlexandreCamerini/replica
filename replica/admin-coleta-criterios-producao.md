@@ -1,5 +1,7 @@
 # Critérios 9, 15 e 23 para a central na internet (F3-T5)
 
+> **Atualização de 17/11/2026 (D335, AC-32):** o login da central deixou de usar o Supabase Auth. Onde este documento diz "Supabase", "aal1", "aal2" ou "MFA do provedor", vale o login próprio em Postgres: sessão de nível 1 (e-mail), sessão de nível 2 (e-mail + TOTP), `AUTH_PROVIDER=pg` e `SESSION_SECRET`. O restante do texto fica como histórico. Ver `replica/decisions.md`, D335.
+
 Origem: `replica/reavaliacao-central-e-dominio.md`, seção 2.3 (critérios 9, 15 e 23 deixam de valer como escritos) e linha F3 da seção 6; contrato em `replica/admin-coleta-decisoes.md` (AC-23 a AC-26). Os textos originais estão em `replica/prompts/admin-coleta-enriquecimento.md` (critérios 9, 15 e 23 da Parte C). Este arquivo os substitui para a central publicada em `admin.segueovoto.com.br`; o modo local continua provado como antes.
 
 Nada aqui foi provado com Supabase real nem em navegador: a seção 5 lista o que só se prova assim. Os dois modos são os da AC-23, escolhidos por `ADMIN_CENTRAL` (valor exato): `1` (local) e `producao`. Qualquer outro valor, ou a variável ausente: central fechada.

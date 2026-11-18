@@ -1,5 +1,5 @@
-// Tempo mínimo de resposta das ações de entrada (achado A3): a resposta é neutra, mas a latência não podia ser: só para admin há ida ao provedor de login. Módulo PURO, com relógio injetável.
-// Limite registrado: o limite de ritmo por IP e por e-mail fica no Supabase Auth. O da aplicação exigiria escrita em banco, e o role da central (`admin_central`) não escreve em nada fora de `adm_pedidos*`.
+// Tempo mínimo de resposta das ações de entrada (achado A3): a resposta é neutra, mas a latência não podia ser: só para admin há envio de e-mail. Módulo PURO, com relógio injetável.
+// Limite de ritmo (D335): por e-mail, no banco (3 envios por hora, 5 tentativas por código, 5 tentativas de TOTP a cada 15 min; migração 0157). Por IP não há: fica para o firewall da Vercel.
 
 export type Relogio = { agora: () => number; dormir: (ms: number) => Promise<void> };
 export const RELOGIO_REAL: Relogio = { agora: () => Date.now(), dormir: (ms) => new Promise((r) => setTimeout(r, ms)) };

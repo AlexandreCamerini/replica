@@ -2,15 +2,16 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { decidirAcesso, HOST_CENTRAL_PRODUCAO, hostDeRequisicaoPermitido, origemRecusada, type EntradaCsrf } from "../admin/guarda-regra.ts";
 
-// F3-T2 (AC-23): os dois modos da trava, o Host por modo e o CSRF estrito. Tudo puro; nenhum teste toca banco, rede ou Supabase.
+// F3-T2 (AC-23): os dois modos da trava, o Host por modo e o CSRF estrito. Tudo puro; nenhum teste toca banco nem rede.
 
 const LOCAL = "postgres://admin_central@localhost:5432/civico";
-const REMOTO = "postgres://admin_central:senha@db.exemplo.supabase.co:5432/postgres?sslmode=require";
+const REMOTO = "postgres://admin_central:senha@db.exemplo.com:5432/civico?sslmode=require";
 const producao = (extra: Record<string, string | undefined> = {}) => ({
   ADMIN_CENTRAL: "producao",
   VERCEL_ENV: "production",
   VERCEL: "1",
-  AUTH_PROVIDER: "supabase",
+  AUTH_PROVIDER: "pg",
+  SESSION_SECRET: "s".repeat(48),
   ADMIN_DATABASE_URL: REMOTO,
   ...extra,
 });
@@ -38,9 +39,11 @@ test("modo produção correto libera, com modo `producao` (VERCEL definida não 
   assert.equal(decidirAcesso(producao({ ADMIN_DATABASE_URL: "postgresql://u:p@[2001:db8::1]:6543/d?application_name=x&sslmode=require" })).liberada, true);
 });
 
-test("modo produção fecha: sem VERCEL_ENV=production, com AUTH_PROVIDER diferente de supabase, sem sslmode ou com sslmode fraco", () => {
+test("modo produção fecha: sem VERCEL_ENV=production, com AUTH_PROVIDER diferente de pg, sem SESSION_SECRET de 32+, sem sslmode ou com sslmode fraco", () => {
   for (const v of [undefined, "", "preview", "development", "Production", "production "]) assert.equal(decidirAcesso(producao({ VERCEL_ENV: v })).liberada, false, `VERCEL_ENV=${String(v)}`);
-  for (const v of [undefined, "", "dev", "Supabase", "supabase "]) assert.equal(decidirAcesso(producao({ AUTH_PROVIDER: v })).liberada, false, `AUTH_PROVIDER=${String(v)}`);
+  for (const v of [undefined, "", "dev", "supabase", "PG", "pg "]) assert.equal(decidirAcesso(producao({ AUTH_PROVIDER: v })).liberada, false, `AUTH_PROVIDER=${String(v)}`);
+  for (const v of [undefined, "", "curto", "x".repeat(31)]) assert.equal(decidirAcesso(producao({ SESSION_SECRET: v })).liberada, false, `SESSION_SECRET de ${String(v).length}`);
+  assert.equal(decidirAcesso(producao({ SESSION_SECRET: "x".repeat(32) })).liberada, true);
   for (const u of [
     undefined,
     "",

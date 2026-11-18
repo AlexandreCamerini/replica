@@ -561,7 +561,7 @@ export const SQL_PENDENCIAS_ABERTAS_POR_CLASSE = `select classe, count(*)::int a
 // ============================================================================================================================
 
 /**
- * $1 tipo, $2 parametros (JSON), $3 chave_idem, $4 por_user_id (uuid do Supabase Auth ou nulo), $5 por_email (da sessão, nunca do corpo). Devolve o id novo, ou nenhuma linha se já há
+ * $1 tipo, $2 parametros (JSON), $3 chave_idem, $4 por_user_id (`adm_admins.user_id` do operador, ou nulo), $5 por_email (da sessão, nunca do corpo). Devolve o id novo, ou nenhuma linha se já há
  * pedido ativo com a chave. O gatilho `adm_pedido_identidade` (migração 0156) confere `por_email` em `adm_admins` e `por_user_id` (se o admin tem `user_id`) e freia o ritmo.
  */
 export const SQL_PEDIDO_INSERIR = `insert into adm_pedidos (tipo, parametros, chave_idem, por_user_id, por_email)

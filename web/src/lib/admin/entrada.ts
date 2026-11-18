@@ -1,24 +1,26 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { clienteAuthDaCentral } from "./cliente-auth.ts";
-import { escolherFator } from "./escolha-fator.ts";
-import { comPrazo } from "./prazo.ts";
+import { gravarSessao, loginDaCentral, sessaoDoCookie } from "./login.ts";
+import { captchaOk } from "./provedores.ts";
+import { NONCE, novoNonce } from "./sessao-cookie.ts";
 import { adminAtivo, resolverOperador } from "./sessao.ts";
 import { completarAte, PISO_ENTRADA_MS, RELOGIO_REAL, responderNoPiso, type Relogio } from "./tempo-minimo.ts";
 
-// Lógica da entrada da central (e-mail -> código -> fator TOTP), só modo produção. NÃO são server actions: o Next roteia action pelo ID e não pelo caminho, então uma action sob /admin/*
-// poderia ser invocada por qualquer caminho da central, e uma action PÚBLICA também (A1/A13). Aqui são funções chamadas por route handlers de /admin/api/entrar (subcaminhos) (JSON, mesma origem,
-// guarda própria da entrada na primeira instrução de cada rota). O navegador nunca fala com o Supabase: tudo passa por aqui.
+// Lógica da entrada da central (e-mail -> código -> fator TOTP), só modo produção. Login PRÓPRIO em Postgres (D335; login-core.ts): nenhum provedor de identidade externo.
+// NÃO são server actions: o Next roteia action pelo ID e não pelo caminho, então uma action sob /admin/* poderia ser invocada por qualquer caminho da central, e uma action PÚBLICA
+// também (A1/A13). Aqui são funções chamadas por route handlers de /admin/api/entrar (subcaminhos) (JSON, mesma origem, guarda própria da entrada na primeira instrução de cada rota).
 // Regras:
-//   - Quem não é admin ativo NUNCA recebe código e NUNCA cria conta (`shouldCreateUser: false`; e o código nem é pedido ao Supabase). A resposta é a mesma para admin, não admin e
-//     e-mail inexistente; erro do provedor (captcha, ritmo) também vira a mesma resposta neutra. Só o log do servidor sabe.
-//   - A3: a LATÊNCIA também é a mesma: `enviarCodigo` responde sempre no piso fixo (PISO_ENTRADA_MS), e a ida ao provedor, só para admin, corre em paralelo e termina em `after()`;
-//     `verificarCodigo` completa até o mesmo piso. Limite de ritmo por IP e por e-mail: fica no Supabase (o da aplicação exigiria escrita em banco, que o role da central não tem).
-//   - Cada rota de fator exige sessão de admin ativo (`resolverOperador`), em vez de confiar no caminho por onde chegou.
+//   - Quem não é admin ativo NUNCA recebe código e NUNCA ganha sessão: a central não cria conta (quem é admin está em `adm_admins`, escrita só pelo dono do banco). A resposta é a
+//     mesma para admin, não admin e e-mail inexistente; captcha recusado, limite de envios e falha do e-mail também viram a mesma resposta neutra. Só o log do servidor sabe.
+//   - A3: a LATÊNCIA também é a mesma: `enviarCodigo` responde sempre no piso fixo (PISO_ENTRADA_MS), e o trabalho (captcha, banco, e-mail), só para admin, corre em paralelo e
+//     termina em `after()`; `verificarCodigo` completa até o mesmo piso. Limite de ritmo por e-mail no banco (0157): 3 envios por hora, 5 tentativas por código.
+//   - Cada rota de fator exige sessão de admin ativo (`resolverOperador`), em vez de confiar no caminho por onde chegou. O fator é do e-mail DA SESSÃO, nunca do corpo.
 
 export type Resultado = { status: number; corpo: Record<string, unknown>; pendente?: Promise<void> };
 
-const COOKIE_EMAIL = "adm_entrar_email"; // e-mail entre as duas etapas: httpOnly, host-only, Strict, só em /admin
+// E-mail e nonce entre as duas etapas (`email|nonce`): httpOnly, host-only, Strict, só em /admin. Não é assinado e não precisa: o nonce é aleatório, o banco guarda só o hash dele, e o
+// código só confere (e a tentativa só conta) para o nonce de quem pediu. Quem monta este cookie à mão com o e-mail de um admin não gasta as tentativas dele nem ganha palpite.
+const COOKIE_EMAIL = "adm_entrar_email";
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}$/;
 
 const emailDe = (v: unknown): string | null => {
@@ -33,15 +35,15 @@ export async function enviarCodigo(corpo: Record<string, unknown>, relogio: Relo
   const email = emailDe(corpo.email);
   if (!email) return completarAte(PISO_ENTRADA_MS, async () => ({ status: 400, corpo: { erro: "Confira o e-mail: falta algo no endereço." } }), relogio);
   const token = textoDe(corpo.turnstile, 4096);
-  (await cookies()).set(COOKIE_EMAIL, email, { httpOnly: true, sameSite: "strict", secure: true, path: "/admin", maxAge: 15 * 60 });
+  const nonce = novoNonce();
+  (await cookies()).set(COOKIE_EMAIL, `${email}|${nonce}`, { httpOnly: true, sameSite: "strict", secure: true, path: "/admin", maxAge: 15 * 60 });
   const { pendente } = await responderNoPiso(
     PISO_ENTRADA_MS,
     async () => {
       try {
-        if (await adminAtivo(email)) {
-          const sb = await clienteAuthDaCentral();
-          const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false, captchaToken: token !== "" ? token : undefined } });
-          if (error) logErro("sendCode", error);
+        // captcha só para admin: o token é de uso único e a resposta é a mesma de qualquer jeito; quem não é admin não gasta chamada externa nem toca o banco de códigos
+        if ((await adminAtivo(email)) && (await captchaOk(token))) {
+          if (!(await loginDaCentral().enviarCodigo(email, nonce))) console.error("[admin] entrada sendCode: limite de envios ou falha do e-mail");
         }
       } catch (e) {
         logErro("sendCode", e);
@@ -52,23 +54,22 @@ export async function enviarCodigo(corpo: Record<string, unknown>, relogio: Relo
   return { status: 200, corpo: { proximo: "/admin/entrar?etapa=codigo" }, pendente };
 }
 
-/** Etapa 2: o código de 6 números. Para não admin, a resposta é a mesma de código errado, no mesmo tempo. Com sucesso, a sessão (aal1) vai para os cookies e segue para o fator. */
+/** Etapa 2: o código de 6 números. Para não admin, a resposta é a mesma de código errado, no mesmo tempo. Com sucesso, a sessão de nível 1 (só e-mail, 15 min) vai para o cookie e segue para o fator. */
 export async function verificarCodigo(corpo: Record<string, unknown>, relogio: Relogio = RELOGIO_REAL): Promise<Resultado> {
   return completarAte(
     PISO_ENTRADA_MS,
     async (): Promise<Resultado> => {
       const jar = await cookies();
-      const email = jar.get(COOKIE_EMAIL)?.value;
+      const [emailCru, nonce = ""] = (jar.get(COOKIE_EMAIL)?.value ?? "").split("|");
+      const email = emailDe(emailCru);
       if (!email) return { status: 400, corpo: { erro: "O pedido de código expirou. Peça um novo." } };
       const codigo = textoDe(corpo.code, 64).replace(/\D/g, "");
       if (codigo.length !== 6) return { status: 400, corpo: { erro: "O código tem 6 números." } };
       const invalido: Resultado = { status: 400, corpo: { erro: "Código errado ou vencido. Confira o último e-mail ou peça um novo." } };
       try {
         if (!(await adminAtivo(email))) return invalido;
-        const sb = await clienteAuthDaCentral();
-        // N4: prazo menor que o piso, para a resposta de admin não passar do piso e vazar pelo tempo; estourado = código inválido
-        const { data, error } = await comPrazo(sb.auth.verifyOtp({ email, token: codigo, type: "email" }), PISO_ENTRADA_MS - 400);
-        if (error || !data.user) return invalido;
+        if (!NONCE.test(nonce) || (await loginDaCentral().verificarCodigo(email, nonce, codigo)) !== "ok") return invalido;
+        await gravarSessao(email, 1); // nível 1: só abre o cadastro ou a verificação do fator
       } catch (e) {
         logErro("verifyCode", e);
         return invalido;
@@ -83,26 +84,30 @@ export async function verificarCodigo(corpo: Record<string, unknown>, relogio: R
 const NAO_ENCONTRADO: Resultado = { status: 404, corpo: {} };
 const ERRO_PREPARO = "Não foi possível preparar o cadastro agora. Tente de novo.";
 
-/** Sessão de admin ativo que ainda NÃO está em aal2. `null` = pode seguir; aal2 já vai para a central; qualquer outra coisa = 404. */
-async function sessaoParaFator(): Promise<Resultado | null> {
+/** Sessão de admin ativo que ainda NÃO passou pelo fator (nível 1): devolve o e-mail DA SESSÃO. Nível 2 já vai para a central; qualquer outra coisa = 404. */
+async function sessaoParaFator(): Promise<{ email: string } | { barrado: Resultado }> {
   const r = await resolverOperador();
-  if (r.ok) return { status: 200, corpo: { proximo: "/admin" } };
-  return r.destino === "fator" ? null : NAO_ENCONTRADO;
+  if (r.ok) return { barrado: { status: 200, corpo: { proximo: "/admin" } } };
+  if (r.destino !== "fator") return { barrado: NAO_ENCONTRADO };
+  const s = await sessaoDoCookie();
+  return s ? { email: s.email } : { barrado: NAO_ENCONTRADO };
 }
 
-/** Cadastro do TOTP, passo 1: cria o fator (nunca na renderização, para não acumular fatores) e devolve o QR e o segredo. */
+/** A página do fator mostra o cadastro ou a verificação? `true` = o e-mail da sessão já tem fator verificado. Só para sessão de nível 1 de admin ativo; senão `null`. */
+export async function fatorJaCadastrado(): Promise<boolean | null> {
+  const s = await sessaoParaFator();
+  if ("barrado" in s) return null;
+  return loginDaCentral().temFatorVerificado(s.email);
+}
+
+/** Cadastro do TOTP, passo 1: cria o segredo (nunca na renderização, para recarregar a página não trocar o segredo) e o devolve uma vez, em texto e como link `otpauth:`. */
 export async function iniciarCadastroFator(): Promise<Resultado> {
-  const barrado = await sessaoParaFator();
-  if (barrado) return barrado;
+  const s = await sessaoParaFator();
+  if ("barrado" in s) return s.barrado;
   try {
-    const sb = await clienteAuthDaCentral();
-    const { data: lista, error: erroLista } = await sb.auth.mfa.listFactors();
-    if (erroLista || !lista) return { status: 503, corpo: { erro: ERRO_PREPARO } };
-    if (lista.totp.length > 0) return { status: 409, corpo: { erro: "Já existe um autenticador cadastrado. Use o código dele." } };
-    for (const f of lista.all) if (f.factor_type === "totp" && f.status === "unverified") await sb.auth.mfa.unenroll({ factorId: f.id }); // sobras de tentativas anteriores
-    const { data, error } = await sb.auth.mfa.enroll({ factorType: "totp", friendlyName: `central-${Date.now()}`, issuer: "Segue o Voto (central)" });
-    if (error || !data) return { status: 503, corpo: { erro: ERRO_PREPARO } };
-    return { status: 200, corpo: { fatorId: data.id, qr: data.totp.qr_code, segredo: data.totp.secret } };
+    const novo = await loginDaCentral().iniciarCadastro(s.email);
+    if (!novo) return { status: 409, corpo: { erro: "Já existe um autenticador cadastrado. Use o código dele." } };
+    return { status: 200, corpo: { segredo: novo.segredo, uri: novo.uri } };
   } catch (e) {
     logErro("enroll", e);
     return { status: 503, corpo: { erro: ERRO_PREPARO } };
@@ -110,21 +115,20 @@ export async function iniciarCadastroFator(): Promise<Resultado> {
 }
 
 /**
- * Cadastro do TOTP, passo 2, e verificação do fator já cadastrado. Com fator VERIFICADO na conta, o `fatorId` recebido é ignorado (A4: `escolherFator`); `unverified` só vale no primeiro
- * cadastro. Com sucesso a sessão sobe para aal2.
+ * Cadastro do TOTP, passo 2, e verificação do fator já cadastrado: o mesmo código de 6 números, conferido contra o fator do e-mail DA SESSÃO (nada do corpo escolhe o fator: A4).
+ * Com sucesso a sessão sobe para o nível 2. Limite: 5 tentativas a cada 15 min por e-mail; o mesmo código não vale duas vezes.
  */
 export async function confirmarFator(corpo: Record<string, unknown>): Promise<Resultado> {
-  const barrado = await sessaoParaFator();
-  if (barrado) return barrado;
+  const s = await sessaoParaFator();
+  if ("barrado" in s) return s.barrado;
   const codigo = textoDe(corpo.code, 64).replace(/\D/g, "");
   if (codigo.length !== 6) return { status: 400, corpo: { erro: "O código tem 6 números." } };
   try {
-    const sb = await clienteAuthDaCentral();
-    const { data: lista } = await sb.auth.mfa.listFactors();
-    const fator = escolherFator(lista?.all ?? [], textoDe(corpo.fatorId, 128));
-    if (!fator) return { status: 400, corpo: { erro: "Autenticador não encontrado. Recarregue a página." } };
-    const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: fator.id, code: codigo });
-    if (error) return { status: 400, corpo: { erro: "Código errado ou vencido. Espere o próximo código do aplicativo e tente de novo." } };
+    const r = await loginDaCentral().confirmarFator(s.email, codigo);
+    if (r === "sem_fator") return { status: 400, corpo: { erro: "Autenticador não encontrado. Recarregue a página." } };
+    if (r === "muitas") return { status: 429, corpo: { erro: "Muitas tentativas. Espere 15 minutos e tente de novo." } };
+    if (r !== "ok") return { status: 400, corpo: { erro: "Código errado ou vencido. Espere o próximo código do aplicativo e tente de novo." } };
+    await gravarSessao(s.email, 2);
   } catch (e) {
     logErro("verifyFactor", e);
     return { status: 503, corpo: { erro: "Não foi possível verificar agora. Tente de novo." } };

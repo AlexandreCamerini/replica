@@ -1,18 +1,17 @@
 // Guarda da central na borda da requisição (critério 15; AC-23). Roda ANTES do roteador do Next, para QUALQUER método e qualquer requisição, inclusive RSC e prefetch:
 //   1. central fechada -> 404 sem corpo;  2. Host fora do permitido do modo (local: localhost; produção: admin.segueovoto.com.br) -> 404;
-//   3. modo produção: `updateSession` do @supabase/ssr (renova o token e regrava os cookies) e `getUser()`; sem usuário -> 404, EXCETO a página de e-mail e código (/admin/entrar).
+//   3. modo produção: sessão própria da central (cookie assinado, D335; confere assinatura e validade, sem rede nem banco); sem sessão -> 404, EXCETO a página de e-mail e código (/admin/entrar).
 // Em TODA resposta (inclusive os 404) entram os cabeçalhos de segurança (CSP com nonce, X-Frame-Options, Referrer-Policy). Este arquivo só existe no build da central (AC-29); o site público não tem middleware.
 // (`next/server.js` com extensão: o `node --test` só resolve assim, e o webpack do Next aceita igual.)
-// Só módulos puros entram aqui (guarda-regra.ts, cabecalhos.ts): nada do site público, nada de `server-only`, nada de sessao.ts/guarda.ts. A identidade fina (e-mail na lista de
-// admins, aal2) é de lib/admin/sessao.ts, por requisição, no layout, nas páginas, nas rotas e nas consultas; aqui só se confere que há SESSÃO.
+// Só módulos puros entram aqui (guarda-regra.ts, cabecalhos.ts, sessao-cookie.ts): nada do site público, nada de `server-only`, nada de sessao.ts/guarda.ts. A identidade fina (e-mail na lista de
+// admins, nível 2, fator verificado) é de lib/admin/sessao.ts, por requisição, no layout, nas páginas, nas rotas e nas consultas; aqui só se confere que há SESSÃO.
 //
 // Marca de entrada: as duas páginas de /admin/entrar são renderizadas dentro do layout da central, que exige admin. O middleware põe o cabeçalho de REQUISIÇÃO `x-admin-entrada`
 // só nessas páginas (e só em modo produção, com Host certo) e APAGA o que o cliente mandar com esse nome; o layout só pula a checagem de admin quando a marca existe.
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server.js";
-import { cabecalhosDeSeguranca, CABECALHO_NONCE, ehEntrada, ehEntradaSemSessao, ehPaginaDeEntrada, MARCA_ENTRADA, OPCOES_SSR_DA_CENTRAL, opcoesDeCookieDaCentral } from "./lib/admin/cabecalhos.ts";
+import { cabecalhosDeSeguranca, CABECALHO_NONCE, ehEntrada, ehEntradaSemSessao, ehPaginaDeEntrada, MARCA_ENTRADA, NOME_COOKIE_SESSAO } from "./lib/admin/cabecalhos.ts";
 import { decidirAcesso, ehEstaticoDaCentral, hostDeRequisicaoPermitido } from "./lib/admin/guarda-regra.ts";
-import { comPrazo } from "./lib/admin/prazo.ts";
+import { lerSessao } from "./lib/admin/sessao-cookie.ts";
 
 // Matcher: TUDO, com `/(.*)` e não `/:path*` (este último não casa segmento vazio: `//admin` e `/admin//fila` escapariam do middleware). Este arquivo só existe no build da central (`middleware.admin.ts` + `pageExtensions` só com `.admin.*`; AC-29): não há site público neste build para proteger, então não há filtro por
 // caminho no matcher, que vazaria por variação (caixa, `%2F`, barras, o proxy de imagens do Next, `/_next/data`, prefetch RSC, rotas de metadado). O que não for rota da central, estático do build ou malha
@@ -69,32 +68,13 @@ export async function middleware(req: NextRequest): Promise<Response> {
 
   if (acesso.modo === "local") return comSeguranca(proxima(false));
 
-  // ---- modo produção
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) return negar();
-  const marcar = ehEntrada(pathname);
-  let resposta = proxima(marcar);
-  const supabase = createServerClient(url, anon, {
-    cookieOptions: OPCOES_SSR_DA_CENTRAL,
-    cookies: {
-      getAll: () => req.cookies.getAll(),
-      setAll(lista, cabecalhos) {
-        // Padrão do @supabase/ssr: grava na requisição (para o RSC desta mesma passagem ver o token novo), refaz a resposta a partir dela e grava na resposta (para o navegador).
-        for (const { name, value } of lista) req.cookies.set(name, value);
-        resposta = proxima(marcar);
-        for (const { name, value, options } of lista) resposta.cookies.set(name, value, opcoesDeCookieDaCentral(options));
-        for (const [k, v] of Object.entries(cabecalhos ?? {})) resposta.headers.set(k, v);
-      },
-    },
-  });
-  let temUsuario = false;
+  // ---- modo produção: só se confere que HÁ sessão válida (assinatura e prazo). Sem ida à rede nem ao banco: nada aqui fica lento nem cai com um provedor fora do ar.
+  let temSessao = false;
   try {
-    const { data, error } = await comPrazo(supabase.auth.getUser()); // valida o token no servidor do Auth; não confia só no cookie; com prazo (provedor fora do ar = 404 rápido)
-    temUsuario = !error && !!data.user;
+    temSessao = lerSessao(process.env, req.cookies.get(NOME_COOKIE_SESSAO)?.value, Date.now()) !== null;
   } catch {
-    temUsuario = false; // falha do provedor = sem usuário = 404 (fecha)
+    temSessao = false; // SESSION_SECRET ausente (a guarda já fecha a central nesse caso) = sem sessão = 404
   }
-  if (!temUsuario && !ehEntradaSemSessao(pathname, req.method)) return negar();
-  return comSeguranca(resposta); // `resposta` é a última criada (a de `setAll`, se houve renovação de sessão)
+  if (!temSessao && !ehEntradaSemSessao(pathname, req.method)) return negar();
+  return comSeguranca(proxima(ehEntrada(pathname)));
 }

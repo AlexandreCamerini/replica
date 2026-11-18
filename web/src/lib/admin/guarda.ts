@@ -12,7 +12,7 @@ import { operadorAtual, resolverOperador } from "./sessao.ts";
 //   - cada função de consultas.ts: `await exigirAdmin()` na primeira instrução (layout e página renderizam em paralelo: a página não pode consultar o banco se o layout responde 404);
 //   - as duas páginas de /admin/entrar: `exigirEntrada()` / `exigirFator()` (únicas rotas sem sessão; ver o cabeçalho de middleware.admin.ts);
 //   - sqlAdmin() em db.ts: lança se a central estiver fechada (defesa em profundidade).
-// `exigirAdmin` confere a central liberada e a identidade (`operadorAtual()`: sessão, aal2 e e-mail ativo em `adm_admins`; modo local: ADMIN_LOCAL_EMAIL). Não admin = 404.
+// `exigirAdmin` confere a central liberada e a identidade (`operadorAtual()`: sessão de nível 2, fator verificado e e-mail ativo em `adm_admins`; modo local: ADMIN_LOCAL_EMAIL). Não admin = 404.
 // Nunca registra o valor de variável de ambiente nem o motivo da recusa: quem consulta o endpoint não aprende nada.
 
 export { centralLiberada };

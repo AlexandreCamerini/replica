@@ -190,8 +190,9 @@ export const ADMIN_LOCAL_NOME = "Operador local";
 export const DIST_ADMIN_LOCAL = ".next-admin-local";
 export const envCentral = (banco, extra = {}) => envCi({ ADMIN_CENTRAL: "1", ADMIN_DATABASE_URL: urlCentral(banco), ADMIN_LOCAL_EMAIL, NEXT_DIST_DIR: DIST_ADMIN_LOCAL, ...extra });
 
-// Modo produção SIMULADO (AC-23): o `next start` local com as variáveis do projeto admin. O Supabase é FALSO: aponta para uma porta local FECHADA (nenhuma requisição sai da máquina);
-// o provedor fora do ar tem de dar 404, nunca derrubar o servidor. O banco é o de ensaio com `sslmode=require` (a guarda só confere o formato; nada consulta o banco antes da sessão).
+// Modo produção SIMULADO (AC-23; D335): o `next start` local com as variáveis do projeto admin. Login PRÓPRIO (AUTH_PROVIDER=pg): não há provedor de identidade a simular.
+// Sem RESEND_API_KEY nem TURNSTILE_SECRET_KEY, o captcha falha fechado e nenhum e-mail sai: nenhuma requisição deixa a máquina. O banco é o de ensaio com `sslmode=require`
+// (a guarda só confere o formato; o Postgres local não fala TLS, então nada aqui consulta o banco em modo produção: o fluxo completo com banco está em login-http.mjs).
 export const HOST_PRODUCAO = "admin.segueovoto.com.br";
 // O projeto admin é um BUILD com ADMIN_CENTRAL=producao (pageExtensions só `.admin.*`; AC-29): pasta própria, para não pisar no build do site (.next).
 export const DIST_ADMIN_PROD = ".next-admin-prod";
@@ -201,15 +202,15 @@ export const construirSite = (timeout = 580_000) => rodar(process.execPath, [pat
 /** `next build` da CENTRAL: `modo` é "1" (local, pasta DIST_ADMIN_LOCAL) ou "producao" (pasta DIST_ADMIN_PROD). A variável vale no build E, depois, no `next start`. */
 export const construirCentral = (modo, timeout = 580_000) =>
   rodar(process.execPath, [path.join(WEB, "node_modules/next/dist/bin/next"), "build"], { cwd: WEB, env: envCi({ ADMIN_CENTRAL: modo, NEXT_DIST_DIR: modo === "1" ? DIST_ADMIN_LOCAL : DIST_ADMIN_PROD }), timeout });
+/** SESSION_SECRET das provas (sem valor fora delas): assina os cookies de sessão que as provas forjam de propósito. */
+export const SEGREDO_DE_PROVA = "prova-".repeat(8);
 export async function envProducao(banco, extra = {}) {
-  const fechada = await portaLivre(); // livre agora = fechada: ninguém escuta
   const base = urlCentral(banco).replace("@localhost:", "@127.0.0.1:");
   return envCi({
     ADMIN_CENTRAL: "producao",
     VERCEL_ENV: "production",
-    AUTH_PROVIDER: "supabase",
-    NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${fechada}`,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: "x",
+    AUTH_PROVIDER: "pg",
+    SESSION_SECRET: SEGREDO_DE_PROVA,
     ADMIN_DATABASE_URL: `${base}?sslmode=require`,
     NEXT_DIST_DIR: DIST_ADMIN_PROD,
     ...extra,
@@ -273,20 +274,6 @@ export function bruta(base, caminho, { metodo = "GET", cabecalhos = {}, corpo } 
     req.on("error", reject);
     if (corpo !== undefined) req.write(corpo);
     req.end();
-  });
-}
-
-/** Servidor TCP local que faz de Supabase: `drop` derruba a conexão, `http500` responde 500. Conta as conexões. Só 127.0.0.1. */
-export function supabaseFalso(modo) {
-  return new Promise((res) => {
-    let conexoes = 0;
-    const srv = net.createServer((sock) => {
-      conexoes++;
-      sock.on("error", () => {});
-      if (modo === "drop") sock.destroy();
-      else sock.once("data", () => sock.end("HTTP/1.1 500 Internal Server Error\r\ncontent-type: text/plain\r\ncontent-length: 2\r\nconnection: close\r\n\r\nxx"));
-    });
-    srv.listen(0, "127.0.0.1", () => res({ porta: srv.address().port, conexoes: () => conexoes, fechar: () => srv.close() }));
   });
 }
 

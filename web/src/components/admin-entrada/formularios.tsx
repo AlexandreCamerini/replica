@@ -4,11 +4,11 @@ import { useState, type FormEvent } from "react";
 import { Turnstile } from "@/components/account/turnstile";
 
 // Formulários das páginas de entrada da central. Falam SÓ com as rotas de API da própria central (/admin/api/entrar (subcaminhos), JSON, mesma origem, `fetch` relativo): nenhuma server action
-// (o Next roteia action pelo id, não pelo caminho) e nenhuma URL do Supabase no navegador.
+// (o Next roteia action pelo id, não pelo caminho) e nenhum provedor de login no navegador (o login é da própria central: D335).
 // O widget Turnstile é o mesmo do site (components/account/turnstile.tsx); a CSP da central o libera só nas páginas de entrada, em modo produção.
 
-type Resposta = { proximo?: string; erro?: string; fatorId?: string; qr?: string; segredo?: string };
-type EstadoFator = { erro?: string; fatorId?: string; qr?: string; segredo?: string };
+type Resposta = { proximo?: string; erro?: string; segredo?: string; uri?: string };
+type EstadoFator = { erro?: string; segredo?: string; uri?: string };
 
 async function postar(url: string, corpo: Record<string, unknown>): Promise<Resposta> {
   try {
@@ -101,11 +101,11 @@ export function FormFatorVerificar() {
   );
 }
 
-/** Primeiro acesso: gera o QR (rota de API), mostra, e pede o primeiro código para confirmar o fator. */
+/** Primeiro acesso: gera o segredo (rota de API), mostra em texto e como link `otpauth:`, e pede o primeiro código para confirmar o fator. Sem QR: evita uma biblioteca e o `data:` na CSP. */
 export function FormFatorCadastro() {
   const [inicio, setInicio] = useState<EstadoFator>({});
   const [iniciando, setIniciando] = useState(false);
-  const { estado, pendente, enviar } = useEnvio((f) => postar("/admin/api/entrar/fator/confirmar", { code: campo(f, "code"), fatorId: campo(f, "fatorId") }));
+  const { estado, pendente, enviar } = useEnvio((f) => postar("/admin/api/entrar/fator/confirmar", { code: campo(f, "code") }));
   const comecar = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIniciando(true);
@@ -115,7 +115,7 @@ export function FormFatorCadastro() {
     else setInicio(r);
   };
   const dados = inicio;
-  if (!dados.fatorId || !dados.qr) {
+  if (!dados.segredo || !dados.uri) {
     return (
       <form onSubmit={comecar} className="adm-form">
         <Alerta erro={dados.erro} />
@@ -127,11 +127,14 @@ export function FormFatorCadastro() {
   }
   return (
     <form onSubmit={enviar} className="adm-form" noValidate>
-      <input type="hidden" name="fatorId" value={dados.fatorId} />
-      {/* eslint-disable-next-line @next/next/no-img-element -- QR em data URI (SVG) devolvido pelo Supabase: não há o que otimizar */}
-      <img src={dados.qr} alt="QR code para o aplicativo autenticador" width={200} height={200} />
       <p className="adm-ajuda">
-        Escaneie com um aplicativo autenticador (Google Authenticator, 1Password, Authy). Sem câmera, digite o segredo: <code>{dados.segredo}</code>
+        No aplicativo autenticador (Google Authenticator, 1Password, Authy), escolha digitar a chave e use esta, com o tipo &quot;baseada em tempo&quot;:
+      </p>
+      <p>
+        <code>{(dados.segredo.match(/.{1,4}/g) ?? []).join(" ")}</code>
+      </p>
+      <p className="adm-ajuda">
+        Se o autenticador está neste aparelho, <a href={dados.uri}>abra a chave direto nele</a>. A chave aparece só agora: se sair desta página, o cadastro recomeça com outra.
       </p>
       <div className="adm-campo">
         <label htmlFor="adm-totp-novo">Código do aplicativo (6 números)</label>
