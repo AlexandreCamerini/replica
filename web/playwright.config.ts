@@ -4,6 +4,10 @@ import { defineConfig, devices } from "@playwright/test";
 // Sem ela, sobe o dev server com os dados de demonstração (determinísticos) numa pasta .next própria.
 const external = process.env.E2E_BASE_URL;
 const port = 3200;
+// contra URL remota: o cookie de "já viu a apresentação" vale para o host dela; preview protegido da Vercel aceita o
+// segredo de "Protection Bypass for Automation" (VERCEL_AUTOMATION_BYPASS_SECRET) no cabeçalho
+const cookieHost = external ? new URL(external).hostname : "localhost";
+const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -18,7 +22,8 @@ export default defineConfig({
     baseURL: external ?? `http://localhost:${port}`,
     locale: "pt-BR",
     // quem testa já "viu" a apresentação inicial; o spec de onboarding limpa o cookie
-    storageState: { cookies: [{ name: "onb", value: "1", domain: "localhost", path: "/", expires: -1, httpOnly: false, secure: false, sameSite: "Lax" }], origins: [] },
+    storageState: { cookies: [{ name: "onb", value: "1", domain: cookieHost, path: "/", expires: -1, httpOnly: false, secure: false, sameSite: "Lax" }], origins: [] },
+    ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass, "x-vercel-set-bypass-cookie": "true" } } : {}),
     timezoneId: "America/Sao_Paulo",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
