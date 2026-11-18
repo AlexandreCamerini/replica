@@ -347,6 +347,22 @@ def check_url(url: str) -> None:
         raise SystemExit("ETL_DATABASE_URL aponta para pooler em modo transação (porta 6543); use a conexão direta ou o pooler em modo sessão")
 
 
+POOLER_PROBES = 5
+
+
+def check_pooler(conn) -> None:
+    """Detecta pooler em modo transação na própria conexão, qualquer que seja a porta (o Railway e outros não usam a 6543):
+    se o backend (`pg_backend_pid()`) mudar entre duas transações, a sessão não é nossa e o lock de sessão não vale.
+    Autocommit: cada consulta é uma transação. Cinco amostras; é detecção de melhor esforço (um pooler ocioso pode devolver
+    sempre o mesmo backend), por isso a checagem da porta e do `pgbouncer=true` continua em check_url."""
+    pids = [conn.execute("select pg_backend_pid() as pid").fetchone()["pid"] for _ in range(POOLER_PROBES)]
+    if len(set(pids)) > 1:
+        raise SystemExit(
+            f"a conexão do ETL muda de backend entre transações (pg_backend_pid: {sorted(set(pids))}): há um pooler em modo transação "
+            "no caminho. O lock da agenda é de sessão e não vale assim; use a conexão direta ou o pooler em modo sessão"
+        )
+
+
 def last_stamp(conn: psycopg.Connection, task: Task, today: date, *, clean: bool = False) -> datetime | None:
     """Carimbo da tarefa = o da família de datasets mais atrasada (cada prefixo pelo seu dataset mais novo).
     `clean`: ignora carimbo deixado por run `partial`. É o que decide se a tarefa venceu: dado parcial não deixa a tarefa "em dia" pelo
@@ -584,6 +600,7 @@ def run_due(*, only: list[str] | None = None, dry_run: bool = False, force: bool
         notify(rep, state_dir)
         return 2
     try:
+        check_pooler(lock)
         if not lock.execute("select pg_try_advisory_lock(hashtext(%s)) as ok", (lock_name,)).fetchone()["ok"]:
             r = lock.execute("select attempted_at from etl_schedule_attempts where task = %s", (attempt_key,)).fetchone()
             if r and now - r["attempted_at"] > STUCK_AFTER:

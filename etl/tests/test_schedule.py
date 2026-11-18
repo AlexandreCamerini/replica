@@ -118,6 +118,37 @@ def test_recusa_pooler_em_modo_transacao():
             S.check_url(bad)
 
 
+class _FakeConn:
+    """Conexão que devolve a sequência dada de pg_backend_pid(), uma por transação (autocommit)."""
+
+    def __init__(self, pids):
+        self.pids = list(pids)
+        self.calls = 0
+
+    def execute(self, sql):
+        assert "pg_backend_pid" in sql
+        self.calls += 1
+        pid = self.pids.pop(0)
+        return type("R", (), {"fetchone": lambda _s: {"pid": pid}})()
+
+
+def test_trava_de_pooler_recusa_quando_o_backend_muda_entre_transacoes():
+    import pytest
+
+    with pytest.raises(SystemExit) as e:
+        S.check_pooler(_FakeConn([101, 101, 205, 101, 101]))
+    assert "pooler" in str(e.value) and "205" in str(e.value)
+    with pytest.raises(SystemExit):  # muda já na segunda transação
+        S.check_pooler(_FakeConn([7, 8, 8, 8, 8]))
+
+
+def test_trava_de_pooler_aceita_conexao_direta_e_nao_depende_da_porta():
+    c = _FakeConn([4242] * S.POOLER_PROBES)
+    S.check_pooler(c)  # mesmo backend em todas as transações: passa
+    assert c.calls == S.POOLER_PROBES
+    S.check_url("postgres://u@db.x.up.railway.app:5432/civico")  # porta comum não é recusada: a detecção é na conexão
+
+
 def test_relatorio_alerta_quando_a_agenda_quebra_ou_adia():
     r = S.Report(started_at=NOW.isoformat())
     r.deferred.append("sapl.todas")
