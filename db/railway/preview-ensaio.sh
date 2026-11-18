@@ -37,8 +37,12 @@ case "$CMD" in
     RD="$(grep '^web_reader_URL=' "$ROLES" | cut -d= -f2-)"; WR="$(grep '^web_writer_URL=' "$ROLES" | cut -d= -f2-)"
     [[ "$RD" == *"/civico_ensaio?"* && "$WR" == *"/civico_ensaio?"* ]] || { echo "as URIs não apontam para civico_ensaio: recuso" >&2; exit 1; }
     [[ "$RD" == postgres://web_reader:* && "$WR" == postgres://web_writer:* ]] || { echo "URIs com role inesperado" >&2; exit 1; }
-    read -r -s -p "RESEND_API_KEY (re_..., oculta): " RESEND; echo; [[ "$RESEND" == re_* ]] || { echo "esperado re_..." >&2; exit 1; }
-    read -r -p "AUTH_EMAIL_FROM (remetente verificado no Resend): " FROM; [[ "$FROM" == *@* ]] || { echo "sem @" >&2; exit 1; }
+    # colagem: o terminal pode embrulhar o texto em ESC[200~ ... ESC[201~ (bracketed paste) e trazer espaço/CR; limpa antes de validar
+    limpa() { local x="$1"; x="${x//$'\e[200~'/}"; x="${x//$'\e[201~'/}"; x="${x//$'\r'/}"; x="${x#"${x%%[![:space:]]*}"}"; x="${x%"${x##*[![:space:]]}"}"; printf '%s' "$x"; }
+    printf '\e[?2004l'
+    read -r -s -p "RESEND_API_KEY (re_..., oculta): " RESEND; echo; RESEND="$(limpa "$RESEND")"
+    [[ "$RESEND" == re_* ]] || { echo "esperado re_... (recebi ${#RESEND} caracteres; o valor não é exibido)" >&2; exit 1; }
+    read -r -p "AUTH_EMAIL_FROM (remetente verificado no Resend): " FROM; FROM="$(limpa "$FROM")"; [[ "$FROM" == *@* ]] || { echo "sem @" >&2; exit 1; }
     listar
     read -r -p "Gravar as variáveis acima SÓ na branch $BR (Preview)? Digite 'sim': " ok; [[ "$ok" == sim ]] || { echo "nada alterado"; exit 1; }
     put() { # put NOME VALOR sensitive|plain
