@@ -28,7 +28,7 @@ from civico_etl.admin import propostas as PR
 
 PG_TS = REPO / "web" / "src" / "lib" / "data" / "pg.ts"
 
-# Copiado de web/src/lib/data/pg.ts, método `getAssembly`, linhas 431-437 (a casa e o carimbo da carga). `${uf.toUpperCase()}` virou o parâmetro %s (valor: a sigla em maiúsculas).
+# Copiado de web/src/lib/data/pg.ts, método `getAssembly`, linhas 432-438 (a casa e o carimbo da carga). `${uf.toUpperCase()}` virou o parâmetro %s (valor: a sigla em maiúsculas).
 SQL_ASSEMBLEIA_CASA = """
       select b.adapter, b.place_id, coalesce(s.slug, case when b.adapter = 'sapl' then 'sapl-ale' end) as slug,
              coalesce(s.name, case when b.adapter = 'sapl' then 'SAPL da Assembleia Legislativa' end) as source_name,
@@ -38,7 +38,7 @@ SQL_ASSEMBLEIA_CASA = """
       left join sapl_houses h on b.adapter = 'sapl' and h.place_id = b.place_id and h.status = 'ok'
       where p.kind = 'uf' and p.uf = %s and b.kind in ('assembleia', 'camara_legislativa_df') limit 1"""
 
-# Copiado de web/src/lib/data/pg.ts, método `getAssembly`, linha 441 (a cobertura dos quatro datasets). `${b.place_id as string}` virou %s (o place_id lido pela consulta acima).
+# Copiado de web/src/lib/data/pg.ts, método `getAssembly`, linha 442 (a cobertura dos quatro datasets). `${b.place_id as string}` virou %s (o place_id lido pela consulta acima).
 SQL_ASSEMBLEIA_COBERTURA = """select dataset, status, reason, evidence_url, checked_on from data_coverage where place_id = %s::uuid and dataset in ('presenca', 'votos', 'propostas', 'gastos_gabinete')"""
 
 TS_PARAMETROS = ("${uf.toUpperCase()}", "${b.place_id as string}")  # o que cada `%s` substitui, na ordem em que aparecem nas duas consultas
@@ -83,7 +83,7 @@ def test_o_sql_copiado_ainda_bate_com_o_arquivo_do_site():
     assert _norm(casa) == _norm(SQL_ASSEMBLEIA_CASA), "a consulta da casa em getAssembly mudou; atualize a cópia (e o comentário de linhas) deste teste"
     assert _norm(cobertura).replace("::uuid", "::uuid") == _norm(SQL_ASSEMBLEIA_COBERTURA)
     linhas = PG_TS.read_text(encoding="utf-8").splitlines()
-    assert "select b.adapter, b.place_id" in linhas[430] and "limit 1`;" in linhas[436] and "from data_coverage where place_id" in linhas[440]  # as linhas citadas (1-based 431, 437, 441)
+    assert "select b.adapter, b.place_id" in linhas[431] and "limit 1`;" in linhas[437] and "from data_coverage where place_id" in linhas[441]  # as linhas citadas (1-based 432, 438, 442)
 
 
 # ------------------------------------------------------------------ a consulta do site devolve o valor novo
@@ -212,9 +212,9 @@ def test_base_url_de_assembleia_nao_tem_leitor_em_getassembly_e_a_decisao_nao_to
 
 
 def test_cobertura_de_municipio_tem_leitor_em_getcoverage(iso, m):
-    """`getCoverage` (pg.ts:411) só cobre município e filtra `status <> 'no_site'`; o SQL é o do site, executado pelo psycopg."""
+    """`getCoverage` (pg.ts:412) só cobre município e filtra `status <> 'no_site'`; o SQL é o do site, executado pelo psycopg."""
     linhas = PG_TS.read_text(encoding="utf-8").splitlines()
-    assert "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = " in linhas[410]
+    assert "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = " in linhas[411]
     sql = "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = %s and dc.status <> 'no_site' order by dataset"
     antes = {r["dataset"]: r for r in iso.execute(sql, (IBGE,)).fetchall()}
     pid = PR.registrar(iso, P(m, classe="cobertura", registro_chave=f"{IBGE}:propostas", campo="reason", valor_candidato="motivo conferido", conteudo_sha256=H("gc"), url="https://c.example/x"), agora=AGORA).pendencia_id

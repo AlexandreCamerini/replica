@@ -85,6 +85,8 @@ class _AgendaConn:
         self.lock_ok, self.attempt_row = lock_ok, attempt_row
 
     def execute(self, sql, params=None):
+        if "pg_backend_pid" in sql:
+            return _Res({"pid": 4242})  # a trava contra pooler (schedule.check_pooler, 224465e do main) sonda o backend: sempre o mesmo = conexão direta
         return _Res({"ok": self.lock_ok} if "pg_try_advisory_lock" in sql else self.attempt_row)
 
     def __enter__(self):
