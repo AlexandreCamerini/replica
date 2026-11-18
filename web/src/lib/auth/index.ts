@@ -3,10 +3,11 @@ import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import type { AuthProvider } from "./types";
 
-// AUTH_PROVIDER=supabase em produção (obrigatório). "dev" só fora de produção: código vai para .local/mail.
+// AUTH_PROVIDER=supabase ou pg em produção (obrigatório; a volta do corte é trocar este valor). "dev" só fora de produção: código vai para .local/mail.
 export async function auth(): Promise<AuthProvider> {
   const p = process.env.AUTH_PROVIDER ?? (process.env.NODE_ENV === "production" ? "supabase" : "dev");
   if (p === "supabase") return (await import("./supabase")).supabaseAuth;
+  if (p === "pg") return (await import("./pg")).pgAuth();
   if (p === "dev") {
     if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEV_AUTH !== "1") throw new Error("AUTH_PROVIDER=dev não roda em produção");
     return (await import("./dev")).devAuth;

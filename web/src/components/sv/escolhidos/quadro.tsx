@@ -4,6 +4,7 @@ import { ESTADO_COBERTURA, FALHOU_LEITURA, naoHaNaLeitura } from "../estados";
 import { clip, fmtDate } from "../fmt";
 import { Cobertura, Fonte, Lacuna, Nota, Quadro, Resposta, VotoMarca, VotoQuadrado, type VotoForma } from "../ui";
 import type { CoberturaConjunto } from "@/lib/data";
+import { VOTACAO_SEM_PROPOSTA } from "./agrupar";
 import type { Casa, Escolhido, Recente } from "./carregar";
 
 const brl = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(cents / 100);
@@ -213,6 +214,32 @@ function Texto({ r }: { r: Recente }) {
   const nome = <b>{item.personName}</b>;
   if (item.kind === "voto") {
     const f = FORMA[item.detail ?? ""] ?? { forma: "sem" as const, palavra: item.detail ?? "Sem voto" };
+    // Várias votações da mesma proposta no mesmo dia, com o mesmo voto (texto-base, destaques, turnos): uma linha só, que
+    // diz quantas são e leva a cada uma. A fonte desta lista não diz o que cada votação decidia; a página dela diz.
+    if (r.vezes > 1) {
+      const destinos = r.hrefs.map(hrefDe);
+      return (
+        <>
+          {nome} {f.palavra === "Sem voto" ? "ficou" : "votou"} <VotoQuadrado forma={f.forma} /> {f.palavra} em {r.aoMenos && "pelo menos "}
+          {/* votação sem proposta ligada: não há "de qual proposta" para dizer */}
+          {item.title === VOTACAO_SEM_PROPOSTA ? `${r.vezes} votações nominais` : `${r.vezes} votações de ${clip(item.title, 100)}`} neste dia
+          {destinos.every((h) => h !== null) && (
+            <>
+              {": "}
+              {destinos.map((h, i) => (
+                <span key={h}>
+                  {i > 0 && ", "}
+                  <Link href={h!} aria-label={`votação ${i + 1} de ${r.vezes}: ${clip(item.title, 100)}, ${item.personName}`}>
+                    votação {i + 1}
+                  </Link>
+                </span>
+              ))}
+            </>
+          )}
+          .{f.palavra === "Sem voto" && " Sem voto: não é voto contra."}
+        </>
+      );
+    }
     const href = hrefDe(item.href);
     const titulo = href ? <Link href={href}>{clip(item.title, 100)}</Link> : clip(item.title, 100);
     return (
@@ -222,6 +249,15 @@ function Texto({ r }: { r: Recente }) {
     );
   }
   if (item.kind === "proposta") return <>{nome} consta na autoria de {clip(item.title, 100)}.</>;
+  // gastos iguais no mesmo dia (mesma categoria, mesmo valor): uma linha, que diz quantos são
+  if (r.vezes > 1)
+    return (
+      <>
+        {nome} teve {r.aoMenos && "pelo menos "}
+        {r.vezes} gastos registrados em {clip(item.title, 80)}
+        {item.detail ? `, de ${item.detail} cada` : ""}.
+      </>
+    );
   return (
     <>
       {nome} teve gasto registrado em {clip(item.title, 80)}
@@ -241,7 +277,7 @@ export function Recentes({ itens, falhou = false, lidoEm, className }: { itens: 
       ) : (
         <ol className="sv-esc__fd">
           {itens.map((r, i) => (
-            <li key={`${r.item.personSlug}-${r.item.occurredAt}-${i}`}>
+            <li key={`${r.item.personSlug}-${r.item.kind}-${r.item.occurredAt}-${r.hrefs[0]}-${i}`}>
               <span className="sv-esc__fd-d">{fmtDate(r.item.occurredAt)}</span>
               <span className="sv-esc__fd-t">
                 <Texto r={r} />

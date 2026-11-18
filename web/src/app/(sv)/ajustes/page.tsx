@@ -6,6 +6,7 @@ import { Lacuna, Notice, Pergunta, Proxima, Quadro, Selo, Fonte } from "@/compon
 import { data } from "@/lib/data";
 import type { Place } from "@/lib/data";
 import { salvarEsferas, salvarUf } from "./actions";
+import { AvisoDeEnvio } from "@/components/sv/carregando";
 
 // página pessoal (preferências em cookie): fora de busca mesmo com o resto da Direção 2 aberto à busca (D316)
 export const metadata: Metadata = { title: "Ajustes", robots: { index: false, follow: false } };
@@ -63,6 +64,7 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
           <button type="submit" className="sv-enviar">
             Guardar estado
           </button>
+          <AvisoDeEnvio />
           <p className="sv-nota" id="aj-uf-d">
             Trocar de estado apaga a cidade guardada. {COOKIE_TEXTO}
           </p>
@@ -164,6 +166,7 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
         <button type="submit" className="sv-enviar">
           Guardar escolhas
         </button>
+        <AvisoDeEnvio />
       </form>
 
       <Quadro id="aj-j4" variante="fio" pergunta="Onde fica a minha escolha?" className="sv-gd" prova="Fonte: ajustes guardados neste navegador.">

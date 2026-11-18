@@ -5,6 +5,7 @@ import { NavLink } from "./shell-client";
 
 // Casco da D2: link "pular", topo (marca + UF + "trocar estado"), navegação em duas camadas, rodapé. Server component, sem JS
 // essencial: a navegação fica sempre visível (sem menu hambúrguer). O layout lê o cookie e passa a UF por prop.
+// Abaixo de 900px as duas camadas viram uma linha só, que rola na horizontal (sv.css, bloco "casco"): o topo cabe em 130px.
 
 /** As duas perguntas principais. */
 const PRINCIPAIS = [
@@ -12,14 +13,22 @@ const PRINCIPAIS = [
   { href: "/acompanhando", label: "O que meus escolhidos estão fazendo?" },
 ] as const;
 
-/** Linha "Também:". */
-const TAMBEM = [
+/**
+ * Linha "Também:", em três partes na ordem em que aparecem. "Pessoas" e "Votações" entraram aqui na D324 (antes só no
+ * rodapé) e, na D325, ganharam um grupo próprio (`FIXOS`): abaixo de 900px ele fica preso à borda direita da linha que
+ * rola, para os dois ficarem à vista sem rolar. A partir de 900px o grupo não existe na tela (display:contents).
+ */
+const TAMBEM_ANTES = [
   { href: "/decisoes", label: "O que mexe comigo?" },
   { href: "/temas", label: "O que está em jogo?" },
-  { href: "/ajustes", label: "Ajustes" },
 ] as const;
+const FIXOS = [
+  { href: "/pessoas", label: "Pessoas" },
+  { href: "/votacoes", label: "Votações" },
+] as const;
+const TAMBEM_DEPOIS = [{ href: "/ajustes", label: "Ajustes" }] as const;
 
-/** Rotas que a D2 não redesenhou: ficam acessíveis no rodapé. */
+/** Rodapé: repete "Votações" e "Pessoas" (também estão no topo) e traz "Como funciona". */
 const ROTAS = [
   { href: "/votacoes", label: "Votações" },
   { href: "/pessoas", label: "Pessoas" },
@@ -43,7 +52,10 @@ export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boo
           <p className="sv-uf">
             {uf ? (
               <>
-                {uf.nome} ({uf.sigla}) · <Link href="/ajustes">trocar estado</Link>
+                {/* no celular só a sigla aparece; o nome completo continua no texto (leitor de tela) */}
+                <span className="sv-uf__n">{uf.nome} (</span>
+                {uf.sigla}
+                <span className="sv-uf__n">)</span> · <Link href="/ajustes">trocar estado</Link>
               </>
             ) : ufFalhou ? (
               <>
@@ -64,8 +76,20 @@ export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boo
             ))}
           </ul>
           <p className="sv-nv2">
-            <span>Também:</span>
-            {TAMBEM.map((n) => (
+            <span className="sv-nv2__t">Também:</span>
+            {TAMBEM_ANTES.map((n) => (
+              <NavLink key={n.href} href={n.href}>
+                {n.label}
+              </NavLink>
+            ))}
+            <span className="sv-fixo">
+              {FIXOS.map((n) => (
+                <NavLink key={n.href} href={n.href}>
+                  {n.label}
+                </NavLink>
+              ))}
+            </span>
+            {TAMBEM_DEPOIS.map((n) => (
               <NavLink key={n.href} href={n.href}>
                 {n.label}
               </NavLink>

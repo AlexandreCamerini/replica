@@ -14,6 +14,7 @@ import { loadThemes } from "@/components/sv/temas";
 import { Cobertura, JaVale, JaValeLegenda, Lacuna, Nota, Proxima, Quadro, Resposta, Selo, VotoMarca } from "@/components/sv/ui";
 import { data, type OfficeSlug, type PautaEntry, type PautaOverview } from "@/lib/data";
 import { deciders, isUrgent, ofBody, reasonText, typeName, uniqueByKey } from "@/lib/pauta";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 export const metadata: Metadata = { title: "O que está em jogo no Congresso?" };
 
@@ -91,7 +92,7 @@ async function carregarEscolhidos(slugs: string[]): Promise<Escolhida[]> {
       }
     }),
   );
-  return rows.filter((r): r is Escolhida => r !== null).sort((a, b) => ptSort(a.name, b.name));
+  return rows.filter((r): r is Escolhida => r !== null).sort((a, b) => compararNomes(a.name, b.name));
 }
 
 function quando(e: PautaEntry): string {

@@ -3,7 +3,9 @@ import type { ActivityItem, AssemblyInfo, AttendanceGrid, CoberturaConjunto, Con
 import { data } from "@/lib/data";
 import { fmtDate } from "../fmt";
 import { lerOuFalhar } from "../simular";
+import { agruparAtos, comDiaCerto } from "./agrupar";
 import { aguardaPosse, cobreLeis, fraseDesde, mandatoPrincipal, motivoPosse } from "../mandato";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 // Carrega, por pessoa do cookie sv_sigo, tudo o que o quadro "O que meus escolhidos estão fazendo?" mostra.
 // Só dado do contrato (DataSource): nada é calculado fora do que a fonte entregou. Lacuna fica null, nunca vira zero.
@@ -40,7 +42,11 @@ export type Escolhido = {
   cobertura: Partial<Record<ConjuntoPessoa, CoberturaConjunto>> | null;
 };
 
-export type Recente = { item: ActivityItem; esfera: string | null };
+/** `vezes` e `hrefs`: quantos registros da fonte a linha representa e para onde cada um leva (agrupar.ts, D328). */
+export type Recente = { item: ActivityItem; esfera: string | null; vezes: number; hrefs: string[]; aoMenos: boolean };
+/** Linhas à vista em "O que fizeram por último?". A leitura traz mais que isso, porque linhas iguais se juntam numa só. */
+const RECENTES = 8;
+const RECENTES_LIDOS = 24;
 
 /**
  * `falhas`: pessoas do cookie cuja leitura falhou (não entram em `pessoas`); `naoEncontradas`: slugs que a fonte não
@@ -48,8 +54,24 @@ export type Recente = { item: ActivityItem; esfera: string | null };
  */
 export type Carga = { pessoas: Escolhido[]; recentes: Recente[]; recentesFalhou: boolean; falhas: number; naoEncontradas: number; lidoEm: string | null };
 
-/** Simulação (só na demonstração): `pessoa` = a leitura de cada pessoa falha; `dados` = cada conjunto e a atividade falham. */
-export type FalhaSimulada = { pessoa?: boolean; dados?: boolean };
+/**
+ * Simulação (só na demonstração): `pessoa` = a leitura de cada pessoa falha; `dados` = cada conjunto e a atividade falham;
+ * `atosRepetidos` = a atividade vem com registros que a tela escreveria iguais.
+ */
+export type FalhaSimulada = { pessoa?: boolean; dados?: boolean; atosRepetidos?: boolean };
+
+/**
+ * Repetições como as da fonte real, que a demonstração não gera sozinha (lá cada votação tem descrição própria): o voto
+ * mais recente ganha uma segunda votação "da mesma proposta" (o endereço é o de outra votação real da demonstração, para o
+ * link abrir), o mesmo registro vem lido duas vezes, e entram dois gastos iguais no mesmo dia.
+ */
+function comRepeticoes(itens: ActivityItem[]): ActivityItem[] {
+  const voto = itens.find((i) => i.kind === "voto");
+  const outro = voto && itens.find((i) => i.kind === "voto" && i.href !== voto.href);
+  if (!voto || !outro) return itens;
+  const gasto: ActivityItem = { personSlug: voto.personSlug, personName: voto.personName, kind: "gasto", occurredAt: voto.occurredAt, title: "Divulgação da atividade parlamentar", detail: "R$ 60,26", href: `/p/${voto.personSlug}#gastos` };
+  return [{ ...voto, href: outro.href }, { ...voto }, gasto, { ...gasto }, ...itens];
+}
 
 const ESFERA: Partial<Record<OfficeSlug, string>> = {
   deputado_federal: "Federal · Câmara dos Deputados",
@@ -201,11 +223,16 @@ export async function carregarEscolhidos(slugs: string[], sim: FalhaSimulada = {
         cobertura,
       };
     });
-  pessoas.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  pessoas.sort((a, b) => compararNomes(a.nome, b.nome));
 
   const esferaDe = new Map(pessoas.map((p) => [p.slug, p.esfera]));
-  const atividade = pessoas.length ? await ler(() => data.getActivity(pessoas.map((p) => p.id), 8)).catch(() => null) : [];
-  const recentes = [...(atividade ?? [])].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).map((item) => ({ item, esfera: esferaDe.get(item.personSlug) ?? null }));
+  const atividadeLida = pessoas.length ? await ler(() => data.getActivity(pessoas.map((p) => p.id), RECENTES_LIDOS)).catch(() => null) : [];
+  const atividade = atividadeLida && sim.atosRepetidos ? comRepeticoes(atividadeLida) : atividadeLida;
+  // linhas que a tela escreveria iguais viram uma só, que diz quantos registros são (D328)
+  // gasto e proposta com o dia certo (comDiaCerto), antes de ordenar e de juntar por dia
+  const recentes = agruparAtos([...(atividade ?? [])].map(comDiaCerto).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)), RECENTES_LIDOS)
+    .slice(0, RECENTES)
+    .map((g) => ({ ...g, esfera: esferaDe.get(g.item.personSlug) ?? null }));
   const lidoEm = await data.latestRefresh().catch(() => null);
   return { pessoas, recentes, recentesFalhou: atividade === null, falhas, naoEncontradas, lidoEm };
 }

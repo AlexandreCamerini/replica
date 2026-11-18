@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { clip, fmtDate, fmtInt } from "@/components/sv/fmt";
-import { ESTADO_COBERTURA, fraseCobertura, naoHaNaLeitura, SEM_DADO } from "@/components/sv/estados";
+import { ESTADO_COBERTURA, FALHOU_LEITURA, fraseCobertura, naoHaNaLeitura, SEM_DADO } from "@/components/sv/estados";
 import { Fonte, Lacuna, Pergunta, Resposta, VotoMarca } from "@/components/sv/ui";
 import { CAMPAIGN_ORIGINS, type Amendment, type CampaignFinance, type Candidacy, type CoberturaConjunto, type CommitteeItem, type CoverageStatus, type PersonVote } from "@/lib/data";
 import { brl, brlCurto, listaE, MESES } from "./format";
@@ -25,44 +25,55 @@ export function Linha({ id, numero, pergunta, dom, ancora, fonte, children }: { 
   );
 }
 
-/** Lacuna: frase do status do contrato (ou "Ainda não temos esse dado.") e o motivo. Nunca zero. */
-export function Sem({ status, motivo }: { status?: CoverageStatus | null; motivo?: ReactNode }) {
-  return (
-    <div className="sv-bloco">
-      <Lacuna motivo={motivo}>{(status && fraseCobertura(status)) || SEM_DADO}</Lacuna>
-    </div>
-  );
+/**
+ * Uma lacuna já decidida: a frase, o motivo e o estado de cobertura. É decidida uma vez por seção e desenhada duas: no
+ * quadro de quatro respostas do topo e na própria seção (D324). Assim as duas nunca dizem coisas diferentes.
+ */
+export type LacunaVm = { texto: string; motivo?: ReactNode; estado?: string };
+
+/** Frase do status do contrato (ou "Ainda não temos esse dado.") e o motivo. Nunca zero. */
+export function lacunaSem(status?: CoverageStatus | null, motivo?: ReactNode): LacunaVm {
+  return { texto: (status && fraseCobertura(status)) || SEM_DADO, motivo };
 }
 
 /**
  * Lacuna pelo estado de cobertura da pessoa (getPeopleCoverage). `lido`: o conjunto foi lido e não há registro ("não há",
- * com a data da leitura). Outro estado: a frase do estado e o motivo. Sem cobertura (a leitura dela falhou): cai em `Sem`
- * com o status antigo, sem afirmar estado.
+ * com a data da leitura). Outro estado: a frase do estado e o motivo. Sem cobertura (a leitura dela falhou): cai em
+ * `lacunaSem` com o status antigo, sem afirmar estado.
  */
-export function SemCobertura({ cob, oQue, status, motivo }: { cob: CoberturaConjunto | null | undefined; oQue: string; status?: CoverageStatus | null; motivo?: ReactNode }) {
-  if (!cob) return <Sem status={status} motivo={motivo} />;
-  if (cob.estado === "lido")
-    return (
-      <div className="sv-bloco">
-        <Lacuna estado="lido">{naoHaNaLeitura(oQue, cob.lidoEm)}</Lacuna>
-      </div>
-    );
+export function lacunaCobertura(cob: CoberturaConjunto | null | undefined, oQue: string, status?: CoverageStatus | null, motivo?: ReactNode): LacunaVm {
+  if (!cob) return lacunaSem(status, motivo);
+  if (cob.estado === "lido") return { texto: naoHaNaLeitura(oQue, cob.lidoEm), estado: "lido" };
+  return { texto: ESTADO_COBERTURA[cob.estado], motivo: cob.motivo, estado: cob.estado };
+}
+
+/** Leitura que falhou: a fonte não respondeu. Não é "o dado não existe". */
+export const LACUNA_FALHA: LacunaVm = { texto: FALHOU_LEITURA, motivo: "Isso não quer dizer que o dado não exista. Tente de novo mais tarde." };
+
+/** Desenha uma lacuna decidida, dentro do bloco de resposta da seção. */
+export function LacunaBloco({ vm }: { vm: LacunaVm }) {
   return (
     <div className="sv-bloco">
-      <Lacuna estado={cob.estado} motivo={cob.motivo}>
-        {ESTADO_COBERTURA[cob.estado]}
+      <Lacuna estado={vm.estado} motivo={vm.motivo}>
+        {vm.texto}
       </Lacuna>
     </div>
   );
 }
 
+/** Lacuna: frase do status do contrato (ou "Ainda não temos esse dado.") e o motivo. Nunca zero. */
+export function Sem({ status, motivo }: { status?: CoverageStatus | null; motivo?: ReactNode }) {
+  return <LacunaBloco vm={lacunaSem(status, motivo)} />;
+}
+
+/** Lacuna pelo estado de cobertura da pessoa: ver `lacunaCobertura`. */
+export function SemCobertura({ cob, oQue, status, motivo }: { cob: CoberturaConjunto | null | undefined; oQue: string; status?: CoverageStatus | null; motivo?: ReactNode }) {
+  return <LacunaBloco vm={lacunaCobertura(cob, oQue, status, motivo)} />;
+}
+
 /** Leitura que falhou: a fonte não respondeu. Não é "o dado não existe". */
 export function Falha() {
-  return (
-    <div className="sv-bloco">
-      <Lacuna motivo="Isso não quer dizer que o dado não exista. Tente de novo mais tarde.">Não conseguimos ler esta fonte agora.</Lacuna>
-    </div>
-  );
+  return <LacunaBloco vm={LACUNA_FALHA} />;
 }
 
 const plural = (n: number, um: string, varios: string) => (n === 1 ? um : varios);

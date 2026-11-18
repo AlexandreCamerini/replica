@@ -1,4 +1,4 @@
-// Contrato de autenticação por código no e-mail (sem senha). Supabase em produção; adaptador local só em desenvolvimento.
+// Contrato de autenticação por código no e-mail (sem senha). Supabase (produção até o corte) ou `pg` (Postgres próprio); adaptador local só em desenvolvimento.
 
 export type SessionUser = { id: string; email: string };
 
@@ -6,7 +6,7 @@ export type SendResult = { ok: true } | { ok: false; reason: "rate_limited" | "c
 export type VerifyResult = { ok: true; user: SessionUser } | { ok: false; reason: "invalid" | "expired" | "too_many" | "unavailable" };
 
 export interface AuthProvider {
-  readonly name: "supabase" | "dev";
+  readonly name: "supabase" | "dev" | "pg";
   /** Sempre "ok" para e-mail válido, exista conta ou não (não revela cadastro). */
   sendCode(email: string, captchaToken: string | null): Promise<SendResult>;
   verifyCode(email: string, code: string): Promise<VerifyResult>;

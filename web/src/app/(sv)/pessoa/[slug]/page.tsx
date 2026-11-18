@@ -6,18 +6,22 @@ import { cache } from "react";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FOLLOW_COOKIE, FOLLOW_MAX, parseFollows } from "@/components/sv/follow-shared";
 import { FollowButton } from "@/components/sv/follow";
-import { fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
-import { Lacuna, Nota, Resposta, Selo } from "@/components/sv/ui";
+import { clip, fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
+import { Lacuna, Nota, Resposta, Selo, VotoMarca } from "@/components/sv/ui";
 import { SEM_DADO } from "@/components/sv/estados";
 import { COOKIE_TEXTO } from "@/components/sv/prefs-shared";
 import { aguardaPosse, casaDoMandato, cobreLeis, fraseDesde, mandatoPrincipal, motivoPosse, rotuloGastos } from "@/components/sv/mandato";
 import { brl, brlCurto, fonteTexto, hojeBR, ler, listaE, mesAno, statusLacuna } from "@/components/sv/pessoa/format";
 import { GradePresenca } from "@/components/sv/pessoa/presenca";
+import { dividir } from "@/components/sv/pessoa/dividir";
+import { QuatroRespostas } from "@/components/sv/pessoa/quatro";
 import { frasesDoAno, ResumoDoAno } from "@/components/sv/pessoa/resumo";
 import { itensTrajetoria, LinhaDoTempo } from "@/components/sv/pessoa/trajetoria";
 import {
   Declaracoes,
   Falha,
+  LACUNA_FALHA,
+  LacunaBloco,
   Linha,
   ListaVotos,
   RespostaEmendas,
@@ -27,6 +31,8 @@ import {
   comissoesAtuais,
   fraseMudou,
   frasesPresenca,
+  lacunaCobertura,
+  lacunaSem,
   mesDoMandato,
   vmCampanha,
   vmEmendas,
@@ -39,6 +45,7 @@ import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
+import { compararNomes } from "@/lib/ordem-nomes";
 
 const SLUG = /^[a-z0-9-]{1,120}$/;
 // cache(): generateMetadata e a página leem a mesma pessoa numa só ida ao banco por requisição
@@ -236,10 +243,32 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
   // ---------- U18: trajetória ----------
   const trajetoria = itensTrajetoria(cands.ok ? cands.v : [], mandates, provR.ok && main ? { prov: provR.v, party: main.party } : null, fem, hojeIso);
 
+  // ---------- as quatro seções do quadro do topo: fonte e lacuna decididas uma vez, usadas no quadro e na seção ----------
+  const fontePres = Fc("presenca", body === "senado" ? "votações nominais" : "presença em sessões de votação", sPres, !!g);
+  const fonteGastos = vmG && !sGastos && cob("gastos") && cob("gastos")?.estado !== "lido" ? `Fonte: ${SEM_ORIGEM(rotGastos)}.` : Fc("gastos", rotGastos, sGastos, !!vmG);
+  const fontePatr = Fc("patrimonio", vmP ? `bens declarados nas candidaturas de ${anosP}` : "bens declarados nas candidaturas", sBens);
+  const fonteVotos = Fc("votos", "votações nominais", sVotos, temVotos);
+  const stPatr = statusLacuna(missing, "patrimonio");
+  // ordem de cada escada, como sempre foi: o dado; senão a posse que ainda não houve; senão a leitura que falhou; senão a cobertura
+  const semPosse = posse ? lacunaSem(null, posse) : null;
+  const lacPres = g ? null : (semPosse ?? (gradeR && !gradeR.ok ? LACUNA_FALHA : lacunaCobertura(cob("presenca"), `presença em sessão de votação em ${hoje.ano - 1} e ${hoje.ano}`, stPres.status, !legis ? MOTIVO_PLENARIO : stPres.motivo)));
+  const lacGastos = vmG
+    ? null
+    : (semPosse ??
+      (gastosR && !gastosR.ok
+        ? LACUNA_FALHA
+        : lacunaCobertura(cob("gastos"), `gasto do gabinete em ${hoje.ano - 1} e ${hoje.ano}`, stGastos.status, !legis ? MOTIVO_COTA : (stGastos.motivo ?? (body === "senado" ? "O Senado tem verba própria, com outra fonte." : null)))));
+  const lacPatr = vmP ? null : !cands.ok ? LACUNA_FALHA : lacunaCobertura(cob("patrimonio"), "bens declarados nas candidaturas", stPatr.status, stPatr.motivo);
+  const lacVotos = temVotos ? null : (semPosse ?? (votes && !votes.ok ? LACUNA_FALHA : lacunaCobertura(cob("votos"), "voto nominal em lei", stVotos.status, !legis ? MOTIVO_PLENARIO : stVotos.motivo)));
+  const ultimoVoto = temVotos && votes && votes.ok ? votes.v.items[0] : null;
+  const totalVotos = temVotos && votes && votes.ok ? votes.v.total : 0;
+  // comissões: as 5 primeiras (ordem alfabética) à vista, o resto num <details>
+  const [comVisiveis, comResto] = dividir(atuais, 5);
+
   const lidoEm = refresh.ok ? refresh.v : null;
   const outras = outros
     .flatMap((o) => (o.ok && o.v && !o.v.redirectTo ? [o.v.person] : []))
-    .sort((a, b) => a.displayName.localeCompare(b.displayName, "pt-BR"));
+    .sort((a, b) => compararNomes(a.displayName, b.displayName));
   const fonteMandato = main ? (FONTE_MANDATO[main.statusSource] ?? "fonte oficial do mandato") : "";
 
   return (
@@ -269,10 +298,29 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
         <div className="sv-cab__f">
           <FollowButton slug={person.slug} name={person.displayName} on={votou} cheio={follows.length >= FOLLOW_MAX} />
         </div>
-        <p className="sv-ir">
-          Ir para: <a href="#gastos">gastos do gabinete</a> <a href="#patrimonio">patrimônio</a>
-        </p>
       </div>
+
+      {/* D324: quatro respostas antes das seções, nesta ordem. O mesmo dado, a mesma fonte e a mesma lacuna de cada seção. */}
+      <QuatroRespostas
+        itens={[
+          {
+            pergunta: "Como vota?",
+            ancora: "votos",
+            ir: "Ver os votos",
+            resposta: ultimoVoto ? `${fmtInt(totalVotos)} ${totalVotos === 1 ? "voto nominal" : "votos nominais"} em leis.` : null,
+            apoio: ultimoVoto ? (
+              <>
+                O mais recente, em {fmtDate(ultimoVoto.event.occurredAt)}: <VotoMarca voto={ultimoVoto.value} /> em “{clip(ultimoVoto.event.description, 80)}”
+              </>
+            ) : undefined,
+            lacuna: lacVotos,
+            fonte: fonteVotos,
+          },
+          { pergunta: "Quanto gasta?", ancora: "gastos", ir: "Ver os gastos do gabinete", resposta: vmG ? `${brlCurto(vmG.total)} em ${vmG.ano}.` : null, apoio: vmG ? "Verba pública para as despesas do mandato." : undefined, lacuna: lacGastos, fonte: fonteGastos },
+          { pergunta: "O patrimônio declarado mudou?", ancora: "patrimonio", ir: "Ver as declarações", resposta: vmP ? fraseMudou(vmP) : null, lacuna: lacPatr, fonte: fontePatr },
+          { pergunta: "Foi trabalhar?", ancora: "trabalho", ir: "Ver a presença", resposta: g ? frasesPresenca(g).r : null, lacuna: lacPres, fonte: fontePres },
+        ]}
+      />
 
       {/* U04: o ano em frases, só com dado lido */}
       <Linha
@@ -288,7 +336,7 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
       </Linha>
 
       {/* 1 */}
-      <Linha id="p1" numero={1} dom ancora="trabalho" pergunta="Foi trabalhar?" fonte={Fc("presenca", body === "senado" ? "votações nominais" : "presença em sessões de votação", sPres, !!g)}>
+      <Linha id="p1" numero={1} dom ancora="trabalho" pergunta="Foi trabalhar?" fonte={fontePres}>
         {g ? (
           <>
             <div className="sv-bloco">
@@ -303,12 +351,8 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
               </p>
             </div>
           </>
-        ) : posse ? (
-          <Sem motivo={posse} />
-        ) : gradeR && !gradeR.ok ? (
-          <Falha />
         ) : (
-          <SemCobertura cob={cob("presenca")} oQue={`presença em sessão de votação em ${hoje.ano - 1} e ${hoje.ano}`} status={stPres.status} motivo={!legis ? MOTIVO_PLENARIO : stPres.motivo} />
+          lacPres && <LacunaBloco vm={lacPres} />
         )}
       </Linha>
 
@@ -319,7 +363,7 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
         dom
         ancora="gastos"
         pergunta="Quanto gastou o gabinete?"
-        fonte={vmG && !sGastos && cob("gastos") && cob("gastos")?.estado !== "lido" ? `Fonte: ${SEM_ORIGEM(rotGastos)}.` : Fc("gastos", rotGastos, sGastos, !!vmG)}
+        fonte={fonteGastos}
       >
         {vmG ? (
           <>
@@ -339,12 +383,8 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
               </Nota>
             </div>
           </>
-        ) : posse ? (
-          <Sem motivo={posse} />
-        ) : gastosR && !gastosR.ok ? (
-          <Falha />
         ) : (
-          <SemCobertura cob={cob("gastos")} oQue={`gasto do gabinete em ${hoje.ano - 1} e ${hoje.ano}`} status={stGastos.status} motivo={!legis ? MOTIVO_COTA : (stGastos.motivo ?? (body === "senado" ? "O Senado tem verba própria, com outra fonte." : null))} />
+          lacGastos && <LacunaBloco vm={lacGastos} />
         )}
       </Linha>
 
@@ -355,7 +395,7 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
         dom
         ancora="patrimonio"
         pergunta="O patrimônio declarado mudou?"
-        fonte={Fc("patrimonio", vmP ? `bens declarados nas candidaturas de ${anosP}` : "bens declarados nas candidaturas", sBens)}
+        fonte={fontePatr}
       >
         {vmP ? (
           <>
@@ -371,15 +411,13 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
               </p>
             </div>
           </>
-        ) : !cands.ok ? (
-          <Falha />
         ) : (
-          <SemCobertura cob={cob("patrimonio")} oQue="bens declarados nas candidaturas" status={statusLacuna(missing, "patrimonio").status} motivo={statusLacuna(missing, "patrimonio").motivo} />
+          lacPatr && <LacunaBloco vm={lacPatr} />
         )}
       </Linha>
 
       {/* 4 */}
-      <Linha id="p4" numero={4} pergunta="Como votou?" fonte={Fc("votos", "votações nominais", sVotos, temVotos)}>
+      <Linha id="p4" numero={4} ancora="votos" pergunta="Como votou?" fonte={fonteVotos}>
         {temVotos && votes && votes.ok ? (
           <div className="sv-bloco">
             <ListaVotos itens={votes.v.items} />
@@ -390,12 +428,8 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
               <Link href={`/pessoa/${person.slug}/votos`}>Ver todos os votos</Link>
             </p>
           </div>
-        ) : posse ? (
-          <Sem motivo={posse} />
-        ) : votes && !votes.ok ? (
-          <Falha />
         ) : (
-          <SemCobertura cob={cob("votos")} oQue="voto nominal em lei" status={stVotos.status} motivo={!legis ? MOTIVO_PLENARIO : stVotos.motivo} />
+          lacVotos && <LacunaBloco vm={lacVotos} />
         )}
       </Linha>
 
@@ -532,12 +566,24 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
           <div className="sv-bloco">
             <Resposta tamanho="m">{atuais.length === 1 ? "Uma comissão." : `${fmtInt(atuais.length)} comissões.`}</Resposta>
             <ul className="sv-t">
-              {atuais.map((c) => (
+              {comVisiveis.map((c) => (
                 <li key={`${c.body}-${c.name}-${c.from}`}>
                   {c.name} ({c.role.toLowerCase()})
                 </li>
               ))}
             </ul>
+            {comResto.length > 0 && (
+              <details>
+                <summary>{comResto.length === 1 ? "Ver a outra comissão" : `Ver as outras ${fmtInt(comResto.length)} comissões`}</summary>
+                <ul className="sv-t">
+                  {comResto.map((c) => (
+                    <li key={`${c.body}-${c.name}-${c.from}`}>
+                      {c.name} ({c.role.toLowerCase()})
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </div>
         ) : temComissoes ? (
           <div className="sv-bloco">

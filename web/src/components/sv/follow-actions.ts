@@ -11,6 +11,8 @@ import { FOLLOW_COOKIE, FOLLOW_MAX, FOLLOW_PATH, parseFollows, serializeFollows,
  * Slug ou ação fora do padrão são ignorados; com a lista cheia, incluir não muda nada. Regrava mesmo sem mudança, para que
  * um cookie antigo (gravado pelo navegador, legível por script) passe a ser `httpOnly` no primeiro toque.
  * A action não lê banco: slug que não existe é ignorado por quem monta as páginas.
+ * `tambem` (opcional, só em `remover`): outros slugs do cookie que são a mesma pessoa, calculados por quem montou a página
+ * (o endereço antigo de uma pessoa fundida). Desmarcar tira todos; sem isso a pessoa seguiria marcada pelo endereço antigo.
  */
 export async function alternarEscolhido(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "");
@@ -18,7 +20,23 @@ export async function alternarEscolhido(form: FormData): Promise<void> {
   if (!slugValido(slug) || (acao !== "incluir" && acao !== "remover")) return;
   const jar = await cookies();
   const atual = parseFollows(jar.get(FOLLOW_COOKIE)?.value);
-  const nova = acao === "remover" ? atual.filter((s) => s !== slug) : atual.includes(slug) || atual.length >= FOLLOW_MAX ? atual : [...atual, slug];
+  const tambem = acao === "remover" ? form.getAll("tambem").map(String).filter(slugValido) : [];
+  const nova = acao === "remover" ? atual.filter((s) => s !== slug && !tambem.includes(s)) : atual.includes(slug) || atual.length >= FOLLOW_MAX ? atual : [...atual, slug];
+  await gravar(jar, nova);
+}
+
+/**
+ * Tira do cookie as marcações que não entram na conta (campo `slug`, repetido): pessoa que não aparece mais nos dados ou
+ * repetição de alguém já contado (D327). Só remove; nada é incluído, e slug que não está no cookie é ignorado.
+ */
+export async function esquecerMarcacoes(form: FormData): Promise<void> {
+  const tirar = form.getAll("slug").map(String).filter(slugValido);
+  if (tirar.length === 0) return;
+  const jar = await cookies();
+  await gravar(jar, parseFollows(jar.get(FOLLOW_COOKIE)?.value).filter((s) => !tirar.includes(s)));
+}
+
+async function gravar(jar: Awaited<ReturnType<typeof cookies>>, nova: string[]): Promise<void> {
   // `Secure` segue o protocolo da requisição (na Vercel, x-forwarded-proto=https), como na rota /v2: navegador que não
   // trata http://localhost como seguro descartaria um cookie `Secure` sem avisar. Sem o cabeçalho, produção vale https.
   const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0].trim();

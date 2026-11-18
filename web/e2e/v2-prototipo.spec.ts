@@ -157,8 +157,11 @@ test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async 
   const first = page.locator(".sv-pp > li > a").first();
   const name = ((await first.textContent()) ?? "").trim();
   await first.click();
-  await page.getByRole("button", { name: /Votei nesta pessoa/ }).click();
-  await expect(page.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
+  // D324: a lista também tem o botão em cada linha; este teste segue o caminho pela página da pessoa (cabeçalho .sv-cab)
+  await page.waitForURL(/\/pessoa\//);
+  const cab = page.locator(".sv-cab");
+  await cab.getByRole("button", { name: /Votei nesta pessoa/ }).click();
+  await expect(cab.getByRole("button", { name: "Você acompanha" })).toHaveAttribute("aria-pressed", "true");
   expect((await page.context().cookies()).find((c) => c.name === "sv_sigo")?.value).toBeTruthy();
   // "Escolhidos": um quadro com o nome e as cinco perguntas fixas
   await page.goto("/acompanhando");
@@ -170,9 +173,10 @@ test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async 
   // desmarcar: volta ao estado vazio, com convite
   await page.goto("/pessoas?cargo=senador&uf=SP");
   await page.locator(".sv-pp > li > a").first().click();
-  await page.getByRole("button", { name: "Você acompanha" }).click();
+  await page.waitForURL(/\/pessoa\//);
+  await cab.getByRole("button", { name: "Você acompanha" }).click();
   // D317: a gravação é no servidor; espera a resposta antes de sair da página
-  await expect(page.getByRole("button", { name: /Votei nesta pessoa/ })).toHaveAttribute("aria-pressed", "false");
+  await expect(cab.getByRole("button", { name: /Votei nesta pessoa/ })).toHaveAttribute("aria-pressed", "false");
   await page.goto("/acompanhando");
   await expect(page.getByRole("heading", { name: "Você ainda não marcou ninguém." })).toBeVisible();
 });

@@ -43,6 +43,12 @@ const ROTAS: Rota[] = [
   { nome: "decisoes-leis", url: "/decisoes?aba=leis" },
   { nome: "pessoas-grupo", url: "/pessoas?cidade=3509502&grupo=vereadores" },
   { nome: "pessoas-filtro", url: "/pessoas?cargo=senador&uf=SP" },
+  // começo em dois passos (D324): estado (e cidade) e marcar pessoas. Com o leitor (sv_uf=SP) o passo 2 lista o estado.
+  { nome: "comecar-1", url: "/comecar" },
+  { nome: "comecar-2", url: "/comecar?passo=2" },
+  // D331: a lista só aparece depois do filtro do eleitor; estas rotas mostram a lista filtrada por partido
+  { nome: "pessoas-partido", url: "/pessoas?partido=aur" },
+  { nome: "comecar-2-partido", url: "/comecar?passo=2&partido=aur" },
   { nome: "404-decisao", url: "/decisao/nao-existe", status: 404 },
 ];
 const STATUS = new Map(ROTAS.map((r) => [r.url, r.status ?? 200]));
@@ -480,7 +486,7 @@ const GEOMETRIA = new Set(["width", "height", "inline-size", "block-size", "pers
 type Snap = { chave: string; props: Record<string, string> }[];
 
 test.describe("neutralidade", () => {
-  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r));
+  const ROTAS_PESSOAS = ROTAS.filter((r) => ["inicio", "acompanhando", "pessoas", "pessoa", "votacao-uf", "decisao-respondida", "tema", "pessoas-grupo", "pessoas-filtro", "comecar-2", "pessoas-partido", "comecar-2-partido"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r));
   for (const r of ROTAS_PESSOAS) {
     test(`trocar nomes e siglas: 0 diferenças de estilo, pseudo-elementos e ordem: ${r.nome} [leitor]`, async ({ page, context }, info) => {
       await cookiesDoLeitor(context, "leitor");
@@ -561,7 +567,8 @@ test.describe("neutralidade", () => {
       );
       nota(info, "trocas", JSON.stringify({ nomes: trocados.nomes, partidos: trocados.partidos, encontrados: trocados.nomesEncontrados.slice(0, 6) }));
       // o teste só vale se houve o que trocar (rotas com pessoa)
-      if (["acompanhando", "pessoa", "pessoas", "votacao-uf", "pessoas-grupo", "pessoas-filtro"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r)) expect(trocados.nomes, "sem nome para trocar: o teste não provaria nada").toBeGreaterThan(0);
+      // D331: /pessoas sem filtro do eleitor não lista ninguém (só o total); a lista com nomes é a de pessoas-partido
+      if (["acompanhando", "pessoa", "pessoas-partido", "votacao-uf", "pessoas-grupo", "pessoas-filtro"].includes(r.nome) || ROTAS_PESSOA_SUB.includes(r)) expect(trocados.nomes, "sem nome para trocar: o teste não provaria nada").toBeGreaterThan(0);
 
       const depois = await snapshot();
       const dif: string[] = [];
@@ -614,7 +621,9 @@ test.describe("neutralidade", () => {
       for (const g of r.grupos) {
         if (g.length < 2) continue;
         temLista = true;
-        const ord = [...g].sort((a, b) => a.localeCompare(b, "pt-BR"));
+        // sinal no começo do nome não conta para a ordem (D329); o nome como veio desempata
+        const chave = (n: string) => n.normalize("NFC").replace(/^[^\p{L}\p{N}]+/u, "") || n;
+        const ord = [...g].sort((a, b) => chave(a).localeCompare(chave(b), "pt-BR") || a.localeCompare(b, "pt-BR"));
         if (JSON.stringify(ord) !== JSON.stringify(g)) falhas.push(`${url}: fora de ordem alfabética: ${g.slice(0, 8).join(" | ")}`);
       }
       if (temLista && !/(ordem alfab[ée]tica|de A a Z|A–Z|A-Z)/i.test(r.texto)) falhas.push(`${url}: lista de pessoas sem a frase que declara a ordem alfabética`);
@@ -736,7 +745,8 @@ test.describe("conteúdo", () => {
   test("'Exemplo ilustrativo' presente no modo demo nas telas com dado fictício", async ({ page, context }) => {
     await cookiesDoLeitor(context, "leitor");
     const falhas: string[] = [];
-    const comDado = ROTAS.filter((r) => !["como-funciona", "ajustes", "404-decisao"].includes(r.nome));
+    // o passo 1 do começo só tem a lista de estados (dado real do IBGE) e formulários: não há dado fictício a etiquetar
+    const comDado = ROTAS.filter((r) => !["como-funciona", "ajustes", "404-decisao", "comecar-1"].includes(r.nome));
     for (const r of comDado) {
       await abrir(page, r.url);
       const t = await page.locator(".sv").innerText();
@@ -751,9 +761,16 @@ test.describe("conteúdo", () => {
     const t = await page.locator(".sv-main").innerText();
     expect(t).toContain("Aguardando conferência");
     expect(t).not.toContain("O texto oficial não trata disso.");
-    // todo campo sem resposta é lacuna nomeada, não frase afirmativa
-    await expect(page.locator('[aria-labelledby="sv-d1"] .sv-lac')).toContainText("Aguardando conferência");
-    await expect(page.locator('[aria-labelledby="sv-d5"] .sv-lac')).toContainText("Aguardando conferência");
+    // D324: sem resposta publicada, um aviso só (lacuna nomeada, não frase afirmativa) no lugar das caixas de cada campo
+    expect(t.match(/Aguardando conferência/g), "um aviso só").toHaveLength(1);
+    await expect(page.locator('[aria-labelledby="sv-d3"] .sv-lac')).toContainText("Aguardando conferência");
+    await expect(page.locator(".sv-main .sv-lac", { hasText: /Aguardando conferência|Ainda não conseguimos conferir/ })).toHaveCount(1);
+    // os quadros que só teriam a resposta conferida não aparecem vazios
+    await expect(page.locator('[aria-labelledby="sv-d5"]')).toHaveCount(0);
+    for (const q of ["Quanto muda na conta?", "Quem paga?", "Quem é afetado?"]) await expect(page.getByRole("heading", { name: q })).toHaveCount(0);
+    // etapa, quem decide, autoria, votos e texto oficial continuam, numerados sem pular
+    for (const q of ["O que é isso?", "Já vale?", "Quem decide agora?", "Quem propôs?", "Onde está?", "Como votou quem eu elegi?", "Onde eu confiro?"]) await expect(page.getByRole("heading", { name: q }), q).toBeVisible();
+    expect(await page.locator(".sv-pg--decisao .sv-n").allInnerTexts()).toEqual(["1", "2", "3", "4", "5", "6", "7", "8"]);
     // sem resposta publicada, o selo não afirma quem conferiu
     const selo = page.locator('[aria-labelledby="sv-d10"]');
     await expect(selo).toContainText("Esta proposta ainda não tem resposta publicada.");
@@ -1386,7 +1403,8 @@ test.describe("estados das sete telas", () => {
   });
 
   test("Pessoas: página truncada dita; Tema diz a janela de leitura", async ({ page }) => {
-    await abrir(page, "/pessoas");
+    // D331: a lista só aparece com um filtro do eleitor (partido, cargo ou nome)
+    await abrir(page, "/pessoas?cargo=deputado_estadual");
     await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText(/Esta página mostra 60 de [\d.]+\./);
     await expect(page.locator(".sv-pp > li")).toHaveCount(60);
     await abrir(page, "/tema/agro");
@@ -1395,13 +1413,13 @@ test.describe("estados das sete telas", () => {
 
   test("Pessoas: página inválida é entrada inválida, não falha da fonte", async ({ page }) => {
     for (const p of ["Infinity", "1e308", "1.5", "-3", "abc", "1234567"]) {
-      await abrir(page, `/pessoas?pagina=${encodeURIComponent(p)}`);
+      await abrir(page, `/pessoas?cargo=deputado_estadual&pagina=${encodeURIComponent(p)}`);
       const q = page.locator('[aria-labelledby="pp-2"]');
       await expect(q, p).not.toContainText(FALHOU);
       await expect(q, p).toContainText("O endereço pedia uma página que não existe. Mostramos o começo da lista.");
       await expect(page.locator(".sv-pp > li"), p).toHaveCount(60);
     }
-    await abrir(page, "/pessoas?pagina=999999");
+    await abrir(page, "/pessoas?cargo=deputado_estadual&pagina=999999");
     await expect(page.locator('[aria-labelledby="pp-2"]')).toContainText("Esta página fica depois do fim da lista.");
   });
 

@@ -64,6 +64,39 @@
 .sv .sv-nv2 a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding-inline:6px;font-weight:600;color:var(--tinta)}
 .sv .sv-nv2 a[aria-current]{font-weight:800;text-decoration-thickness:3px}
 .sv .sv-nv1 a:focus-visible,.sv .sv-nv2 a:focus-visible{outline-offset:-3px}
+/* grupo de "Pessoas" e "Votações" (D325): só existe na tela abaixo de 900px; no desktop os links seguem na linha "Também" */
+.sv-fixo{display:contents}
+/* Abaixo de 900px (D324): o topo cabe em duas linhas de 44px (antes eram cinco). Marca e UF na primeira; as duas camadas
+   da navegação viram uma linha só, que rola na horizontal: sem menu e sem JavaScript. O link cortado na borda direita mostra
+   que há mais. O nome do estado fica só para leitor de tela; a sigla aparece. A partir de 900px nada disto vale.
+   D325: "Pessoas" e "Votações" ficam presos à borda direita da linha (position:sticky), à vista sem rolar; o resto passa
+   por baixo deles. Para isso a linha "Também" se desfaz (display:contents) e os links viram itens da própria linha que
+   rola, que é o bloco de referência do sticky. scroll-padding: um link focado pelo teclado nunca para escondido sob o grupo. */
+@media (max-width:899.98px){
+  .sv-id{flex-wrap:nowrap}
+  .sv .sv-marca{flex:none}
+  .sv-uf__n{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .sv-perg{display:flex;align-items:stretch;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;border-top:3px solid var(--tinta);border-bottom:1.5px solid var(--tinta)}
+  .sv-nv1{display:flex;flex:none;border:0}
+  .sv-nv1 li+li{border-top:0}
+  /* as duas perguntas em até duas linhas cada (D325): cabem inteiras à esquerda do grupo preso, sem passar por baixo dele.
+     A largura de cada uma segue o texto dela (se o texto mudar, revise os max-width); com espaçamento de texto maior
+     quebram em mais linhas e a linha cresce. Sublinhado da pergunta atual mais fino e mais perto: não invade a 2ª linha. */
+  .sv .sv-nv1 a{padding:2px 6px 2px 4px;font-size:14px;line-height:1.25;white-space:normal;text-wrap:balance}
+  .sv .sv-nv1 a[aria-current]{text-decoration-thickness:2px;text-underline-offset:2px}
+  .sv .sv-nv1 li:first-child a{max-width:6em}
+  .sv .sv-nv1 li+li a{max-width:11em}
+  /* --sv-fixo-w: largura do grupo preso e, a mesma, a margem que o navegador deixa ao rolar até um link focado */
+  .sv-perg{--sv-fixo-w:7.25rem;scroll-padding-inline-end:var(--sv-fixo-w)}
+  .sv-nv2{display:contents}
+  .sv .sv-nv2 a{flex:none;white-space:nowrap;font-size:13px;font-weight:600;font-stretch:84%}
+  .sv .sv-nv2 a[aria-current]{font-weight:800}
+  /* "Também:" é texto, não link: a ponta dele, cortada pelo grupo preso, mostra que a linha continua. Se a ponta fosse de
+     um link, o navegador não rolaria até ele ao receber foco (já estaria "à vista") e ele ficaria sob o grupo. */
+  .sv-nv2__t{display:flex;flex:none;align-items:center;white-space:nowrap;padding:0 2px 0 4px;border-left:1.5px solid var(--tinta);font-size:13px;color:var(--tinta2)}
+  .sv-fixo{position:sticky;right:0;z-index:1;display:flex;flex:none;align-items:stretch;justify-content:flex-end;min-width:var(--sv-fixo-w);background-color:var(--papel);border-left:1.5px solid var(--tinta)}
+  .sv .sv-fixo a{padding-inline:4px}
+}
 @media (min-width:900px){
   .sv-topo{flex-wrap:nowrap;column-gap:24px}
   .sv-id{flex:none;flex-direction:column;align-items:flex-start;justify-content:flex-start}
@@ -77,9 +110,43 @@
 }
 @media (min-width:1100px){
   .sv-nv1{flex:1 1 560px;grid-template-columns:max-content minmax(0,1fr)}
-  .sv-nv2{flex:0 1 auto}
+  /* com cinco links a linha "Também" não cabe mais ao lado das perguntas: ocupa a linha de baixo inteira, como já era entre 900 e 1100px */
+  .sv-nv2{flex:1 1 auto}
   .sv .sv-nv1 a{min-height:52px}
 }
+/* D326: a partir de 1280px as duas camadas voltam a dividir a mesma linha (o topo volta aos 86px de antes da D324). A linha
+   "Também" fica mais justa; as perguntas pedem no mínimo 450px (abaixo de 445px a segunda iria a três linhas). A medida
+   está em em sobre a fonte das perguntas (21,43em de 21px), para crescer junto com o zoom só de texto: em px fixo, o texto
+   crescia, o mínimo não, e a segunda pergunta ia a três linhas ao lado da linha "Também".
+   A segunda pergunta quebra em duas linhas (cada uma com 24px; as duas cabem nos 52px da linha). Quando não há esse
+   espaço (zoom só de texto, espaçamento de texto maior, janela com conteúdo mais estreito), a linha "Também" desce sozinha
+   para baixo, como abaixo de 1280px, e as perguntas ficam com a linha inteira. Sozinha, a linha "Também" pode encolher e
+   quebrar os links dentro dela (flex-shrink 1): não estoura a página.
+   Folga: o conteúdo tem teto de 1232px, então a conta é a mesma em qualquer tela a partir de 1280px. Com o estado de nome
+   mais longo (RN) e o link atual em negrito sobrava menos de 1px, e o Chromium do Linux mede o texto um pouco mais largo:
+   a linha descia. O espaço entre a marca e as perguntas (16px) e entre os links de "Também" (3px) deixa perto de 23px
+   livres no pior caso; o teste exige pelo menos 12px. Quem mede: e2e/d324-fase1.spec.ts, com os 27 estados. */
+@media (min-width:1280px){
+  .sv-topo{column-gap:16px}
+  .sv-perg{column-gap:12px}
+  .sv-nv1{font-size:21px;flex:1 1 21.43em}
+  .sv .sv-nv1 li+li a{text-wrap:balance}
+  /* sublinhado da pergunta atual mais perto do texto: em duas linhas, o de 4px a 6px da linha de base tocaria a segunda */
+  .sv .sv-nv1 a[aria-current]{text-decoration-thickness:3px;text-underline-offset:3px}
+  .sv-nv2{flex:1 1 auto;column-gap:3px;padding-left:4px}
+  .sv .sv-nv2 a{padding-inline:4px}
+}
+/* D330: estado de carregamento. Texto em tinta sobre papel, sem cor nova e sem animação. Vazio, não aparece nem ocupa lugar. O aviso de troca de página fica preso ao canto de baixo: não empurra o conteúdo nem tira o foco; tem
+   largura contida e texto curto (em janela pequena, quebra em duas linhas). Só existe com JavaScript: sem
+   ele a página chega inteira e o navegador mostra o próprio carregamento. */
+.sv-carga{position:fixed;left:12px;bottom:12px;z-index:20;max-width:min(22rem,calc(100vw - 24px));margin:0;padding:8px 12px;border:2px solid var(--tinta);background:var(--papel);color:var(--tinta);font-size:15px;line-height:1.35;font-weight:700;pointer-events:none}
+/* Vazios, os avisos não aparecem, mas continuam na árvore de acessibilidade (nada de display:none): há leitor de tela que
+   não anuncia uma região de status que nasce já com texto. */
+.sv-carga:empty{padding:0;border:0}
+.sv-envio:empty{margin:0}
+/* com o aviso na tela, o navegador para o elemento focado pelo teclado acima da caixa (WCAG 2.4.11) */
+html:has(.sv-carga:not(:empty)){scroll-padding-bottom:7rem}
+.sv-envio{display:block;margin-top:4px;font-size:14px;line-height:1.35;font-weight:700;color:var(--tinta)}
 .sv-demo{font-size:13px;line-height:1.4;font-weight:500;border-bottom:1.5px solid var(--tinta)}
 .sv-demo .sv-wrap{padding-top:6px;padding-bottom:6px}
 
@@ -390,6 +457,7 @@ main:has(.sv){padding-bottom:0}
 /* acompanhar, impacto na vida e temas */
 .sv-follow{font:inherit;font-size:15px;font-weight:800;min-height:44px;padding:0 16px;cursor:pointer;border-radius:0;border:2px solid var(--tinta);background:var(--papel);color:var(--tinta)}
 .sv-follow[aria-pressed="true"]{background:var(--tinta);color:var(--papel)}
+.sv-follow:disabled{border-style:dashed;color:var(--tinta2);cursor:not-allowed}
 .sv-band{border-top:2px solid var(--tinta);border-bottom:2px solid var(--tinta);padding:18px 0 20px;margin-top:clamp(28px,4vw,48px)}
 .sv-band h2{font-size:clamp(24px,2.8vw,34px);line-height:1.02;font-weight:800;font-stretch:96%;letter-spacing:-.03em;margin-top:6px}
 .sv-h2{font-size:clamp(24px,2.8vw,34px);line-height:1.02;font-weight:800;font-stretch:96%;letter-spacing:-.03em}
@@ -483,4 +551,6 @@ main:has(.sv){padding-bottom:0}
 @media (min-width:900px){
   .sv .sv-filtro{grid-template-columns:minmax(0,5fr) minmax(0,4fr) minmax(0,3fr) auto;grid-auto-flow:column;grid-template-rows:auto auto;align-items:end}
   .sv .sv-filtro .sv-enviar{margin-top:0;grid-row:2}
+  /* quatro campos (D331: partido, cargo, estado e nome em /pessoas) */
+  .sv .sv-filtro.sv-filtro--4{grid-template-columns:repeat(3,minmax(0,3fr)) minmax(0,4fr) auto}
 }

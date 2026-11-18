@@ -9,20 +9,34 @@
 .sv .sv-pg--rola>.sv-ge{align-self:start}
 /* celular: uma coluna, na ordem do DOM. Sem isto, grid-area com nome sem template jogaria os itens para a mesma linha implícita. */
 .sv .sv-pg--rola>*{grid-area:auto}
+/* Ordem (D324): cabeçalho, convite (só para quem chega sem estado nem escolhidos), escolhidos, semana, já rolou | vai rolar,
+   representantes, Congresso, "O que lemos" (registro técnico, perto do fim), selo | próxima. As áreas seguem a ordem do DOM. */
 @media (min-width:900px){
   .sv .sv-pg--rola{
     grid-template-columns:repeat(12,minmax(0,1fr));
     grid-template-areas:
       "h h h h h h h h h h h h"
-      "l l l l l l l l l l l l"
       "q q q q q q q q q q q q"
       "e e e e e e e e e e e e"
       "j j j j j j v v v v v v"
       "t t t t t t t t t t t t"
-      "p p p p p p s s s s s s"
-      "n n n n n n n n n n n n";
+      "p p p p p p p p p p p p"
+      "l l l l l l l l l l l l"
+      "s s s s s s n n n n n n";
   }
-  .sv .sv-pg--rola>.sv-gh{grid-area:h}.sv .sv-pg--rola>.sv-gl{grid-area:l}.sv .sv-pg--rola>.sv-gq{grid-area:q}
+  .sv .sv-pg--rola.sv-pg--convite{
+    grid-template-areas:
+      "h h h h h h h h h h h h"
+      "c c c c c c c c c c c c"
+      "q q q q q q q q q q q q"
+      "e e e e e e e e e e e e"
+      "j j j j j j v v v v v v"
+      "t t t t t t t t t t t t"
+      "p p p p p p p p p p p p"
+      "l l l l l l l l l l l l"
+      "s s s s s s n n n n n n";
+  }
+  .sv .sv-pg--rola>.sv-gh{grid-area:h}.sv .sv-pg--rola>.sv-gc{grid-area:c}.sv .sv-pg--rola>.sv-gl{grid-area:l}.sv .sv-pg--rola>.sv-gq{grid-area:q}
   .sv .sv-pg--rola>.sv-ge{grid-area:e}.sv .sv-pg--rola>.sv-gj{grid-area:j}.sv .sv-pg--rola>.sv-gv{grid-area:v}
   .sv .sv-pg--rola>.sv-gt{grid-area:t}.sv .sv-pg--rola>.sv-gp{grid-area:p}.sv .sv-pg--rola>.sv-gs{grid-area:s}.sv .sv-pg--rola>.sv-gn{grid-area:n}
 }
@@ -31,18 +45,33 @@
     grid-template-columns:minmax(0,1fr) 290px 190px;
     grid-template-areas:
       "h h h"
-      "l l l"
       "q q q"
       "e j v"
       "t t t"
-      "p s n";
+      "p p p"
+      "l l l"
+      "s s n";
     gap:8px 14px;
     margin-top:2px;
+  }
+  .sv .sv-pg--rola.sv-pg--convite{
+    grid-template-areas:
+      "h h h"
+      "c c c"
+      "q q q"
+      "e j v"
+      "t t t"
+      "p p p"
+      "l l l"
+      "s s n";
   }
 }
 .sv-pg--rola .sv-folio{border-top:0}
 @media (min-width:900px){.sv-pg--rola .sv-folio{padding:4px 0 0}}
 @media (min-width:1100px){.sv-pg--rola .sv-folio{padding:0}}
+
+/* ---------- convite do começo em dois passos ---------- */
+.sv-pg--rola>.sv-gc .sv-quadro__in{align-items:flex-start}
 
 /* ---------- "O que lemos" ---------- */
 .sv-lemos{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:16px;padding:2px 4px 0;border-top:1.5px solid var(--tinta);border-bottom:1.5px solid var(--tinta);font-size:13px;line-height:1.45;font-stretch:86%;color:var(--tinta2)}

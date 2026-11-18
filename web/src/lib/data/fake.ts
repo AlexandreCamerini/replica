@@ -1,3 +1,4 @@
+import { compararNomes } from "../ordem-nomes";
 import { fakeW4 } from "./fake-w4";
 import {
   EXPENSE_CATEGORIES,
@@ -15,6 +16,7 @@ import {
   topicName,
 } from "./reference";
 import type {
+  CommitteeItem,
   AnswerClaim,
   AssemblyInfo,
   PublishedAnswers,
@@ -296,6 +298,13 @@ function build(): Store {
     addMandate(novo, m.office, m.placeIbge, { start: "2027-02-01", end: m.office === "senador" ? "2035-02-01" : "2031-02-01", status: "eleito_aguardando_posse" });
   }
 
+  // Nomes como a fonte real às vezes traz (D329), para a ordem alfabética ter teste de tela: um com acento solto na frente
+  // da primeira letra e um em forma decomposta (letra + acento combinante). Os slugs não mudam: só o nome mostrado.
+  for (const [slug, novo] of Object.entries(DEMO_NOMES_FORA_DO_PADRAO)) {
+    const p = s.personBySlug.get(slug);
+    if (p) p.displayName = novo(p.displayName);
+  }
+
   // slug antigo de demonstração: /p/slug-antigo-demo → 308 para o atual
   const firstFed = s.mandates.find((m) => m.office === "deputado_federal")!;
   s.redirects.set("slug-antigo-demo", s.personById.get(firstFed.personId)!.slug);
@@ -320,7 +329,7 @@ function holder(m: Mandate): Officeholder {
   const person = store().personById.get(m.personId)!;
   return { person, mandate: m, party: partyById[m.partyId], officeName: officeName(m.office, person.gender), placeLabel: placeLabel(m.placeIbge) };
 }
-const byName = (a: Officeholder, b: Officeholder) => a.person.displayName.localeCompare(b.person.displayName, "pt-BR");
+const byName = (a: Officeholder, b: Officeholder) => compararNomes(a.person.displayName, b.person.displayName);
 const current = () => store().mandates.filter((m) => m.status === "em_exercicio");
 function page<T>(all: T[], cursor: string | undefined, limit: number): Page<T> {
   const off = Math.max(0, Number(cursor) || 0);
@@ -601,6 +610,28 @@ function entradaDemo(personId: string): EntradaCobertura {
   };
 }
 
+/**
+ * Pessoas da demonstração cujo nome mostrado foge do padrão (D329): `alvaro-bezerra` ganha um acento agudo solto na frente
+ * e a inicial minúscula ("´álvaro Bezerra", como o "´rondiney Topógrafo" da fonte real); `andre-gomes-pa` fica em forma
+ * decomposta (NFD), igual na tela e diferente nos bytes.
+ */
+export const DEMO_NOMES_FORA_DO_PADRAO: Record<string, (nome: string) => string> = {
+  "alvaro-bezerra": (n) => `´${n.charAt(0).toLowerCase()}${n.slice(1)}`,
+  "andre-gomes-pa": (n) => n.normalize("NFD"),
+};
+
+/** Deputado federal da demonstração que tem comissões (D327). Nenhuma outra pessoa da demonstração tem. */
+export const DEMO_COMISSOES_SLUG = "alvaro-barros";
+const COMISSOES_DEMO: CommitteeItem[] = [
+  ["CE", "Comissão de Educação", "Titular"],
+  ["CSAUDE", "Comissão de Saúde", "Titular"],
+  ["CVT", "Comissão de Viação e Transportes", "Suplente"],
+  ["CMADS", "Comissão de Meio Ambiente e Desenvolvimento Sustentável", "Suplente"],
+  ["CCULT", "Comissão de Cultura", "Titular"],
+  ["CESPO", "Comissão do Esporte", "Suplente"],
+  ["CTUR", "Comissão de Turismo", "Suplente"],
+].map(([acronym, name, role]) => ({ acronym, name, role, from: "2025-03-12", to: null, body: "camara" as const }));
+
 // ---------- implementação ----------
 export const fakeSource: DataSource = {
   isDemo: true,
@@ -835,7 +866,7 @@ export const fakeSource: DataSource = {
       const p = store().personById.get(m.personId)!;
       return { id: p.slug, name: p.displayName, uf: ufOf(m), change };
     };
-    const byNm = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "pt-BR");
+    const byNm = (a: { name: string }, b: { name: string }) => compararNomes(a.name, b.name);
     const holders = current().filter((m) => m.office === office);
     const waiting = store().mandates.filter((m) => m.office === office && m.status === "eleito_aguardando_posse");
     const waitingIds = new Set(waiting.map((m) => m.personId));
@@ -1002,7 +1033,7 @@ export const fakeSource: DataSource = {
       p.total++;
       parties.set(party, p);
     }
-    votes.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    votes.sort((a, b) => compararNomes(a.name, b.name));
     return {
       ...ev,
       isNominal: true,
@@ -1037,8 +1068,10 @@ export const fakeSource: DataSource = {
   async listLaws() {
     return { items: [], nextCursor: null, total: 0, years: [] }; // a demo não simula leis
   },
-  async getCommittees() {
-    return [];
+  // Comissões: a demonstração não simula, com uma exceção (D327): uma pessoa com sete, para a tela ter o caso de mais de
+  // cinco (cinco à vista e o resto num <details>) com teste de tela. As demais seguem sem comissão, com o motivo.
+  async getCommittees(personId) {
+    return store().personById.get(personId)?.slug === DEMO_COMISSOES_SLUG ? COMISSOES_DEMO : [];
   },
   async listSpeeches() {
     return { items: [], nextCursor: null, total: 0 };
@@ -1055,8 +1088,9 @@ export const fakeSource: DataSource = {
     return [];
   },
   async getStamp(dataset) {
-    const src = dataset.startsWith("camara") ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;
-    const refreshedAt = dataset.startsWith("camara") || dataset.startsWith("senado") ? "2026-11-01T06:10:00-03:00" : dataset.startsWith("ibge") ? "2026-01-15T03:00:00-03:00" : "2026-10-31T05:40:00-03:00";
+    // parlamento.extras (comissões e contatos) é carimbado com a fonte da Câmara, como na carga real
+    const src = dataset.startsWith("camara") || dataset === "parlamento.extras" ? SOURCES.camara : dataset.startsWith("senado") ? SOURCES.senado : dataset.startsWith("ibge") ? SOURCES.ibge : SOURCES.tse;
+    const refreshedAt = dataset.startsWith("camara") || dataset.startsWith("senado") || dataset === "parlamento.extras" ? "2026-11-01T06:10:00-03:00" : dataset.startsWith("ibge") ? "2026-01-15T03:00:00-03:00" : "2026-10-31T05:40:00-03:00";
     return { dataset, source: src.name, sourceUrl: src.url, refreshedAt };
   },
   async listSourceStatus() {
@@ -1346,7 +1380,7 @@ function demoMuitas(): { autores: PautaProposal["autores"]; votacoes: PautaPropo
     .sort(byName)
     .slice(0, DEMO_MUITAS.autores)
     .map((h, i) => ({ slug: h.person.slug, name: h.person.displayName, role: (i === 0 ? "principal" : "coautoria") as "principal" | "coautoria" }))
-    .sort((a, b) => Number(b.role === "principal") - Number(a.role === "principal") || a.name.localeCompare(b.name, "pt-BR"));
+    .sort((a, b) => Number(b.role === "principal") - Number(a.role === "principal") || compararNomes(a.name, b.name));
   const evs = votesOfBody("camara")
     .events.filter((e) => e.occurredAt.slice(0, 10) <= TODAY && (e.yes || e.no))
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
