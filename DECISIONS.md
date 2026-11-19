@@ -44,6 +44,20 @@ Branch: `claude/pendencias-autonomas`, local, a partir de `claude/go-live-www` (
   - domínio `misconfigured: true`;
   - zona da Vercel pronta com ALIAS no apex e no `*`.
 
+## Executado em 19/11/2026 (depois do "pode executar" do dono)
+
+| # | Resultado |
+|---|---|
+| B1 | `SITE_URL` de produção = `https://www.segueovoto.com.br` |
+| B2 | #61 mergeada; deploy de produção no ar; `robots.txt` e `sitemap.xml` com o `www` |
+| B3 | DNS: o domínio tinha o provedor de serviços `HSTDOMAINS (127)` selecionado no registro.br, que tirava a edição de DNS do painel. Com autorização do dono, o provedor foi trocado para `NENHUM` (domínio sob administração direta do NIC.br, contrato do registro.br aceito) e os servidores passaram a `ns1/ns2.vercel-dns.com`. O `.br` publicou em ~12 min. A Vercel não emitiu o certificado sozinha; foi emitido via API (`issue_cert`, apex e `www`, renovação automática). Aceite: `misconfigured: false` nos dois nomes, `www` 200 com HTTPS válido em `/`, `/pessoas`, `/votacoes`, `/como-funciona`, `/entrar`, `/robots.txt`, `/sitemap.xml`; apex 308 para o `www` |
+| B6 | secret `REVALIDATE_URL` = `https://www.segueovoto.com.br/api/revalidate` |
+| B7 | 0142 e 0144 aplicadas no Supabase, com `schema_migrations` coerente (0142, 0143, 0144) |
+| B12b | #62 mergeada (modo manutenção, checagem de escritores, guarda de roles, runbooks) |
+| B19 | 61 branches locais mergeadas apagadas (sobraram entradas órfãs no `.git/config`, que o sandbox não deixou limpar) |
+
+Ainda pendentes por exigirem login do dono: B4 (Supabase Auth, URL Configuration) e B5 (Turnstile, hostnames). Os dois afetam só o login no domínio novo; a leitura do site já funciona.
+
 ## Pendências do dono, em ordem
 
 Cada uma traz o comando, o aceite e a volta. O que vem antes desbloqueia o que vem depois.
