@@ -3,8 +3,13 @@
 -- O que faz:
 --   1. Central: "sair" revoga de verdade. O gatilho `central_fator_protege` (0157) passa a deixar o `admin_central` ADIANTAR `sessoes_desde` até o relógio
 --      do banco (nunca atrasar, nunca para o futuro). A rota /admin/api/sair usa isso: as sessões de nível 2 da pessoa, em qualquer aparelho, deixam de valer.
---   2. Central: desativar revoga. Gatilho `adm_admins_revoga` em `adm_admins`: quando `ativo` vai de true para false, grava `sessoes_desde = now()` no fator
---      da pessoa. Antes, `ativo = false` só suspendia: reativado, um cookie ainda no prazo voltava a valer.
+--   2. Central: desativar revoga. Gatilho `adm_admins_revoga` em `adm_admins`: quando o admin ativo é desativado, apagado ou troca de e-mail, grava
+--      `sessoes_desde = clock_timestamp()` no fator do e-mail ANTIGO. Antes, `ativo = false` só suspendia: reativado (ou recadastrado), um cookie no prazo voltava a valer.
+--      O dono precisa desativar com um role que possa atualizar `login.central_fatores` (o dono da tabela ou superusuário); outro role faz a desativação inteira falhar (fecha).
+--
+-- Limite declarado: o gatilho do fator não amarra QUEM adianta `sessoes_desde` de quem. Quem tiver a credencial do `admin_central` derruba as sessões de qualquer
+-- admin (é negação de serviço, não escalada); a aplicação só revoga as do próprio operador. O comentário de coluna da 0157 ("Só o dono do banco grava") fica desatualizado
+-- e é refeito abaixo.
 --
 -- É aditiva: uma função refeita (mesma assinatura e mesmo gatilho), uma função e um gatilho novos. Nenhum grant novo.
 -- Para desfazer: `drop trigger adm_admins_revoga on adm_admins; drop function adm_admins_revoga();`
@@ -56,11 +61,14 @@ end $$;
 
 create or replace function adm_admins_revoga() returns trigger language plpgsql set search_path = pg_catalog, public as $$
 begin
-  if old.ativo and not new.ativo then
-    update login.central_fatores set sessoes_desde = greatest(coalesce(sessoes_desde, '-infinity'::timestamptz), pg_catalog.now())  -- greatest e coalesce são construções da linguagem, não funções: não levam esquema
-     where email = new.email;
+  if tg_op = 'DELETE' or (old.ativo and (not new.ativo or new.email is distinct from old.email)) then
+    -- greatest e coalesce são construções da linguagem, não funções: não levam esquema
+    update login.central_fatores set sessoes_desde = greatest(coalesce(sessoes_desde, '-infinity'::timestamptz), pg_catalog.clock_timestamp())
+     where email = old.email;
   end if;
   return null;
 end $$;
 drop trigger if exists adm_admins_revoga on adm_admins;
-create trigger adm_admins_revoga after update of ativo on adm_admins for each row execute function adm_admins_revoga();
+create trigger adm_admins_revoga after update of ativo, email or delete on adm_admins for each row execute function adm_admins_revoga();
+
+comment on column login.central_fatores.sessoes_desde is 'Sessões de nível 2 emitidas antes deste instante não valem. O dono do banco grava livremente; a central só adianta até agora ("sair", 0158).';

@@ -14,12 +14,12 @@ function memStore() {
   const store: PgStore = {
     async issueCode(email, codeHash, nonceHash, nowMs) {
       const global = [...codes.values()].reduce((n, c) => n + c.sent.filter((t) => t > nowMs - 3600_000).length, 0);
-      if (global >= MAX_SENDS_GLOBAL_PER_HOUR) return false;
+      if (global >= MAX_SENDS_GLOBAL_PER_HOUR) return "global";
       const cur = codes.get(email);
       const recent = (cur?.sent ?? []).filter((t) => t > nowMs - 3600_000);
-      if (recent.length >= MAX_SENDS_PER_HOUR) return false;
+      if (recent.length >= MAX_SENDS_PER_HOUR) return "email";
       codes.set(email, { codeHash, nonceHash, expiresAtMs: nowMs + 600_000, attempts: 0, sent: [...recent, nowMs] });
-      return true;
+      return "ok";
     },
     async takeAttempt(email, nonceHash): Promise<CodeRow | "too_many" | null> {
       const c = codes.get(email);
@@ -148,12 +148,16 @@ test("o código só vale no navegador que o pediu: sem o nonce, nem o código ce
   assert.equal(s.nonce.value, undefined, "o nonce sai depois do login");
 });
 
-test("pedir de novo troca o nonce: o código antigo, mesmo certo, não entra no navegador novo", async () => {
+test("pedir de novo troca o nonce: o nonce antigo, com o código NOVO e certo, não entra", async () => {
   const s = setup();
   await s.auth.sendCode("a@b.com", "tok");
-  const velho = s.mails[0].code;
+  const nonceVelho = s.nonce.value;
   await s.auth.sendCode("a@b.com", "tok");
-  if (s.mails[1].code !== velho) assert.deepEqual(await s.auth.verifyCode("a@b.com", velho), { ok: false, reason: "invalid" });
+  const nonceNovo = s.nonce.value;
+  assert.notEqual(nonceVelho, nonceNovo);
+  s.nonce.value = nonceVelho;
+  assert.deepEqual(await s.auth.verifyCode("a@b.com", s.mails[1].code), { ok: false, reason: "invalid" });
+  s.nonce.value = nonceNovo;
   assert.equal((await s.auth.verifyCode("a@b.com", s.mails[1].code)).ok, true);
 });
 
@@ -176,7 +180,8 @@ test("consumo atômico: se outro pedido consumiu o código entre conferir e cons
 test("teto do site: passado MAX_SENDS_GLOBAL_PER_HOUR envios na hora, qualquer e-mail recebe rate_limited", async () => {
   const s = setup();
   for (let i = 0; i < MAX_SENDS_GLOBAL_PER_HOUR; i++) assert.deepEqual(await s.auth.sendCode(`p${i}@x.com`, "tok"), { ok: true });
-  assert.deepEqual(await s.auth.sendCode("outra@x.com", "tok"), { ok: false, reason: "rate_limited" });
+  // teto do site não é "muitos códigos para este e-mail": a tela mostra indisponível, e o log avisa o operador
+  assert.deepEqual(await s.auth.sendCode("outra@x.com", "tok"), { ok: false, reason: "unavailable" });
   s.clock.t += 3600_000 + 1;
   assert.deepEqual(await s.auth.sendCode("outra@x.com", "tok"), { ok: true });
 });

@@ -65,7 +65,7 @@ export function Navegacao({ atual }: { atual: string }) {
           ))}
         </ul>
       </nav>
-      <BotaoSair />
+      {process.env.ADMIN_CENTRAL === "producao" && <BotaoSair />}
     </header>
   );
 }

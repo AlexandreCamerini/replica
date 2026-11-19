@@ -16,8 +16,9 @@ export type CodeRow = { codeHash: string; expiresAtMs: number };
 /** Persistência. Cada método é uma operação atômica no banco (limites não podem depender de ler e depois gravar). */
 export interface PgStore {
   /** Grava o código novo (e o hash do nonce do navegador que pediu) se o e-mail tem menos de MAX_SENDS_PER_HOUR envios na última hora
-   *  e o site, menos de MAX_SENDS_GLOBAL_PER_HOUR; false = algum limite estourado. */
-  issueCode(email: string, codeHash: string, nonceHash: string, nowMs: number): Promise<boolean>;
+   *  e o site, menos de MAX_SENDS_GLOBAL_PER_HOUR. "email" e "global" = qual limite estourou. O global é freio de custo, contado antes do
+   *  insert e sem trava: sob concorrência pode passar do teto pelo número de pedidos simultâneos. */
+  issueCode(email: string, codeHash: string, nonceHash: string, nowMs: number): Promise<"ok" | "email" | "global">;
   /** Conta uma tentativa e devolve o código, SÓ para o nonce de quem pediu. "too_many" = esse navegador já gastou as MAX_ATTEMPTS;
    *  null = não há código para este e-mail e este nonce (quem não tem o nonce não gasta tentativa de ninguém). */
   takeAttempt(email: string, nonceHash: string): Promise<CodeRow | "too_many" | null>;
@@ -107,8 +108,13 @@ export function createPgAuth(d: PgDeps): AuthProvider {
         sessionSecret(d.env);
         const code = (d.randomCode ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0")))();
         const nonce = (d.randomNonce ?? (() => randomBytes(16).toString("hex")))();
-        if (!(await d.store.issueCode(email, hashCode(email, nonce, code), hashNonce(nonce), d.now()))) return { ok: false, reason: "rate_limited" };
-        d.nonce.set(nonce, CODE_TTL_MS / 1000);
+        const emitido = await d.store.issueCode(email, hashCode(email, nonce, code), hashNonce(nonce), d.now());
+        if (emitido === "email") return { ok: false, reason: "rate_limited" };
+        if (emitido === "global") {
+          console.error("[auth:pg] teto global de envios por hora atingido: nenhum código sai até a janela abrir"); // operador precisa saber: é negação de serviço ou pico
+          return { ok: false, reason: "unavailable" };
+        }
+        d.nonce.set(nonce, 15 * 60); // o mesmo prazo do cookie do e-mail (account.ts): passado o código (10 min), a tela diz "venceu", não "errado"
         // Mesma resposta exista conta ou não: o usuário só nasce em verifyCode.
         return (await d.sendMail(email, code)) ? { ok: true } : { ok: false, reason: "unavailable" };
       } catch (e) {
