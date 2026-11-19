@@ -5,6 +5,7 @@ import { CompareProvider } from "@/components/shell/compare";
 import { AppFooter } from "@/components/shell/footer";
 import { AppHeader } from "@/components/shell/header";
 import { data } from "@/lib/data";
+import { AVISO_MANUTENCAO, emManutencao } from "@/lib/manutencao";
 
 // Desenho anterior (design/v1/DIRECAO.md). Desde a D316 a entrada do site é a Direção 2; estas páginas seguem no ar no
 // endereço de sempre enquanto a Direção 2 não cobre o que elas mostram (lista na D309). A antiga entrada (/) está em
@@ -23,6 +24,11 @@ export default async function V1Layout({ children }: { children: React.ReactNode
       </a>
       <CompareProvider>
         <DemoBanner />
+        {emManutencao(process.env) && (
+          <div role="status" aria-label="Manutenção" className="bg-surface-inverse px-4 py-2 text-on-inverse">
+            {AVISO_MANUTENCAO}
+          </div>
+        )}
         <aside aria-label="Desenho anterior" className="border-b border-border bg-surface-sunken">
           <p className="mx-auto max-w-[1320px] px-4 py-2 text-sm text-fg md:px-6">
             Esta página é do desenho anterior do Segue o Voto.{" "}

@@ -42,13 +42,30 @@ begin
       raise exception 'bootstrap: o database % não está vazio e não tem a marca ''segueovoto'': pode ser de outra app. Nada foi alterado.', current_database();
     end if;
   end if;
-  for r in select oid, rolname, rolsuper, shobj_description(oid, 'pg_authid') as marca from pg_roles where rolname = any (nomes) loop
+  for r in select oid, rolname, rolsuper, rolcanlogin, rolcreaterole, rolcreatedb, rolbypassrls, rolreplication, shobj_description(oid, 'pg_authid') as marca
+             from pg_roles where rolname = any (nomes) loop
     if r.marca is distinct from 'segueovoto' then
       raise exception 'bootstrap: o role % já existe sem a marca ''segueovoto'': é de outra app. Nada foi alterado. Confirme com o dono do cluster e marque-o (comment on role % is ''segueovoto'') só se for do Segue o Voto.', r.rolname, r.rolname;
     end if;
     if r.rolsuper then
       raise exception 'bootstrap: o role % é superusuário; nenhum role do Segue o Voto pode ser', r.rolname;
     end if;
+    -- runbook-railway §8, ponto g: role já marcado também não pode ter atributo que o deixe criar role ou database, replicar
+    -- ou passar por cima da RLS (só o service_role nasce com bypassrls, de propósito, como no Supabase)
+    if r.rolcreaterole or r.rolcreatedb or r.rolreplication or (r.rolbypassrls and r.rolname <> 'service_role') then
+      raise exception 'bootstrap: o role % tem atributo além do esperado (createrole=%, createdb=%, replication=%, bypassrls=%). Nada foi alterado.',
+        r.rolname, r.rolcreaterole, r.rolcreatedb, r.rolreplication, r.rolbypassrls;
+    end if;
+    -- os papéis do PostgREST nunca entram sozinhos (no Railway ninguém conecta como eles; service_role tem bypassrls)
+    if r.rolcanlogin and r.rolname in ('anon', 'authenticated', 'service_role') then
+      raise exception 'bootstrap: o role % tem LOGIN; anon, authenticated e service_role são só papéis. Nada foi alterado.', r.rolname;
+    end if;
+    -- e não pode ser membro de role de outra app (herdaria os privilégios dela)
+    for m in select g.rolname from pg_auth_members a join pg_roles g on g.oid = a.roleid where a.member = r.oid loop
+      if m <> all (nomes) then
+        raise exception 'bootstrap: o role % é membro de % (fora do Segue o Voto). Nada foi alterado.', r.rolname, m;
+      end if;
+    end loop;
     for m in select u.rolname from pg_auth_members a join pg_roles u on u.oid = a.member where a.roleid = r.oid loop
       if m <> all (permitidos) and m <> current_user then
         raise exception 'bootstrap: o role % tem o membro % fora da lista permitida (%). Nada foi alterado.', r.rolname, m, permitidos;
