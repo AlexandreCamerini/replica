@@ -96,8 +96,12 @@ WRITERS="$(psql "$ORIGEM" "${Q[@]}" -F ' | ' -c "
   select 'pid ' || a.pid || ' role=' || coalesce(a.usename, '?') || ' app=' || coalesce(nullif(a.application_name, ''), '-') || ' estado=' || coalesce(a.state, '?') || ' desde=' || to_char(coalesce(a.state_change, a.backend_start), 'HH24:MI:SS')
     from pg_stat_activity a
    where a.datname = current_database() and a.pid <> pg_backend_pid()
-     and (a.usename in ('web_writer', 'admin_central', 'civico_etl', 'supabase_auth_admin')
-          or a.application_name ilike '%civico%'
+     and (
+          -- escritor conhecido que NÃO está ocioso (o GoTrue e o pooler mantêm conexões ociosas; sem pg_read_all_stats o estado vem nulo e conta como suspeito)
+          ((a.usename in ('web_writer', 'admin_central', 'civico_etl', 'supabase_auth_admin') or a.application_name ilike '%civico%')
+             and coalesce(a.state, '?') <> 'idle')
+          -- qualquer role com transação de escrita aberta (pega o ETL que conecta como postgres, sem application_name, no meio de um upsert)
+          or a.backend_xid is not null
           or a.pid in (select l.pid from pg_locks l where l.locktype = 'advisory' and l.granted))
    order by a.pid")"
 if [[ -n "$WRITERS" ]]; then
@@ -108,10 +112,12 @@ fi
 echo "   origem sem escritores conhecidos conectados"
 # por atividade: pega quem a lista de nomes não vê (GoTrue, ETL como postgres sem application_name). ESCRITORES_JANELA_S=0 desliga (só para ensaio local).
 JANELA="${ESCRITORES_JANELA_S:-15}"
-if [[ "$JANELA" != 0 ]]; then
+[[ "$JANELA" =~ ^[0-9]+$ ]] || { echo "ESCRITORES_JANELA_S tem de ser um inteiro" >&2; exit 2; }
+if ! is_local "$DESTINO_FULL" && (( 10#$JANELA < 15 )); then echo "ESCRITORES_JANELA_S abaixo de 15 s só vale com destino local. Abortado." >&2; exit 2; fi
+if (( 10#$JANELA > 0 )); then
   ESCRITAS="$(escritas_na_janela "$ORIGEM" "$JANELA")"
   if [[ "$ESCRITAS" != 0 ]]; then
-    echo "A origem teve $ESCRITAS linhas escritas em ${JANELA}s (public, auth, login): há escritor ativo que a lista de nomes não pegou. Pause-o (site em MAINTENANCE=1, ETL, launchd) e rode de novo." >&2
+    echo "A origem teve $ESCRITAS linhas escritas em ${JANELA}s (public, auth, login): há escritor ativo que a lista de nomes não pegou. Pause-o (site em MAINTENANCE=1, ETL, launchd) e rode de novo. Para ver quem escreve: select relname, n_tup_ins + n_tup_upd + n_tup_del from pg_stat_user_tables where schemaname in ('public','login') or (schemaname = 'auth' and relname = 'users') order by 2 desc limit 10" >&2
     exit 1
   fi
   echo "   origem sem escritas em ${JANELA}s"

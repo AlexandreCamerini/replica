@@ -16,19 +16,20 @@ O rate limiting do firewall depende do plano da equipe na Vercel. Confira no pai
 
 - **Nome:** `login: limite por IP`.
 - **Condições** (todas):
-  - Request Path começa com `/entrar`;
-  - Method igual a `POST`.
+  - Method igual a `POST`;
+  - o cabeçalho `Next-Action` existe, em **qualquer caminho**.
 
-  As server actions do login (`sendCode`, `verifyCode`) chegam como POST em `/entrar`.
+  As server actions do login (`sendCode`, `verifyCode`) são chamadas com POST e esse cabeçalho. O Next encaminha a action a partir de qualquer rota (`POST /pessoas` com o id do `sendCode` executa o `sendCode`), então um limite só em `/entrar` seria contornado. A regra cobre também acompanhar, sugestões e ajustes; o limite foi escolhido para não atrapalhar quem usa o site normalmente.
 - **Ação:** Rate Limit.
   - Algoritmo: Fixed Window.
   - Janela: 60 s.
-  - Limite: 10 pedidos.
+  - Limite: 20 pedidos.
   - Chave: IP.
-  - Ao estourar: Deny por 10 min.
+  - Ao estourar: Deny por 5 min.
+  - Operadora móvel com CGNAT põe muita gente atrás de um IP. Se aparecer reclamação de bloqueio, troque o Deny por Challenge antes de subir o limite.
 - **Teste depois de aplicar:**
-  - 12 POSTs seguidos de um mesmo IP em `/entrar`: a partir do 11º, 429 ou 403.
-  - Um GET em `/entrar` continua 200.
+  - 22 POSTs seguidos de um mesmo IP com o cabeçalho `Next-Action`: a partir do 21º, 429 ou 403.
+  - GETs seguem 200.
 
 Corpo equivalente para a API (`update_firewall_config`, ação `rules.insert`), para quando a conexão tiver acesso:
 
@@ -42,14 +43,14 @@ Corpo equivalente para a API (`update_firewall_config`, ação `rules.insert`), 
     "active": true,
     "conditionGroup": [
       { "conditions": [
-        { "type": "path", "op": "pre", "value": "/entrar" },
-        { "type": "method", "op": "eq", "value": "POST" }
+        { "type": "method", "op": "eq", "value": "POST" },
+        { "type": "header", "key": "next-action", "op": "ex" }
       ] }
     ],
     "action": { "mitigate": {
       "action": "rate_limit",
-      "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 10, "keys": ["ip"], "action": "deny" },
-      "actionDuration": "10m"
+      "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 20, "keys": ["ip"], "action": "deny" },
+      "actionDuration": "5m"
     } }
   }
 }
@@ -57,10 +58,10 @@ Corpo equivalente para a API (`update_firewall_config`, ação `rules.insert`), 
 
 ## Regra 2: central (projeto `admin.`, quando existir)
 
-É a mesma regra, com duas trocas:
+A central não usa server action (as rotas de entrada são de API). A regra é por caminho:
 
-- path começa com `/admin/api/entrar`;
-- limite de 10 por 60 s por IP.
+- Method `POST` e path começando com `/admin/api/entrar`;
+- limite de 10 por 60 s por IP, Deny por 5 min.
 
 As rotas da central já respondem num tempo fixo de 1,5 s. O limite corta a força bruta distribuída por e-mail.
 

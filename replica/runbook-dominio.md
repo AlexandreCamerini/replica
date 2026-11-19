@@ -16,6 +16,8 @@ Estado em 19/11/2026: **não executado**. O site roda na Vercel; o que falta é 
 
 No registro.br, abra o domínio e procure **Alterar servidores DNS**. Não é a edição de zona.
 
+Antes de salvar, confira se o domínio tem **DNSSEC** ligado. O DNS automático do registro.br costuma vir assinado. Se ficar um registro DS apontando para as chaves antigas depois da troca, o domínio inteiro passa a falhar na resolução (SERVFAIL). Desligue o DNSSEC no registro.br antes, ou na mesma tela.
+
 | Campo | Valor |
 |---|---|
 | Servidor 1 | `ns1.vercel-dns.com` |
@@ -42,16 +44,17 @@ Nesse caso, os registros do Resend também ficam no registro.br.
 
 Nada disto bloqueia o site abrir. Bloqueia o login no domínio novo.
 
-1. **`SITE_URL`** em Production na Vercel: `https://www.segueovoto.com.br`, e redeploy. Confirme antes de mergear a #61: o `robots.txt` libera a indexação da origem que estiver em `SITE_URL`.
+1. **`SITE_URL`** em Production na Vercel: `https://www.segueovoto.com.br`, e redeploy. Confirme antes de mergear a #61. Com `SITE_URL` definido, o `robots.txt` libera a indexação em qualquer host que o sirva, inclusive o alias `*.vercel.app` de produção, e anuncia o sitemap da origem do `SITE_URL`. Por isso o valor tem de ser o `www`.
 2. **Supabase Auth**, em URL Configuration:
    - Site URL: `https://www.segueovoto.com.br`
    - Redirect URLs: incluir `https://www.segueovoto.com.br/**`
    - Vale enquanto `AUTH_PROVIDER=supabase`.
 3. **Turnstile**, na chave de produção: incluir os hostnames `www.segueovoto.com.br` e `segueovoto.com.br`.
-4. **GitHub**, variável `REVALIDATE_URL`: `https://www.segueovoto.com.br/api/revalidate`.
+4. **GitHub**, **secret** `REVALIDATE_URL` (os workflows leem `secrets.REVALIDATE_URL`): `gh secret set REVALIDATE_URL --repo AlexandreCamerini/replica --body https://www.segueovoto.com.br/api/revalidate`.
 
 ## Aceite
 
+0. `dig +short DS segueovoto.com.br` vazio, sem DNSSEC sobrando.
 1. `dig +short NS segueovoto.com.br` devolve `ns1.vercel-dns.com.` e `ns2.vercel-dns.com.`. Na alternativa, `dig +short A segueovoto.com.br` devolve `76.76.21.21`.
 2. `get_domain_config` (MCP da Vercel, equipe `team_zSfqr6b24BZaz2Wt7nJUloWT`) devolve `misconfigured: false` para o apex e para o `www`.
 3. `curl -sSI https://www.segueovoto.com.br/` responde 200, com certificado válido.

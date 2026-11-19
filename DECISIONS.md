@@ -21,11 +21,12 @@ Branch: `claude/pendencias-autonomas`, local, a partir de `claude/go-live-www` (
 | D-A4 | Push, merge, deleção de branches, env de produção na Vercel | Não executar; comandos prontos nas pendências | Irreversíveis ou publicam | n/a |
 | D-A5 | Base da branch de trabalho | `claude/go-live-www`, não o `main` | Os runbooks e o código desta sessão continuam o que está na #61; partir do `main` daria conflito | rebase sobre o `main` depois do merge da #61 |
 | D-A6 | Modo manutenção | `MAINTENANCE=1` só por variável de ambiente, só nas server actions que escrevem e com aviso no topo | Reversível sem código. A leitura continua no ar. O pool de escrita do site só é usado nesses pontos (teste garante) | apagar a variável e fazer redeploy |
-| D-A7 | Checagem de escritores (runbook §8, a) | Somar à lista de nomes uma medida de escrita real em 15 s; tirar `web_reader` da lista | Pega o GoTrue e o ETL sem `application_name`; `web_reader` não escreve e travava a cópia por conexão ociosa | `ESCRITORES_JANELA_S=0` desliga a medida |
+| D-A7 | Checagem de escritores (runbook §8, a) | Pela lista de nomes, só a sessão que não está ociosa; qualquer role com transação de escrita aberta (`backend_xid`); mais uma medida de escrita concluída em 15 s (`public`, `login` e `auth.users`). `web_reader` saiu da lista | Pega o GoTrue e o ETL sem `application_name` no meio de uma escrita, sem travar por conexão ociosa. Limite: escrita concluída pouco antes da janela pode passar; a pausa do §3 continua sendo a barreira principal | `ESCRITORES_JANELA_S=0`, que só vale com destino local |
 | D-A8 | Guarda de roles (runbook §8, g) | Recusar role nosso com `createrole`, `createdb`, `replication` ou `bypassrls` (exceto `service_role`) e membro de role de outra app | O bootstrap é rodado como superusuário num cluster compartilhado com outras apps | reverter o trecho em `db/railway/bootstrap.sql` |
 | D-A9 | Provas sem navegador (`sem-navegador.mjs`, `sem-rede-externa.mjs`) | Não rodar | Apagam e recriam o banco `admin_coleta_c7`, fixo no código (`BANCOS_PERMITIDOS`); apagar é irreversível pela regra | n/a: pendência B17 |
 | D-A10 | Regra de firewall | Documento pronto (`replica/firewall-regras.md`), sem aplicar | Mexe no tráfego real, e a API de firewall não está liberada para a conexão do Claude | n/a |
 | D-A11 | Memória do Postgres do Railway no teto (1,97 de 2 GB) | Registrar como no-go do corte; não aumentar | Aumentar é gasto | n/a |
+| D-A12 | Revisão independente do lote (subagente Opus) | Corrigir tudo, sem pendência nova | 2 altos e 13 menores, todos baratos e reversíveis: ordem das pendências (o modo manutenção tem de estar no `main` antes do ensaio: B12b), checagem por nome sem travar por conexão ociosa e pegando transação de escrita aberta de qualquer role, `auth.users` como único alvo em `auth`, aviso também no desenho anterior, `REVALIDATE_URL` como secret, firewall por cabeçalho `Next-Action` em qualquer caminho, DNSSEC, aceites mais precisos, LOGIN proibido nos papéis do PostgREST, trava da janela de 15 s fora do local | reverter o commit |
 
 ## Leituras de produção feitas (só leitura)
 
@@ -49,25 +50,25 @@ Cada uma traz o comando, o aceite e a volta. O que vem antes desbloqueia o que v
 
 | # | O quê | Comando ou onde | Aceite | Volta | Desbloqueia |
 |---|---|---|---|---|---|
-| B1 | `SITE_URL` de produção | Vercel, Production: `SITE_URL=https://www.segueovoto.com.br`, depois redeploy | `curl https://replica-virid-sigma.vercel.app/robots.txt` mostra o `Sitemap:` do `www` (depois da #61) | valor anterior | merge da #61 |
+| B1 | `SITE_URL` de produção | Vercel, Production: `SITE_URL=https://www.segueovoto.com.br`, depois redeploy | valor conferido no painel; depois do B2, `/robots.txt` mostra `Sitemap: https://www.segueovoto.com.br/sitemap.xml` | valor anterior | merge da #61 |
 | B2 | Merge da #61 | `gh pr merge 61 --repo AlexandreCamerini/replica --merge` | CI do `main` verde; `/robots.txt` com 200 | Instant Rollback na Vercel | B18 |
 | B3 | DNS | registro.br, Alterar servidores DNS: `ns1.vercel-dns.com` e `ns2.vercel-dns.com` (`replica/runbook-dominio.md`) | `get_domain_config` com `misconfigured: false`; `www` com 200 e certificado | voltar aos servidores do Registro.br | site no domínio; B5; B8 |
 | B4 | Supabase Auth | Site URL e Redirect URLs com o `www` | login completo no `www` | valores anteriores | login no domínio |
 | B5 | Turnstile | hostnames `www.segueovoto.com.br` e `segueovoto.com.br` na chave de produção | widget carrega em `/entrar` | tirar os hostnames | login no domínio |
-| B6 | `REVALIDATE_URL` | `gh variable set REVALIDATE_URL --repo AlexandreCamerini/replica --body https://www.segueovoto.com.br/api/revalidate` | próxima carga do ETL revalida sem erro | valor anterior | |
-| B7 | 0142 e 0144 no Supabase | `MIGRATE_ATE=0144 bash etl/deploy/prod-migrate.sh` (pendentes listadas: só 0142 e 0144) | `max(filename)` = `0144_login_codes_nonce.sql` | `alter table login.codes drop column nonce_hash;` | corte |
+| B6 | `REVALIDATE_URL` (é **secret**, não variável: `etl.yml` e `etl-pauta.yml` leem `secrets.REVALIDATE_URL`) | `gh secret set REVALIDATE_URL --repo AlexandreCamerini/replica --body https://www.segueovoto.com.br/api/revalidate` | `gh secret list` mostra a data nova; a próxima carga revalida sem erro | valor anterior | |
+| B7 | 0142 e 0144 no Supabase | `MIGRATE_ATE=0144 bash etl/deploy/prod-migrate.sh` (pendentes listadas: só 0142 e 0144) | `select count(*) from schema_migrations where filename in ('0142_drop_expenses_supplier_doc_idx.sql','0143_login_pg.sql','0144_login_codes_nonce.sql')` = 3 | `alter table login.codes drop column nonce_hash; delete from schema_migrations where filename = '0144_login_codes_nonce.sql';` | corte |
 | B8 | Resend | criar o domínio no Resend; gravar os registros SPF, DKIM e DMARC na zona da Vercel (pelo painel, ou eu gravo pelo MCP com o seu "vai"); chave só de envio | domínio verificado no Resend | apagar os registros | B9 |
 | B9 | Env de e-mail | `AUTH_PROVIDER_ALVO=pg bash etl/deploy/config-producao.sh` (`RESEND_API_KEY`, `AUTH_EMAIL_FROM`) | variáveis presentes em Production | `vercel env rm` | corte |
 | B10 | Roles no Railway | `bash db/railway/configurar-dono.sh` | `psql` como cada role funciona | runbook §1 | ensaio |
-| B11 | Firewall | `replica/firewall-regras.md`, regra 1 | 11º POST seguido em `/entrar` é recusado | desligar a regra | corte |
+| B11 | Firewall | `replica/firewall-regras.md`, regra 1 | o 21º pedido seguido com `Next-Action` é recusado, em qualquer caminho | desligar a regra | corte |
 | B12 | Memória do Postgres do Railway | subir o limite (custo) ou provar no ensaio que 2 GB bastam sob carga | pré-voo 4 = sim | voltar o limite | corte |
+| B12b | Push, PR e merge desta branch (antes do ensaio) | depois do B2: `git -C /Users/acamerini/replica push -u origin claude/pendencias-autonomas`, PR com base no `main`, merge com o CI verde | CI verde; com `MAINTENANCE=1` num Preview, aviso em `/` e em `/entrar` | fechar o PR, ou reverter o merge | B13 e B14: sem isto, `MAINTENANCE=1` em produção não faz nada e a cópia roda sem a checagem por atividade |
 | B13 | Ensaio P2 | `railway-copy.sh --db civico_ensaio --refazer` e `ensaio-validar.sh` (runbook §2); `MAINTENANCE=1` num Preview | critérios do §2 e pré-voo 3 e 9 | `--refazer` de novo | corte |
 | B14 | Corte P3 | `replica/runbook-railway.md` §7 (pré-voo, 9 passos, volta) | os 9 passos e 24 h de observação | volta do §7 | B15 a B17 |
 | B15 | 0150 a 0158 no Railway | `replica/runbook-migracoes-producao.md`, Momento B | aceite do Momento B | coluna "Volta" | B16 |
 | B16 | Executor e central `admin.` | `etl/executor-container.md`; projeto Vercel `admin.` (`replica/admin-coleta.md`, subseção 6); CNAME `admin` na zona; regra 2 do firewall | central abre em `admin.segueovoto.com.br` com TOTP | apagar o projeto e o registro | |
 | B17 | Provas sem navegador | `cd web && node e2e-admin/sem-navegador.mjs` e `node e2e-admin/sem-rede-externa.mjs` (recriam `admin_coleta_c7`, que é local e sintético) | "RESULTADO: tudo passou" | n/a | evidências da central atualizadas |
-| B18 | Push desta branch | `git -C /Users/acamerini/replica push -u origin claude/pendencias-autonomas` e PR com base no `main` depois da #61 | CI verde | fechar o PR | modo manutenção e scripts do corte no `main` |
-| B19 | Arrumação local | apagar as branches já mergeadas (lista abaixo) com `git branch -d` | `git branch --merged origin/main` só com o `main` | as branches continuam no remoto até apagar lá | |
+| B19 | Arrumação local | primeiro atualizar o `main` do checkout principal (`git -C /Users/acamerini/replica switch main && git -C /Users/acamerini/replica pull`); depois o comando abaixo. `-d` compara com o `main` local (ou o upstream de cada branch) e recusa a que não estiver contida nele | as 61 branches da lista somem; as 20 presas a worktree continuam, de propósito | as branches continuam no remoto até apagar lá | |
 
 ## Branches locais já contidas no `origin/main`
 

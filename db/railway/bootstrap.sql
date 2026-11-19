@@ -42,7 +42,7 @@ begin
       raise exception 'bootstrap: o database % não está vazio e não tem a marca ''segueovoto'': pode ser de outra app. Nada foi alterado.', current_database();
     end if;
   end if;
-  for r in select oid, rolname, rolsuper, rolcreaterole, rolcreatedb, rolbypassrls, rolreplication, shobj_description(oid, 'pg_authid') as marca
+  for r in select oid, rolname, rolsuper, rolcanlogin, rolcreaterole, rolcreatedb, rolbypassrls, rolreplication, shobj_description(oid, 'pg_authid') as marca
              from pg_roles where rolname = any (nomes) loop
     if r.marca is distinct from 'segueovoto' then
       raise exception 'bootstrap: o role % já existe sem a marca ''segueovoto'': é de outra app. Nada foi alterado. Confirme com o dono do cluster e marque-o (comment on role % is ''segueovoto'') só se for do Segue o Voto.', r.rolname, r.rolname;
@@ -55,6 +55,10 @@ begin
     if r.rolcreaterole or r.rolcreatedb or r.rolreplication or (r.rolbypassrls and r.rolname <> 'service_role') then
       raise exception 'bootstrap: o role % tem atributo além do esperado (createrole=%, createdb=%, replication=%, bypassrls=%). Nada foi alterado.',
         r.rolname, r.rolcreaterole, r.rolcreatedb, r.rolreplication, r.rolbypassrls;
+    end if;
+    -- os papéis do PostgREST nunca entram sozinhos (no Railway ninguém conecta como eles; service_role tem bypassrls)
+    if r.rolcanlogin and r.rolname in ('anon', 'authenticated', 'service_role') then
+      raise exception 'bootstrap: o role % tem LOGIN; anon, authenticated e service_role são só papéis. Nada foi alterado.', r.rolname;
     end if;
     -- e não pode ser membro de role de outra app (herdaria os privilégios dela)
     for m in select g.rolname from pg_auth_members a join pg_roles g on g.oid = a.roleid where a.member = r.oid loop

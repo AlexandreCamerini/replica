@@ -12,7 +12,8 @@ test("só MAINTENANCE=1 exato liga a manutenção", () => {
 test("toda server action de account.ts que escreve recusa na manutenção, antes de qualquer outra instrução", () => {
   const src = readFileSync(new URL("../account.ts", import.meta.url), "utf8");
   const todas = [...src.matchAll(/export async function (\w+)\(/g)].map((m) => m[1]);
-  // signOut não escreve no banco de origem durante a cópia (o provedor de produção é o Supabase até o corte; o pg só entra depois dele)
+  // signOut fica de fora de propósito: quem quer sair, sai. Ele escreve sessões/tokens (no auth do Supabase, ou em login.sessoes_validas_desde
+  // com o pg), e nada disso é copiado no corte (só auth.users), então não há dado perdido; a checagem por atividade ignora essas tabelas.
   const devem = todas.filter((n) => n !== "signOut");
   assert.ok(devem.length >= 6, devem.join(","));
   for (const n of devem) {
