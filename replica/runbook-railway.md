@@ -118,6 +118,21 @@ pg_restore --list civico-*.dump | head                                      # co
 - Tabelas que mais crescem: `expenses`, `votes`, `raw_*` (`replica/runbook-raw-storage.md`) e o `identity_repair_log`.
 
 ## 7. Sequência do corte (P3) e a volta
+
+### Pré-voo: go/no-go (conferido na véspera; qualquer "não" adia o corte)
+
+| # | Condição | Como conferir | Estado em 19/11/2026 |
+|---|---|---|---|
+| 1 | Supabase com a 0142, a 0143 e a 0144 | `select max(filename) from schema_migrations` = `0144_login_codes_nonce.sql` | **não**: está na `0143` (a 0142 é no-op; o índice já não existe). Falta `MIGRATE_ATE=0144 bash etl/deploy/prod-migrate.sh` |
+| 2 | Origem sem e-mail duplicado por caixa (§2) | consulta do §2 = 0 | **sim**: 0 (1 usuário) |
+| 3 | Ensaio aprovado pelos critérios do §2, com as medições preenchidas | log do `ensaio-validar.sh` | pendente |
+| 4 | Memória do Postgres do Railway com folga | `get-service-metrics` do serviço `Postgres` (projeto `mydata`): `MEMORY_USAGE_GB` contra `MEMORY_LIMIT_GB` | **não**: 1,97 de 2,0 GB (máximo da semana no teto). Com o site e o ETL somados ao `mydata` e ao `casacheia`, risco de OOM. Subir o limite de memória (custo) antes do corte, ou medir de novo no ensaio sob carga |
+| 5 | Disco do volume com folga | `DISK_USAGE_GB` contra 50 GB | **sim**: 12,9 GB (o banco tem 4,3 GB no Supabase) |
+| 6 | Roles com senha e login no Railway (§1) | `configurar-dono.sh` | pendente |
+| 7 | Resend: domínio verificado, `RESEND_API_KEY` e `AUTH_EMAIL_FROM` em Production | painel do Resend e `filter_project_envs` | pendente (o DNS do domínio vem antes: `runbook-dominio.md`) |
+| 8 | Limite por IP em `/entrar` no firewall | `replica/firewall-regras.md`, regra 1, ativa | pendente |
+| 9 | `MAINTENANCE=1` testado num Preview | aviso no topo, login recusado | código pronto; teste no Preview pendente |
+| 10 | Deploy de produção atual anotado para Instant Rollback | `list_deployments` (Vercel) | anotar na véspera |
 Janela: dia útil, 23:00-08:00 BRT, fora de 21:45 BRT. Antes (véspera): `0143` aplicada no Supabase; ensaio final com tudo verde; dump lógico do Supabase fora do Supabase; Resend testado; senhas dos roles criadas; anotar a versão atual do deploy de produção (para o Instant Rollback) e **como restaurar cada variável antigas** (as URIs do Supabase ficam no gerenciador de senhas, não em arquivo).
 
 | # | Passo | Tempo (preencher com o ensaio) |
