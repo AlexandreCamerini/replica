@@ -33,7 +33,7 @@ O provedor `supabase` continua intacto: a volta do corte é trocar `AUTH_PROVIDE
 2. **Resend**: domínio do remetente verificado; chave com permissão só de envio. Vercel (Production): `RESEND_API_KEY`, `AUTH_EMAIL_FROM`. `AUTH_PROVIDER_ALVO=pg bash etl/deploy/config-producao.sh` guia isso (e pula os estágios do Supabase Auth). `SESSION_SECRET` já tem 64 hex (mínimo do `pg` é 32).
 3. **Turnstile continua em `account.ts`** (ver §8, ponto 1).
    - A central de administração (`admin.segueovoto.com.br`, projeto Vercel próprio) não depende do Supabase nem deste corte para autenticar: tem login próprio em Postgres (D335, migração `0157`). Ela só é publicada depois do corte, com `ADMIN_DATABASE_URL` apontando para o `civico` do Railway; a `0150` a `0157` entram no Railway depois do corte, por `prod-migrate.sh`.
-4. **`0143` no Supabase antes do corte** (`bash etl/deploy/prod-migrate.sh`). Sem ela o script cria o schema `login` no destino a partir do arquivo, mas `schema_migrations` do dump diria "pendente" e o `diff` do `verify` mostraria o `login.*` só no destino.
+4. **`0143` no Supabase antes do corte** (`MIGRATE_ATE=0143 bash etl/deploy/prod-migrate.sh`: sem o `MIGRATE_ATE`, o script aplicaria também a 0150 a 0157, que são do Railway depois do corte; ver `replica/runbook-migracoes-producao.md`). Sem ela o script cria o schema `login` no destino a partir do arquivo, mas `schema_migrations` do dump diria "pendente" e o `diff` do `verify` mostraria o `login.*` só no destino.
 5. Cliente `railway` logado e ligado ao projeto (`railway login && railway link`). O script lê a URI com `railway variables --service "${RAILWAY_PG_SERVICE:-Postgres}" --kv` (`DATABASE_PUBLIC_URL`, senão `DATABASE_URL`), sem imprimir. A URI é de superusuário do cluster: o bootstrap precisa disso (cria extensões, troca o dono do database).
 
 ## 2. Ensaio (P2), repetível quantas vezes for preciso
@@ -51,6 +51,13 @@ diff origem.txt destino.txt && echo IDÊNTICO
 psql "$DESTINO" -X -At -v ambiente=on -f db/railway/railway-verify.sql   # config por database, datacl, dono
 ```
 **Atalho:** `bash db/railway/ensaio-validar.sh snapshot antes.txt` **antes** da cópia e, depois dela, `bash db/railway/ensaio-validar.sh validar --db civico_ensaio --antes antes.txt` roda tudo abaixo (outras apps intactas, diff origem×destino, ambiente, testes por role com o timeout de 3 s de verdade, tamanho, conexões e tempo de consulta fria) e sai com 1 se algo falhar. O login ponta a ponta e o preview da Vercel continuam manuais.
+
+Pré-checagem na origem, antes da primeira cópia (§8, ponto e): o stub `auth.users` do destino tem `email unique` e quebra no `COPY` com e-mail repetido por caixa.
+```sql
+-- esperado 0; se não for, liste e resolva na origem antes de copiar:
+select count(*) - count(distinct lower(email)) as duplicados from auth.users where email is not null;
+select lower(email), array_agg(id) from auth.users where email is not null group by 1 having count(*) > 1;
+```
 
 Critérios de aceite do ensaio (todos):
 - `diff` vazio, ou toda linha diferente explicada por escrito (ver §5);
