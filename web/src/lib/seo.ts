@@ -6,11 +6,11 @@
 
 type Ambiente = Record<string, string | undefined>;
 
-export type Robots = { rules: { userAgent: string; allow?: string; disallow?: string | string[] }[]; sitemap?: string; host?: string };
+export type Robots = { rules: { userAgent: string; allow?: string; disallow?: string | string[] }[]; sitemap?: string };
 export type EntradaSitemap = { url: string; changeFrequency: "daily" | "weekly" | "monthly"; priority: number };
 
 /** Caminhos que nunca entram em buscador, mesmo em produção. */
-export const FORA_DO_BUSCADOR = ["/api/", "/ajustes", "/acompanhando", "/comecar", "/conta", "/entrar", "/design", "/admin"] as const;
+export const FORA_DO_BUSCADOR = ["/api/", "/ajustes", "/acompanhando", "/comecar", "/conta", "/entrar", "/design"] as const;
 
 /** Páginas fixas e públicas do sitemap, com a frequência com que mudam. */
 export const PAGINAS_DO_SITEMAP: readonly { caminho: string; changeFrequency: EntradaSitemap["changeFrequency"]; priority: number }[] = [
@@ -43,7 +43,6 @@ export function robots(env: Ambiente): Robots {
   return {
     rules: [{ userAgent: "*", allow: "/", disallow: [...FORA_DO_BUSCADOR] }],
     sitemap: `${origem}/sitemap.xml`,
-    host: origem,
   };
 }
 

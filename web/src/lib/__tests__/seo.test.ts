@@ -22,7 +22,8 @@ test("robots: sem SITE_URL (Preview, dev, CI) não indexa nada", () => {
 test("robots: em produção indexa o site, fecha as páginas pessoais e a API, e aponta o sitemap do www", () => {
   const r = robots(PROD);
   assert.equal(r.sitemap, "https://www.segueovoto.com.br/sitemap.xml");
-  assert.equal(r.host, "https://www.segueovoto.com.br");
+  assert.ok(!("host" in r), "a diretiva Host não é padrão e não sai");
+  assert.ok(!(r.rules[0].disallow as string[]).some((c) => c.startsWith("/admin")), "a central é outro projeto: o robots do site não anuncia o caminho dela");
   assert.equal(r.rules.length, 1);
   assert.equal(r.rules[0].allow, "/");
   for (const c of ["/api/", "/ajustes", "/acompanhando", "/comecar", "/conta", "/entrar"]) assert.ok((r.rules[0].disallow as string[]).includes(c), c);
