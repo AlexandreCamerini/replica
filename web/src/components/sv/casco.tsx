@@ -10,6 +10,7 @@ import "@/styles/sv-temas.css";
 import "@/styles/sv-ajustes.css";
 import { Suspense } from "react";
 import { AvisoDeCarregamento } from "./carregando";
+import { AVISO_MANUTENCAO, emManutencao } from "@/lib/manutencao";
 import { readPrefs } from "./prefs";
 import { CONTEUDO_ID, Rodape, Topo } from "./shell";
 import { data } from "@/lib/data";
@@ -28,6 +29,11 @@ export async function Casco({ children }: { children: React.ReactNode }) {
       {data.isDemo && (
         <aside className="sv-demo" aria-label="Versão de demonstração">
           <div className="sv-wrap">Versão de demonstração. Exemplo ilustrativo: pessoas, partidos e números são fictícios.</div>
+        </aside>
+      )}
+      {emManutencao(process.env) && (
+        <aside className="sv-demo" role="status" aria-label="Manutenção">
+          <div className="sv-wrap">{AVISO_MANUTENCAO}</div>
         </aside>
       )}
       <main className="sv-wrap sv-main" id={CONTEUDO_ID} tabIndex={-1}>

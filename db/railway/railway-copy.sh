@@ -40,6 +40,8 @@ case "$DB" in postgres|railway|template0|template1) echo "Recuso '$DB' como dest
 # ---- URLs --------------------------------------------------------------------------------------------------------------------
 # shellcheck source=db/railway/lib-uri.sh
 source "$HERE/lib-uri.sh"
+# shellcheck source=db/railway/lib-escritores.sh
+source "$HERE/lib-escritores.sh"
 
 if [[ -z "${ORIGEM_URL:-}" ]]; then
   echo "Cole a URI de LEITURA do Supabase (postgres://...). Nada será exibido."
@@ -94,7 +96,7 @@ WRITERS="$(psql "$ORIGEM" "${Q[@]}" -F ' | ' -c "
   select 'pid ' || a.pid || ' role=' || coalesce(a.usename, '?') || ' app=' || coalesce(nullif(a.application_name, ''), '-') || ' estado=' || coalesce(a.state, '?') || ' desde=' || to_char(coalesce(a.state_change, a.backend_start), 'HH24:MI:SS')
     from pg_stat_activity a
    where a.datname = current_database() and a.pid <> pg_backend_pid()
-     and (a.usename in ('web_writer', 'web_reader', 'admin_central', 'civico_etl')
+     and (a.usename in ('web_writer', 'admin_central', 'civico_etl', 'supabase_auth_admin')
           or a.application_name ilike '%civico%'
           or a.pid in (select l.pid from pg_locks l where l.locktype = 'advisory' and l.granted))
    order by a.pid")"
@@ -104,6 +106,16 @@ if [[ -n "$WRITERS" ]]; then
   exit 1
 fi
 echo "   origem sem escritores conhecidos conectados"
+# por atividade: pega quem a lista de nomes não vê (GoTrue, ETL como postgres sem application_name). ESCRITORES_JANELA_S=0 desliga (só para ensaio local).
+JANELA="${ESCRITORES_JANELA_S:-15}"
+if [[ "$JANELA" != 0 ]]; then
+  ESCRITAS="$(escritas_na_janela "$ORIGEM" "$JANELA")"
+  if [[ "$ESCRITAS" != 0 ]]; then
+    echo "A origem teve $ESCRITAS linhas escritas em ${JANELA}s (public, auth, login): há escritor ativo que a lista de nomes não pegou. Pause-o (site em MAINTENANCE=1, ETL, launchd) e rode de novo." >&2
+    exit 1
+  fi
+  echo "   origem sem escritas em ${JANELA}s"
+fi
 fim
 
 # ---- 2. dump ----------------------------------------------------------------------------------------------------------------------------

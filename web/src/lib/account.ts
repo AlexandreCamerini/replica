@@ -9,6 +9,7 @@ import { auth, currentUser, safeReturn } from "@/lib/auth";
 import { verifyCaptcha } from "@/lib/captcha";
 import { data } from "@/lib/data";
 import { asUser, writer } from "@/lib/db/writer";
+import { AVISO_MANUTENCAO, emManutencao } from "@/lib/manutencao";
 
 // Server actions de conta, acompanhamento e sugestões. Toda entrada é validada aqui (zod); nada confia no cliente.
 export type FormState = { ok?: boolean; error?: string; fields?: Record<string, string> };
@@ -16,12 +17,19 @@ export type FormState = { ok?: boolean; error?: string; fields?: Record<string, 
 const OTP_COOKIE = "otp_email"; // e-mail entre as duas etapas: cookie http-only, nunca na URL
 const email = z.string().trim().toLowerCase().max(254).email("Confira o e-mail: falta algo no endereço.");
 
+/** Modo manutenção (MAINTENANCE=1): toda action que escreve no banco recusa antes de tocar em qualquer coisa. */
+function emManutencaoAgora(): FormState | null {
+  return emManutencao(process.env) ? { error: AVISO_MANUTENCAO } : null;
+}
+
 async function clientIp() {
   const h = await headers();
   return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
 }
 
 export async function sendCode(_: FormState, form: FormData): Promise<FormState> {
+  const parado = emManutencaoAgora();
+  if (parado) return parado;
   const parsed = email.safeParse(form.get("email"));
   if (!parsed.success) return { error: parsed.error.issues[0].message, fields: { email: String(form.get("email") ?? "") } };
   if (form.get("consent") !== "on") return { error: "Para receber o código, marque que concorda com o uso do e-mail.", fields: { email: parsed.data } };
@@ -40,6 +48,8 @@ export async function sendCode(_: FormState, form: FormData): Promise<FormState>
 }
 
 export async function verifyCode(_: FormState, form: FormData): Promise<FormState> {
+  const parado = emManutencaoAgora();
+  if (parado) return parado;
   const jar = await cookies();
   const addr = jar.get(OTP_COOKIE)?.value;
   if (!addr) return { error: "O pedido de código expirou. Peça um novo." };
@@ -70,6 +80,8 @@ async function followSlug(userId: string, slug: string) {
 }
 
 export async function toggleFollow(_: FormState, form: FormData): Promise<FormState> {
+  const parado = emManutencaoAgora();
+  if (parado) return parado;
   const user = await currentUser();
   const slug = String(form.get("slug") ?? "");
   if (!/^[a-z0-9-]{1,120}$/.test(slug)) return { error: "Pessoa inválida." };
@@ -90,6 +102,8 @@ export async function toggleFollow(_: FormState, form: FormData): Promise<FormSt
 }
 
 export async function updateDigest(_: FormState, form: FormData): Promise<FormState> {
+  const parado = emManutencaoAgora();
+  if (parado) return parado;
   const user = await currentUser();
   if (!user) redirect("/entrar?volta=/conta");
   const v = z.enum(["daily", "weekly", "off"]).safeParse(form.get("digest"));
@@ -100,6 +114,8 @@ export async function updateDigest(_: FormState, form: FormData): Promise<FormSt
 }
 
 export async function deleteAccount(_: FormState, form: FormData): Promise<FormState> {
+  const parado = emManutencaoAgora();
+  if (parado) return parado;
   const user = await currentUser();
   if (!user) redirect("/entrar");
   if (String(form.get("confirmar") ?? "").trim().toUpperCase() !== "APAGAR") return { error: "Digite APAGAR para confirmar." };
@@ -119,6 +135,8 @@ const suggestion = z.object({
 });
 
 export async function submitSuggestion(_: FormState, form: FormData): Promise<FormState> {
+  const parado = emManutencaoAgora();
+  if (parado) return parado;
   const raw = Object.fromEntries(["kind", "body", "name", "email", "city", "person", "page"].map((k) => [k, String(form.get(k) ?? "")]));
   const fields = { ...raw };
   if (String(form.get("website") ?? "")) return { ok: true }; // honeypot: robô preencheu o campo invisível
