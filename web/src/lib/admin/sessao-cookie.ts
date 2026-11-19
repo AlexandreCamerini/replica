@@ -6,7 +6,8 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEq
 // Dois níveis, no mesmo cookie:
 //   1 = provou o e-mail (código de 6 números). Vale 15 min e só abre o cadastro ou a verificação do segundo fator.
 //   2 = provou também o segundo fator (TOTP). Vale 12 h, sem renovação: vencido, entra de novo.
-// Sem renovação deslizante de propósito: é o que dispensa estado de sessão no banco. Revogar antes do prazo: `ativo = false` em adm_admins ou apagar o fator.
+// Sem renovação deslizante de propósito: é o que dispensa estado de sessão no banco. Revogar antes do prazo (0158): "Sair" na central, `ativo = false`
+// em adm_admins, ou o dono apaga o fator. Limite: `iat` vem do relógio da aplicação e `sessoes_desde` do banco; relógios muito fora de sincronia deixam passar a diferença.
 
 export type NivelSessao = 1 | 2;
 export type SessaoCentral = { email: string; nivel: NivelSessao; iat: number };

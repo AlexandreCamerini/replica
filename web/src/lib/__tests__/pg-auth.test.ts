@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { captchaPresente, cookieName, createPgAuth, MAX_ATTEMPTS, MAX_SENDS_PER_HOUR, type CodeRow, type PgDeps, type PgStore } from "../auth/pg-core.ts";
+import { captchaPresente, cookieName, createPgAuth, MAX_ATTEMPTS, MAX_SENDS_GLOBAL_PER_HOUR, MAX_SENDS_PER_HOUR, type CodeRow, type PgDeps, type PgStore } from "../auth/pg-core.ts";
 
 const SECRET = "segredo-de-teste-com-mais-de-32-caracteres!";
 const UID = "11111111-2222-4333-8444-555555555555";
@@ -8,27 +8,31 @@ const T0 = Date.parse("2026-11-17T12:00:00.500Z");
 
 // Banco em memória com a mesma semântica das operações atômicas de pg-store.ts.
 function memStore() {
-  const codes = new Map<string, { codeHash: string; expiresAtMs: number; attempts: number; sent: number[] }>();
+  const codes = new Map<string, { codeHash: string; nonceHash: string; expiresAtMs: number; attempts: number; sent: number[] }>();
   const users = new Map<string, { id: string; email: string }>();
   const valid = new Map<string, number>(); // epoch em ms, como valido_desde
   const store: PgStore = {
-    async issueCode(email, codeHash, nowMs) {
+    async issueCode(email, codeHash, nonceHash, nowMs) {
+      const global = [...codes.values()].reduce((n, c) => n + c.sent.filter((t) => t > nowMs - 3600_000).length, 0);
+      if (global >= MAX_SENDS_GLOBAL_PER_HOUR) return "global";
       const cur = codes.get(email);
       const recent = (cur?.sent ?? []).filter((t) => t > nowMs - 3600_000);
-      if (recent.length >= MAX_SENDS_PER_HOUR) return false;
-      codes.set(email, { codeHash, expiresAtMs: nowMs + 600_000, attempts: 0, sent: [...recent, nowMs] });
-      return true;
+      if (recent.length >= MAX_SENDS_PER_HOUR) return "email";
+      codes.set(email, { codeHash, nonceHash, expiresAtMs: nowMs + 600_000, attempts: 0, sent: [...recent, nowMs] });
+      return "ok";
     },
-    async takeAttempt(email): Promise<CodeRow | "too_many" | null> {
+    async takeAttempt(email, nonceHash): Promise<CodeRow | "too_many" | null> {
       const c = codes.get(email);
-      if (!c) return null;
+      if (!c || c.nonceHash !== nonceHash || c.nonceHash === "") return null;
       if (c.attempts >= MAX_ATTEMPTS) return "too_many";
       c.attempts++;
       return { codeHash: c.codeHash, expiresAtMs: c.expiresAtMs };
     },
-    async consumeCode(email) {
+    async consumeCode(email, codeHash) {
       const c = codes.get(email);
-      if (c) c.codeHash = ""; // mantém sent: o limite por hora não zera
+      if (!c || c.codeHash !== codeHash || c.codeHash === "") return false;
+      c.codeHash = ""; // mantém sent: o limite por hora não zera
+      return true;
     },
     async upsertUser(email) {
       for (const u of users.values()) if (u.email === email) return u.id;
@@ -57,6 +61,7 @@ function setup(over: Partial<PgDeps> = {}, env: Record<string, string | undefine
   const mem = memStore();
   const mails: { to: string; code: string }[] = [];
   const jar = { value: undefined as string | undefined };
+  const nonce = { value: undefined as string | undefined };
   const deps: PgDeps = {
     store: mem.store,
     env,
@@ -64,9 +69,10 @@ function setup(over: Partial<PgDeps> = {}, env: Record<string, string | undefine
     captcha: async () => true,
     sendMail: async (to, code) => (mails.push({ to, code }), true),
     cookie: { get: () => jar.value, set: (v) => void (jar.value = v), clear: () => void (jar.value = undefined) },
+    nonce: { get: () => nonce.value, set: (v) => void (nonce.value = v), clear: () => void (nonce.value = undefined) },
     ...over,
   };
-  return { auth: createPgAuth(deps), clock, mem, mails, jar };
+  return { auth: createPgAuth(deps), clock, mem, mails, jar, nonce };
 }
 const login = async (s: ReturnType<typeof setup>, email = "a@b.com") => {
   await s.auth.sendCode(email, "tok");
@@ -123,6 +129,61 @@ test("código só vale uma vez, e um login bem-sucedido não zera o limite de en
   await s.auth.sendCode("a@b.com", "tok");
   await s.auth.sendCode("a@b.com", "tok");
   assert.deepEqual(await s.auth.sendCode("a@b.com", "tok"), { ok: false, reason: "rate_limited" }); // 1 do login + 2 = 3
+});
+
+test("o código só vale no navegador que o pediu: sem o nonce, nem o código certo entra, e a tentativa não gasta as do dono", async () => {
+  const s = setup();
+  await s.auth.sendCode("a@b.com", "tok");
+  const certo = s.mails[0].code;
+  assert.match(s.nonce.value ?? "", /^[0-9a-f]{32}$/);
+  const doDono = s.nonce.value;
+  for (const outro of [undefined, "", "x".repeat(32), "b".repeat(32)]) {
+    s.nonce.value = outro;
+    for (let i = 0; i < 10; i++) assert.deepEqual(await s.auth.verifyCode("a@b.com", certo), { ok: false, reason: "invalid" }, String(outro));
+  }
+  assert.equal(s.mem.codes.get("a@b.com")!.attempts, 0, "tentativas de outro navegador não contaram");
+  assert.ok(!JSON.stringify([...s.mem.codes]).includes(doDono!), "o banco guarda o hash do nonce, nunca o nonce");
+  s.nonce.value = doDono;
+  assert.equal((await s.auth.verifyCode("a@b.com", certo)).ok, true);
+  assert.equal(s.nonce.value, undefined, "o nonce sai depois do login");
+});
+
+test("pedir de novo troca o nonce: o nonce antigo, com o código NOVO e certo, não entra", async () => {
+  const s = setup();
+  await s.auth.sendCode("a@b.com", "tok");
+  const nonceVelho = s.nonce.value;
+  await s.auth.sendCode("a@b.com", "tok");
+  const nonceNovo = s.nonce.value;
+  assert.notEqual(nonceVelho, nonceNovo);
+  s.nonce.value = nonceVelho;
+  assert.deepEqual(await s.auth.verifyCode("a@b.com", s.mails[1].code), { ok: false, reason: "invalid" });
+  s.nonce.value = nonceNovo;
+  assert.equal((await s.auth.verifyCode("a@b.com", s.mails[1].code)).ok, true);
+});
+
+test("consumo atômico: se outro pedido consumiu o código entre conferir e consumir, não entra", async () => {
+  const s = setup();
+  await s.auth.sendCode("a@b.com", "tok");
+  const original = s.mem.store.consumeCode.bind(s.mem.store);
+  let primeira = true;
+  s.mem.store.consumeCode = async (email, hash, agora) => {
+    if (primeira) {
+      primeira = false;
+      await original(email, hash, agora); // a outra requisição chegou antes
+    }
+    return original(email, hash, agora);
+  };
+  assert.deepEqual(await s.auth.verifyCode("a@b.com", s.mails[0].code), { ok: false, reason: "invalid" });
+  assert.equal(s.jar.value, undefined, "nenhuma sessão foi gravada");
+});
+
+test("teto do site: passado MAX_SENDS_GLOBAL_PER_HOUR envios na hora, qualquer e-mail recebe rate_limited", async () => {
+  const s = setup();
+  for (let i = 0; i < MAX_SENDS_GLOBAL_PER_HOUR; i++) assert.deepEqual(await s.auth.sendCode(`p${i}@x.com`, "tok"), { ok: true });
+  // teto do site não é "muitos códigos para este e-mail": a tela mostra indisponível, e o log avisa o operador
+  assert.deepEqual(await s.auth.sendCode("outra@x.com", "tok"), { ok: false, reason: "unavailable" });
+  s.clock.t += 3600_000 + 1;
+  assert.deepEqual(await s.auth.sendCode("outra@x.com", "tok"), { ok: true });
 });
 
 test("captcha ausente ou recusado em produção falha, antes de gravar ou enviar", async () => {

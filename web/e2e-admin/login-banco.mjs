@@ -111,7 +111,11 @@ try {
     await recusa(sql`insert into login.central_fatores (email, segredo_cifrado, ultimo_passo) values (${B}, 'lixo', 1)`, "42501");
     await recusa(sql`insert into login.central_fatores (email, segredo_cifrado, sessoes_desde) values (${B}, 'lixo', now())`, "42501");
     await recusa(sql`update login.central_fatores set ultimo_passo = 9223372036854775807 where email = ${A}`, "42501");
-    await recusa(sql`update login.central_fatores set sessoes_desde = now() where email = ${A}`, "42501");
+    // 0158: a central só ADIANTA sessoes_desde até o relógio do banco ("sair"); nunca atrasa, nunca anula, nunca põe no futuro
+    await sql`update login.central_fatores set sessoes_desde = clock_timestamp() where email = ${A}`;
+    await recusa(sql`update login.central_fatores set sessoes_desde = clock_timestamp() + interval '1 hour' where email = ${A}`, "42501");
+    await recusa(sql`update login.central_fatores set sessoes_desde = sessoes_desde - interval '1 minute' where email = ${A}`, "42501");
+    await recusa(sql`update login.central_fatores set sessoes_desde = null where email = ${A}`, "42501");
     const [c] = await sql`select count(*)::int as n from login.central_fatores where email = ${B}`;
     assert.equal(c.n, 0);
   });
@@ -142,6 +146,26 @@ try {
     await passo("dono do banco: apagar o fator derruba a verificação; o cadastro volta a ser possível", async () => {
       const dono = conectar(process.env.LOGIN_PROVA_DONO ?? "postgres");
       try {
+        // 0158: desativar o admin revoga as sessões (grava sessoes_desde), reativar não as devolve
+        await dono`insert into adm_admins (email, nome) values (${A}, 'Prova') on conflict (email) do nothing`;
+        await dono`update login.central_fatores set sessoes_desde = null where email = ${A}`; // o dono zera: só o gatilho pode gravar daqui em diante
+        await dono`update adm_admins set ativo = false where email = ${A}`;
+        const [s1] = await dono`select sessoes_desde from login.central_fatores where email = ${A}`;
+        assert.ok(s1.sessoes_desde, "desativar grava sessoes_desde (gatilho)");
+        await dono`update adm_admins set ativo = true where email = ${A}`;
+        const [s2] = await dono`select sessoes_desde from login.central_fatores where email = ${A}`;
+        assert.equal(+s2.sessoes_desde, +s1.sessoes_desde, "reativar não mexe em sessoes_desde");
+        for (const [rotulo, acao] of [
+          ["apagar o admin", () => dono`delete from adm_admins where email = ${A}`],
+          ["trocar o e-mail do admin", () => dono`update adm_admins set email = ${"outro-" + A} where email = ${A}`],
+        ]) {
+          await dono`insert into adm_admins (email, nome) values (${A}, 'Prova') on conflict (email) do update set ativo = true`;
+          await dono`update login.central_fatores set sessoes_desde = null where email = ${A}`;
+          await acao();
+          const [x] = await dono`select sessoes_desde from login.central_fatores where email = ${A}`;
+          assert.ok(x.sessoes_desde, `${rotulo} revoga as sessões do e-mail antigo`);
+          await dono`delete from adm_admins where email in (${A}, ${"outro-" + A})`;
+        }
         const antes = await fatorVerificadoDesde(sql, A);
         await dono`update login.central_fatores set sessoes_desde = now() + interval '1 hour' where email = ${A}`;
         assert.ok((await fatorVerificadoDesde(sql, A)) >= Math.floor(Date.now() / 1000) + 3500 && (await fatorVerificadoDesde(sql, A)) > antes, "sessoes_desde, gravado pelo dono, adianta o início de validade das sessões");

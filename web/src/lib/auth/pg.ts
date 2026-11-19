@@ -41,6 +41,7 @@ export async function pgAuth(): Promise<AuthProvider> {
   const jar = await cookies();
   const name = cookieName(process.env);
   const secure = process.env.NODE_ENV === "production";
+  const nomeNonce = secure ? "__Host-codigo" : "codigo";
   return createPgAuth({
     store: pgStore(writer()),
     env: process.env,
@@ -52,6 +53,12 @@ export async function pgAuth(): Promise<AuthProvider> {
       set: (value, maxAge) => jar.set(name, value, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge }),
       // delete() não manda Secure e o navegador rejeita apagar um cookie __Host-: expira com o mesmo conjunto de atributos
       clear: () => jar.set(name, "", { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 0 }),
+    },
+    // nonce entre pedir e conferir o código: só o navegador que pediu verifica (e só as tentativas dele contam)
+    nonce: {
+      get: () => jar.get(nomeNonce)?.value,
+      set: (value, maxAge) => jar.set(nomeNonce, value, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge }),
+      clear: () => jar.set(nomeNonce, "", { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 0 }),
     },
   });
 }

@@ -72,3 +72,8 @@ export async function fatorVerificadoDesde(sql: postgres.Sql, email: string): Pr
   const [r] = await sql`select greatest(extract(epoch from date_trunc('second', verificado_em))::bigint, coalesce(ceil(extract(epoch from sessoes_desde))::bigint, 0)) as desde from login.central_fatores where email = ${email} and verificado_em is not null`;
   return r ? Number(r.desde) : null;
 }
+
+/** "Sair" (0158): as sessões de nível 2 do e-mail, em qualquer aparelho, deixam de valer a partir de agora. Sem fator cadastrado não há o que revogar (nível 1 vence em 15 min). */
+export async function revogarSessoes(sql: postgres.Sql, email: string): Promise<void> {
+  await sql`update login.central_fatores set sessoes_desde = clock_timestamp() where email = ${email}`;
+}

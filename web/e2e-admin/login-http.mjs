@@ -236,7 +236,7 @@ async function prova(pg) {
     const n1off = await pedir("/admin/entrar/fator", { cookie: n1 });
     R.checa(n1off.status === 404, "admin desativado, sessão de nível 1: /admin/entrar/fator = 404", `${n1off.status}`);
     await dono`update adm_admins set ativo = true where email = ${ADMIN}`;
-    R.checa((await pedir("/admin", { cookie: n2 })).status === 200, "admin reativado: a mesma sessão volta a abrir (controle)");
+    R.checa((await pedir("/admin", { cookie: n2 })).status === 404, "admin reativado: a sessão de antes da desativação NÃO volta a abrir (0158: desativar revoga)");
     await dono`update login.central_fatores set sessoes_desde = now() where email = ${ADMIN}`;
     await new Promise((r) => setTimeout(r, 1100));
     await fecha("sessões revogadas pelo dono (sessoes_desde = now()), com a sessão de nível 2 ainda no prazo", n2);
@@ -246,6 +246,37 @@ async function prova(pg) {
     R.checa(nova.status === 200 && (await pedir("/admin", { cookie: sess(valorDe(nova.cookies[NOME_COOKIE_SESSAO] ?? "")) })).status === 200, "depois da revogação, uma entrada nova (TOTP de novo) abre a central", `${nova.status}`);
     await dono`delete from login.central_fatores where email = ${ADMIN}`;
     await fecha("fator apagado pelo dono do banco, com a sessão de nível 2 ainda no prazo", n2);
+
+    R.cabecalho("8b. sair (0158): revoga as sessões de nível 2 da pessoa em todos os aparelhos");
+    {
+      const n1b = sess(assinarSessao(ENV_CHAVE, ADMIN, 1, Date.now()).valor);
+      // dois aparelhos com nível 2 ainda no prazo: o fator é recadastrado acima, então emite duas sessões novas pelo próprio fluxo
+      await dono`delete from login.central_fatores where email = ${ADMIN}`;
+      const cad = await postar("/admin/api/entrar/fator/iniciar", {}, n1b);
+      const segS = deBase32(cad.json?.segredo ?? "");
+      const a1 = await postar("/admin/api/entrar/fator/confirmar", { code: hotp(segS, passoDe(Date.now())) }, n1b);
+      const aparelhoA = sess(valorDe(a1.cookies[NOME_COOKIE_SESSAO] ?? ""));
+      await new Promise((r) => setTimeout(r, 1100));
+      const aparelhoB = sess(assinarSessao(ENV_CHAVE, ADMIN, 2, Date.now()).valor);
+      R.checa((await pedir("/admin", { cookie: aparelhoA })).status === 200 && (await pedir("/admin", { cookie: aparelhoB })).status === 200, "controle: os dois aparelhos abrem a central antes de sair");
+      const semOrigem = await C.crua(srv.base, "/admin/api/sair", { metodo: "POST", cabecalhos: { host: HP, cookie: aparelhoA, "content-type": "application/json", "sec-fetch-site": "same-origin" }, corpo: "{}" });
+      R.checa(semOrigem.status === 403, "sair sem Origin: 403 (mesma checagem de origem das outras APIs; nada revogado)", `${semOrigem.status}`);
+      R.checa((await pedir("/admin", { cookie: aparelhoA })).status === 200, "o POST recusado não revogou nada");
+      const saiu = await postar("/admin/api/sair", {}, aparelhoA);
+      const ck = saiu.cookies[NOME_COOKIE_SESSAO] ?? "";
+      R.checa(saiu.status === 200 && saiu.json?.proximo === "/admin/entrar" && /Max-Age=0/i.test(ck) && /Path=\/admin/i.test(ck), "POST /admin/api/sair: 200, manda para a entrada e apaga o cookie com as opções da central", `${saiu.status} ${ck.replace(/=[^;]+/, "=…")}`);
+      await fecha("depois de sair, o aparelho que saiu", aparelhoA);
+      await fecha("depois de sair, o OUTRO aparelho (revogação em todos)", aparelhoB);
+      const semSessao = await postar("/admin/api/sair", {});
+      R.checa(semSessao.status === 404, "sair sem sessão: 404", `${semSessao.status}`);
+      await new Promise((r) => setTimeout(r, 1100));
+      const volta = await postar("/admin/api/entrar/fator/confirmar", { code: hotp(segS, passoDe(Date.now()) + 1) }, n1b);
+      R.checa(volta.status === 200 && (await pedir("/admin", { cookie: sess(valorDe(volta.cookies[NOME_COOKIE_SESSAO] ?? "")) })).status === 200, "entrar de novo depois de sair abre a central");
+      await dono`update adm_admins set ativo = false where email = ${ADMIN}`;
+      await dono`update adm_admins set ativo = true where email = ${ADMIN}`;
+      await fecha("0158: desativar e reativar o admin derruba a sessão anterior (antes só suspendia)", sess(valorDe(volta.cookies[NOME_COOKIE_SESSAO] ?? "")));
+      await dono`delete from login.central_fatores where email = ${ADMIN}`;
+    }
 
     R.cabecalho("9. limite do TOTP: a sexta tentativa em 15 min é recusada mesmo com o código certo");
     const ini2 = await postar("/admin/api/entrar/fator/iniciar", {}, n1);

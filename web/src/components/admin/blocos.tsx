@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FALHA_BANCO, type Falha } from "../../lib/admin/falhas.ts";
+import { BotaoSair } from "./botao-sair.tsx";
 import { FormRodada } from "./form-rodada.tsx";
 
 /** Selo carimbado (design v1: palavra em mono maiúsculo, borda 1,5 px). A cor vem do `data-estado` do bloco em volta (admin.css); a palavra vai escrita, nunca só a cor. */
@@ -64,6 +65,7 @@ export function Navegacao({ atual }: { atual: string }) {
           ))}
         </ul>
       </nav>
+      {process.env.ADMIN_CENTRAL === "producao" && <BotaoSair />}
     </header>
   );
 }

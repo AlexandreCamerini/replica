@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { NOME_COOKIE_SESSAO, opcoesDeCookieDaCentral } from "./cabecalhos.ts";
 import { sqlAdmin } from "./db.ts";
 import { criarLogin, type Login } from "./login-core.ts";
-import { fatorVerificadoDesde, loginStore } from "./login-store.ts";
+import { fatorVerificadoDesde, loginStore, revogarSessoes } from "./login-store.ts";
 import { enviarCodigoPorEmail } from "./provedores.ts";
 import { assinarSessao, lerSessao, type NivelSessao, type SessaoCentral } from "./sessao-cookie.ts";
 
@@ -27,4 +27,10 @@ export async function gravarSessao(email: string, nivel: NivelSessao): Promise<v
 /** Desde quando (epoch, s) vale o fator verificado do e-mail; `null` = não há fator verificado. */
 export async function fatorDesde(email: string): Promise<number | null> {
   return fatorVerificadoDesde(sqlAdmin(), email);
+}
+
+/** Sair: revoga as sessões de nível 2 da pessoa em todos os aparelhos e apaga o cookie deste. */
+export async function sair(email: string): Promise<void> {
+  await revogarSessoes(sqlAdmin(), email);
+  (await cookies()).set(NOME_COOKIE_SESSAO, "", opcoesDeCookieDaCentral({ maxAge: 0 }));
 }

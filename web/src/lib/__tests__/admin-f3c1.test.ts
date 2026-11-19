@@ -147,8 +147,9 @@ test("cookie de sessão da central (D335): nome próprio com prefixo __Secure-, 
   assert.match(login, /import \{[^}]*\bNOME_COOKIE_SESSAO\b[^}]*\} from "\.\/cabecalhos\.ts"/);
   // toda gravação do cookie de sessão passa pelas opções da central (host-only, Strict, Secure, HttpOnly, path /admin)
   const gravacoes = [...login.matchAll(/\.set\(NOME_COOKIE_SESSAO,[^\n]*/g)].map((m) => m[0]);
-  assert.equal(gravacoes.length, 1);
+  assert.equal(gravacoes.length, 2, "gravarSessao e sair (0158), e nenhuma outra");
   assert.match(gravacoes[0], /opcoesDeCookieDaCentral\(\{ maxAge: maxAgeS \}\)/);
+  assert.match(gravacoes[1], /NOME_COOKIE_SESSAO, "", opcoesDeCookieDaCentral\(\{ maxAge: 0 \}\)\)/, "sair apaga com as mesmas opções (host-only, Strict, Secure, path /admin)");
   // o site público não importa o nome da central, e a central não importa o provedor do site
   for (const f of ["../auth/supabase.ts", "../auth/pg.ts", "../auth/pg-core.ts"]) assert.ok(!readFileSync(new URL(f, import.meta.url), "utf8").includes(NOME_COOKIE_SESSAO), f);
   assert.ok(!/lib\/auth|@supabase/.test(login) && !/lib\/auth|@supabase/.test(mw));

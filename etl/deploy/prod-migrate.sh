@@ -5,6 +5,7 @@
 # Fora do local acrescenta sslmode=require se faltar. Em host que não é Supabase as migrações rodam com `SET ROLE civico_etl`
 # (MIGRATE_ROLE troca o role; MIGRATE_ROLE= vazio desliga), para os objetos novos nascerem com o dono certo.
 # Uso: bash etl/deploy/prod-migrate.sh
+#      MIGRATE_ATE=0143 bash etl/deploy/prod-migrate.sh   # aplica só as pendentes até a 0143 (inclusive); as seguintes ficam para depois
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 command -v psql >/dev/null || { echo "psql não encontrado"; exit 1; }
@@ -17,9 +18,12 @@ if [[ "$PROD_URL" != *sslmode=* ]]; then
 fi
 if [[ "$PROD_URL" =~ supabase\.(co|com)[:/] ]]; then ROLE=""; else ROLE="${MIGRATE_ROLE-civico_etl}"; fi
 [[ -z "$ROLE" ]] || { export PGOPTIONS="${PGOPTIONS:-} -c role=$ROLE"; echo "Migrações como role $ROLE (host que não é Supabase)."; }
-echo "Pendentes em produção:"
-comm -23 <(ls "$ROOT/db/migrations" | sort) <(psql "$PROD_URL" -X -At -c "select filename from schema_migrations" | sort) | sed 's/^/  /'
+ATE="${MIGRATE_ATE:-}"
+[[ -z "$ATE" || "$ATE" =~ ^[0-9]{4}$ ]] || { echo "MIGRATE_ATE tem de ser 4 dígitos (ex.: 0143). Abortado."; exit 1; }
+echo "Pendentes em produção${ATE:+ (até a $ATE; as seguintes ficam pendentes)}:"
+comm -23 <(ls "$ROOT/db/migrations" | sort) <(psql "$PROD_URL" -X -At -c "select filename from schema_migrations" | sort) \
+  | { if [[ -n "$ATE" ]]; then awk -v ate="$ATE" 'substr($0,1,4) <= ate'; else cat; fi; } | sed 's/^/  /'
 read -r -p "Aplicar agora? [y/N] " ok; [[ "$ok" == [yY] ]] || { echo "Nada aplicado."; exit 0; }
-DATABASE_URL="$PROD_URL" "$ROOT/db/migrate.sh"
+DATABASE_URL="$PROD_URL" MIGRATE_ATE="$ATE" "$ROOT/db/migrate.sh"
 unset PROD_URL
 echo "Pronto."

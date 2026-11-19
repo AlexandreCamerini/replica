@@ -1,31 +1,42 @@
 import type postgres from "postgres";
-import type { PgStore } from "./pg-core";
+import { MAX_ATTEMPTS, MAX_SENDS_GLOBAL_PER_HOUR, MAX_SENDS_PER_HOUR, type PgStore } from "./pg-core.ts";
 
 // Persistência do provedor `pg` (schema login, migração 0143; usuários em auth.users). Sem server-only: testável com um Postgres local.
 export function pgStore(sql: postgres.Sql): PgStore {
   return {
-    async issueCode(email, codeHash, nowMs) {
+    async issueCode(email, codeHash, nonceHash, nowMs) {
       const now = new Date(nowMs);
-      const rows = await sql`
-        insert into login.codes (email, code_hash, expires_at, attempts, sent_at)
-        values (${email}, ${codeHash}, ${now}::timestamptz + interval '10 minutes', 0, array[${now}::timestamptz])
-        on conflict (email) do update set
-          code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0,
-          sent_at = array(select t from unnest(login.codes.sent_at) t where t > ${now}::timestamptz - interval '1 hour') || ${now}::timestamptz
-        where (select count(*) from unnest(login.codes.sent_at) t where t > ${now}::timestamptz - interval '1 hour') < 3
-        returning 1`;
-      // LGPD: linha de e-mail que já não serve (código vencido há mais de um dia, fora da janela do limite) não fica guardada
+      // teto do site inteiro na última hora (todas as contas); a tabela só guarda o último dia, então a contagem é pequena
+      const [g] = await sql`select count(*)::int as n from login.codes, unnest(sent_at) t where t > ${now}::timestamptz - interval '1 hour'`;
+      if (Number(g.n) >= MAX_SENDS_GLOBAL_PER_HOUR) return "global";
+      // LGPD: linha de e-mail que já não serve (código vencido há mais de um dia, fora da janela do limite) não fica guardada.
+      // Antes do insert: se falhar, o código pendente do e-mail continua valendo.
       await sql`delete from login.codes where email <> ${email} and expires_at < ${now}::timestamptz - interval '1 day'`;
-      return rows.length > 0;
+      const rows = await sql`
+        insert into login.codes (email, code_hash, nonce_hash, expires_at, attempts, sent_at)
+        values (${email}, ${codeHash}, ${nonceHash}, ${now}::timestamptz + interval '10 minutes', 0, array[${now}::timestamptz])
+        on conflict (email) do update set
+          code_hash = excluded.code_hash, nonce_hash = excluded.nonce_hash, expires_at = excluded.expires_at, attempts = 0,
+          sent_at = array(select t from unnest(login.codes.sent_at) t where t > ${now}::timestamptz - interval '1 hour') || ${now}::timestamptz
+        where (select count(*) from unnest(login.codes.sent_at) t where t > ${now}::timestamptz - interval '1 hour') < ${MAX_SENDS_PER_HOUR}
+        returning 1`;
+      return rows.length > 0 ? "ok" : "email";
     },
-    async takeAttempt(email) {
-      const [r] = await sql`update login.codes set attempts = attempts + 1 where email = ${email} and attempts < 5 returning code_hash, expires_at`;
+    async takeAttempt(email, nonceHash) {
+      const [r] = await sql`
+        update login.codes set attempts = attempts + 1
+        where email = ${email} and nonce_hash = ${nonceHash} and nonce_hash <> '' and attempts < ${MAX_ATTEMPTS}
+        returning code_hash, expires_at`;
       if (r) return { codeHash: String(r.code_hash), expiresAtMs: new Date(r.expires_at as string).getTime() };
-      const [e] = await sql`select 1 as x from login.codes where email = ${email}`;
+      const [e] = await sql`select 1 as x from login.codes where email = ${email} and nonce_hash = ${nonceHash} and nonce_hash <> ''`;
       return e ? "too_many" : null;
     },
-    async consumeCode(email, nowMs) {
-      await sql`update login.codes set code_hash = '', expires_at = ${new Date(nowMs)}::timestamptz where email = ${email}`;
+    async consumeCode(email, codeHash, nowMs) {
+      const rows = await sql`
+        update login.codes set code_hash = '', expires_at = ${new Date(nowMs)}::timestamptz
+        where email = ${email} and code_hash = ${codeHash} and code_hash <> ''
+        returning 1`;
+      return rows.length > 0;
     },
     async upsertUser(email) {
       const [u] = await sql`
