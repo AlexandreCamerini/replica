@@ -1,17 +1,17 @@
 # Runbook: migrações de produção
 
-Este arquivo tem duas partes. A primeira, logo abaixo, cobre a **0142, a 0143 e a 0150 a 0157** (escrita em 18/11/2026; nada aplicado). A segunda, mais abaixo, é o runbook anterior, da 0130, 0131, 0140 e 0141 (10/11/2026), mantido como estava.
+Este arquivo tem duas partes. A primeira, logo abaixo, cobre a **0142 a 0144 e a 0150 a 0158** (escrita em 18/11/2026; nada aplicado). A segunda, mais abaixo, é o runbook anterior, da 0130, 0131, 0140 e 0141 (10/11/2026), mantido como estava.
 
-# Parte 1: 0142, 0143 e 0150 a 0157
+# Parte 1: 0142 a 0144 e 0150 a 0158
 
 Estado: **não executado**. Nenhuma destas foi aplicada em produção. Elas vão em **dois momentos**, em bancos diferentes:
 
 | Momento | Banco | Migrações | Por quê |
 |---|---|---|---|
-| A. Antes do corte | Supabase (produção atual) | 0142 e 0143 | a 0143 cria o schema `login` que o provedor `pg` usa; precisa estar na origem para o dump levar `schema_migrations` coerente (`runbook-railway.md`, §1, item 4) |
-| B. Depois do corte | Railway (`civico`) | 0150 a 0157 | o admin de coleta e a central; só fazem sentido no banco que fica |
+| A. Antes do corte | Supabase (produção atual) | 0142, 0143 e 0144 | a 0143 e a 0144 criam o schema `login` que o provedor `pg` usa; precisam estar na origem para o dump levar `schema_migrations` coerente (`runbook-railway.md`, §1, item 4) e para o provedor `pg` encontrar `login.codes.nonce_hash` no corte |
+| B. Depois do corte | Railway (`civico`) | 0150 a 0158 | o admin de coleta e a central; só fazem sentido no banco que fica |
 
-`etl/deploy/prod-migrate.sh` aplica **todas** as pendentes de uma vez. Para o momento A, use `MIGRATE_ATE=0143`: o script lista e aplica só até a 0143, e as seguintes continuam pendentes.
+`etl/deploy/prod-migrate.sh` aplica **todas** as pendentes de uma vez. Para o momento A, use `MIGRATE_ATE=0144`: o script lista e aplica só até a 0144, e as seguintes continuam pendentes.
 
 ## O que cada migração faz
 
@@ -19,6 +19,7 @@ Estado: **não executado**. Nenhuma destas foi aplicada em produção. Elas vão
 |---|---|---|---|---|
 | `0142_drop_expenses_supplier_doc_idx` | `drop index if exists expenses_supplier_doc_idx` | `expenses` (só o índice) | Nenhum em produção: o índice já foi removido à mão (D314), vira no-op | `create index expenses_supplier_doc_idx on expenses (supplier_doc);` |
 | `0143_login_pg` | schema `login` com `codes` e `sessoes_validas_desde`; grants só ao `web_writer` | não | Baixo: aditiva, fora do PostgREST | `drop schema login cascade;` (antes da 0157) |
+| `0144_login_codes_nonce` | coluna `nonce_hash` em `login.codes`: o código de e-mail do site só confere no navegador que o pediu | `login.codes` (da 0143) | Baixo: código pendente na hora da migração deixa de valer (vale 10 min) | `alter table login.codes drop column nonce_hash;` |
 | `0150_admin_coleta` | 11 tabelas `adm_*` com RLS sem policy; gatilhos de estado; **gatilhos de override em `sapl_houses`, `data_coverage` e `mandate_contacts`**; linha `curadoria` em `sources` | **sim, três tabelas que o ETL grava** | **Médio.** Sem linha em `adm_overrides` o gatilho sai na primeira instrução e nada muda, mas passa a rodar em toda escrita dessas tabelas. Os gatilhos não são `security definer`: o role que grava precisa ser dono ou ter `BYPASSRLS` (ver pré-checagem) | `drop trigger adm_override on sapl_houses;` (idem `data_coverage` e `mandate_contacts`) desliga o mecanismo; as tabelas `adm_*` podem ficar |
 | `0151_admin_coleta_colisoes` | 3 colunas em `adm_overrides`; refaz as funções de override da 0150 | só `adm_*` | Baixo | refazer as funções com o corpo da 0150 |
 | `0152_admin_coleta_endurece` | refaz `adm_decisoes_guard`; 2 gatilhos em `adm_*`; **gatilho `adm_reaponta_override` em `mandate_contacts`** (`after update of mandate_id`) | sim, `mandate_contacts` | Baixo: só dispara quando `merge_person` move contatos | ver cabeçalho do arquivo |
@@ -27,8 +28,9 @@ Estado: **não executado**. Nenhuma destas foi aplicada em produção. Elas vão
 | `0155_admin_central_criado_relogio` | idem, pelo relógio | não | Baixo | `drop policy admin_central_criado_relogio on ...` |
 | `0156_admin_admins` | `adm_admins` e `adm_admins_log`; colunas `por_*` nos pedidos; gatilho de identidade; **`revoke select on identity_match_queue from admin_central`** e grant por coluna sem `raw` | só grant em `identity_match_queue` | Baixo | ver cabeçalho do arquivo |
 | `0157_login_central` | `login.central_codigos` e `login.central_fatores`; gatilho `central_fator_protege`; grants só ao `admin_central` | não (schema `login` da 0143) | Baixo | `drop table login.central_fatores, login.central_codigos; drop function login.central_fator_protege();` |
+| `0158_login_endurece` | refaz `login.central_fator_protege` (a central pode adiantar `sessoes_desde` até agora: "sair"); gatilho `adm_admins_revoga` (desativar admin revoga as sessões) | `adm_admins` (da 0156) | Baixo | `drop trigger adm_admins_revoga on adm_admins;` e o corpo da 0157 em `login.central_fator_protege` |
 
-## Momento A: 0142 e 0143 no Supabase (antes do corte)
+## Momento A: 0142, 0143 e 0144 no Supabase (antes do corte)
 
 Pré-checagem, na URI de escrita do Supabase:
 ```sql
@@ -40,19 +42,20 @@ Se o `max(filename)` vier abaixo da `0141`, **pare**: a 0130 a 0141 estão pende
 
 Execução:
 ```bash
-MIGRATE_ATE=0143 bash etl/deploy/prod-migrate.sh
+MIGRATE_ATE=0144 bash etl/deploy/prod-migrate.sh
 ```
-Na lista de pendentes devem aparecer só `0142` e `0143`. Qualquer outra: responda `N` e olhe antes.
+Na lista de pendentes devem aparecer só `0142`, `0143` e `0144`. Qualquer outra: responda `N` e olhe antes.
 
 Aceite:
 ```sql
-select max(filename) from schema_migrations;                 -- 0143_login_pg.sql
+select max(filename) from schema_migrations;                 -- 0144_login_codes_nonce.sql
+select count(*) from information_schema.columns where table_schema = 'login' and table_name = 'codes' and column_name = 'nonce_hash';  -- 1
 select count(*) from pg_tables where schemaname = 'login';   -- 2
 select has_table_privilege('web_writer', 'login.codes', 'INSERT');  -- true
 ```
 O site continua com `AUTH_PROVIDER=supabase`: nada muda para o usuário.
 
-## Momento B: 0150 a 0157 no Railway (depois do corte)
+## Momento B: 0150 a 0158 no Railway (depois do corte)
 
 Pré-requisitos: corte feito e estável (`runbook-railway.md`, §7); backup lógico do `civico` tirado no mesmo dia (§6).
 
@@ -66,17 +69,17 @@ select c.relname, pg_get_userbyid(c.relowner) as dono from pg_class c
 select rolname, rolbypassrls from pg_roles where rolname = 'civico_etl';
 -- já existe? (o bootstrap cria nologin)
 select rolname, rolcanlogin from pg_roles where rolname = 'admin_central';
-select max(filename) from schema_migrations;   -- esperado 0143_login_pg.sql
+select max(filename) from schema_migrations;   -- esperado 0144_login_codes_nonce.sql
 ```
    Se o dono não for o role com que o ETL grava, e esse role não tiver `BYPASSRLS`, **pare**. Com a RLS da 0150 sem policy, os jobs falhariam com `permission denied` ou o override seria ignorado.
 3. Execução (o script faz `SET ROLE civico_etl` fora do Supabase):
 ```bash
 bash etl/deploy/prod-migrate.sh
 ```
-   Pendentes esperadas: `0150` a `0157`, nessa ordem.
+   Pendentes esperadas: `0150` a `0158`, nessa ordem.
 4. Aceite:
 ```sql
-select max(filename) from schema_migrations;    -- 0157_login_central.sql
+select max(filename) from schema_migrations;    -- 0158_login_endurece.sql
 select count(*) from pg_tables where schemaname = 'public' and tablename like 'adm\_%';   -- 14
 select count(*) from pg_trigger where tgname = 'adm_override' and not tgisinternal;      -- 3
 select count(*) from adm_overrides;             -- 0 (sem override, o ETL grava como antes)
@@ -85,7 +88,7 @@ select has_table_privilege('admin_central', 'login.central_fatores', 'UPDATE'),
 ```
 5. Reativar os escritores e esperar um `run-due` completo e um `derive.stats` sem erro. Conferir que `sapl_houses` e `data_coverage` foram atualizados (`max(updated_at)` ou o carimbo da carga).
 
-Volta do momento B: os gatilhos de override (`drop trigger adm_override on ...`) desligam o único efeito sobre o ETL. O restante é aditivo e pode ficar; para desfazer por inteiro, siga a coluna "Volta" de trás para frente (0157 primeiro).
+Volta do momento B: os gatilhos de override (`drop trigger adm_override on ...`) desligam o único efeito sobre o ETL. O restante é aditivo e pode ficar; para desfazer por inteiro, siga a coluna "Volta" de trás para frente (0158 primeiro).
 
 # Parte 2: aplicar as migrações 0130, 0131, 0140 e 0141 em produção (runbook anterior)
 

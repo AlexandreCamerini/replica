@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import type { AuthProvider, SendResult, SessionUser, VerifyResult } from "./types";
 
 // Núcleo do provedor `pg` (login por código no e-mail, sessão em cookie HMAC, tudo em Postgres próprio).
@@ -7,18 +7,22 @@ import type { AuthProvider, SendResult, SessionUser, VerifyResult } from "./type
 
 export const CODE_TTL_MS = 10 * 60_000;
 export const MAX_SENDS_PER_HOUR = 3;
+/** Teto de envios de código por hora no site inteiro (todas as contas): freio de custo e de reputação do remetente se alguém varrer e-mails. */
+export const MAX_SENDS_GLOBAL_PER_HOUR = 300;
 export const MAX_ATTEMPTS = 5;
 export const SESSION_MAX_AGE_S = 30 * 24 * 3600;
 
 export type CodeRow = { codeHash: string; expiresAtMs: number };
 /** Persistência. Cada método é uma operação atômica no banco (limites não podem depender de ler e depois gravar). */
 export interface PgStore {
-  /** Grava o código novo se o e-mail tem menos de MAX_SENDS_PER_HOUR envios na última hora; false = limite estourado. */
-  issueCode(email: string, codeHash: string, nowMs: number): Promise<boolean>;
-  /** Conta uma tentativa e devolve o código. "too_many" = já gastou as MAX_ATTEMPTS; null = não há código. */
-  takeAttempt(email: string): Promise<CodeRow | "too_many" | null>;
-  /** Invalida o código já usado mas guarda o histórico de envios (o limite por hora não zera com um login bem-sucedido). */
-  consumeCode(email: string, nowMs: number): Promise<void>;
+  /** Grava o código novo (e o hash do nonce do navegador que pediu) se o e-mail tem menos de MAX_SENDS_PER_HOUR envios na última hora
+   *  e o site, menos de MAX_SENDS_GLOBAL_PER_HOUR; false = algum limite estourado. */
+  issueCode(email: string, codeHash: string, nonceHash: string, nowMs: number): Promise<boolean>;
+  /** Conta uma tentativa e devolve o código, SÓ para o nonce de quem pediu. "too_many" = esse navegador já gastou as MAX_ATTEMPTS;
+   *  null = não há código para este e-mail e este nonce (quem não tem o nonce não gasta tentativa de ninguém). */
+  takeAttempt(email: string, nonceHash: string): Promise<CodeRow | "too_many" | null>;
+  /** Invalida o código SE ainda for este (uso único também sob concorrência), guardando o histórico de envios. false = outro pedido já o consumiu ou trocou. */
+  consumeCode(email: string, codeHash: string, nowMs: number): Promise<boolean>;
   /** Cria o usuário em auth.users se não existe; devolve o id. */
   upsertUser(email: string): Promise<string>;
   /** Usuário vivo + início de validade das sessões (epoch em segundos, truncado ao segundo no banco); null = usuário não existe. */
@@ -37,6 +41,9 @@ export type PgDeps = {
   captcha: (token: string | null) => Promise<boolean>;
   sendMail: (to: string, code: string) => Promise<boolean>;
   cookie: { get(): string | undefined; set(value: string, maxAgeS: number): void; clear(): void };
+  /** Nonce do navegador entre pedir e conferir o código (cookie http-only próprio). */
+  nonce: { get(): string | undefined; set(value: string, maxAgeS: number): void; clear(): void };
+  randomNonce?: () => string;
   randomCode?: () => string;
 };
 
@@ -67,7 +74,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export function createPgAuth(d: PgDeps): AuthProvider {
   const secret = () => sessionSecret(d.env);
   // Separação de domínio: o hash do código e a assinatura do cookie nunca se confundem, mesmo com o mesmo segredo.
-  const hashCode = (email: string, code: string) => createHash("sha256").update(`codigo:${secret()}:${email}:${code}`).digest("hex");
+  const hashCode = (email: string, nonce: string, code: string) => createHash("sha256").update(`codigo:${secret()}:${email}:${nonce}:${code}`).digest("hex");
+  const hashNonce = (nonce: string) => createHash("sha256").update(`nonce:${secret()}:${nonce}`).digest("hex");
+  const NONCE = /^[0-9a-f]{32}$/;
   const sign = (payload: string) => createHmac("sha256", secret()).update(`cookie:${payload}`).digest("base64url");
 
   function encode(id: string, nowMs: number) {
@@ -97,7 +106,9 @@ export function createPgAuth(d: PgDeps): AuthProvider {
       try {
         sessionSecret(d.env);
         const code = (d.randomCode ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0")))();
-        if (!(await d.store.issueCode(email, hashCode(email, code), d.now()))) return { ok: false, reason: "rate_limited" };
+        const nonce = (d.randomNonce ?? (() => randomBytes(16).toString("hex")))();
+        if (!(await d.store.issueCode(email, hashCode(email, nonce, code), hashNonce(nonce), d.now()))) return { ok: false, reason: "rate_limited" };
+        d.nonce.set(nonce, CODE_TTL_MS / 1000);
         // Mesma resposta exista conta ou não: o usuário só nasce em verifyCode.
         return (await d.sendMail(email, code)) ? { ok: true } : { ok: false, reason: "unavailable" };
       } catch (e) {
@@ -107,12 +118,15 @@ export function createPgAuth(d: PgDeps): AuthProvider {
     },
     async verifyCode(email, code): Promise<VerifyResult> {
       try {
-        const row = await d.store.takeAttempt(email);
+        const nonce = d.nonce.get() ?? "";
+        if (!NONCE.test(nonce)) return { ok: false, reason: "invalid" };
+        const row = await d.store.takeAttempt(email, hashNonce(nonce));
         if (row === "too_many") return { ok: false, reason: "too_many" };
         if (!row) return { ok: false, reason: "invalid" };
         if (row.expiresAtMs <= d.now()) return { ok: false, reason: "expired" };
-        if (!safeEq(hashCode(email, code), row.codeHash)) return { ok: false, reason: "invalid" };
-        await d.store.consumeCode(email, d.now());
+        if (row.codeHash === "" || !safeEq(hashCode(email, nonce, code), row.codeHash)) return { ok: false, reason: "invalid" };
+        if (!(await d.store.consumeCode(email, row.codeHash, d.now()))) return { ok: false, reason: "invalid" };
+        d.nonce.clear();
         const id = await d.store.upsertUser(email);
         d.cookie.set(encode(id, d.now()), SESSION_MAX_AGE_S);
         return { ok: true, user: { id, email } };

@@ -32,9 +32,9 @@ const ehDaEntrada = (f: string): boolean => f.includes("/admin/api/entrar/");
 const rotas = todasAsRotas.filter((f) => !ehDaEntrada(f));
 const rotasDeEntrada = todasAsRotas.filter(ehDaEntrada);
 
-test("o grupo (admin) existe: layout e as seis rotas de API", () => {
+test("o grupo (admin) existe: layout e as sete rotas de API", () => {
   assert.ok(doGrupo.includes(layout));
-  const esperadas = ["estado", "relatorio/[rodada]", "fila", "ficha/[classe]/[chave]", "pedidos", "decisoes"].map((p) => join(GRUPO, "admin/api", p, "route.admin.ts"));
+  const esperadas = ["estado", "relatorio/[rodada]", "fila", "ficha/[classe]/[chave]", "pedidos", "decisoes", "sair"].map((p) => join(GRUPO, "admin/api", p, "route.admin.ts"));
   assert.deepEqual(rotas, [...esperadas].sort());
   // F3-C1: mais as quatro rotas de API da entrada (as server actions de entrada.ts deixaram de existir)
   assert.deepEqual(rotasDeEntrada, ["codigo", "fator/confirmar", "fator/iniciar", "verificar"].map((p) => join(GRUPO, "admin/api/entrar", p, "route.admin.ts")).sort());
