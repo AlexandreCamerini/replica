@@ -299,3 +299,10 @@ def test_trava_de_outro_run_nao_e_engolida_pelo_isolamento_por_ano(monkeypatch):
     _so_cota(monkeypatch, cota)
     with pytest.raises(SystemExit):
         cd.run_camara(FakeConn([]), years=[2025, 2026], limit=None, expenses=True, force=False)
+
+
+def test_listagem_com_deputado_repetido_por_partido_vira_um_item_por_id():
+    # 15/11/2026: a API repete o id de quem trocou de partido (uma linha por sigla); a repetição caía em "segundo id" e fechava parcial
+    itens = [{"id": 1, "siglaPartido": "A"}, {"id": 2, "siglaPartido": "B"}, {"id": 1, "siglaPartido": "C"}, {"id": "2", "siglaPartido": "D"}]
+    assert cd.unicos_por_id(itens) == [{"id": 1, "siglaPartido": "A"}, {"id": 2, "siglaPartido": "B"}]
+    assert cd.unicos_por_id([]) == []
