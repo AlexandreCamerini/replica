@@ -1,0 +1,88 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+SIMULADO: respostas fabricadas (cenário v2); nenhum número abaixo foi lido da fonte
+
+rodada   ed89f869-66ad-42fb-8504-17dc96896305
+coletor  sapl.camaras
+modo     recoletar
+recorte  {'ufs': [], 'anos': [], 'modo': 'recoletar', 'casas': [], 'ibges': ['1190099'], 'extras': {}}
+status   concluida
+início   2026-11-17 19:09:11.851490+00:00
+fim      2026-11-17 19:09:11.989282+00:00
+repete   -
+
+COLETA (leitura das URLs; não diz nada sobre revisão)
+  URLs tentadas                24 de 24
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1  (186e6e6794ef)
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/parlamentar/?page_size=100&page=1  (18af51d99c40)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1  (19370e578f82)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1  (1d4e3fb4522c)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?o=-id&page_size=1&page=1  (2181ff7f7877)
+        - https://sapl.camara-fabricada-nova.invalid/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1  (2d9f6b3b066a)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/tipomaterialegislativa/?page_size=100&page=1  (3813c7cc8a9e)
+        - https://sapl.camara-fabricada-nova.invalid/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1  (3e11c059723b)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1  (68d5a5d3273d)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1  (775a3b9a1297)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/autoria/?o=-id&page_size=100&page=1  (80260f55d96f)
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1  (9d32ff92b9ed)
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/legislatura/?page_size=100&page=1  (9eb864e321d0)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/autoria/?o=-id&page_size=1&page=1  (a7d102c61942)
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/parlamentar/?page_size=100&page=2  (b5ebf6b9506a)
+        - https://sapl.camara-fabricada-nova.invalid/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1  (c295e1fff8d1)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1  (c6cd7a7c3afd)
+        - https://sapl.camara-fabricada-nova.invalid/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1  (cf424e9d0ce5)
+        - https://sapl.camara-fabricada-nova.invalid/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1  (d1e3bd6b0b0b)
+        - https://sapl.camara-fabricada-nova.invalid/robots.txt  (db01ca2896f7)
+          e mais 4
+    lidas                      23 de 24
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1  (186e6e6794ef)
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/parlamentar/?page_size=100&page=1  (18af51d99c40)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1  (19370e578f82)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1  (1d4e3fb4522c)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?o=-id&page_size=1&page=1  (2181ff7f7877)
+        - https://sapl.camara-fabricada-nova.invalid/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1  (2d9f6b3b066a)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/tipomaterialegislativa/?page_size=100&page=1  (3813c7cc8a9e)
+        - https://sapl.camara-fabricada-nova.invalid/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1  (3e11c059723b)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1  (68d5a5d3273d)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1  (775a3b9a1297)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/autoria/?o=-id&page_size=100&page=1  (80260f55d96f)
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1  (9d32ff92b9ed)
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/legislatura/?page_size=100&page=1  (9eb864e321d0)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/autoria/?o=-id&page_size=1&page=1  (a7d102c61942)
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/parlamentar/?page_size=100&page=2  (b5ebf6b9506a)
+        - https://sapl.camara-fabricada-nova.invalid/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1  (c295e1fff8d1)
+        - https://sapl.camara-fabricada-nova.invalid/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1  (c6cd7a7c3afd)
+        - https://sapl.camara-fabricada-nova.invalid/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1  (cf424e9d0ce5)
+        - https://sapl.camara-fabricada-nova.invalid/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1  (d1e3bd6b0b0b)
+        - https://sapl.camara-fabricada-nova.invalid/api/base/autor/?page_size=100&page=1  (dba13602bb3a)
+          e mais 3
+    reaproveitadas             1 de 24
+        - https://sapl.camara-fabricada-nova.invalid/robots.txt  (db01ca2896f7)
+    com falha                  0 de 24
+  URLs de entrada declaradas   1 de 1
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/legislatura/?page_size=100&page=1  (9eb864e321d0)
+    tentadas                   1 de 1
+        - https://sapl.camara-fabricada-nova.invalid/api/parlamentares/legislatura/?page_size=100&page=1  (9eb864e321d0)
+    declaradas e não tentadas  0 de 1
+  Registros elegíveis          1 de 1
+        - vinculo_sapl:20
+  Registros alcançados         1 de 1
+        - vinculo_sapl:20
+  Elegíveis não alcançados  0 de 1
+
+REVISÃO (campos com proposta; não diz nada sobre leitura de URL)
+  nenhuma proposta registrada nesta rodada
+  Campos com proposta                                   0 de 0
+    confirmados                                         0 de 0
+      pela fonte                                        0 de 0
+      por decisão                                       0 de 0
+    conflitantes                                        0 de 0
+    pendentes                                           0 de 0
+      sem pendência aberta                              0 de 0
+  Pendências reabertas                                  0 de 0
+  Registros com proposta                                0 de 0
+  Registros com decisão aplicada (aprovar ou corrigir)  0 de 0
+  Decisões                                              0 de 0
+    aplicadas                                           0 de 0
+    não aplicadas                                       0 de 0

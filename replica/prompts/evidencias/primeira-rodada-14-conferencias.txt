@@ -1,0 +1,7 @@
+SIMULADO: conferências do passo 14-passo9-decisao (respostas fabricadas)
+  POST decisão: id do pedido d22d6c2f-348d-4654-9b83-edf1fc42b084
+  pendência decidida pela central: e465077b-beb6-45c1-b6bc-3dd333bfb84c
+  [ok] a decisão do passo 9 está no banco como aprovar|pessoa|nome|aplicada=false e é a mesma que a CLI mostra (admin pendencia)
+  [ok] o fluxo conferiu a decisão pela CLI e pelo SQL (passo 5 do fluxo) e a fila de pedidos terminou vazia
+  [ok] nenhuma decisão de agentes e a aplicação não foi pedida: overrides e corrections não ganharam linha com o pedido da central
+  [ok] o banco tem 2 decisões (PB do passo 2, município do passo 9), 0 de agentes, 1 override (o de PB) e 0 corrections

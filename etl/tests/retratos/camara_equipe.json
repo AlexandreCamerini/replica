@@ -1,0 +1,160 @@
+{
+  "_nota": "entrada FABRICADA (CSV pequeno, 2 deputados fabricados); as_of, run_id e horários ignorados; person_id trocado pelo slug",
+  "_origem": "FABRICADO",
+  "csv_1_sha256": "494c668cb781183212b1d7bf3f6d453b6758b01f4003d548bd7276a265b5dcac",
+  "csv_2_sha256": "1cb9e0734ae34872ce832ff099b662b616f3b402f57e6e7cc1937be4d1acd4c6",
+  "rodada_1_carga": {
+    "runs_ate_aqui": {
+      "dataset_stamps": [
+        {
+          "dataset": "camara.equipe",
+          "source_id": "camara",
+          "source_updated_at": null
+        }
+      ],
+      "ingest_runs": [
+        {
+          "dataset": "camara.equipe",
+          "error": null,
+          "input_checksum": "494c668cb781183212b1d7bf3f6d453b6758b01f4003d548bd7276a265b5dcac",
+          "notes": "1 lotações de deputado fora do diretório",
+          "rows_deleted": null,
+          "rows_read": null,
+          "rows_rejected": 0,
+          "rows_upserted": 3,
+          "source_id": "camara",
+          "status": "succeeded"
+        }
+      ]
+    },
+    "staff_members": [
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "Maria da Silva Souza",
+        "person_id": "fab-deputada-a",
+        "role": "Secretário parlamentar (SP12)",
+        "source_key": "camara:1001"
+      },
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "José de Oliveira",
+        "person_id": "fab-deputado-b",
+        "role": "Secretário parlamentar (SP05)",
+        "source_key": "camara:1002"
+      },
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "Ana Paula Lima",
+        "person_id": "fab-deputada-a",
+        "role": "Secretário parlamentar",
+        "source_key": "camara:1003"
+      }
+    ]
+  },
+  "rodada_2_saiu_um_secretario": {
+    "staff_members": [
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "Maria da Silva Souza",
+        "person_id": "fab-deputada-a",
+        "role": "Secretário parlamentar (SP14)",
+        "source_key": "camara:1001"
+      },
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "Ana Paula Lima",
+        "person_id": "fab-deputada-a",
+        "role": "Secretário parlamentar",
+        "source_key": "camara:1003"
+      },
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "Rafael de Souza e Silva",
+        "person_id": "fab-deputado-b",
+        "role": "Secretário parlamentar (SP02)",
+        "source_key": "camara:1007"
+      }
+    ]
+  },
+  "rodada_3_entrada_inalterada": {
+    "runs_ate_aqui": {
+      "dataset_stamps": [
+        {
+          "dataset": "camara.equipe",
+          "source_id": "camara",
+          "source_updated_at": null
+        }
+      ],
+      "ingest_runs": [
+        {
+          "dataset": "camara.equipe",
+          "error": null,
+          "input_checksum": "494c668cb781183212b1d7bf3f6d453b6758b01f4003d548bd7276a265b5dcac",
+          "notes": "1 lotações de deputado fora do diretório",
+          "rows_deleted": null,
+          "rows_read": null,
+          "rows_rejected": 0,
+          "rows_upserted": 3,
+          "source_id": "camara",
+          "status": "succeeded"
+        },
+        {
+          "dataset": "camara.equipe",
+          "error": null,
+          "input_checksum": "1cb9e0734ae34872ce832ff099b662b616f3b402f57e6e7cc1937be4d1acd4c6",
+          "notes": null,
+          "rows_deleted": null,
+          "rows_read": null,
+          "rows_rejected": 0,
+          "rows_upserted": 3,
+          "source_id": "camara",
+          "status": "succeeded"
+        },
+        {
+          "dataset": "camara.equipe",
+          "error": null,
+          "input_checksum": "1cb9e0734ae34872ce832ff099b662b616f3b402f57e6e7cc1937be4d1acd4c6",
+          "notes": null,
+          "rows_deleted": null,
+          "rows_read": null,
+          "rows_rejected": 0,
+          "rows_upserted": 0,
+          "source_id": "camara",
+          "status": "skipped_unchanged"
+        }
+      ]
+    },
+    "staff_members": [
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "Maria da Silva Souza",
+        "person_id": "fab-deputada-a",
+        "role": "Secretário parlamentar (SP14)",
+        "source_key": "camara:1001"
+      },
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "Ana Paula Lima",
+        "person_id": "fab-deputada-a",
+        "role": "Secretário parlamentar",
+        "source_key": "camara:1003"
+      },
+      {
+        "currency": "BRL",
+        "monthly_salary_cents": null,
+        "name": "Rafael de Souza e Silva",
+        "person_id": "fab-deputado-b",
+        "role": "Secretário parlamentar (SP02)",
+        "source_key": "camara:1007"
+      }
+    ]
+  }
+}

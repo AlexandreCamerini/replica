@@ -1,0 +1,7 @@
+SIMULADO: conferências do passo 11-passo6-mapa (respostas fabricadas)
+  build: reaproveitado web/.next-admin-local (tem as rotas /admin e nada em web/src é mais novo que o BUILD_ID)
+  [ok] o fluxo da central terminou com RESULTADO: tudo passou e nenhuma linha FALHOU
+  [ok] premissa: o fluxo operou sobre uma pendência de MUNICÍPIO (1190099), sem o aviso PREMISSA de cair para a UF
+  passo 6 (mapa e pendência): pendência escolhida: Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO (base_url, id e465077b-beb6-45c1-b6bc-3dd333bfb84c, território municipio 1190099)
+  passo 6 (contagem no mapa): 
+  LIMITE: /admin/api/estado só traz a contagem por UF (porUf); para município o fluxo mede a UF que o contém e avisa que a contagem do próprio município não é medida. A contagem do município na tela NÃO foi provada por este roteiro (critérios 16 e 21 são do Playwright, que não roda no sandbox, AC-05)

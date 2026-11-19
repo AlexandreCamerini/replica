@@ -1,0 +1,8 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+rodada           48e11e09-02ec-4c23-8436-b468855edf02
+status           falhou
+motivo           pré-condição do reprocessar falha: coletor não roda -> falhou
+código de saída  desconhecido: o coletor não rodou
+faltam no cache  https://sapl.al.pi.leg.br/api/

@@ -1,0 +1,275 @@
+{
+  "_nota": "entrada FABRICADA (BR, 2 UFs, 2 municípios inseridos no banco isolado, 1 valor '...' e 1 código inexistente); run_id e horários ignorados; parent_id e office/place/source trocados por chave natural",
+  "_origem": "FABRICADO",
+  "rodada_1_carga": {
+    "dataset_stamps": [
+      {
+        "dataset": "ibge.populacao",
+        "source_id": "ibge",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "ibge.populacao",
+        "error": null,
+        "input_checksum": "2025:5:271252000",
+        "notes": "1 municípios sem estimativa de 2025",
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 4,
+        "source_id": "ibge",
+        "status": "succeeded",
+        "traceback": null
+      }
+    ],
+    "places": [
+      {
+        "ibge_code": "11",
+        "kind": "uf",
+        "name": "Rondônia",
+        "parent_id": "1",
+        "population": 1800000,
+        "population_year": 2025,
+        "slug": "rondonia",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "1100015",
+        "kind": "municipio",
+        "name": "Alta Floresta D'Oeste",
+        "parent_id": "11",
+        "population": null,
+        "population_year": null,
+        "slug": "alta-floresta-doeste-ro",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "35",
+        "kind": "uf",
+        "name": "São Paulo",
+        "parent_id": "3",
+        "population": 46000000,
+        "population_year": 2025,
+        "slug": "sao-paulo",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "3550308",
+        "kind": "municipio",
+        "name": "São Paulo",
+        "parent_id": "35",
+        "population": 11451000,
+        "population_year": 2025,
+        "slug": "sao-paulo-sp",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "BR",
+        "kind": "pais",
+        "name": "Brasil",
+        "parent_id": null,
+        "population": 212000000,
+        "population_year": 2025,
+        "slug": "brasil",
+        "uf": null
+      }
+    ],
+    "salaries": [
+      {
+        "amount_cents": 1899169,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2015-02-01"
+      },
+      {
+        "amount_cents": 2210249,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2023-01-01"
+      },
+      {
+        "amount_cents": 2342864,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2023-04-01"
+      },
+      {
+        "amount_cents": 2475479,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2024-02-01"
+      },
+      {
+        "amount_cents": 2608098,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2025-02-01"
+      }
+    ]
+  },
+  "rodada_2_entrada_inalterada": {
+    "dataset_stamps": [
+      {
+        "dataset": "ibge.populacao",
+        "source_id": "ibge",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "ibge.populacao",
+        "error": null,
+        "input_checksum": "2025:5:271252000",
+        "notes": "1 municípios sem estimativa de 2025",
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 4,
+        "source_id": "ibge",
+        "status": "succeeded",
+        "traceback": null
+      },
+      {
+        "dataset": "ibge.populacao",
+        "error": null,
+        "input_checksum": "2025:5:271252000",
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 0,
+        "source_id": "ibge",
+        "status": "skipped_unchanged",
+        "traceback": null
+      }
+    ],
+    "places": [
+      {
+        "ibge_code": "11",
+        "kind": "uf",
+        "name": "Rondônia",
+        "parent_id": "1",
+        "population": 1800000,
+        "population_year": 2025,
+        "slug": "rondonia",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "1100015",
+        "kind": "municipio",
+        "name": "Alta Floresta D'Oeste",
+        "parent_id": "11",
+        "population": null,
+        "population_year": null,
+        "slug": "alta-floresta-doeste-ro",
+        "uf": "RO"
+      },
+      {
+        "ibge_code": "35",
+        "kind": "uf",
+        "name": "São Paulo",
+        "parent_id": "3",
+        "population": 46000000,
+        "population_year": 2025,
+        "slug": "sao-paulo",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "3550308",
+        "kind": "municipio",
+        "name": "São Paulo",
+        "parent_id": "35",
+        "population": 11451000,
+        "population_year": 2025,
+        "slug": "sao-paulo-sp",
+        "uf": "SP"
+      },
+      {
+        "ibge_code": "BR",
+        "kind": "pais",
+        "name": "Brasil",
+        "parent_id": null,
+        "population": 212000000,
+        "population_year": 2025,
+        "slug": "brasil",
+        "uf": null
+      }
+    ],
+    "salaries": [
+      {
+        "amount_cents": 1899169,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2015-02-01"
+      },
+      {
+        "amount_cents": 2210249,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2023-01-01"
+      },
+      {
+        "amount_cents": 2342864,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2023-04-01"
+      },
+      {
+        "amount_cents": 2475479,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2024-02-01"
+      },
+      {
+        "amount_cents": 2608098,
+        "currency": "BRL",
+        "is_ceiling": true,
+        "office_id": "vereador",
+        "place_id": "3550308",
+        "source_id": "constituicao",
+        "valid_from": "2025-02-01"
+      }
+    ]
+  }
+}

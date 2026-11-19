@@ -1,0 +1,3 @@
+# FABRICADO: robots.txt de teste; nao veio do servidor real.
+User-agent: *
+Disallow: /admin/

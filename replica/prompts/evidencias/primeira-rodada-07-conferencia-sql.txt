@@ -1,0 +1,18 @@
+SIMULADO. tentativas da repetição por resultado
+   resultado   | motivo | n 
+---------------+--------+---
+ falha         | robots | 2
+ reaproveitada |        | 8
+(2 linhas)
+
+SIMULADO. duplicatas por chave natural (esperado: nenhuma linha em cada consulta)
+-- sapl_houses por (place_id): 0 duplicatas
+-- sapl_parlamentares por (house_id, sapl_id): 0 duplicatas
+-- sapl_mandatos por (house_id, sapl_id): 0 duplicatas
+-- sapl_materias por (house_id, sapl_id): 0 duplicatas
+-- sapl_autorias por (house_id, materia_sapl_id, autor_sapl_id): 0 duplicatas
+-- sapl_sessoes por (house_id, sapl_id): 0 duplicatas
+-- sapl_presencas por (house_id, sessao_sapl_id, parlamentar_sapl_id): 0 duplicatas
+-- sapl_votos por (house_id, sapl_id): 0 duplicatas
+-- sapl_cursors por (house_id, entity): 0 duplicatas
+-- adm_vinculos vigentes por (classe, registro_chave, url_sha): 0 duplicatas

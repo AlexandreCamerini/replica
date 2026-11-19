@@ -1,0 +1,440 @@
+{
+  "id": "ba780676-cd94-45c0-bfa0-eb7a65c465e3",
+  "coletor": "sapl.assembleias",
+  "modo": "reprocessar",
+  "status": "concluida",
+  "recorte": {
+    "ufs": [
+      "RO",
+      "AC",
+      "AM",
+      "PB"
+    ],
+    "anos": [],
+    "modo": "reprocessar",
+    "casas": [],
+    "ibges": [],
+    "extras": {}
+  },
+  "argv": [
+    "sapl.ales",
+    "--uf",
+    "RO",
+    "--uf",
+    "AC",
+    "--uf",
+    "AM",
+    "--uf",
+    "PB"
+  ],
+  "forcar_urls": [],
+  "so_pendencias": false,
+  "repete_id": null,
+  "invocation": "admin:ba780676-cd94-45c0-bfa0-eb7a65c465e3",
+  "cache_dir": "/tmp/claude-501/admin-r1-cache",
+  "iniciada_em": "2026-11-17T19:08:50.889003+00:00",
+  "finalizada_em": "2026-11-17T19:08:50.982992+00:00",
+  "previa": {
+    "argv": [
+      "sapl.ales",
+      "--uf",
+      "RO",
+      "--uf",
+      "AC",
+      "--uf",
+      "AM",
+      "--uf",
+      "PB"
+    ],
+    "modo": "reprocessar",
+    "fontes": [
+      "sapl-ale"
+    ],
+    "coletor": "sapl.assembleias",
+    "comando": "sapl.ales",
+    "recorte": {
+      "ufs": [
+        "RO",
+        "AC",
+        "AM",
+        "PB"
+      ],
+      "anos": [],
+      "modo": "reprocessar",
+      "casas": [],
+      "ibges": [],
+      "extras": {}
+    },
+    "datasets": [
+      "sapl-ale.descoberta",
+      "sapl-ale.{uf}"
+    ],
+    "cache_dir": "/tmp/claude-501/admin-r1-cache",
+    "gerada_em": "2026-11-17T19:08:50.891854+00:00",
+    "observacao": "sempre sonda {base}/api/ e robots.txt antes de carregar (discover_ales), na mesma execução | a carga passa por load_queue: casa 'ok' carregada há menos de 6 dias (STALE_DAYS) ou em backoff fica fora da fila; --uf não garante recarga | sem --lote, o limite de casas carregadas é --max (10), maior que as 5 UFs | sapl.py não roda derive.stats | status no banco (a sondagem da execução o refaz): RO=ok, AC=ok, AM=robots_bloqueia, PB=ok | só a 1ª página de legislaturas de cada casa 'ok'; o resto depende das respostas | reprocessar: sem rede, refaz só a sondagem das casas (status e cobertura) a partir do cache de robots.txt e /api/; a carga de parlamentares, matérias e sessões só se refaz para casa fora do prazo de recarga de 6 dias (STALE_DAYS) e, nesse caso, depende de as páginas estarem no cache (as consultas incrementais por data mudam a cada dia); URL ausente do cache aborta a execução (SemRedeSemCache); reler o cache não reproduz a rodada original",
+    "a_consultar": {
+      "base": "modo sem rede (ETL_HTTP_OFFLINE): nenhuma consulta; URL ausente do cache recusa a rodada",
+      "valor": 0,
+      "estimativa": false
+    },
+    "demais_urls": {
+      "base": "desconhecido: nenhuma rodada anterior deste recorte",
+      "valor": null,
+      "estimativa": false
+    },
+    "urls_entrada": [
+      {
+        "url": "https://sapl.al.ro.leg.br/api/",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "9c4863cdfaeaf526d83da9b653562fb82807c42f341bd5b222f8c89bbf3ca69b",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ro.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ac.leg.br/api/",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "c2bcba167146c89840b0efbc4bc5eefbc602f361371d175d9819c1381e577f65",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ac.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.am.leg.br/api/",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "bc154e4aab08437b2e4f7221cbc0311707e1781f0e5d95061e05d049855f3896",
+          "idade_horas": 0.01
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.am.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "ab75d28a39d396c222ffecc47450a153d2c20ab942494b5fe95fc85a02a9e087",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pb.leg.br/api/",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "c7296d22537b5c5097911b86e05e43aac5300e22db77cd729cc5ca9534e94118",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.pb.leg.br/robots.txt",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "6f13b5c04f611966d0359a402d29e72ccd6567cfc11437bf17c498d0a2aad69e",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      },
+      {
+        "url": "https://sapl.al.ro.leg.br/api/parlamentares/legislatura/?page_size=100&page=1",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
+          "idade_horas": 0.01
+        },
+        "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
+      },
+      {
+        "url": "https://sapl.al.ac.leg.br/api/parlamentares/legislatura/?page_size=100&page=1",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
+          "idade_horas": 0.01
+        },
+        "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
+      },
+      {
+        "url": "https://sapl.al.pb.leg.br/api/parlamentares/legislatura/?page_size=100&page=1",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "181f561a6f4e96bd0589872ad19a44177e1b331e22000e2b185a8aa69b6a8a33",
+          "idade_horas": 0.0
+        },
+        "condicional": "só é pedida se a casa entra na fila de carga (STALE_DAYS de 6 dias, backoff) e a sondagem a deixa 'ok'"
+      }
+    ],
+    "entradas_tipo": "dinamicas",
+    "nao_suportado": null,
+    "lista_completa": false,
+    "n_urls_entrada": 8,
+    "faltam_no_cache": [],
+    "n_urls_condicionais": 3,
+    "registros_elegiveis": {
+      "base": "Assembleias em legislative_bodies das UFs do recorte; sapl_houses_id nulo = casa ainda não registrada",
+      "valor": 4,
+      "chaves": [
+        {
+          "uf": "RO",
+          "orgao": "Assembleia Legislativa de Rondônia",
+          "sapl_houses_id": 1
+        },
+        {
+          "uf": "AC",
+          "orgao": "Assembleia Legislativa de Acre",
+          "sapl_houses_id": 2
+        },
+        {
+          "uf": "AM",
+          "orgao": "Assembleia Legislativa de Amazonas",
+          "sapl_houses_id": 3
+        },
+        {
+          "uf": "PB",
+          "orgao": "Assembleia Legislativa de Paraíba",
+          "sapl_houses_id": 5
+        }
+      ],
+      "classe": "vinculo_sapl",
+      "motivo": null
+    },
+    "tentativas_registradas": true,
+    "condicionais_fora_do_cache": []
+  },
+  "resultado": {
+    "fim": "2026-11-17T19:08:50.982934+00:00",
+    "regra": {
+      "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
+      "timeout": "código 124 (timeout) -> interrompida",
+      "codigo_0": "código 0 -> concluida",
+      "nao_suportado": "recorte deixou de ser suportado: coletor não roda -> falhou",
+      "codigo_com_leitura": "código != 0 com leitura (falha parcial, o coletor terminou por conta própria) -> concluida",
+      "codigo_sem_leitura": "código != 0 sem nenhuma leitura no registro -> falhou",
+      "sem_rede_sem_cache": "SemRedeSemCache no registro -> falhou",
+      "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
+      "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
+    },
+    "inicio": "2026-11-17T19:08:50.896837+00:00",
+    "motivo": "código 0 -> concluida",
+    "runner": "processo",
+    "status": "concluida",
+    "execucao": 1,
+    "simulado": "v2",
+    "vinculos": {
+      "mudou": false,
+      "criados": {
+        "cobertura": 0,
+        "identidade": 0,
+        "vinculo_sapl": 0,
+        "contato_mandato": 0
+      },
+      "mantidos": {
+        "cobertura": 12,
+        "identidade": 0,
+        "vinculo_sapl": 5,
+        "contato_mandato": 0
+      },
+      "ignorados": [],
+      "desativados": {
+        "cobertura": 0,
+        "identidade": 0,
+        "vinculo_sapl": 0,
+        "contato_mandato": 0
+      },
+      "manuais_preservados": 0
+    },
+    "propostas": {
+      "novas": 0,
+      "avisos": [],
+      "escopo": "UFs RO,AC,AM,PB",
+      "executado": true,
+      "ids_novas": [],
+      "recusadas": [],
+      "repetidas": 0,
+      "duplicatas": {},
+      "inalterados": 44,
+      "sem_evidencia": [],
+      "anotadas_antes": [],
+      "pendencias_abertas": [],
+      "pendencias_ligadas": [],
+      "reason_sem_proposta": [],
+      "pendencias_reabertas": [],
+      "identidade_sem_candidato": [],
+      "primeiros_preenchimentos": 0,
+      "suprimidos_nao_conferidos": [],
+      "contatos_removidos_pela_fonte": [],
+      "primeiros_preenchimentos_por_classe": {}
+    },
+    "sem_cache": [],
+    "invocation": "admin:ba780676-cd94-45c0-bfa0-eb7a65c465e3",
+    "tentativas": {
+      "lidas": 0,
+      "falhas": {
+        "robots": 1
+      },
+      "tentadas": 8,
+      "registradas": true,
+      "reaproveitadas": 7,
+      "urls_distintas": 8,
+      "linhas_ignoradas": 0
+    },
+    "interrupcao": null,
+    "codigo_saida": 0,
+    "urls_entrada": {
+      "tentadas": [
+        "https://sapl.al.ac.leg.br/api/",
+        "https://sapl.al.ac.leg.br/robots.txt",
+        "https://sapl.al.am.leg.br/api/",
+        "https://sapl.al.am.leg.br/robots.txt",
+        "https://sapl.al.pb.leg.br/api/",
+        "https://sapl.al.pb.leg.br/robots.txt",
+        "https://sapl.al.ro.leg.br/api/",
+        "https://sapl.al.ro.leg.br/robots.txt"
+      ],
+      "previstas": 8,
+      "n_tentadas": 8,
+      "firmes_nao_tentadas": [],
+      "condicionais_tentadas": []
+    },
+    "executou_coletor": true,
+    "robots_registrados": [
+      "https://sapl.al.am.leg.br/api/"
+    ]
+  },
+  "execucoes": [
+    {
+      "fim": "2026-11-17T19:08:50.982934+00:00",
+      "regra": {
+        "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
+        "timeout": "código 124 (timeout) -> interrompida",
+        "codigo_0": "código 0 -> concluida",
+        "nao_suportado": "recorte deixou de ser suportado: coletor não roda -> falhou",
+        "codigo_com_leitura": "código != 0 com leitura (falha parcial, o coletor terminou por conta própria) -> concluida",
+        "codigo_sem_leitura": "código != 0 sem nenhuma leitura no registro -> falhou",
+        "sem_rede_sem_cache": "SemRedeSemCache no registro -> falhou",
+        "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
+        "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
+      },
+      "inicio": "2026-11-17T19:08:50.896837+00:00",
+      "motivo": "código 0 -> concluida",
+      "runner": "processo",
+      "status": "concluida",
+      "execucao": 1,
+      "simulado": "v2",
+      "vinculos": {
+        "mudou": false,
+        "criados": {
+          "cobertura": 0,
+          "identidade": 0,
+          "vinculo_sapl": 0,
+          "contato_mandato": 0
+        },
+        "mantidos": {
+          "cobertura": 12,
+          "identidade": 0,
+          "vinculo_sapl": 5,
+          "contato_mandato": 0
+        },
+        "ignorados": [],
+        "desativados": {
+          "cobertura": 0,
+          "identidade": 0,
+          "vinculo_sapl": 0,
+          "contato_mandato": 0
+        },
+        "manuais_preservados": 0
+      },
+      "propostas": {
+        "novas": 0,
+        "avisos": [],
+        "escopo": "UFs RO,AC,AM,PB",
+        "executado": true,
+        "ids_novas": [],
+        "recusadas": [],
+        "repetidas": 0,
+        "duplicatas": {},
+        "inalterados": 44,
+        "sem_evidencia": [],
+        "anotadas_antes": [],
+        "pendencias_abertas": [],
+        "pendencias_ligadas": [],
+        "reason_sem_proposta": [],
+        "pendencias_reabertas": [],
+        "identidade_sem_candidato": [],
+        "primeiros_preenchimentos": 0,
+        "suprimidos_nao_conferidos": [],
+        "contatos_removidos_pela_fonte": [],
+        "primeiros_preenchimentos_por_classe": {}
+      },
+      "sem_cache": [],
+      "invocation": "admin:ba780676-cd94-45c0-bfa0-eb7a65c465e3",
+      "tentativas": {
+        "lidas": 0,
+        "falhas": {
+          "robots": 1
+        },
+        "tentadas": 8,
+        "registradas": true,
+        "reaproveitadas": 7,
+        "urls_distintas": 8,
+        "linhas_ignoradas": 0
+      },
+      "interrupcao": null,
+      "codigo_saida": 0,
+      "urls_entrada": {
+        "tentadas": [
+          "https://sapl.al.ac.leg.br/api/",
+          "https://sapl.al.ac.leg.br/robots.txt",
+          "https://sapl.al.am.leg.br/api/",
+          "https://sapl.al.am.leg.br/robots.txt",
+          "https://sapl.al.pb.leg.br/api/",
+          "https://sapl.al.pb.leg.br/robots.txt",
+          "https://sapl.al.ro.leg.br/api/",
+          "https://sapl.al.ro.leg.br/robots.txt"
+        ],
+        "previstas": 8,
+        "n_tentadas": 8,
+        "firmes_nao_tentadas": [],
+        "condicionais_tentadas": []
+      },
+      "executou_coletor": true,
+      "robots_registrados": [
+        "https://sapl.al.am.leg.br/api/"
+      ]
+    }
+  ],
+  "tentativas": {
+    "total": 8,
+    "por_resultado": {
+      "falha": 1,
+      "reaproveitada": 7
+    },
+    "falhas_por_motivo": {
+      "robots": 1
+    },
+    "urls_distintas": 8
+  },
+  "cadeia": {
+    "origem": [],
+    "repeticoes": []
+  }
+}

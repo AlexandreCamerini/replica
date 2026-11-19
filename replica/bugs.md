@@ -942,3 +942,38 @@ Status: fixed (orquestrador). `Candidacy.result` aceita null; `pg.ts` não conve
 - Cause: `camara.equipe` e `parlamento.extras` são semanais (`schedule.TASKS`, `7 * D`), mas o check cobrava 48 h de toda família camara/senado.
 - Status: fixed (PR #35, merge bf95500): régua = cadência da tarefa + 48 h para tarefas com cadência acima de 48 h; diárias seguem em 48 h. Check `ok` em 12/11/2026.
 
+### BUG-056: o except db.SkipUnchanged de cli.py não é alcançado por camara.diario nem por senado.diario: a cadeia roda com entrada inalterada
+
+- Severity: S4 (custo de execução; nenhum dado errado)
+- Symptom: com entrada inalterada, `camara.diario` e `senado.diario` ainda rodam `identity.dedupe` e `derive.stats`. O critério R-7 do plano (`replica/admin-coleta-plano.md`, seção 0.5) espera que a entrada inalterada interrompa a cadeia.
+- Cause: em `camara.diario` (`run_camara`, `etl/civico_etl/jobs/camara_diario.py:81`) os runs que passam `input_checksum`, e por isso podem pular, são `camara.votacoes.{ano}` (`:476`), `camara.proposicoes.{ano}` (`:631`) e `camara.despesas.{ano}` (`:924`); cada um é capturado na própria função (`except SkipUnchanged` em `:587`, `:703` e `:961`). `camara.deputados` (`:287`) não passa checksum, então nunca levanta `SkipUnchanged`, e o `except` de `:378` só o protege. Em `senado.diario` (`run_senado`, `etl/civico_etl/jobs/senado_diario.py:101`) o único run com checksum é `senado.despesas.{ano}` (`etl/civico_etl/jobs/senado_extras.py:107`, chamado por `sx.ceaps`), capturado em `senado_extras.py:127`; `senado.senadores` (`senado_diario.py:113`), `senado.votacoes.{ano}` (`:202`) e `senado.autorias` (`senado_extras.py:64`) não passam checksum, e seus `except` (`senado_diario.py:197` e `:204`, `senado_extras.py:90`) nunca atuam. Nenhuma exceção sai de `run_camara` nem de `run_senado`, então o `except db.SkipUnchanged: pass` de `etl/civico_etl/cli.py:255` não é alcançado por esses dois comandos, e `identity.dedupe` (`cli.py:214`) e `derive.stats` (`cli.py:218`) rodam pelo nome do job, sem olhar o resultado. Com vários runs por comando, um run inalterado não prova que os demais também estão.
+- Status: aberto. Teste: `etl/tests/test_contrato_cadeia.py` (critério R-7). Registrado pela Parte R do módulo de administração de coleta, sem correção nesta entrega.
+
+### BUG-057: camara_equipe apaga staff_members sem guarda de arquivo vazio ou truncado
+
+- Severity: S3 (apaga dado sem guarda)
+- Symptom: se o `funcionarios.csv` vier vazio ou truncado, a rodada apaga todos os `staff_members` com `source_key` `camara:%` que não estão no arquivo. O run não registra quantas linhas leu nem quantas apagou: `rows_read` e `rows_deleted` ficam nulos.
+- Cause: `etl/civico_etl/jobs/camara_equipe.py:52` faz o delete como snapshot, sem comparar com o estado anterior e sem checar se há linhas aproveitáveis. O job não chama `r.read` nem `r.deleted` (`etl/civico_etl/db.py:57-58`, em que `None` quer dizer não informado).
+- Status: aberto. Teste: `etl/tests/test_caracterizacao.py::test_camara_equipe`. Registrado pela Parte R do módulo de administração de coleta, sem correção nesta entrega.
+
+### BUG-058: parlamento.extras apaga contatos das duas fontes e o nome de comissão depende da ordem de leitura
+
+- Severity: S3 (apaga dado)
+- Symptom: a cada rodada, para cada mandato com contato lido, são apagados os contatos de fonte `camara` e os de fonte `senado`. A docstring do módulo diz que o contato substitui o anterior da mesma fonte. Além disso, o nome de uma comissão pode mudar de uma rodada para outra, conforme a ordem em que os mandatos são lidos.
+- Cause: `etl/civico_etl/jobs/parlamento_extras.py:125` filtra por `source_id in (camara, senado)` e não pela fonte da casa do mandato, qualquer que seja essa casa. A consulta de mandatos (`etl/civico_etl/jobs/parlamento_extras.py:45-50`) não tem `order by`, e `comm_rows` guarda o último nome lido para cada comissão (`parlamento_extras.py:78` e `:106`).
+- Status: aberto. Teste: `etl/tests/test_caracterizacao.py::test_parlamento_extras`. Registrado pela Parte R do módulo de administração de coleta, sem correção nesta entrega.
+
+### BUG-059: falha de validação em receita e governos não grava failed em ingest_runs; governos.bcb não é carimbado em rodada pulada
+
+- Severity: S4 (sem dado errado; falha invisível em ingest_runs)
+- Symptom: uma falha de validação ou de leitura em `receita.arrecadacao` ou em `governos.indicadores` não cria linha com status `failed` em `ingest_runs`. Em `governos.indicadores`, uma rodada pulada por entrada inalterada também não carimba `dataset_stamps` de `governos.bcb`, e esse carimbo fica para trás.
+- Cause: em `etl/civico_etl/jobs/receita_arrecadacao.py:99-101`, `fetch` e `parse` rodam antes do `with run(...)`. Em `etl/civico_etl/jobs/governos_indicadores.py:83-87`, a coleta e a validação também rodam antes do run. Sem run aberto, nada é gravado em `ingest_runs`. O carimbo de `governos.bcb` (`governos_indicadores.py:96-100`) fica dentro do bloco do run, depois do upsert, e a entrada inalterada levantada no `with run` (`governos_indicadores.py:90`) impede a gravação.
+- Status: aberto. Testes: `etl/tests/test_caracterizacao.py::test_receita_arrecadacao` e `etl/tests/test_caracterizacao.py::test_governos_indicadores`. Registrado pela Parte R do módulo de administração de coleta, sem correção nesta entrega.
+
+### BUG-060: ibge.places liga cada região a si mesma
+
+- Severity: S4 (hierarquia errada em `places`; efeito no consumo não verificado)
+- Symptom: em `places`, cada região (`kind = 'regiao'`) fica com `parent_id` igual ao próprio id. O país não aparece como pai das regiões, e o update que as ligaria a `BR` (`etl/civico_etl/jobs/ibge_places.py:55`) só age sobre `parent_id is null`, então nunca dispara.
+- Cause: `etl/civico_etl/jobs/ibge_places.py:34` põe o código da região como pai dela mesma, e o update de `:51-52` resolve esse pai para o próprio registro. `etl/tests/fixtures/base.sql:36-40` tem a mesma forma: as regiões 1 a 5 têm `parent_id` apontando para elas mesmas.
+- Status: aberto. Teste: `etl/tests/test_caracterizacao.py::test_ibge_places`. Registrado pela Parte R do módulo de administração de coleta, sem correção nesta entrega.
+

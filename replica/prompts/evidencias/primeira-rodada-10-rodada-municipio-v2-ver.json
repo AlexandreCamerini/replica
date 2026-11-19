@@ -1,0 +1,306 @@
+{
+  "id": "f36a4187-c002-4003-b013-2d22b42cbb2b",
+  "coletor": "sapl.camaras",
+  "modo": "descobrir",
+  "status": "concluida",
+  "recorte": {
+    "ufs": [],
+    "anos": [],
+    "modo": "descobrir",
+    "casas": [],
+    "ibges": [
+      "1190099"
+    ],
+    "extras": {}
+  },
+  "argv": [
+    "sapl.descobrir",
+    "--ibge",
+    "1190099"
+  ],
+  "forcar_urls": [
+    "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29"
+  ],
+  "so_pendencias": false,
+  "repete_id": null,
+  "invocation": "admin:f36a4187-c002-4003-b013-2d22b42cbb2b",
+  "cache_dir": "/tmp/claude-501/admin-r1-cache",
+  "iniciada_em": "2026-11-17T19:09:06.816877+00:00",
+  "finalizada_em": "2026-11-17T19:09:06.904409+00:00",
+  "previa": {
+    "argv": [
+      "sapl.descobrir",
+      "--ibge",
+      "1190099"
+    ],
+    "modo": "descobrir",
+    "fontes": [
+      "sapl"
+    ],
+    "coletor": "sapl.camaras",
+    "comando": "sapl.descobrir",
+    "recorte": {
+      "ufs": [],
+      "anos": [],
+      "modo": "descobrir",
+      "casas": [],
+      "ibges": [
+        "1190099"
+      ],
+      "extras": {}
+    },
+    "datasets": [
+      "sapl.descoberta",
+      "sapl.{ibge}"
+    ],
+    "cache_dir": "/tmp/claude-501/admin-r1-cache",
+    "gerada_em": "2026-11-17T19:09:06.819113+00:00",
+    "observacao": "a descoberta lê uma página do registro por município; {base_url}/api/ só aparece depois de ler o registro",
+    "a_consultar": {
+      "base": "fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado)",
+      "valor": 0,
+      "intervalo": [
+        0,
+        1
+      ],
+      "estimativa": true
+    },
+    "demais_urls": {
+      "base": "rodada f5d57bb2-2add-4fd9-b0c2-69e47fb851f6 de 2026-11-17",
+      "valor": 2,
+      "estimativa": true,
+      "rodada_base": "f5d57bb2-2add-4fd9-b0c2-69e47fb851f6"
+    },
+    "urls_entrada": [
+      {
+        "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
+        "cache": {
+          "estado": "em_cache",
+          "sha256": "b0b27d5b84fbd0a305d9ab0ef89179ff42a32a5e36419268491fd57483f2c463",
+          "idade_horas": 0.0
+        },
+        "condicional": null
+      }
+    ],
+    "entradas_tipo": "dinamicas",
+    "nao_suportado": null,
+    "lista_completa": false,
+    "n_urls_entrada": 1,
+    "n_urls_condicionais": 0,
+    "registros_elegiveis": {
+      "base": "municípios do recorte em places",
+      "valor": 1,
+      "chaves": [
+        {
+          "ibge": "1190099",
+          "status": "ok",
+          "municipio": "Município Fabricado (teste)",
+          "sapl_houses_id": 20
+        }
+      ],
+      "classe": "vinculo_sapl",
+      "motivo": null
+    },
+    "tentativas_registradas": true
+  },
+  "resultado": {
+    "fim": "2026-11-17T19:09:06.904340+00:00",
+    "regra": {
+      "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
+      "timeout": "código 124 (timeout) -> interrompida",
+      "codigo_0": "código 0 -> concluida",
+      "nao_suportado": "recorte deixou de ser suportado: coletor não roda -> falhou",
+      "codigo_com_leitura": "código != 0 com leitura (falha parcial, o coletor terminou por conta própria) -> concluida",
+      "codigo_sem_leitura": "código != 0 sem nenhuma leitura no registro -> falhou",
+      "sem_rede_sem_cache": "SemRedeSemCache no registro -> falhou",
+      "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
+      "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
+    },
+    "inicio": "2026-11-17T19:09:06.823838+00:00",
+    "motivo": "código 0 -> concluida",
+    "runner": "processo",
+    "status": "concluida",
+    "execucao": 1,
+    "simulado": "v2",
+    "vinculos": {
+      "mudou": true,
+      "criados": {
+        "cobertura": 0,
+        "identidade": 0,
+        "vinculo_sapl": 1,
+        "contato_mandato": 0
+      },
+      "mantidos": {
+        "cobertura": 12,
+        "identidade": 0,
+        "vinculo_sapl": 6,
+        "contato_mandato": 0
+      },
+      "ignorados": [],
+      "desativados": {
+        "cobertura": 0,
+        "identidade": 0,
+        "vinculo_sapl": 1,
+        "contato_mandato": 0
+      },
+      "manuais_preservados": 0
+    },
+    "propostas": {
+      "novas": 1,
+      "avisos": [],
+      "escopo": "municípios 1190099",
+      "executado": true,
+      "ids_novas": [
+        "21bbecd8-b210-4acb-b68b-418d9ab55b87"
+      ],
+      "recusadas": [],
+      "repetidas": 0,
+      "duplicatas": {},
+      "inalterados": 1,
+      "sem_evidencia": [],
+      "anotadas_antes": [],
+      "pendencias_abertas": [
+        "e465077b-beb6-45c1-b6bc-3dd333bfb84c"
+      ],
+      "pendencias_ligadas": [],
+      "reason_sem_proposta": [],
+      "pendencias_reabertas": [],
+      "identidade_sem_candidato": [],
+      "primeiros_preenchimentos": 0,
+      "suprimidos_nao_conferidos": [],
+      "contatos_removidos_pela_fonte": [],
+      "primeiros_preenchimentos_por_classe": {}
+    },
+    "sem_cache": [],
+    "invocation": "admin:f36a4187-c002-4003-b013-2d22b42cbb2b",
+    "tentativas": {
+      "lidas": 3,
+      "falhas": {},
+      "tentadas": 3,
+      "registradas": true,
+      "reaproveitadas": 0,
+      "urls_distintas": 3,
+      "linhas_ignoradas": 0
+    },
+    "interrupcao": null,
+    "codigo_saida": 0,
+    "urls_entrada": {
+      "tentadas": [
+        "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29"
+      ],
+      "previstas": 1,
+      "n_tentadas": 1,
+      "firmes_nao_tentadas": [],
+      "condicionais_tentadas": []
+    },
+    "executou_coletor": true,
+    "robots_registrados": []
+  },
+  "execucoes": [
+    {
+      "fim": "2026-11-17T19:09:06.904340+00:00",
+      "regra": {
+        "excecao": "KeyboardInterrupt, SystemExit ou exceção do runner -> interrompida",
+        "timeout": "código 124 (timeout) -> interrompida",
+        "codigo_0": "código 0 -> concluida",
+        "nao_suportado": "recorte deixou de ser suportado: coletor não roda -> falhou",
+        "codigo_com_leitura": "código != 0 com leitura (falha parcial, o coletor terminou por conta própria) -> concluida",
+        "codigo_sem_leitura": "código != 0 sem nenhuma leitura no registro -> falhou",
+        "sem_rede_sem_cache": "SemRedeSemCache no registro -> falhou",
+        "codigo_sem_registro": "código != 0 em coletor sem registro de tentativas -> falhou",
+        "reprocessar_sem_cache": "pré-condição do reprocessar falha: coletor não roda -> falhou"
+      },
+      "inicio": "2026-11-17T19:09:06.823838+00:00",
+      "motivo": "código 0 -> concluida",
+      "runner": "processo",
+      "status": "concluida",
+      "execucao": 1,
+      "simulado": "v2",
+      "vinculos": {
+        "mudou": true,
+        "criados": {
+          "cobertura": 0,
+          "identidade": 0,
+          "vinculo_sapl": 1,
+          "contato_mandato": 0
+        },
+        "mantidos": {
+          "cobertura": 12,
+          "identidade": 0,
+          "vinculo_sapl": 6,
+          "contato_mandato": 0
+        },
+        "ignorados": [],
+        "desativados": {
+          "cobertura": 0,
+          "identidade": 0,
+          "vinculo_sapl": 1,
+          "contato_mandato": 0
+        },
+        "manuais_preservados": 0
+      },
+      "propostas": {
+        "novas": 1,
+        "avisos": [],
+        "escopo": "municípios 1190099",
+        "executado": true,
+        "ids_novas": [
+          "21bbecd8-b210-4acb-b68b-418d9ab55b87"
+        ],
+        "recusadas": [],
+        "repetidas": 0,
+        "duplicatas": {},
+        "inalterados": 1,
+        "sem_evidencia": [],
+        "anotadas_antes": [],
+        "pendencias_abertas": [
+          "e465077b-beb6-45c1-b6bc-3dd333bfb84c"
+        ],
+        "pendencias_ligadas": [],
+        "reason_sem_proposta": [],
+        "pendencias_reabertas": [],
+        "identidade_sem_candidato": [],
+        "primeiros_preenchimentos": 0,
+        "suprimidos_nao_conferidos": [],
+        "contatos_removidos_pela_fonte": [],
+        "primeiros_preenchimentos_por_classe": {}
+      },
+      "sem_cache": [],
+      "invocation": "admin:f36a4187-c002-4003-b013-2d22b42cbb2b",
+      "tentativas": {
+        "lidas": 3,
+        "falhas": {},
+        "tentadas": 3,
+        "registradas": true,
+        "reaproveitadas": 0,
+        "urls_distintas": 3,
+        "linhas_ignoradas": 0
+      },
+      "interrupcao": null,
+      "codigo_saida": 0,
+      "urls_entrada": {
+        "tentadas": [
+          "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29"
+        ],
+        "previstas": 1,
+        "n_tentadas": 1,
+        "firmes_nao_tentadas": [],
+        "condicionais_tentadas": []
+      },
+      "executou_coletor": true,
+      "robots_registrados": []
+    }
+  ],
+  "tentativas": {
+    "total": 3,
+    "por_resultado": {
+      "lida": 3
+    },
+    "falhas_por_motivo": {},
+    "urls_distintas": 3
+  },
+  "cadeia": {
+    "origem": [],
+    "repeticoes": []
+  }
+}

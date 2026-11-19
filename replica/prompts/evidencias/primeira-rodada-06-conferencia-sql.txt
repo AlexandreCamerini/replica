@@ -1,0 +1,20 @@
+SIMULADO. nada foi aplicado pelo parecer de ensaio
+ uf |     status      
+----+-----------------
+ AC | ok
+ AM | robots_bloqueia
+ PB | ok
+ PI | robots_bloqueia
+ RO | ok
+(5 linhas)
+
+                  id                  | campo  |  tipo   | status |                             pergunta                              
+--------------------------------------+--------+---------+--------+-------------------------------------------------------------------
+ 6a93474e-049a-402d-84d6-cf4f7e858db2 | status | mudanca | aberta | O status do SAPL desta casa mudou de 'ok' para 'robots_bloqueia'?
+(1 linha)
+
+ decisoes | overrides | corrections | pareceres 
+----------+-----------+-------------+-----------
+        1 |         1 |           0 |         1
+(1 linha)
+

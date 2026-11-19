@@ -1,0 +1,9 @@
+unit=0
+eslint=0
+tsc=0
+build=0
+semnav=0
+rede=0
+r1a=0
+r1b=0
+fluxo=1

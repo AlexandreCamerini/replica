@@ -1,0 +1,83 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+SIMULADO: respostas fabricadas (cenário v2); nenhum número abaixo foi lido da fonte
+
+rodada   ba780676-cd94-45c0-bfa0-eb7a65c465e3
+coletor  sapl.assembleias
+modo     reprocessar
+recorte  {'ufs': ['RO', 'AC', 'AM', 'PB'], 'anos': [], 'modo': 'reprocessar', 'casas': [], 'ibges': [], 'extras': {}}
+status   concluida
+início   2026-11-17 19:08:50.889003+00:00
+fim      2026-11-17 19:08:50.982992+00:00
+repete   -
+
+COLETA (leitura das URLs; não diz nada sobre revisão)
+  URLs tentadas                8 de 8
+        - https://sapl.al.pb.leg.br/robots.txt  (06a15704c1db)
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+        - https://sapl.al.ac.leg.br/robots.txt  (2cddba312107)
+        - https://sapl.al.ac.leg.br/api/  (4597f65ca68e)
+        - https://sapl.al.am.leg.br/robots.txt  (6e9c83474180)
+        - https://sapl.al.ro.leg.br/api/  (a4a971dfc6d9)
+        - https://sapl.al.ro.leg.br/robots.txt  (a7b8a9f5b658)
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+    lidas                      0 de 8
+    reaproveitadas             7 de 8
+        - https://sapl.al.pb.leg.br/robots.txt  (06a15704c1db)
+        - https://sapl.al.ac.leg.br/robots.txt  (2cddba312107)
+        - https://sapl.al.ac.leg.br/api/  (4597f65ca68e)
+        - https://sapl.al.am.leg.br/robots.txt  (6e9c83474180)
+        - https://sapl.al.ro.leg.br/api/  (a4a971dfc6d9)
+        - https://sapl.al.ro.leg.br/robots.txt  (a7b8a9f5b658)
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+    com falha                  1 de 8
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+      falha: robots            1 de 1
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+  URLs de entrada declaradas   8 de 8
+        - https://sapl.al.pb.leg.br/robots.txt  (06a15704c1db)
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+        - https://sapl.al.ac.leg.br/robots.txt  (2cddba312107)
+        - https://sapl.al.ac.leg.br/api/  (4597f65ca68e)
+        - https://sapl.al.am.leg.br/robots.txt  (6e9c83474180)
+        - https://sapl.al.ro.leg.br/api/  (a4a971dfc6d9)
+        - https://sapl.al.ro.leg.br/robots.txt  (a7b8a9f5b658)
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+    tentadas                   8 de 8
+        - https://sapl.al.pb.leg.br/robots.txt  (06a15704c1db)
+        - https://sapl.al.am.leg.br/api/  (100017b236d3)
+        - https://sapl.al.ac.leg.br/robots.txt  (2cddba312107)
+        - https://sapl.al.ac.leg.br/api/  (4597f65ca68e)
+        - https://sapl.al.am.leg.br/robots.txt  (6e9c83474180)
+        - https://sapl.al.ro.leg.br/api/  (a4a971dfc6d9)
+        - https://sapl.al.ro.leg.br/robots.txt  (a7b8a9f5b658)
+        - https://sapl.al.pb.leg.br/api/  (feae39cf796d)
+    declaradas e não tentadas  0 de 8
+  Registros elegíveis          4 de 4
+        - vinculo_sapl:1
+        - vinculo_sapl:2
+        - vinculo_sapl:3
+        - vinculo_sapl:5
+  Registros alcançados         3 de 4
+        - vinculo_sapl:1
+        - vinculo_sapl:2
+        - vinculo_sapl:5
+  Elegíveis não alcançados  1 de 4
+        - vinculo_sapl:3  URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada; última falha: robots
+
+REVISÃO (campos com proposta; não diz nada sobre leitura de URL)
+  nenhuma proposta registrada nesta rodada
+  Campos com proposta                                   0 de 0
+    confirmados                                         0 de 0
+      pela fonte                                        0 de 0
+      por decisão                                       0 de 0
+    conflitantes                                        0 de 0
+    pendentes                                           0 de 0
+      sem pendência aberta                              0 de 0
+  Pendências reabertas                                  0 de 0
+  Registros com proposta                                0 de 0
+  Registros com decisão aplicada (aprovar ou corrigir)  0 de 0
+  Decisões                                              0 de 0
+    aplicadas                                           0 de 0
+    não aplicadas                                       0 de 0

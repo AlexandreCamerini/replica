@@ -1,0 +1,453 @@
+{
+  "_nota": "entrada FABRICADA (18 linhas de data_coverage em 7 UFs e 1 município fabricado; casas legislativas fabricadas); id, updated_at e horários ignorados; place_id trocado pelo ibge_code; checked_on de hoje vira <hoje>",
+  "_origem": "FABRICADO",
+  "alteradas_na_rodada_1": [
+    "13/propostas",
+    "13/votos",
+    "29/presenca",
+    "29/propostas",
+    "29/votos",
+    "33/gastos_gabinete",
+    "33/presenca",
+    "43/presenca",
+    "53/presenca"
+  ],
+  "antes": [
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "gastos_gabinete",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "gastos_gabinete",
+      "evidence_url": null,
+      "place_id": "33",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": "https://exemplo.fabricado/am",
+      "place_id": "13",
+      "reason": "conferido à mão: a Assembleia do Amazonas publica só em PDF",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "33",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "35",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "41",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "43",
+      "reason": "a Assembleia Legislativa do Rio Grande do Sul ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "53",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "9999990",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "13",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "31",
+      "reason": "a Assembleia Legislativa ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "33",
+      "reason": "texto conferido à mão do RJ",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "salario_deputados_estaduais",
+      "evidence_url": null,
+      "place_id": "33",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "votos",
+      "evidence_url": null,
+      "place_id": "13",
+      "reason": "a ALERJ não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "votos",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "votos",
+      "evidence_url": "https://www.alerj.rj.gov.br/",
+      "place_id": "33",
+      "reason": "a ALERJ não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa",
+      "status": "desconhecido"
+    }
+  ],
+  "rodada_1": [
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "gastos_gabinete",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "gastos_gabinete",
+      "evidence_url": "https://docigp.alerj.rj.gov.br/robots.txt",
+      "place_id": "33",
+      "reason": "a ALERJ publica os gastos de gabinete no sistema DOCIGP, cujo robots.txt proíbe leitura automática",
+      "status": "so_portal"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": "https://exemplo.fabricado/am",
+      "place_id": "13",
+      "reason": "conferido à mão: a Assembleia do Amazonas publica só em PDF",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "presenca",
+      "evidence_url": "https://www.alerj.rj.gov.br/",
+      "place_id": "33",
+      "reason": "a ALERJ não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "35",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "41",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "presenca",
+      "evidence_url": "https://ww4.al.rs.gov.br/",
+      "place_id": "43",
+      "reason": "a Assembleia do RS não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "53",
+      "reason": "a Câmara Legislativa do Distrito Federal ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "9999990",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "13",
+      "reason": "a Assembleia Legislativa do Amazonas ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "31",
+      "reason": "a Assembleia Legislativa ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "33",
+      "reason": "texto conferido à mão do RJ",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "salario_deputados_estaduais",
+      "evidence_url": null,
+      "place_id": "33",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "votos",
+      "evidence_url": null,
+      "place_id": "13",
+      "reason": "a Assembleia Legislativa do Amazonas ainda não é lida pelo site",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "votos",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "votos",
+      "evidence_url": "https://www.alerj.rj.gov.br/",
+      "place_id": "33",
+      "reason": "a ALERJ não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa",
+      "status": "desconhecido"
+    }
+  ],
+  "rodada_2_idempotente": [
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "gastos_gabinete",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "gastos_gabinete",
+      "evidence_url": "https://docigp.alerj.rj.gov.br/robots.txt",
+      "place_id": "33",
+      "reason": "a ALERJ publica os gastos de gabinete no sistema DOCIGP, cujo robots.txt proíbe leitura automática",
+      "status": "so_portal"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": "https://exemplo.fabricado/am",
+      "place_id": "13",
+      "reason": "conferido à mão: a Assembleia do Amazonas publica só em PDF",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "presenca",
+      "evidence_url": "https://www.alerj.rj.gov.br/",
+      "place_id": "33",
+      "reason": "a ALERJ não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "35",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "41",
+      "reason": "a Assembleia publica; a carga do nível estadual entra na próxima fase",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "presenca",
+      "evidence_url": "https://ww4.al.rs.gov.br/",
+      "place_id": "43",
+      "reason": "a Assembleia do RS não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "53",
+      "reason": "a Câmara Legislativa do Distrito Federal ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "presenca",
+      "evidence_url": null,
+      "place_id": "9999990",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "13",
+      "reason": "a Assembleia Legislativa do Amazonas ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "31",
+      "reason": "a Assembleia Legislativa ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "propostas",
+      "evidence_url": null,
+      "place_id": "33",
+      "reason": "texto conferido à mão do RJ",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "salario_deputados_estaduais",
+      "evidence_url": null,
+      "place_id": "33",
+      "reason": "ainda não conferimos se a Assembleia publica em dado aberto",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "votos",
+      "evidence_url": null,
+      "place_id": "13",
+      "reason": "a Assembleia Legislativa do Amazonas ainda não é lida pelo site",
+      "status": "desconhecido"
+    },
+    {
+      "checked_on": "<hoje>",
+      "dataset": "votos",
+      "evidence_url": null,
+      "place_id": "29",
+      "reason": "a Assembleia Legislativa da Bahia ainda não é lida pelo site",
+      "status": "carregando"
+    },
+    {
+      "checked_on": "2026-01-01",
+      "dataset": "votos",
+      "evidence_url": "https://www.alerj.rj.gov.br/",
+      "place_id": "33",
+      "reason": "a ALERJ não tem catálogo de dados abertos que tenhamos localizado; o site ainda não lê esta casa",
+      "status": "desconhecido"
+    }
+  ]
+}

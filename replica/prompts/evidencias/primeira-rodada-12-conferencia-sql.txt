@@ -1,0 +1,18 @@
+SIMULADO. pedidos da central e rodada da recoleta (banco admin_coleta_r1)
+   tipo   |  status   |              rodada_id               |                                     parametros                                      
+----------+-----------+--------------------------------------+-------------------------------------------------------------------------------------
+ recoleta | concluido | ed89f869-66ad-42fb-8504-17dc96896305 | {"classe": "vinculo_sapl", "territorio": {"ibge": "1190099", "nivel": "municipio"}}
+ parecer  | concluido |                                      | {"pendencia_id": "e465077b-beb6-45c1-b6bc-3dd333bfb84c"}
+(2 linhas)
+
+                  id                  |   coletor    |   modo    |  status   |                                            recorte                                            
+--------------------------------------+--------------+-----------+-----------+-----------------------------------------------------------------------------------------------
+ ed89f869-66ad-42fb-8504-17dc96896305 | sapl.camaras | recoletar | concluida | {"ufs": [], "anos": [], "modo": "recoletar", "casas": [], "ibges": ["1190099"], "extras": {}}
+(1 linha)
+
+   resultado   | motivo | n  
+---------------+--------+----
+ lida          |        | 23
+ reaproveitada |        |  1
+(2 linhas)
+

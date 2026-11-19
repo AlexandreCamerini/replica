@@ -32,6 +32,7 @@ Ficam para resposta a incidente. A rotina roda `identity.repairs` depois de tse.
   civico-etl verificar [chave] [--limit N] [--force]                 # agentes conferem o rascunho; ensaio até VERIFICACAO_AGENTICA=on (D293)
   civico-etl check                                                   # invariantes; exit 1 se alguma quebrar
   civico-etl run-due [--dry-run] [--only TAREFA --force]             # agenda (D250): roda o que venceu, check e alerta; exit 2 = alerta
+  civico-etl admin inventario|vinculos|previa|rodada|relatorio|proposta|fila|pendencia|decidir|aplicar|identidade|parecer|candidata|executor|pedido [--json]  # administração de coleta: inventário de coletores e vínculos de fonte/URL
 """
 
 from __future__ import annotations
@@ -63,6 +64,10 @@ def main(argv: list[str] | None = None) -> int:
         c.commit()
         log.info("purge-raw: %d runs apagados", n)
         return 0
+    if args and args[0] == "admin":  # administração de coleta (Parte A): admin inventario, admin vinculos
+        from .admin.cli import main as admin_main
+
+        return admin_main(args[1:])
     if args and args[0] == "run-due":  # agenda (D250): roda o que venceu, repara identidade, check e alerta
         from .schedule import main as schedule_main
 

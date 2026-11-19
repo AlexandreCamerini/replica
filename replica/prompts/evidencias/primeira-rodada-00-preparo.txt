@@ -1,0 +1,26 @@
+SIMULADO. preparo do banco admin_coleta_r1 (recriado do zero)
+      banco      |                                                             versao                                                             
+-----------------+--------------------------------------------------------------------------------------------------------------------------------
+ admin_coleta_r1 | PostgreSQL 16.14 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit
+(1 linha)
+
+ migracoes_aplicadas 
+---------------------
+                  45
+(1 linha)
+
+ uf |                name                |    kind    
+----+------------------------------------+------------
+ AC | Assembleia Legislativa de Acre     | assembleia
+ AM | Assembleia Legislativa de Amazonas | assembleia
+ PB | Assembleia Legislativa de Paraíba  | assembleia
+ PI | Assembleia Legislativa de Piauí    | assembleia
+ RO | Assembleia Legislativa de Rondônia | assembleia
+(5 linhas)
+
+ sapl_houses | adm_rodadas | ingest_runs | municipios 
+-------------+-------------+-------------+------------
+           0 |           0 |           0 |          1
+(1 linha)
+
+cache de HTTP (apagado e recriado): /tmp/claude-501/admin-r1-cache

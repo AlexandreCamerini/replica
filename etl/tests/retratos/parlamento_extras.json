@@ -1,0 +1,807 @@
+{
+  "_nota": "entrada FABRICADA (2 deputados, 1 senador; 3 rodadas; 5 contatos à mão antes da rodada 2); data do job fixada em 2026-11-15 e --year 2025; run_id e horários ignorados; mandate_id, person_id, committee_id e body_id trocados por slug, source_key e kind",
+  "_origem": "FABRICADO",
+  "derive_stats_encadeado": [
+    {
+      "contatos_ja_gravados": 14,
+      "discursos_ja_gravados": 5,
+      "run_ja_fechado": "succeeded"
+    },
+    {
+      "contatos_ja_gravados": 8,
+      "discursos_ja_gravados": 5,
+      "run_ja_fechado": "succeeded"
+    },
+    {
+      "contatos_ja_gravados": 8,
+      "discursos_ja_gravados": 5,
+      "run_ja_fechado": "succeeded"
+    }
+  ],
+  "rodada_1_carga": {
+    "committee_memberships": [
+      {
+        "committee_id": "2001",
+        "from_on": "2025-03-10",
+        "person_id": "fab-extras-dep-a",
+        "role": "Titular",
+        "to_on": null
+      },
+      {
+        "committee_id": "2001",
+        "from_on": "2025-04-01",
+        "person_id": "fab-extras-dep-b",
+        "role": "Suplente",
+        "to_on": null
+      },
+      {
+        "committee_id": "2002",
+        "from_on": "2025-01-01",
+        "person_id": "fab-extras-dep-a",
+        "role": "Membro",
+        "to_on": "2025-12-31"
+      },
+      {
+        "committee_id": "3001",
+        "from_on": "2025-02-05",
+        "person_id": "fab-extras-sen-c",
+        "role": "Titular",
+        "to_on": null
+      },
+      {
+        "committee_id": "3002",
+        "from_on": "2022-03-01",
+        "person_id": "fab-extras-sen-c",
+        "role": "Membro",
+        "to_on": "2024-12-31"
+      }
+    ],
+    "committees": [
+      {
+        "acronym": "CCJC",
+        "body_id": "camara_deputados",
+        "name": "Comissão de Constituição e Justiça e de Cidadania",
+        "source_key": "2001"
+      },
+      {
+        "acronym": null,
+        "body_id": "camara_deputados",
+        "name": "Comissão Fabricada de Saúde",
+        "source_key": "2002"
+      },
+      {
+        "acronym": "CCT",
+        "body_id": "senado",
+        "name": "Comissão Fabricada de Ciência",
+        "source_key": "3001"
+      },
+      {
+        "acronym": null,
+        "body_id": "senado",
+        "name": "3002",
+        "source_key": "3002"
+      }
+    ],
+    "dataset_stamps": [
+      {
+        "dataset": "parlamento.extras",
+        "source_id": "camara",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "parlamento.extras",
+        "error": null,
+        "input_checksum": null,
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 24,
+        "source_id": "camara",
+        "status": "succeeded",
+        "traceback": null
+      }
+    ],
+    "mandate_contacts": [
+      {
+        "fonte": "camara",
+        "kind": "email",
+        "pessoa": "fab-extras-dep-a",
+        "value": "dep.fab.a@camara.leg.br"
+      },
+      {
+        "fonte": "camara",
+        "kind": "facebook",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://www.facebook.com/fabA"
+      },
+      {
+        "fonte": "camara",
+        "kind": "gabinete",
+        "pessoa": "fab-extras-dep-a",
+        "value": "Câmara dos Deputados, anexo 4, 5º andar, gabinete 501"
+      },
+      {
+        "fonte": "camara",
+        "kind": "instagram",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://www.instagram.com/fabA"
+      },
+      {
+        "fonte": "camara",
+        "kind": "outra_rede",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://t.me/fabA"
+      },
+      {
+        "fonte": "camara",
+        "kind": "site",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://fabricado-a.example.org"
+      },
+      {
+        "fonte": "camara",
+        "kind": "telefone",
+        "pessoa": "fab-extras-dep-a",
+        "value": "(61) 3215-5101"
+      },
+      {
+        "fonte": "camara",
+        "kind": "tiktok",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://tiktok.com/@fabA"
+      },
+      {
+        "fonte": "camara",
+        "kind": "x",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://twitter.com/fabA"
+      },
+      {
+        "fonte": "camara",
+        "kind": "youtube",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://youtube.com/fabA"
+      },
+      {
+        "fonte": "camara",
+        "kind": "email",
+        "pessoa": "fab-extras-dep-b",
+        "value": "dep.fab.b@camara.leg.br"
+      },
+      {
+        "fonte": "senado",
+        "kind": "email",
+        "pessoa": "fab-extras-sen-c",
+        "value": "sen.fab.c@senado.leg.br"
+      },
+      {
+        "fonte": "senado",
+        "kind": "site",
+        "pessoa": "fab-extras-sen-c",
+        "value": "https://www25.senado.leg.br/web/senadores/senador/-/perfil/5801"
+      },
+      {
+        "fonte": "senado",
+        "kind": "telefone",
+        "pessoa": "fab-extras-sen-c",
+        "value": "(61) 3303-5801"
+      }
+    ],
+    "speeches": [
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-05-06T17:30:00+00:00",
+        "person_id": "fab-extras-dep-a",
+        "source_key": "90101:2025-05-06T14:30:Pronunciamento",
+        "summary": "Pronunciamento: Sumário fabricado",
+        "url": "https://fab.example/texto/1"
+      },
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-06-01T12:00:00+00:00",
+        "person_id": "fab-extras-dep-a",
+        "source_key": "90101:2025-06-01T09:00:Breve Comunicação",
+        "summary": "Breve Comunicação: Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Text",
+        "url": "https://fab.example/video/2"
+      },
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-07-01T13:00:00+00:00",
+        "person_id": "fab-extras-dep-b",
+        "source_key": "90102:2025-07-01T10:00:Breves Comunicações",
+        "summary": "Breves Comunicações",
+        "url": null
+      },
+      {
+        "body_id": "senado",
+        "occurred_at": "2025-06-10T03:00:00+00:00",
+        "person_id": "fab-extras-sen-c",
+        "source_key": "sf:9001",
+        "summary": "Discurso: Resumo fabricado do senador",
+        "url": "https://fab.example/senado/9001"
+      },
+      {
+        "body_id": "senado",
+        "occurred_at": "2025-06-11T03:00:00+00:00",
+        "person_id": "fab-extras-sen-c",
+        "source_key": "sf:9002",
+        "summary": "Pronunciamento",
+        "url": "https://www25.senado.leg.br/web/atividade/pronunciamentos/-/p/pronunciamento/9002"
+      }
+    ]
+  },
+  "rodada_2_contatos_logo_apos_inserir_a_mao": [
+    {
+      "fonte": "camara",
+      "kind": "email",
+      "pessoa": "fab-extras-dep-a",
+      "value": "dep.fab.a@camara.leg.br"
+    },
+    {
+      "fonte": "camara",
+      "kind": "email",
+      "pessoa": "fab-extras-dep-a",
+      "value": "manual-i-camara@fab.example"
+    },
+    {
+      "fonte": "camara",
+      "kind": "facebook",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://www.facebook.com/fabA"
+    },
+    {
+      "fonte": "camara",
+      "kind": "gabinete",
+      "pessoa": "fab-extras-dep-a",
+      "value": "Câmara dos Deputados, anexo 4, 5º andar, gabinete 501"
+    },
+    {
+      "fonte": "camara",
+      "kind": "instagram",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://www.instagram.com/fabA"
+    },
+    {
+      "fonte": "camara",
+      "kind": "outra_rede",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://t.me/fabA"
+    },
+    {
+      "fonte": "camara",
+      "kind": "site",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://fabricado-a.example.org"
+    },
+    {
+      "fonte": "camara",
+      "kind": "telefone",
+      "pessoa": "fab-extras-dep-a",
+      "value": "(61) 3215-5101"
+    },
+    {
+      "fonte": "camara",
+      "kind": "tiktok",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://tiktok.com/@fabA"
+    },
+    {
+      "fonte": "camara",
+      "kind": "x",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://twitter.com/fabA"
+    },
+    {
+      "fonte": "camara",
+      "kind": "youtube",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://youtube.com/fabA"
+    },
+    {
+      "fonte": "senado",
+      "kind": "site",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://manual-v-senado-no-deputado.fab.example"
+    },
+    {
+      "fonte": "tse",
+      "kind": "site",
+      "pessoa": "fab-extras-dep-a",
+      "value": "https://manual-ii-tse.fab.example"
+    },
+    {
+      "fonte": "camara",
+      "kind": "email",
+      "pessoa": "fab-extras-dep-b",
+      "value": "dep.fab.b@camara.leg.br"
+    },
+    {
+      "fonte": "camara",
+      "kind": "site",
+      "pessoa": "fab-extras-dep-b",
+      "value": "https://manual-iii-camara.fab.example"
+    },
+    {
+      "fonte": "camara",
+      "kind": "site",
+      "pessoa": "fab-extras-sen-c",
+      "value": "https://manual-iv-camara-no-senador.fab.example"
+    },
+    {
+      "fonte": "senado",
+      "kind": "email",
+      "pessoa": "fab-extras-sen-c",
+      "value": "sen.fab.c@senado.leg.br"
+    },
+    {
+      "fonte": "senado",
+      "kind": "site",
+      "pessoa": "fab-extras-sen-c",
+      "value": "https://www25.senado.leg.br/web/senadores/senador/-/perfil/5801"
+    },
+    {
+      "fonte": "senado",
+      "kind": "telefone",
+      "pessoa": "fab-extras-sen-c",
+      "value": "(61) 3303-5801"
+    }
+  ],
+  "rodada_2_entrada_mudou": {
+    "committee_memberships": [
+      {
+        "committee_id": "2001",
+        "from_on": "2025-03-10",
+        "person_id": "fab-extras-dep-a",
+        "role": "Titular",
+        "to_on": "2025-12-31"
+      },
+      {
+        "committee_id": "2001",
+        "from_on": "2025-04-01",
+        "person_id": "fab-extras-dep-b",
+        "role": "Suplente",
+        "to_on": null
+      },
+      {
+        "committee_id": "2002",
+        "from_on": "2025-01-01",
+        "person_id": "fab-extras-dep-a",
+        "role": "Membro",
+        "to_on": "2025-12-31"
+      },
+      {
+        "committee_id": "3001",
+        "from_on": "2025-02-05",
+        "person_id": "fab-extras-sen-c",
+        "role": "Titular",
+        "to_on": "2025-10-01"
+      },
+      {
+        "committee_id": "3002",
+        "from_on": "2022-03-01",
+        "person_id": "fab-extras-sen-c",
+        "role": "Membro",
+        "to_on": "2024-12-31"
+      }
+    ],
+    "committees": [
+      {
+        "acronym": "CCJC",
+        "body_id": "camara_deputados",
+        "name": "Comissão de Constituição e Justiça (nome novo)",
+        "source_key": "2001"
+      },
+      {
+        "acronym": null,
+        "body_id": "camara_deputados",
+        "name": "Comissão Fabricada de Saúde",
+        "source_key": "2002"
+      },
+      {
+        "acronym": "CCT",
+        "body_id": "senado",
+        "name": "Comissão Fabricada de Ciência (nome novo)",
+        "source_key": "3001"
+      },
+      {
+        "acronym": null,
+        "body_id": "senado",
+        "name": "3002",
+        "source_key": "3002"
+      }
+    ],
+    "dataset_stamps": [
+      {
+        "dataset": "parlamento.extras",
+        "source_id": "camara",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "parlamento.extras",
+        "error": null,
+        "input_checksum": null,
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 24,
+        "source_id": "camara",
+        "status": "succeeded",
+        "traceback": null
+      },
+      {
+        "dataset": "parlamento.extras",
+        "error": null,
+        "input_checksum": null,
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 13,
+        "source_id": "camara",
+        "status": "succeeded",
+        "traceback": null
+      }
+    ],
+    "mandate_contacts": [
+      {
+        "fonte": "camara",
+        "kind": "email",
+        "pessoa": "fab-extras-dep-a",
+        "value": "dep.fab.a.novo@camara.leg.br"
+      },
+      {
+        "fonte": "camara",
+        "kind": "instagram",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://www.instagram.com/fabA"
+      },
+      {
+        "fonte": "camara",
+        "kind": "telefone",
+        "pessoa": "fab-extras-dep-a",
+        "value": "(61) 3215-5101"
+      },
+      {
+        "fonte": "tse",
+        "kind": "site",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://manual-ii-tse.fab.example"
+      },
+      {
+        "fonte": "camara",
+        "kind": "email",
+        "pessoa": "fab-extras-dep-b",
+        "value": "dep.fab.b@camara.leg.br"
+      },
+      {
+        "fonte": "camara",
+        "kind": "site",
+        "pessoa": "fab-extras-dep-b",
+        "value": "https://manual-iii-camara.fab.example"
+      },
+      {
+        "fonte": "senado",
+        "kind": "email",
+        "pessoa": "fab-extras-sen-c",
+        "value": "sen.fab.c.novo@senado.leg.br"
+      },
+      {
+        "fonte": "senado",
+        "kind": "telefone",
+        "pessoa": "fab-extras-sen-c",
+        "value": "(61) 3303-5801"
+      }
+    ],
+    "speeches": [
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-05-06T17:30:00+00:00",
+        "person_id": "fab-extras-dep-a",
+        "source_key": "90101:2025-05-06T14:30:Pronunciamento",
+        "summary": "Pronunciamento: Sumário fabricado revisado",
+        "url": "https://fab.example/texto/1-revisado"
+      },
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-06-01T12:00:00+00:00",
+        "person_id": "fab-extras-dep-a",
+        "source_key": "90101:2025-06-01T09:00:Breve Comunicação",
+        "summary": "Breve Comunicação: Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Text",
+        "url": "https://fab.example/video/2"
+      },
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-07-01T13:00:00+00:00",
+        "person_id": "fab-extras-dep-b",
+        "source_key": "90102:2025-07-01T10:00:Breves Comunicações",
+        "summary": "Breves Comunicações",
+        "url": null
+      },
+      {
+        "body_id": "senado",
+        "occurred_at": "2025-06-10T03:00:00+00:00",
+        "person_id": "fab-extras-sen-c",
+        "source_key": "sf:9001",
+        "summary": "Discurso: Resumo fabricado revisado",
+        "url": "https://fab.example/senado/9001"
+      },
+      {
+        "body_id": "senado",
+        "occurred_at": "2025-06-11T03:00:00+00:00",
+        "person_id": "fab-extras-sen-c",
+        "source_key": "sf:9002",
+        "summary": "Pronunciamento",
+        "url": "https://www25.senado.leg.br/web/atividade/pronunciamentos/-/p/pronunciamento/9002"
+      }
+    ]
+  },
+  "rodada_3_entrada_identica": {
+    "committee_memberships": [
+      {
+        "committee_id": "2001",
+        "from_on": "2025-03-10",
+        "person_id": "fab-extras-dep-a",
+        "role": "Titular",
+        "to_on": "2025-12-31"
+      },
+      {
+        "committee_id": "2001",
+        "from_on": "2025-04-01",
+        "person_id": "fab-extras-dep-b",
+        "role": "Suplente",
+        "to_on": null
+      },
+      {
+        "committee_id": "2002",
+        "from_on": "2025-01-01",
+        "person_id": "fab-extras-dep-a",
+        "role": "Membro",
+        "to_on": "2025-12-31"
+      },
+      {
+        "committee_id": "3001",
+        "from_on": "2025-02-05",
+        "person_id": "fab-extras-sen-c",
+        "role": "Titular",
+        "to_on": "2025-10-01"
+      },
+      {
+        "committee_id": "3002",
+        "from_on": "2022-03-01",
+        "person_id": "fab-extras-sen-c",
+        "role": "Membro",
+        "to_on": "2024-12-31"
+      }
+    ],
+    "committees": [
+      {
+        "acronym": "CCJC",
+        "body_id": "camara_deputados",
+        "name": "Comissão de Constituição e Justiça (nome novo)",
+        "source_key": "2001"
+      },
+      {
+        "acronym": null,
+        "body_id": "camara_deputados",
+        "name": "Comissão Fabricada de Saúde",
+        "source_key": "2002"
+      },
+      {
+        "acronym": "CCT",
+        "body_id": "senado",
+        "name": "Comissão Fabricada de Ciência (nome novo)",
+        "source_key": "3001"
+      },
+      {
+        "acronym": null,
+        "body_id": "senado",
+        "name": "3002",
+        "source_key": "3002"
+      }
+    ],
+    "dataset_stamps": [
+      {
+        "dataset": "parlamento.extras",
+        "source_id": "camara",
+        "source_updated_at": null
+      }
+    ],
+    "ingest_runs": [
+      {
+        "dataset": "parlamento.extras",
+        "error": null,
+        "input_checksum": null,
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 24,
+        "source_id": "camara",
+        "status": "succeeded",
+        "traceback": null
+      },
+      {
+        "dataset": "parlamento.extras",
+        "error": null,
+        "input_checksum": null,
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 13,
+        "source_id": "camara",
+        "status": "succeeded",
+        "traceback": null
+      },
+      {
+        "dataset": "parlamento.extras",
+        "error": null,
+        "input_checksum": null,
+        "notes": null,
+        "raw_bytes": null,
+        "raw_expires_at": null,
+        "raw_purged_at": null,
+        "raw_uri": null,
+        "rows_deleted": null,
+        "rows_read": null,
+        "rows_rejected": 0,
+        "rows_upserted": 13,
+        "source_id": "camara",
+        "status": "succeeded",
+        "traceback": null
+      }
+    ],
+    "mandate_contacts": [
+      {
+        "fonte": "camara",
+        "kind": "email",
+        "pessoa": "fab-extras-dep-a",
+        "value": "dep.fab.a.novo@camara.leg.br"
+      },
+      {
+        "fonte": "camara",
+        "kind": "instagram",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://www.instagram.com/fabA"
+      },
+      {
+        "fonte": "camara",
+        "kind": "telefone",
+        "pessoa": "fab-extras-dep-a",
+        "value": "(61) 3215-5101"
+      },
+      {
+        "fonte": "tse",
+        "kind": "site",
+        "pessoa": "fab-extras-dep-a",
+        "value": "https://manual-ii-tse.fab.example"
+      },
+      {
+        "fonte": "camara",
+        "kind": "email",
+        "pessoa": "fab-extras-dep-b",
+        "value": "dep.fab.b@camara.leg.br"
+      },
+      {
+        "fonte": "camara",
+        "kind": "site",
+        "pessoa": "fab-extras-dep-b",
+        "value": "https://manual-iii-camara.fab.example"
+      },
+      {
+        "fonte": "senado",
+        "kind": "email",
+        "pessoa": "fab-extras-sen-c",
+        "value": "sen.fab.c.novo@senado.leg.br"
+      },
+      {
+        "fonte": "senado",
+        "kind": "telefone",
+        "pessoa": "fab-extras-sen-c",
+        "value": "(61) 3303-5801"
+      }
+    ],
+    "speeches": [
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-05-06T17:30:00+00:00",
+        "person_id": "fab-extras-dep-a",
+        "source_key": "90101:2025-05-06T14:30:Pronunciamento",
+        "summary": "Pronunciamento: Sumário fabricado revisado",
+        "url": "https://fab.example/texto/1-revisado"
+      },
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-06-01T12:00:00+00:00",
+        "person_id": "fab-extras-dep-a",
+        "source_key": "90101:2025-06-01T09:00:Breve Comunicação",
+        "summary": "Breve Comunicação: Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Texto fabricado de transcrição do discurso. Text",
+        "url": "https://fab.example/video/2"
+      },
+      {
+        "body_id": "camara_deputados",
+        "occurred_at": "2025-07-01T13:00:00+00:00",
+        "person_id": "fab-extras-dep-b",
+        "source_key": "90102:2025-07-01T10:00:Breves Comunicações",
+        "summary": "Breves Comunicações",
+        "url": null
+      },
+      {
+        "body_id": "senado",
+        "occurred_at": "2025-06-10T03:00:00+00:00",
+        "person_id": "fab-extras-sen-c",
+        "source_key": "sf:9001",
+        "summary": "Discurso: Resumo fabricado revisado",
+        "url": "https://fab.example/senado/9001"
+      },
+      {
+        "body_id": "senado",
+        "occurred_at": "2025-06-11T03:00:00+00:00",
+        "person_id": "fab-extras-sen-c",
+        "source_key": "sf:9002",
+        "summary": "Pronunciamento",
+        "url": "https://www25.senado.leg.br/web/atividade/pronunciamentos/-/p/pronunciamento/9002"
+      }
+    ]
+  },
+  "urls_rodada_1": [
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101/discursos?dataInicio=2025-01-01&dataFim=2026-11-15&itens=100&ordenarPor=dataHoraInicio&ordem=DESC",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101/orgaos?dataInicio=2025-01-01&itens=100",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101/orgaos?dataInicio=2025-01-01&itens=100&pagina=2",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102/discursos?dataInicio=2025-01-01&dataFim=2026-11-15&itens=100&ordenarPor=dataHoraInicio&ordem=DESC",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102/orgaos?dataInicio=2025-01-01&itens=100",
+    "https://legis.senado.leg.br/dadosabertos/senador/5801/comissoes.json",
+    "https://legis.senado.leg.br/dadosabertos/senador/5801/discursos.json?dataInicio=20250101&dataFim=20261115",
+    "https://legis.senado.leg.br/dadosabertos/senador/lista/atual.json"
+  ],
+  "urls_rodada_2": [
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101/discursos?dataInicio=2025-01-01&dataFim=2026-11-15&itens=100&ordenarPor=dataHoraInicio&ordem=DESC",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101/orgaos?dataInicio=2025-01-01&itens=100",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102/discursos?dataInicio=2025-01-01&dataFim=2026-11-15&itens=100&ordenarPor=dataHoraInicio&ordem=DESC",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102/orgaos?dataInicio=2025-01-01&itens=100",
+    "https://legis.senado.leg.br/dadosabertos/senador/5801/comissoes.json",
+    "https://legis.senado.leg.br/dadosabertos/senador/5801/discursos.json?dataInicio=20250101&dataFim=20261115",
+    "https://legis.senado.leg.br/dadosabertos/senador/lista/atual.json"
+  ],
+  "urls_rodada_3": [
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101/discursos?dataInicio=2025-01-01&dataFim=2026-11-15&itens=100&ordenarPor=dataHoraInicio&ordem=DESC",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90101/orgaos?dataInicio=2025-01-01&itens=100",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102/discursos?dataInicio=2025-01-01&dataFim=2026-11-15&itens=100&ordenarPor=dataHoraInicio&ordem=DESC",
+    "https://dadosabertos.camara.leg.br/api/v2/deputados/90102/orgaos?dataInicio=2025-01-01&itens=100",
+    "https://legis.senado.leg.br/dadosabertos/senador/5801/comissoes.json",
+    "https://legis.senado.leg.br/dadosabertos/senador/5801/discursos.json?dataInicio=20250101&dataFim=20261115",
+    "https://legis.senado.leg.br/dadosabertos/senador/lista/atual.json"
+  ]
+}

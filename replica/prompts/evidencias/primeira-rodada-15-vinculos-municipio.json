@@ -1,0 +1,153 @@
+{
+  "consulta": {
+    "classe": "vinculo_sapl",
+    "registro_chave": "20"
+  },
+  "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
+  "vinculos": [
+    {
+      "id": "0b7035f8-1923-4648-b3ac-61f79c27ecb8",
+      "classe": "vinculo_sapl",
+      "registro_chave": "20",
+      "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
+      "url": "https://www12.senado.leg.br/interlegis/orgaosatendidos?uf=RO&municipio=Munic%C3%ADpio%20Fabricado%20%28teste%29",
+      "url_sha": "1daed48350ffd9a36dccb050c06b6587316f9a5509697b301094b066c88e8fa2",
+      "fonte_slug": "sapl",
+      "origem": "registro_oficial",
+      "vigente": true,
+      "desde": "2026-11-17T19:09:05.052356+00:00",
+      "substitui_id": null,
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": {
+        "conteudo_sha256": "5d4482e291d4dab9f6a1a108588bd7516288b32dc2711034ca4de0360c66e669",
+        "lida_em": "2026-11-17T19:09:06.863319+00:00",
+        "fonte_declarada_em": null
+      },
+      "ultima_tentativa": {
+        "tentada_em": "2026-11-17T19:09:06.863319+00:00",
+        "resultado": "lida",
+        "motivo": null,
+        "http_status": 200
+      },
+      "desconhecidos": {}
+    },
+    {
+      "id": "1a79654b-303b-4dd7-912f-2e0aa7e4d65a",
+      "classe": "vinculo_sapl",
+      "registro_chave": "20",
+      "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
+      "url": "https://sapl.camara-fabricada-nova.invalid",
+      "url_sha": "348b1555ecf46fa32aec42728cf29eb6b8648765d6c4da50e41a077eb3052411",
+      "fonte_slug": "sapl",
+      "origem": "descoberta_automatica",
+      "vigente": true,
+      "desde": "2026-11-17T19:09:06.882436+00:00",
+      "substitui_id": "bcec50ee-2222-4ac2-b413-6253e6710529",
+      "substituido_por_id": null,
+      "substituido_em": null,
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    },
+    {
+      "id": "bcec50ee-2222-4ac2-b413-6253e6710529",
+      "classe": "vinculo_sapl",
+      "registro_chave": "20",
+      "rotulo": "Câmara Municipal de Município Fabricado (teste) · Município Fabricado (teste)/RO",
+      "url": "https://sapl.camara-fabricada.invalid",
+      "url_sha": "b129b0813397e24efabd173433fb189a6eb34fb9d4aed7d0ba3a711bc10984c5",
+      "fonte_slug": "sapl",
+      "origem": "descoberta_automatica",
+      "vigente": false,
+      "desde": "2026-11-17T19:09:05.052356+00:00",
+      "substitui_id": null,
+      "substituido_por_id": "1a79654b-303b-4dd7-912f-2e0aa7e4d65a",
+      "substituido_em": "2026-11-17T19:09:06.882436+00:00",
+      "evidencia": null,
+      "ultima_tentativa": null,
+      "desconhecidos": {
+        "evidencia": "nenhuma leitura bem-sucedida desta URL em adm_evidencias",
+        "ultima_tentativa": "nenhuma tentativa desta URL em adm_tentativas"
+      }
+    }
+  ],
+  "cadeias_de_troca": [
+    [
+      "0b7035f8-1923-4648-b3ac-61f79c27ecb8"
+    ],
+    [
+      "bcec50ee-2222-4ac2-b413-6253e6710529",
+      "1a79654b-303b-4dd7-912f-2e0aa7e4d65a"
+    ]
+  ],
+  "fontes": [
+    "sapl"
+  ],
+  "runs": {
+    "determinacao": "dataset",
+    "datasets": [
+      {
+        "dataset": "sapl.descoberta",
+        "observacao": "dataset compartilhado por todas as casas: o run da descoberta não registra quais casas leu",
+        "ultimo_carimbo_do_dataset": {
+          "refreshed_at": "2026-11-17T19:09:06.869737+00:00",
+          "last_run_id": "253de185-92ed-42a3-87c5-646074f8a557"
+        },
+        "ultimos_runs": [
+          {
+            "id": "253de185-92ed-42a3-87c5-646074f8a557",
+            "fonte": "sapl",
+            "iniciado_em": "2026-11-17T19:09:06.835380+00:00",
+            "finalizado_em": "2026-11-17T19:09:06.869737+00:00",
+            "status": "succeeded",
+            "linhas_lidas": null,
+            "linhas_gravadas": 1,
+            "linhas_rejeitadas": 0,
+            "linhas_apagadas": null,
+            "invocation": "admin:f36a4187-c002-4003-b013-2d22b42cbb2b"
+          },
+          {
+            "id": "39301dfa-c7b8-4c55-aa8f-9f6d04983b9c",
+            "fonte": "sapl",
+            "iniciado_em": "2026-11-17T19:09:05.000656+00:00",
+            "finalizado_em": "2026-11-17T19:09:05.039274+00:00",
+            "status": "succeeded",
+            "linhas_lidas": null,
+            "linhas_gravadas": 1,
+            "linhas_rejeitadas": 0,
+            "linhas_apagadas": null,
+            "invocation": "admin:f5d57bb2-2add-4fd9-b0c2-69e47fb851f6"
+          }
+        ]
+      },
+      {
+        "dataset": "sapl.1190099",
+        "observacao": null,
+        "ultimo_carimbo_do_dataset": {
+          "refreshed_at": "2026-11-17T19:09:11.907009+00:00",
+          "last_run_id": "156aa06b-a52e-4760-83b7-20b3965f3679"
+        },
+        "ultimos_runs": [
+          {
+            "id": "156aa06b-a52e-4760-83b7-20b3965f3679",
+            "fonte": "sapl",
+            "iniciado_em": "2026-11-17T19:09:11.875845+00:00",
+            "finalizado_em": "2026-11-17T19:09:11.907009+00:00",
+            "status": "succeeded",
+            "linhas_lidas": null,
+            "linhas_gravadas": 32,
+            "linhas_rejeitadas": 3,
+            "linhas_apagadas": null,
+            "invocation": "admin:ed89f869-66ad-42fb-8504-17dc96896305"
+          }
+        ]
+      }
+    ],
+    "run_exato": null,
+    "run_exato_motivo": "sapl_houses não tem run_id nem last_run_id: só o dataset é determinável, não o run que gravou este registro"
+  }
+}

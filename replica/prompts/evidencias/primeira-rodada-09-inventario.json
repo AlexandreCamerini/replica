@@ -1,0 +1,1459 @@
+[
+  {
+    "coletor": "camara.equipe",
+    "fonte": "camara",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.camara.leg.br/",
+    "datasets": {
+      "padroes": [
+        "camara.equipe"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "camara.equipe",
+    "tarefas": [
+      {
+        "nome": "camara.equipe",
+        "every_h": 168,
+        "retry_h": 24,
+        "timeout_h": 2,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 168,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "sapl.camaras",
+    "fonte": "sapl",
+    "fonte_origem": "seed",
+    "fonte_url": "https://www12.senado.leg.br/interlegis/produtos/sapl",
+    "datasets": {
+      "padroes": [
+        "sapl.descoberta",
+        "sapl.{ibge}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "sapl.todas",
+    "tarefas": [
+      {
+        "nome": "sapl.todas",
+        "every_h": 20,
+        "retry_h": 5,
+        "timeout_h": 3,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 20,
+    "prazo_frescor_site_h": 192,
+    "orquestradores": [
+      "launchd-mac:run-due-sapl-prod",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "camara.diario",
+    "fonte": "camara",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.camara.leg.br/",
+    "datasets": {
+      "padroes": [
+        "camara.deputados",
+        "camara.votacoes.{ano}",
+        "camara.proposicoes.{ano}",
+        "camara.despesas.{ano}",
+        "camara.despesasapi.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "camara.diario",
+    "tarefas": [
+      {
+        "nome": "camara.diario",
+        "every_h": 20,
+        "retry_h": 5,
+        "timeout_h": 4,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 20,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "camara.noturna",
+    "fonte": "camara",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.camara.leg.br/",
+    "datasets": {
+      "padroes": [
+        "camara.noturna.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "camara.noturna",
+    "tarefas": [
+      {
+        "nome": "camara.noturna",
+        "every_h": 24,
+        "retry_h": 1,
+        "timeout_h": 1,
+        "janela": "05:00-07:00 BRT (ter,qua,qui,sex,sáb)",
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 24,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "tse.candidatos",
+    "fonte": "tse",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.tse.jus.br/",
+    "datasets": {
+      "padroes": [
+        "tse.candidatos.{ano}",
+        "tse.votos.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "tse.candidatos.recentes",
+    "tarefas": [
+      {
+        "nome": "tse.candidatos.recentes",
+        "every_h": 168,
+        "retry_h": 24,
+        "timeout_h": 5,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 168,
+    "prazo_frescor_site_h": 1440,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "tse.candidatos",
+    "fonte": "tse-titulo",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.tse.jus.br/",
+    "datasets": {
+      "padroes": [
+        "tse.candidatos.{ano}",
+        "tse.votos.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "tse.candidatos.recentes",
+    "tarefas": [
+      {
+        "nome": "tse.candidatos.recentes",
+        "every_h": 168,
+        "retry_h": 24,
+        "timeout_h": 5,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 168,
+    "prazo_frescor_site_h": null,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "prazo_frescor_site_h": "sem prazo em MAX_AGE_H",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "tse.votos",
+    "fonte": "tse",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.tse.jus.br/",
+    "datasets": {
+      "padroes": [
+        "tse.votos.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "tse.votos",
+    "tarefas": [
+      {
+        "nome": "tse.votos",
+        "every_h": 720,
+        "retry_h": 24,
+        "timeout_h": 4,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 720,
+    "prazo_frescor_site_h": 1440,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "tse.contas",
+    "fonte": "tse",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.tse.jus.br/",
+    "datasets": {
+      "padroes": [
+        "tse.contas.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "tse.contas",
+    "tarefas": [
+      {
+        "nome": "tse.contas",
+        "every_h": 720,
+        "retry_h": 24,
+        "timeout_h": 4,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 720,
+    "prazo_frescor_site_h": 1440,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "sancoes.tcu",
+    "fonte": "tcu",
+    "fonte_origem": "seed",
+    "fonte_url": "https://sites.tcu.gov.br/dados-abertos/inidoneos-irregulares/",
+    "datasets": {
+      "padroes": [
+        "sancoes.tcu_inabilitados"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "sancoes.tcu",
+    "tarefas": [
+      {
+        "nome": "sancoes.tcu",
+        "every_h": 672,
+        "retry_h": 24,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 672,
+    "prazo_frescor_site_h": 840,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "sancoes.cgu",
+    "fonte": "cgu",
+    "fonte_origem": "migracao",
+    "fonte_url": "https://portaldatransparencia.gov.br/sancoes",
+    "datasets": {
+      "padroes": [
+        "cgu.ceis",
+        "cgu.cnep"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "sancoes.cgu",
+    "tarefas": [
+      {
+        "nome": "sancoes.cgu",
+        "every_h": 168,
+        "retry_h": 24,
+        "timeout_h": 2,
+        "janela": null,
+        "needs_env": "TRANSPARENCIA_API_KEY"
+      }
+    ],
+    "prazo_revalidacao_h": 168,
+    "prazo_frescor_site_h": 336,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "TRANSPARENCIA_API_KEY",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "aguardando_chave",
+    "estado_motivo": "TRANSPARENCIA_API_KEY ausente do ambiente e nenhum carimbo (o arquivo local de chave não é lido por este comando)",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "transparencia.emendas",
+    "fonte": "transparencia",
+    "fonte_origem": "migracao",
+    "fonte_url": "https://portaldatransparencia.gov.br/api-de-dados",
+    "datasets": {
+      "padroes": [
+        "transparencia.emendas.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "transparencia.emendas",
+    "tarefas": [
+      {
+        "nome": "transparencia.emendas",
+        "every_h": 168,
+        "retry_h": 24,
+        "timeout_h": 3,
+        "janela": null,
+        "needs_env": "TRANSPARENCIA_API_KEY"
+      }
+    ],
+    "prazo_revalidacao_h": 168,
+    "prazo_frescor_site_h": 336,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "TRANSPARENCIA_API_KEY",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "aguardando_chave",
+    "estado_motivo": "TRANSPARENCIA_API_KEY ausente do ambiente e nenhum carimbo (o arquivo local de chave não é lido por este comando)",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "ale.custom",
+    "fonte": "alesp",
+    "fonte_origem": "job",
+    "fonte_url": null,
+    "datasets": {
+      "padroes": [
+        "alesp.despesas.{ano}",
+        "alesp.proposicoes.{ano}",
+        "alemg.despesas.{ano}",
+        "alemg.proposicoes.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "ale.todas",
+    "tarefas": [
+      {
+        "nome": "ale.todas",
+        "every_h": 144,
+        "retry_h": 24,
+        "timeout_h": 4,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 144,
+    "prazo_frescor_site_h": 192,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte",
+      "fonte_url": "fonte ausente de sources"
+    }
+  },
+  {
+    "coletor": "ale.custom",
+    "fonte": "alemg",
+    "fonte_origem": "job",
+    "fonte_url": null,
+    "datasets": {
+      "padroes": [
+        "alesp.despesas.{ano}",
+        "alesp.proposicoes.{ano}",
+        "alemg.despesas.{ano}",
+        "alemg.proposicoes.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "ale.todas",
+    "tarefas": [
+      {
+        "nome": "ale.todas",
+        "every_h": 144,
+        "retry_h": 24,
+        "timeout_h": 4,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 144,
+    "prazo_frescor_site_h": 192,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte",
+      "fonte_url": "fonte ausente de sources"
+    }
+  },
+  {
+    "coletor": "sapl.assembleias",
+    "fonte": "sapl-ale",
+    "fonte_origem": "job",
+    "fonte_url": "https://www.interlegis.leg.br/produtos/sapl",
+    "datasets": {
+      "padroes": [
+        "sapl-ale.descoberta",
+        "sapl-ale.{uf}"
+      ],
+      "conhecidos_total": 5,
+      "conhecidos": [
+        {
+          "dataset": "sapl-ale.ac",
+          "runs": 1,
+          "carimbo_em": "2026-11-17T19:08:29.998159+00:00"
+        },
+        {
+          "dataset": "sapl-ale.am",
+          "runs": 1,
+          "carimbo_em": "2026-11-17T19:08:30.084700+00:00"
+        },
+        {
+          "dataset": "sapl-ale.descoberta",
+          "runs": 4,
+          "carimbo_em": "2026-11-17T19:08:50.968598+00:00"
+        },
+        {
+          "dataset": "sapl-ale.pb",
+          "runs": 1,
+          "carimbo_em": "2026-11-17T19:08:33.940447+00:00"
+        },
+        {
+          "dataset": "sapl-ale.ro",
+          "runs": 1,
+          "carimbo_em": "2026-11-17T19:08:30.159887+00:00"
+        }
+      ],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "sapl.ales",
+    "tarefas": [
+      {
+        "nome": "sapl.ales",
+        "every_h": 20,
+        "retry_h": 5,
+        "timeout_h": 2,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 20,
+    "prazo_frescor_site_h": 192,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": {
+      "id": "85f83607-8273-4a09-a430-b50f5a08b9df",
+      "dataset": "sapl-ale.descoberta",
+      "iniciado_em": "2026-11-17T19:08:50.909571+00:00",
+      "finalizado_em": "2026-11-17T19:08:50.968598+00:00",
+      "status": "succeeded",
+      "linhas_lidas": null,
+      "linhas_gravadas": 4,
+      "linhas_rejeitadas": 0,
+      "linhas_apagadas": null,
+      "invocation": "admin:ba780676-cd94-45c0-bfa0-eb7a65c465e3",
+      "erro": null,
+      "desconhecidos": {
+        "rows_read": "o job não informou",
+        "rows_deleted": "o job não informou"
+      }
+    },
+    "ultima_tentativa": null,
+    "carimbo_em": "2026-11-17T19:08:33.940447+00:00",
+    "idade_h": 0.01,
+    "dentro_do_prazo": true,
+    "estado": "em_dia",
+    "estado_motivo": "carimbo há 0 h, dentro do prazo de revalidação",
+    "desconhecidos": {
+      "ultima_tentativa": "a agenda nunca tentou"
+    }
+  },
+  {
+    "coletor": "senado.diario",
+    "fonte": "senado",
+    "fonte_origem": "seed",
+    "fonte_url": "https://www12.senado.leg.br/dados-abertos",
+    "datasets": {
+      "padroes": [
+        "senado.senadores",
+        "senado.votacoes.{ano}",
+        "senado.autorias",
+        "senado.despesas.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "senado.diario",
+    "tarefas": [
+      {
+        "nome": "senado.diario",
+        "every_h": 20,
+        "retry_h": 5,
+        "timeout_h": 3,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 20,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "senado.noturna",
+    "fonte": "senado",
+    "fonte_origem": "seed",
+    "fonte_url": "https://www12.senado.leg.br/dados-abertos",
+    "datasets": {
+      "padroes": [
+        "senado.noturna.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "senado.noturna",
+    "tarefas": [
+      {
+        "nome": "senado.noturna",
+        "every_h": 24,
+        "retry_h": 1,
+        "timeout_h": 1,
+        "janela": "00:30-02:00 BRT (ter,qua,qui,sex,sáb)",
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 24,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "senado.secretas",
+    "fonte": "senado",
+    "fonte_origem": "seed",
+    "fonte_url": "https://www12.senado.leg.br/dados-abertos",
+    "datasets": {
+      "padroes": [
+        "senado.secretas.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "senado.secretas",
+    "tarefas": [
+      {
+        "nome": "senado.secretas",
+        "every_h": 20,
+        "retry_h": 5,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 20,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "agenda.congresso",
+    "fonte": "camara",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.camara.leg.br/",
+    "datasets": {
+      "padroes": [
+        "agenda.camara.{YYYYMMDD}-{YYYYMMDD}",
+        "agenda.senado.{YYYYMM}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "agenda.congresso",
+    "tarefas": [
+      {
+        "nome": "agenda.congresso",
+        "every_h": 20,
+        "retry_h": 5,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 20,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "agenda.congresso",
+    "fonte": "senado",
+    "fonte_origem": "seed",
+    "fonte_url": "https://www12.senado.leg.br/dados-abertos",
+    "datasets": {
+      "padroes": [
+        "agenda.camara.{YYYYMMDD}-{YYYYMMDD}",
+        "agenda.senado.{YYYYMM}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "agenda.congresso",
+    "tarefas": [
+      {
+        "nome": "agenda.congresso",
+        "every_h": 20,
+        "retry_h": 5,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 20,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "pauta",
+    "fonte": "camara",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.camara.leg.br/",
+    "datasets": {
+      "padroes": [
+        "pauta.camara",
+        "pauta.senado"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": false,
+    "tarefa": null,
+    "tarefas": [],
+    "prazo_revalidacao_h": null,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl-pauta.yml:pauta",
+      "agendar-local.sh:pauta"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "sem_agenda",
+    "estado_motivo": "sem tarefa em schedule.TASKS; orquestrador: etl-pauta.yml:pauta, agendar-local.sh:pauta",
+    "desconhecidos": {
+      "carimbo_em": "sem tarefa: sem famílias de datasets",
+      "idade_h": "sem tarefa: sem famílias de datasets",
+      "dentro_do_prazo": "sem tarefa: sem famílias de datasets",
+      "ultima_tentativa": "sem tarefa: a agenda não registra",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "pauta",
+    "fonte": "senado",
+    "fonte_origem": "seed",
+    "fonte_url": "https://www12.senado.leg.br/dados-abertos",
+    "datasets": {
+      "padroes": [
+        "pauta.camara",
+        "pauta.senado"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": false,
+    "tarefa": null,
+    "tarefas": [],
+    "prazo_revalidacao_h": null,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl-pauta.yml:pauta",
+      "agendar-local.sh:pauta"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "sem_agenda",
+    "estado_motivo": "sem tarefa em schedule.TASKS; orquestrador: etl-pauta.yml:pauta, agendar-local.sh:pauta",
+    "desconhecidos": {
+      "carimbo_em": "sem tarefa: sem famílias de datasets",
+      "idade_h": "sem tarefa: sem famílias de datasets",
+      "dentro_do_prazo": "sem tarefa: sem famílias de datasets",
+      "ultima_tentativa": "sem tarefa: a agenda não registra",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "parlamento.extras",
+    "fonte": "camara",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.camara.leg.br/",
+    "datasets": {
+      "padroes": [
+        "parlamento.extras"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "parlamento.extras",
+    "tarefas": [
+      {
+        "nome": "parlamento.extras",
+        "every_h": 168,
+        "retry_h": 24,
+        "timeout_h": 2,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 168,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "parlamento.extras",
+    "fonte": "senado",
+    "fonte_origem": "seed",
+    "fonte_url": "https://www12.senado.leg.br/dados-abertos",
+    "datasets": {
+      "padroes": [
+        "parlamento.extras"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "parlamento.extras",
+    "tarefas": [
+      {
+        "nome": "parlamento.extras",
+        "every_h": 168,
+        "retry_h": 24,
+        "timeout_h": 2,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 168,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "camara.presenca",
+    "fonte": "camara",
+    "fonte_origem": "seed",
+    "fonte_url": "https://dadosabertos.camara.leg.br/",
+    "datasets": {
+      "padroes": [
+        "camara.presenca.{ano}"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "camara.presenca",
+    "tarefas": [
+      {
+        "nome": "camara.presenca",
+        "every_h": 20,
+        "retry_h": 5,
+        "timeout_h": 2,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 20,
+    "prazo_frescor_site_h": 36,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "ibge.places",
+    "fonte": "ibge",
+    "fonte_origem": "seed",
+    "fonte_url": "https://servicodados.ibge.gov.br/api/docs/localidades",
+    "datasets": {
+      "padroes": [
+        "ibge.places"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "ibge.places",
+    "tarefas": [
+      {
+        "nome": "ibge.places",
+        "every_h": 8760,
+        "retry_h": 24,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 8760,
+    "prazo_frescor_site_h": 9600,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "ibge.populacao",
+    "fonte": "ibge",
+    "fonte_origem": "seed",
+    "fonte_url": "https://servicodados.ibge.gov.br/api/docs/localidades",
+    "datasets": {
+      "padroes": [
+        "ibge.populacao"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "ibge.populacao",
+    "tarefas": [
+      {
+        "nome": "ibge.populacao",
+        "every_h": 8760,
+        "retry_h": 24,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 8760,
+    "prazo_frescor_site_h": 9600,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "ibge.malhas",
+    "fonte": "ibge",
+    "fonte_origem": "seed",
+    "fonte_url": "https://servicodados.ibge.gov.br/api/docs/localidades",
+    "datasets": {
+      "padroes": [
+        "ibge.malhas"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "ibge.malhas",
+    "tarefas": [
+      {
+        "nome": "ibge.malhas",
+        "every_h": 8760,
+        "retry_h": 24,
+        "timeout_h": 2,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 8760,
+    "prazo_frescor_site_h": 9600,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "governos.indicadores",
+    "fonte": "ibge-sidra",
+    "fonte_origem": "migracao",
+    "fonte_url": "https://sidra.ibge.gov.br/",
+    "datasets": {
+      "padroes": [
+        "governos.indicadores",
+        "governos.bcb"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "governos.indicadores",
+    "tarefas": [
+      {
+        "nome": "governos.indicadores",
+        "every_h": 1920,
+        "retry_h": 24,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 1920,
+    "prazo_frescor_site_h": 2880,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "governos.indicadores",
+    "fonte": "bcb-sgs",
+    "fonte_origem": "migracao",
+    "fonte_url": "https://www3.bcb.gov.br/sgspub/",
+    "datasets": {
+      "padroes": [
+        "governos.indicadores",
+        "governos.bcb"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "governos.indicadores",
+    "tarefas": [
+      {
+        "nome": "governos.indicadores",
+        "every_h": 1920,
+        "retry_h": 24,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 1920,
+    "prazo_frescor_site_h": 2880,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  },
+  {
+    "coletor": "receita.arrecadacao",
+    "fonte": "receita-federal",
+    "fonte_origem": "migracao",
+    "fonte_url": "https://www.gov.br/receitafederal/dados/arrecadacao-estado.csv",
+    "datasets": {
+      "padroes": [
+        "receita.arrecadacao"
+      ],
+      "conhecidos_total": 0,
+      "conhecidos": [],
+      "truncado": false
+    },
+    "tem_tarefa": true,
+    "tarefa": "receita.arrecadacao",
+    "tarefas": [
+      {
+        "nome": "receita.arrecadacao",
+        "every_h": 672,
+        "retry_h": 24,
+        "timeout_h": 1,
+        "janela": null,
+        "needs_env": null
+      }
+    ],
+    "prazo_revalidacao_h": 672,
+    "prazo_frescor_site_h": 1440,
+    "orquestradores": [
+      "etl.yml:run-due",
+      "launchd-local:run-due"
+    ],
+    "chave_de_api": "nenhuma",
+    "ultimo_run": null,
+    "ultima_tentativa": null,
+    "carimbo_em": null,
+    "idade_h": null,
+    "dentro_do_prazo": null,
+    "estado": "nunca_carregado",
+    "estado_motivo": "nenhum carimbo em dataset_stamps para as famílias da tarefa",
+    "desconhecidos": {
+      "carimbo_em": "nenhum carimbo",
+      "idade_h": "nenhum carimbo",
+      "dentro_do_prazo": "sem carimbo",
+      "ultima_tentativa": "a agenda nunca tentou",
+      "ultimo_run": "nenhum run nesta fonte"
+    }
+  }
+]

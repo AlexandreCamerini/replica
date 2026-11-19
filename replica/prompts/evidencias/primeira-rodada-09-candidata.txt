@@ -1,0 +1,36 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+SIMULADO: respostas fabricadas (cenário v1, v2); nenhum número abaixo foi lido da fonte
+
+escopo: todas as rodadas (5)
+campos com proposta         2
+diferenças                  1 de 2
+  pendentes                 1 de 1
+  conflitantes              0 de 1
+  decididas, não aplicadas  0 de 1
+  descartadas               0 de 1
+aplicadas                   1 de 2
+confirmados pela fonte      0 de 2
+pendências restantes        1 de 1
+
+diferenças em relação à base vigente:
+CLASSE        CHAVE  REGISTRO                                          CAMPO   VIGENTE          CANDIDATO                                         SITUAÇÃO  EVIDÊNCIA                                                                      DECISÃO
+------------  -----  ------------------------------------------------  ------  ---------------  ------------------------------------------------  --------  -----------------------------------------------------------------------------  -------
+vinculo_sapl  3      Assembleia Legislativa de Amazonas · Amazonas/AM  status  robots_bloqueia  robots_bloqueia (já é o vigente; na leitura: ok)  pendente  https://sapl.al.am.leg.br/robots.txt hash ab75d28a39d3 lida 2026-11-17 19:08Z  -
+
+1 diferenças em 2 campos com proposta
+
+aplicadas (valor antes da rodada -> valor fixado pela decisão; o candidato já é o vigente):
+CLASSE        CHAVE  REGISTRO                                        CAMPO   ANTES DA RODADA  FIXADO PELA DECISÃO  DECISÃO                                                                                                         EVIDÊNCIA
+------------  -----  ----------------------------------------------  ------  ---------------  -------------------  --------------------------------------------------------------------------------------------------------------  -----------------------------------------------------------------------
+vinculo_sapl  5      Assembleia Legislativa de Paraíba · Paraíba/PB  status  fora_do_ar       ok                   aprovar por Operador local em 2026-11-17 19:08Z: a /api/ da casa voltou a responder na leitura de 2026-11-17 …  https://sapl.al.pb.leg.br/api/ hash c7296d22537b lida 2026-11-17 19:08Z
+
+1 aplicadas
+
+pendências restantes (ordem da fila):
+#  CLASSE        TIPO     REGISTRO                            CAMPO   VENCE       COBERTURA  REABERTA  PERGUNTA
+-  ------------  -------  ----------------------------------  ------  ----------  ---------  --------  ----------------------------------
+1  vinculo_sapl  mudanca  Assembleia Legislativa de Amazona…  status  2026-11-24  60%        -         O status do SAPL desta casa mudou…
+
+1 pendências abertas (0 reabertas); ordem: classe, tipo, vencimento, cobertura do recorte, id

@@ -1,0 +1,15 @@
+SIMULADO. tabela|linhas|hash (md5 das linhas em JSON, sem checked_at, updated_at, created_at, checked_on)
+sapl_parlamentares|16|9f89ef2b54197e1de5b66494dfd42956
+sapl_mandatos|12|ff85bca30e0beb7b251acbb4d0b645b2
+sapl_materias|15|8879fd3633dc28652debd8b2a7f03f7d
+sapl_autorias|19|7131cf0bebd2d6120481500d8153a470
+sapl_sessoes|8|7704f4f9fb484a2b32264439624fb2d3
+sapl_presencas|20|aada076f5c97678004d83d815b8047d4
+sapl_votos|20|08ccfcaa814b8d17fe4b84ec4d9e1423
+sapl_cursors|16|3fa1ca0f2de2716e76c348f827d083ff
+sapl_houses|5|1fb2d888e3cea9a0898dc807df61d07b
+data_coverage|12|efd0cf578d619fa5d8f815ef15e26a26
+adm_vinculos|17|f25341d182f1b6e6cc5322d2d2e05db4
+adm_propostas|2|342d4c28f022b38b7516c660adb13791
+adm_pendencias|2|bc356bba0fe8307e62ef2ee1ca67f83b
+adm_pendencia_propostas|2|fc4db380b82672b19cbf632e8a87350a

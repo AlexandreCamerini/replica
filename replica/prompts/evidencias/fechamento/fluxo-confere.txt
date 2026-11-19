@@ -1,0 +1,11 @@
+inventário: 37 job, 6 workflow, 13 script, 13 lib/data, 17 route, 3 use server, 6 tool MCP, 109 tabela/view
+documento: 630 linhas, 573 caminhos distintos citados, 7 diagramas
+
+FALHA: 7 problema(s)
+  - workflow não citado: .github/workflows/verificacao-eval.yml
+  - lib/data não citado: web/src/lib/data/cadeiras.ts
+  - lib/data não citado: web/src/lib/data/cobertura.ts
+  - lib/data não citado: web/src/lib/data/lista.ts
+  - use server não citado: web/src/app/(sv)/ajustes/actions.ts
+  - caminho inexistente: web/src/app/mcp/page.tsx:22-37
+  - caminho inexistente: web/src/app/p/[slug]/opengraph-image.tsx:10-14

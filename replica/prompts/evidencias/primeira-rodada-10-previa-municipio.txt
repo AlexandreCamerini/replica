@@ -1,0 +1,21 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v1 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+coletor              sapl.camaras
+modo                 descobrir
+recorte              ibges=1190099
+comando              sapl.descobrir
+argv                 sapl.descobrir --ibge 1190099
+fontes               sapl
+datasets             sapl.descoberta, sapl.{ibge}
+registros elegíveis  1 (vinculo_sapl; municípios do recorte em places)
+URLs de entrada      1 firmes + 0 condicionais; lista incompleta: só as conhecidas sem leitura
+a consultar          1 (estimativa; base: fora do cache vai à rede; em cache depende do max_age de cada chamada (não registrado); entre 1 e 1)
+demais URLs          desconhecido: nenhuma rodada anterior deste recorte
+observação           a descoberta lê uma página do registro por município; {base_url}/api/ só aparece depois de ler o registro
+
+URL DE ENTRADA                      CONDIÇÃO  CACHE          IDADE (h)  HASH
+----------------------------------  --------  -------------  ---------  ----
+https://www12.senado.leg.br/inter…  firme     fora_do_cache  -          -
+
+1 URLs de entrada firmes de 1 listadas

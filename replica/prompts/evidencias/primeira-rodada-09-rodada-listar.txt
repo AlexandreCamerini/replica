@@ -1,0 +1,12 @@
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: respostas fabricadas de etl/tests/fixtures/sapl_ale/v2 (nenhuma requisição de rede)
+SIMULADO: 0 URLs pedidas, 0 não previstas
+RODADA                              COLETOR           MODO         STATUS     INICIADA           REPETE                              TENTATIVAS
+----------------------------------  ----------------  -----------  ---------  -----------------  ----------------------------------  ----------
+48e11e09-02ec-4c23-8436-b468855ed…  sapl.assembleias  reprocessar  falhou     2026-11-17 19:08Z  desconhecido                        0
+ba780676-cd94-45c0-bfa0-eb7a65c46…  sapl.assembleias  reprocessar  concluida  2026-11-17 19:08Z  desconhecido                        8
+29b55768-464e-4371-94a5-4d733d2c7…  sapl.assembleias  recoletar    concluida  2026-11-17 19:08Z  2c167770-e8dc-4129-8239-62a5bd254…  10
+2c167770-e8dc-4129-8239-62a5bd254…  sapl.assembleias  recoletar    concluida  2026-11-17 19:08Z  desconhecido                        33
+f2757252-1210-4443-b2d4-b95873637…  sapl.assembleias  recoletar    concluida  2026-11-17 19:08Z  desconhecido                        79
+
+5 rodadas

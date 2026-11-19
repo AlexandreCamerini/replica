@@ -1,0 +1,12 @@
+SIMULADO. município fabricado 1190099 no banco admin_coleta_r1
+ id | ibge_code |            name             |                  base_url                  | status 
+----+-----------+-----------------------------+--------------------------------------------+--------
+ 20 | 1190099   | Município Fabricado (teste) | https://sapl.camara-fabricada-nova.invalid | ok
+(1 linha)
+
+                  id                  |    classe    | registro_chave |  campo   |  tipo   | status 
+--------------------------------------+--------------+----------------+----------+---------+--------
+ e465077b-beb6-45c1-b6bc-3dd333bfb84c | vinculo_sapl | 20             | base_url | mudanca | aberta
+ 6a93474e-049a-402d-84d6-cf4f7e858db2 | vinculo_sapl | 3              | status   | mudanca | aberta
+(2 linhas)
+

@@ -1,0 +1,581 @@
+{
+  "simulado": "v2",
+  "rodada": {
+    "id": "2c167770-e8dc-4129-8239-62a5bd254b5d",
+    "coletor": "sapl.assembleias",
+    "modo": "recoletar",
+    "recorte": {
+      "ufs": [
+        "RO",
+        "AC",
+        "AM",
+        "PI",
+        "PB"
+      ],
+      "anos": [],
+      "modo": "recoletar",
+      "casas": [],
+      "ibges": [],
+      "extras": {}
+    },
+    "status": "concluida",
+    "iniciada_em": "2026-11-17T19:08:33.838143+00:00",
+    "finalizada_em": "2026-11-17T19:08:34.041902+00:00",
+    "repete_id": null
+  },
+  "coleta": {
+    "urls_tentadas": {
+      "valor": 33,
+      "de": 33,
+      "ids": [
+        {
+          "url_sha": "06a15704c1db4a25a9721eb1820c2dd2d55d73b69a8ed89d74a67a100af1fdf2",
+          "url": "https://sapl.al.pb.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+          "url": "https://sapl.al.pi.leg.br/api/"
+        },
+        {
+          "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+          "url": "https://sapl.al.am.leg.br/api/"
+        },
+        {
+          "url_sha": "22fefb48d6c060b714c3a93461121fc36f2d5826431e232a83420e16a236a114",
+          "url": "https://sapl.al.pb.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1"
+        },
+        {
+          "url_sha": "2812d4f1fbc26abdcbc64a2d09808059acfadc80aa34b1c0ee34522ef44e3d50",
+          "url": "https://sapl.al.pb.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1"
+        },
+        {
+          "url_sha": "2cddba312107a2fbf3902689eb108ab15764f815dd8541f1fa8f1394f70ea66e",
+          "url": "https://sapl.al.ac.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "30099ead70ccfa07b5133566cb06d4c66d57124a4c6d01200c9572c3b643d33e",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1"
+        },
+        {
+          "url_sha": "35007f546dd3007183017a625ebbcb1905da1396d93f2b7c90822ec5bee6cd3a",
+          "url": "https://sapl.al.pb.leg.br/api/parlamentares/legislatura/?page_size=100&page=1"
+        },
+        {
+          "url_sha": "37a0686e96e111146aa7fde62414a622baa2044644e5e9a864d90c24553777cc",
+          "url": "https://sapl.al.pi.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "3a5342d26a8541d437be5fb9a433fe3d0780e6bf52e6220fbcf61dbe1b81c2cf",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1"
+        },
+        {
+          "url_sha": "4597f65ca68ecd6e368b863ed233788385f71dac38129844e6ee84552d3a199d",
+          "url": "https://sapl.al.ac.leg.br/api/"
+        },
+        {
+          "url_sha": "51732ad40d0a784fe5faaf697be133f08729c4e7487588273d032291bfbb8e7a",
+          "url": "https://sapl.al.pb.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1"
+        },
+        {
+          "url_sha": "54e180e5762379298144d48c5454c351c06d8cd31d9ec06897cf5f9255d43c09",
+          "url": "https://sapl.al.pb.leg.br/api/base/autor/?page_size=100&page=1"
+        },
+        {
+          "url_sha": "552557fcd26108d65753c919c3778387a4915ccb41419f17466fa3cf3cbed231",
+          "url": "https://sapl.al.pb.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1"
+        },
+        {
+          "url_sha": "6db708dee088d45c07f4327faf5d5be7724dd0a6b99cb9a4e5e5fc1a23265b4e",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1"
+        },
+        {
+          "url_sha": "6e9c8347418010f75bba4986342a0bab534dd8721642fd9cc6ae9111dc539669",
+          "url": "https://sapl.al.am.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "6f72691368fe6e8a7b137b3176fa6d2bd313da08c5e61fefe7202d415f9b84fc",
+          "url": "https://sapl.al.pb.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1"
+        },
+        {
+          "url_sha": "7c117574e5ed4744b221515190ebb13a976c676400b93439af48f864602047a5",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1"
+        },
+        {
+          "url_sha": "85b61b75c937bd8b368d13f336f6b82d15d462bc04af79c36ce94b4ad4ee0fce",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1"
+        },
+        {
+          "url_sha": "8d30091fe1489781437f32b9a9271e78d165aee8aa10f9cba9e28bbc549c1dc8",
+          "url": "https://sapl.al.pb.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1"
+        },
+        {
+          "url_sha": "916b3447e26bb51fad5ca63913631f5719ed125ec58502b3fa0b2cca06975fab",
+          "url": "https://sapl.al.pb.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2"
+        },
+        {
+          "url_sha": "9338106984de772f89c0b73719e5f2faecbb0e21b97584fa64cd35d702609598",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1"
+        },
+        {
+          "url_sha": "a4a971dfc6d985bc63bf949287998a9795edaf9c6c8b711d1eeb6e1aa1ca54c7",
+          "url": "https://sapl.al.ro.leg.br/api/"
+        },
+        {
+          "url_sha": "a5abcbf51601e85771e278f8437957cbce4fa055dc828a39292deb169dd80cb1",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1"
+        },
+        {
+          "url_sha": "a7b8a9f5b658a3639a14c4c15dcb7ddc7c7e0a35386e3e33c07b3d6252bcb216",
+          "url": "https://sapl.al.ro.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "ad348ee068c630ba3e52375eba8d04e2bb3b9bc76601d871d890c9fee5acd215",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1"
+        },
+        {
+          "url_sha": "c0806987e451931173c464e31012bf6258225930691bbe6567663542d83e86e4",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1"
+        },
+        {
+          "url_sha": "c4a25eb64828e291fb498cf8a1a39949f178f7d3e1220a68eeffea134f0a834d",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1"
+        },
+        {
+          "url_sha": "eb04b006d666f1013aa45a73b678fd392dc174b74208770edccc33937ddc78f9",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1"
+        },
+        {
+          "url_sha": "eb7199e1056c05d7daa997d5440e4daa4e3795f3b65b0ea18c808497b115f7c5",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1"
+        },
+        {
+          "url_sha": "eff5471f4bb271546b95031299f98ef0e226192358b41d154f864ada7303e7bc",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1"
+        },
+        {
+          "url_sha": "f9072dec6127c5ca6a0acb6af4990d2722c5e3f97e9b089622bfaefb20a8183a",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1"
+        },
+        {
+          "url_sha": "feae39cf796dce5afafeb8d9fb3021b14fc4e9e4858edc448be25df2f444b705",
+          "url": "https://sapl.al.pb.leg.br/api/"
+        }
+      ]
+    },
+    "urls_lidas": {
+      "valor": 25,
+      "de": 33,
+      "ids": [
+        {
+          "url_sha": "22fefb48d6c060b714c3a93461121fc36f2d5826431e232a83420e16a236a114",
+          "url": "https://sapl.al.pb.leg.br/api/parlamentares/parlamentar/?page_size=100&page=1"
+        },
+        {
+          "url_sha": "2812d4f1fbc26abdcbc64a2d09808059acfadc80aa34b1c0ee34522ef44e3d50",
+          "url": "https://sapl.al.pb.leg.br/api/materia/tipomaterialegislativa/?page_size=100&page=1"
+        },
+        {
+          "url_sha": "30099ead70ccfa07b5133566cb06d4c66d57124a4c6d01200c9572c3b643d33e",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=2&ano=2025&page_size=100&page=1"
+        },
+        {
+          "url_sha": "35007f546dd3007183017a625ebbcb1905da1396d93f2b7c90822ec5bee6cd3a",
+          "url": "https://sapl.al.pb.leg.br/api/parlamentares/legislatura/?page_size=100&page=1"
+        },
+        {
+          "url_sha": "3a5342d26a8541d437be5fb9a433fe3d0780e6bf52e6220fbcf61dbe1b81c2cf",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=1&ano=2025&page_size=100&page=1"
+        },
+        {
+          "url_sha": "51732ad40d0a784fe5faaf697be133f08729c4e7487588273d032291bfbb8e7a",
+          "url": "https://sapl.al.pb.leg.br/api/contenttypes/contenttype/?model=parlamentar&page_size=100&page=1"
+        },
+        {
+          "url_sha": "54e180e5762379298144d48c5454c351c06d8cd31d9ec06897cf5f9255d43c09",
+          "url": "https://sapl.al.pb.leg.br/api/base/autor/?page_size=100&page=1"
+        },
+        {
+          "url_sha": "552557fcd26108d65753c919c3778387a4915ccb41419f17466fa3cf3cbed231",
+          "url": "https://sapl.al.pb.leg.br/api/materia/autoria/?o=-id&page_size=1&page=1"
+        },
+        {
+          "url_sha": "6db708dee088d45c07f4327faf5d5be7724dd0a6b99cb9a4e5e5fc1a23265b4e",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=1&ano=2026&page_size=100&page=1"
+        },
+        {
+          "url_sha": "6e9c8347418010f75bba4986342a0bab534dd8721642fd9cc6ae9111dc539669",
+          "url": "https://sapl.al.am.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "6f72691368fe6e8a7b137b3176fa6d2bd313da08c5e61fefe7202d415f9b84fc",
+          "url": "https://sapl.al.pb.leg.br/api/materia/autoria/?o=-id&page_size=100&page=1"
+        },
+        {
+          "url_sha": "7c117574e5ed4744b221515190ebb13a976c676400b93439af48f864602047a5",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=2&ano=2024&page_size=100&page=1"
+        },
+        {
+          "url_sha": "85b61b75c937bd8b368d13f336f6b82d15d462bc04af79c36ce94b4ad4ee0fce",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=1&page=1"
+        },
+        {
+          "url_sha": "8d30091fe1489781437f32b9a9271e78d165aee8aa10f9cba9e28bbc549c1dc8",
+          "url": "https://sapl.al.pb.leg.br/api/parlamentares/mandato/?legislatura=7&page_size=100&page=1"
+        },
+        {
+          "url_sha": "916b3447e26bb51fad5ca63913631f5719ed125ec58502b3fa0b2cca06975fab",
+          "url": "https://sapl.al.pb.leg.br/api/parlamentares/parlamentar/?page_size=100&page=2"
+        },
+        {
+          "url_sha": "9338106984de772f89c0b73719e5f2faecbb0e21b97584fa64cd35d702609598",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/sessaoplenaria/?legislatura=7&page_size=100&page=1"
+        },
+        {
+          "url_sha": "a5abcbf51601e85771e278f8437957cbce4fa055dc828a39292deb169dd80cb1",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=1&ano=2024&page_size=100&page=1"
+        },
+        {
+          "url_sha": "ad348ee068c630ba3e52375eba8d04e2bb3b9bc76601d871d890c9fee5acd215",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?o=-id&page_size=1&page=1"
+        },
+        {
+          "url_sha": "c0806987e451931173c464e31012bf6258225930691bbe6567663542d83e86e4",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=2&ano=2026&page_size=100&page=1"
+        },
+        {
+          "url_sha": "c4a25eb64828e291fb498cf8a1a39949f178f7d3e1220a68eeffea134f0a834d",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=1&ano=2023&page_size=100&page=1"
+        },
+        {
+          "url_sha": "eb04b006d666f1013aa45a73b678fd392dc174b74208770edccc33937ddc78f9",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/sessaoplenariapresenca/?o=-id&page_size=100&page=1"
+        },
+        {
+          "url_sha": "eb7199e1056c05d7daa997d5440e4daa4e3795f3b65b0ea18c808497b115f7c5",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=1&page=1"
+        },
+        {
+          "url_sha": "eff5471f4bb271546b95031299f98ef0e226192358b41d154f864ada7303e7bc",
+          "url": "https://sapl.al.pb.leg.br/api/sessao/votoparlamentar/?o=-id&page_size=100&page=1"
+        },
+        {
+          "url_sha": "f9072dec6127c5ca6a0acb6af4990d2722c5e3f97e9b089622bfaefb20a8183a",
+          "url": "https://sapl.al.pb.leg.br/api/materia/materialegislativa/?tipo=2&ano=2023&page_size=100&page=1"
+        },
+        {
+          "url_sha": "feae39cf796dce5afafeb8d9fb3021b14fc4e9e4858edc448be25df2f444b705",
+          "url": "https://sapl.al.pb.leg.br/api/"
+        }
+      ]
+    },
+    "urls_reaproveitadas": {
+      "valor": 6,
+      "de": 33,
+      "ids": [
+        {
+          "url_sha": "06a15704c1db4a25a9721eb1820c2dd2d55d73b69a8ed89d74a67a100af1fdf2",
+          "url": "https://sapl.al.pb.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "2cddba312107a2fbf3902689eb108ab15764f815dd8541f1fa8f1394f70ea66e",
+          "url": "https://sapl.al.ac.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "37a0686e96e111146aa7fde62414a622baa2044644e5e9a864d90c24553777cc",
+          "url": "https://sapl.al.pi.leg.br/robots.txt"
+        },
+        {
+          "url_sha": "4597f65ca68ecd6e368b863ed233788385f71dac38129844e6ee84552d3a199d",
+          "url": "https://sapl.al.ac.leg.br/api/"
+        },
+        {
+          "url_sha": "a4a971dfc6d985bc63bf949287998a9795edaf9c6c8b711d1eeb6e1aa1ca54c7",
+          "url": "https://sapl.al.ro.leg.br/api/"
+        },
+        {
+          "url_sha": "a7b8a9f5b658a3639a14c4c15dcb7ddc7c7e0a35386e3e33c07b3d6252bcb216",
+          "url": "https://sapl.al.ro.leg.br/robots.txt"
+        }
+      ]
+    },
+    "urls_com_falha": {
+      "valor": 2,
+      "de": 33,
+      "ids": [
+        {
+          "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+          "url": "https://sapl.al.pi.leg.br/api/"
+        },
+        {
+          "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+          "url": "https://sapl.al.am.leg.br/api/"
+        }
+      ],
+      "por_motivo": {
+        "bloqueio": {
+          "valor": 0,
+          "de": 2,
+          "ids": []
+        },
+        "robots": {
+          "valor": 2,
+          "de": 2,
+          "ids": [
+            {
+              "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+              "url": "https://sapl.al.pi.leg.br/api/"
+            },
+            {
+              "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+              "url": "https://sapl.al.am.leg.br/api/"
+            }
+          ]
+        },
+        "expiracao": {
+          "valor": 0,
+          "de": 2,
+          "ids": []
+        },
+        "erro": {
+          "valor": 0,
+          "de": 2,
+          "ids": []
+        },
+        "sem_conteudo": {
+          "valor": 0,
+          "de": 2,
+          "ids": []
+        }
+      }
+    },
+    "urls_entrada": {
+      "declaradas": {
+        "valor": 10,
+        "de": 10,
+        "ids": [
+          {
+            "url_sha": "06a15704c1db4a25a9721eb1820c2dd2d55d73b69a8ed89d74a67a100af1fdf2",
+            "url": "https://sapl.al.pb.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+            "url": "https://sapl.al.pi.leg.br/api/"
+          },
+          {
+            "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+            "url": "https://sapl.al.am.leg.br/api/"
+          },
+          {
+            "url_sha": "2cddba312107a2fbf3902689eb108ab15764f815dd8541f1fa8f1394f70ea66e",
+            "url": "https://sapl.al.ac.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "37a0686e96e111146aa7fde62414a622baa2044644e5e9a864d90c24553777cc",
+            "url": "https://sapl.al.pi.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "4597f65ca68ecd6e368b863ed233788385f71dac38129844e6ee84552d3a199d",
+            "url": "https://sapl.al.ac.leg.br/api/"
+          },
+          {
+            "url_sha": "6e9c8347418010f75bba4986342a0bab534dd8721642fd9cc6ae9111dc539669",
+            "url": "https://sapl.al.am.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "a4a971dfc6d985bc63bf949287998a9795edaf9c6c8b711d1eeb6e1aa1ca54c7",
+            "url": "https://sapl.al.ro.leg.br/api/"
+          },
+          {
+            "url_sha": "a7b8a9f5b658a3639a14c4c15dcb7ddc7c7e0a35386e3e33c07b3d6252bcb216",
+            "url": "https://sapl.al.ro.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "feae39cf796dce5afafeb8d9fb3021b14fc4e9e4858edc448be25df2f444b705",
+            "url": "https://sapl.al.pb.leg.br/api/"
+          }
+        ]
+      },
+      "tentadas": {
+        "valor": 10,
+        "de": 10,
+        "ids": [
+          {
+            "url_sha": "06a15704c1db4a25a9721eb1820c2dd2d55d73b69a8ed89d74a67a100af1fdf2",
+            "url": "https://sapl.al.pb.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "0f30782f16338ccf63af5a8e78180f277ea017b8d8a8ec35f61233b4481e9970",
+            "url": "https://sapl.al.pi.leg.br/api/"
+          },
+          {
+            "url_sha": "100017b236d38b1a57587b4adb9ca606f182bd6100a57a8ecb4945349321b6bc",
+            "url": "https://sapl.al.am.leg.br/api/"
+          },
+          {
+            "url_sha": "2cddba312107a2fbf3902689eb108ab15764f815dd8541f1fa8f1394f70ea66e",
+            "url": "https://sapl.al.ac.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "37a0686e96e111146aa7fde62414a622baa2044644e5e9a864d90c24553777cc",
+            "url": "https://sapl.al.pi.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "4597f65ca68ecd6e368b863ed233788385f71dac38129844e6ee84552d3a199d",
+            "url": "https://sapl.al.ac.leg.br/api/"
+          },
+          {
+            "url_sha": "6e9c8347418010f75bba4986342a0bab534dd8721642fd9cc6ae9111dc539669",
+            "url": "https://sapl.al.am.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "a4a971dfc6d985bc63bf949287998a9795edaf9c6c8b711d1eeb6e1aa1ca54c7",
+            "url": "https://sapl.al.ro.leg.br/api/"
+          },
+          {
+            "url_sha": "a7b8a9f5b658a3639a14c4c15dcb7ddc7c7e0a35386e3e33c07b3d6252bcb216",
+            "url": "https://sapl.al.ro.leg.br/robots.txt"
+          },
+          {
+            "url_sha": "feae39cf796dce5afafeb8d9fb3021b14fc4e9e4858edc448be25df2f444b705",
+            "url": "https://sapl.al.pb.leg.br/api/"
+          }
+        ]
+      },
+      "declaradas_nao_tentadas": {
+        "valor": 0,
+        "de": 10,
+        "ids": []
+      }
+    },
+    "registros_elegiveis": {
+      "valor": 5,
+      "de": 5,
+      "ids": [
+        "vinculo_sapl:1",
+        "vinculo_sapl:2",
+        "vinculo_sapl:3",
+        "vinculo_sapl:4",
+        "vinculo_sapl:5"
+      ]
+    },
+    "registros_alcancados": {
+      "valor": 3,
+      "de": 5,
+      "ids": [
+        "vinculo_sapl:1",
+        "vinculo_sapl:2",
+        "vinculo_sapl:5"
+      ]
+    },
+    "registros_elegiveis_nao_alcancados": {
+      "valor": 2,
+      "de": 5,
+      "ids": [
+        "vinculo_sapl:3",
+        "vinculo_sapl:4"
+      ],
+      "itens": [
+        {
+          "id": "vinculo_sapl:3",
+          "rotulo": "AM",
+          "situacao": "URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada",
+          "motivo_falha": "robots"
+        },
+        {
+          "id": "vinculo_sapl:4",
+          "rotulo": "PI",
+          "situacao": "URLs do registro tentadas na rodada, nenhuma lida nem reaproveitada",
+          "motivo_falha": "robots"
+        }
+      ]
+    }
+  },
+  "revisao": {
+    "campos_com_proposta": {
+      "valor": 2,
+      "de": 2,
+      "ids": [
+        "vinculo_sapl:3:status",
+        "vinculo_sapl:5:status"
+      ]
+    },
+    "conflitantes": {
+      "valor": 0,
+      "de": 2,
+      "ids": []
+    },
+    "pendentes": {
+      "valor": 2,
+      "de": 2,
+      "ids": [
+        "vinculo_sapl:3:status",
+        "vinculo_sapl:5:status"
+      ],
+      "sem_pendencia_aberta": {
+        "valor": 0,
+        "de": 2,
+        "ids": []
+      }
+    },
+    "confirmados": {
+      "valor": 0,
+      "de": 2,
+      "ids": [],
+      "pela_fonte": {
+        "valor": 0,
+        "de": 2,
+        "ids": []
+      },
+      "por_decisao": {
+        "valor": 0,
+        "de": 2,
+        "ids": []
+      }
+    },
+    "pendencias_reabertas": {
+      "valor": 0,
+      "de": 2,
+      "ids": [],
+      "por_motivo": {}
+    },
+    "registros_com_proposta": {
+      "valor": 2,
+      "de": 2,
+      "ids": [
+        "vinculo_sapl:3",
+        "vinculo_sapl:5"
+      ]
+    },
+    "registros_alterados": {
+      "valor": 0,
+      "de": 2,
+      "ids": []
+    },
+    "decisoes": {
+      "valor": 0,
+      "de": 2,
+      "ids": [],
+      "por_acao": {},
+      "por_decidido_por_tipo": {},
+      "aplicadas": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      },
+      "nao_aplicadas": {
+        "valor": 0,
+        "de": 0,
+        "ids": []
+      }
+    },
+    "pendencias_ligadas": {
+      "valor": 2,
+      "de": 2,
+      "ids": [
+        "6a93474e-049a-402d-84d6-cf4f7e858db2",
+        "8797b0b2-ff1a-4242-8f9f-707f8cf18a83"
+      ]
+    },
+    "mensagem": null
+  }
+}

@@ -32,6 +32,7 @@ O provedor `supabase` continua intacto: a volta do corte é trocar `AUTH_PROVIDE
    Se houver pooler (ver §4), o role dele entra por `--pooler-role <role>` no `railway-copy.sh` (CONNECT no database; nada mais).
 2. **Resend**: domínio do remetente verificado; chave com permissão só de envio. Vercel (Production): `RESEND_API_KEY`, `AUTH_EMAIL_FROM`. `AUTH_PROVIDER_ALVO=pg bash etl/deploy/config-producao.sh` guia isso (e pula os estágios do Supabase Auth). `SESSION_SECRET` já tem 64 hex (mínimo do `pg` é 32).
 3. **Turnstile continua em `account.ts`** (ver §8, ponto 1).
+   - A central de administração (`admin.segueovoto.com.br`, projeto Vercel próprio) não depende do Supabase nem deste corte para autenticar: tem login próprio em Postgres (D335, migração `0157`). Ela só é publicada depois do corte, com `ADMIN_DATABASE_URL` apontando para o `civico` do Railway; a `0150` a `0157` entram no Railway depois do corte, por `prod-migrate.sh`.
 4. **`0143` no Supabase antes do corte** (`bash etl/deploy/prod-migrate.sh`). Sem ela o script cria o schema `login` no destino a partir do arquivo, mas `schema_migrations` do dump diria "pendente" e o `diff` do `verify` mostraria o `login.*` só no destino.
 5. Cliente `railway` logado e ligado ao projeto (`railway login && railway link`). O script lê a URI com `railway variables --service "${RAILWAY_PG_SERVICE:-Postgres}" --kv` (`DATABASE_PUBLIC_URL`, senão `DATABASE_URL`), sem imprimir. A URI é de superusuário do cluster: o bootstrap precisa disso (cria extensões, troca o dono do database).
 

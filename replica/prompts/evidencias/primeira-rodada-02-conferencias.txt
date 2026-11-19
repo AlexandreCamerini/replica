@@ -1,0 +1,3 @@
+SIMULADO: conferências do passo 02-previa (respostas fabricadas)
+  [ok] a prévia lista 10 URLs de entrada firmes (robots.txt e /api/ das cinco casas), nenhuma em cache
+  [ok] a prévia não pediu nenhuma URL ao transporte (sem rede)

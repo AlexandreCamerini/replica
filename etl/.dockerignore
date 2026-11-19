@@ -1,0 +1,25 @@
+# fora da imagem: segredo, cache, saída de execução, testes e ambientes locais
+.env
+.env.*
+**/.env
+**/.env.*
+.cache
+.raw
+admin-rodadas
+.agenda-logs
+.venv
+**/.venv
+venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.claude
+tests
+evals
+deploy
+agenda
+Dockerfile
+.dockerignore
+*.md

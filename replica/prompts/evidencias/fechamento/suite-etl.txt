@@ -1,0 +1,35 @@
+SKIPPED [1] tests/test_agenda.py:57: agenda não carregada
+SKIPPED [1] tests/test_assembleias.py:51: ale.sp ainda não rodou
+SKIPPED [1] tests/test_contas_origem.py:119: sem candidatura com receita no banco
+SKIPPED [1] tests/test_contas_origem.py:143: sem candidatura no banco
+SKIPPED [1] tests/test_cota.py:60: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_cota.py:107: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_governadores.py:32: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_governadores.py:37: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_governadores.py:46: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_identity_bug032.py:63: roberto-cidade não está neste banco
+SKIPPED [1] tests/test_identity_bug033.py:61: crachás do BUG-033 não estão neste banco
+SKIPPED [1] tests/test_identity_bug033.py:79: crachás do BUG-033 não estão neste banco
+SKIPPED [1] tests/test_identity_bug033.py:92: atila não está neste banco
+SKIPPED [1] tests/test_identity_bug035.py:56: alcir-costa não está neste banco
+SKIPPED [1] tests/test_identity_bug035.py:73: exemplos do BUG-036 não estão neste banco
+SKIPPED [1] tests/test_identity_bug035.py:87: as duas candidaturas do SQ 160000001663 não estão neste banco
+SKIPPED [1] tests/test_identity_bug038.py:41: pessoas do BUG-038 não estão neste banco: {'repolhinho', 'antonios-coiffeur'}
+SKIPPED [1] tests/test_identity_bug038.py:41: pessoas do BUG-038 não estão neste banco: {'repolhinho', 'divino-pa', 'cida-da-saude-rn', 'ze-galinha', 'malufao'}
+SKIPPED [1] tests/test_identity_bug038.py:41: pessoas do BUG-038 não estão neste banco: {'repolhinho'}
+SKIPPED [1] tests/test_identity_bug038.py:41: pessoas do BUG-038 não estão neste banco: {'divino-pa'}
+SKIPPED [1] tests/test_identity_bug041.py:49: pessoas do BUG-041/042 não estão neste banco: {'willya-do-rampa'}
+SKIPPED [1] tests/test_identity_bug041.py:49: pessoas do BUG-041/042 não estão neste banco: {'mano-sc', 'eloisa-cardoso'}
+SKIPPED [1] tests/test_identity_bug041.py:49: pessoas do BUG-041/042 não estão neste banco: {'peixe-sc', 'veter-martins', 'willya-do-rampa', 'eloisa-cardoso'}
+SKIPPED [1] tests/test_identity_bug041.py:49: pessoas do BUG-041/042 não estão neste banco: {'willya-do-rampa', 'veter-martins'}
+SKIPPED [1] tests/test_identity_repairs.py:196: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_identity_repairs.py:210: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_identity_repairs.py:225: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_launchd_sapl_prod.py:148: usa o Keychain real com serviço de teste: CIVICO_TEST_KEYCHAIN=1 no macOS
+SKIPPED [1] tests/test_partido_desempate.py:15: banco sem carga: regressão sobre dado real
+SKIPPED [1] tests/test_salaries.py:53: Adriana Ventura não está no banco
+SKIPPED [1] tests/test_senado_secretas.py:34: sem /votacao em cache
+SKIPPED [1] tests/test_tse_bug019.py:95: sem votos de presidente 2022 no banco
+SKIPPED [1] tests/test_upsert_condicional.py:89: banco sem carga
+1374 passed, 33 skipped, 4 xfailed in 521.70s (0:08:41)
+exit=0

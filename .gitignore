@@ -17,6 +17,7 @@ replica/screens/
 .local/
 etl/.cache/
 etl/.raw/
+etl/admin-rodadas/
 etl/.agenda-logs/
 .venv/
 
@@ -33,3 +34,6 @@ replica/diffs/*.png
 web/.next-e2e-*/
 web/test-results-*/
 etl/.state/
+web/.next-admin/
+web/.next-admin-prod/
+web/.next-admin-local/

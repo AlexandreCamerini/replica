@@ -1,0 +1,4 @@
+SIMULADO: conferências do passo 13-passo8-parecer (respostas fabricadas)
+  POST parecer: id 6c671dc8-46da-4227-bc18-52fc6033b374
+  [ok] o parecer da central foi gravado com simulado = true (conferido pelo fluxo) e todo parecer do banco é simulado
+  [ok] nenhum parecer real: todos simulado = true
