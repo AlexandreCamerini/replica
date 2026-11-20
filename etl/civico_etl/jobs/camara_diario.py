@@ -278,8 +278,24 @@ def mandato_da_camara(*, titular_na_fonte: bool, em_exercicio: bool, data: date 
     return "gravar", "titular" if titular else "suplente_em_exercicio", started
 
 
+def unicos_por_id(itens: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Um item por id da Câmara, na ordem da primeira aparição.
+
+    Desde 15/11/2026 a listagem `/deputados?idLegislatura=` repete o deputado que trocou de partido, uma linha por sigla, com o mesmo id
+    (196 de 648 na legislatura 57). O job lê o detalhe de cada id (`ultimoStatus`), então a repetição não traz dado novo; sem esta
+    deduplicação, a segunda ocorrência caía na trava de "segundo id da Câmara para a mesma pessoa" e fechava o run como parcial todo dia."""
+    vistos: set[str] = set()
+    out = []
+    for d in itens:
+        k = str(d["id"])
+        if k not in vistos:
+            vistos.add(k)
+            out.append(d)
+    return out
+
+
 def _deputies(conn: psycopg.Connection, ctx: _Ctx, leg: int, limit: int | None, force: bool) -> None:
-    listing = list(paginate_camara(f"{API}/deputados?idLegislatura={leg}&itens=100&ordem=ASC&ordenarPor=nome"))
+    listing = unicos_por_id(list(paginate_camara(f"{API}/deputados?idLegislatura={leg}&itens=100&ordem=ASC&ordenarPor=nome")))
     if limit:
         listing = listing[:limit]
     checksum = f"{leg}:{len(listing)}:{limit}:" + ",".join(str(d["id"]) for d in listing)
