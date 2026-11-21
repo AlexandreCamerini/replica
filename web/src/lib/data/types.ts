@@ -418,6 +418,25 @@ export type ProposalFilter = { year?: number; topic?: string; type?: "lei" | "pe
 export type VoteFilter = { year?: number; topic?: string; value?: VoteValue; q?: string; scope?: VoteScope; cursor?: string; limit?: number };
 export type ExpenseFilter = { year?: number; category?: string; cursor?: string; limit?: number };
 
+/**
+ * Gasto da cota/verba dentro de uma janela de datas (visão consolidada do mandato). Só soma o que a fonte publica:
+ * estorno negativo entra como a fonte o publica. `primeiraNotaEm`/`ultimaNotaEm` são do conjunto inteiro da pessoa, não da janela:
+ * dizem desde quando há dado carregado (a janela do mandato é limitada por isso, ver lib/mandato-visao.ts).
+ */
+export type MandateSpend = {
+  /** primeira nota da pessoa na fonte (ISO), qualquer data; null = nenhuma nota carregada */
+  primeiraNotaEm: string | null;
+  ultimaNotaEm: string | null;
+  /** soma das notas dentro da janela; 0 notas = sem dado, nunca R$ 0 */
+  notas: number;
+  totalCents: number;
+  /** categoria como a fonte escreve; ordem A–Z */
+  porCategoria: { label: string; cents: number; notas: number }[];
+  /** mês "AAAA-MM" em que há ao menos uma nota; cronológico */
+  porMes: { mes: string; cents: number; notas: number }[];
+};
+export type MandateSpendFilter = { from: string; to?: string | null };
+
 export type Agreement = { a: string; b: string; same: number; total: number };
 /** Uma votação em que as duas pessoas registraram votos diferentes (comparar, W1 item 8). */
 export type Disagreement = { event: VotingEvent & { proposalLabel: string | null }; a: VoteValue; b: VoteValue };
@@ -609,7 +628,7 @@ export interface DataSource extends DataSourceW4 {
   /** Equipe do gabinete, A–Z por nome. */
   listStaff(personId: string): Promise<StaffMember[]>;
   /** null = cargo sem valor pago publicado (teto ou nada). */
-  getSalaryAccrued(personId: string, year?: number): Promise<SalaryAccrued | null>;
+  getSalaryAccrued(personId: string, year?: number, since?: string): Promise<SalaryAccrued | null>;
   /** Presença por mês num ano (sessões deliberativas da Câmara; fora do exercício não conta). Só meses com sessão. */
   getPresenceByMonth(personId: string, year: number): Promise<{ month: number; present: number; total: number }[]>;
   /** U08: uma entrada por sessão deliberativa do ano, em ordem de data. total = presentes + ausentes + justificadas (fora do exercício não entra). */
@@ -618,6 +637,8 @@ export interface DataSource extends DataSourceW4 {
   /** `hidden` = votos nominais que o `scope: "lei"` escondeu (0 quando scope é "tudo" ou ausente). */
   listVotes(personId: string, f: VoteFilter): Promise<Page<PersonVote> & { hidden: number }>;
   listExpenses(personId: string, f: ExpenseFilter): Promise<Page<Expense> & { byCategory: { label: string; cents: number }[] }>;
+  /** Gasto por categoria e por mês numa janela (visão do mandato). Uma ida ao banco, agregada: não cresce com o número de notas. */
+  getMandateSpend(personId: string, f: MandateSpendFilter): Promise<MandateSpend>;
   getAgreement(personIds: string[], period: "career" | number): Promise<Agreement[]>;
   /** Votações em que a e b votaram diferente (sim/não/abstenção/obstrução), mais recentes primeiro; topics = temas com divergência e quantas. */
   listDisagreements(a: string, b: string, f: { year?: number; topic?: string; limit?: number }): Promise<Page<Disagreement> & { topics: { slug: string; count: number }[] }>;
@@ -636,7 +657,7 @@ export interface DataSource extends DataSourceW4 {
   /** Próximas sessões do Plenário (a partir de hoje, horário de Brasília) e a pauta. `casa` senado inclui o Congresso Nacional. */
   getAgenda(f: { body: Body; limit?: number }): Promise<AgendaView>;
   getCommittees(personId: string): Promise<CommitteeItem[]>;
-  listSpeeches(personId: string, f: { year?: number; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
+  listSpeeches(personId: string, f: { year?: number; since?: string; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
   getContacts(personId: string): Promise<ContactItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
   /**
