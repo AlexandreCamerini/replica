@@ -6,6 +6,7 @@ import { lidoEm } from "@/components/sv/carimbo";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { BODY_NAME, clip, fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
 import { FalhaDeLeitura } from "@/components/sv/falha-leitura";
+import { MapaVotos } from "@/components/sv/mapa-votos";
 import { placarDe } from "@/components/sv/placar";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Placar, Proxima, Quadro, Resposta, Selo, VotoMarca } from "@/components/sv/ui";
@@ -183,6 +184,8 @@ export default async function Votacao({ params, searchParams }: { params: Promis
         ) : (
           <>
             {!uf && <Resposta tamanho="m">Escolha um estado para ver o voto de cada pessoa, em ordem alfabética.</Resposta>}
+            {/* mapa (servidor, só leitura visual): acima da lista de estados, que é a rota de toque e de teclado. Lacuna não chega aqui. */}
+            {ev.porUf.kind === "placar" && <MapaVotos placar={ev.porUf.ufs} ufSelecionada={uf} />}
             <nav className="sv-ufs" aria-label="Estado">
               {ufs.map((u) => (
                 <Link key={u} href={`/votacao/${ev.id}?uf=${u}`} aria-current={u === uf ? "page" : undefined}>
