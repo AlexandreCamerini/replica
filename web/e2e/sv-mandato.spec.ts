@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 // Escrito para rodar fora do sandbox (Playwright não roda lá).
 
 const FEDERAL = "helena-siqueira"; // senadora: tem gasto na demo
-const VEREADOR = "alvaro-coutinho-sp"; // sem cota de gabinete de casa legislativa federal: só lacuna com motivo
+const VEREADOR = "alvaro-coutinho-sp"; // vereador: cota municipal não lida, só lacuna com motivo
 const PROIBIDO = /\b(ranking|média|na média|acima da média|abaixo da média|mais gastou|menos gastou|maior gasto|menor gasto|beneficia|polêmic|total do mandato)/i;
 
 test.describe("painel do mandato na Pessoa", () => {
@@ -25,10 +25,11 @@ test.describe("painel do mandato na Pessoa", () => {
     await page.goto(`/pessoa/${FEDERAL}`);
     const texto = await page.getByTestId("painel-mandato").innerText();
     expect(texto).not.toMatch(PROIBIDO);
-    const fez = await page.getByTestId("bloco-fez").innerText();
-    // cada linha com valor traz "desde AAAA"
-    for (const linha of fez.split("\n").filter((l) => /\d/.test(l) && /(voto|proposta|comiss|discurso|sess)/i.test(l))) {
-      expect(linha + fez).toMatch(/desde \d{4}/);
+    // cada linha (dt/dd) do bloco que traz número carrega o próprio "desde"/"a partir de"
+    const linhas = page.getByTestId("bloco-fez").locator(".sv-pm__r");
+    for (const l of await linhas.all()) {
+      const t = await l.innerText();
+      if (/\d/.test(t) && !/sem dado/.test(t)) expect(t).toMatch(/(desde|a partir de) (\d{4}|\d{2}\/\d{4})/);
     }
   });
 
@@ -37,7 +38,7 @@ test.describe("painel do mandato na Pessoa", () => {
     const painel = page.getByTestId("painel-mandato");
     await expect(painel.getByTestId("bloco-fora")).toBeVisible();
     const fez = await painel.getByTestId("bloco-fez").innerText();
-    expect(fez).not.toMatch(/^\s*0\s|\b0 (votos|propostas|discursos|comiss)/i);
+    expect(fez).not.toMatch(/(^|\n)\s*0\s*(\n|$)|\b0 (votos|propostas|discursos|comiss)/i);
     const custo = await painel.getByTestId("bloco-custo").innerText();
     expect(custo).not.toMatch(/R\$\s*0,00/);
   });
@@ -49,8 +50,9 @@ test.describe("painel do mandato na Pessoa", () => {
     if (/de salário e cota/.test(t)) {
       await expect(custo.getByText(/Soma do que está carregado/)).toBeVisible();
       expect(t).toMatch(/desde \d{4}/);
+      await expect(custo.getByText(/A soma cobre de \d{2}\/\d{4} a \d{2}\/\d{4}/)).toBeVisible();
     } else {
-      await expect(custo.getByText(/Não somamos: falta/)).toBeVisible();
+      await expect(custo.getByText(/Não somamos: faltam?/)).toBeVisible();
     }
   });
 });

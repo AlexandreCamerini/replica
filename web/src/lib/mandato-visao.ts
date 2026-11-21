@@ -133,7 +133,7 @@ const mm = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
  * Salário + cota. Só soma quando as DUAS existem, e diz o que ficou de fora: os meses sem valor de salário carregado e os
  * meses do intervalo sem nota de cota. Uma parte só nunca vira "total": aparece sozinha, a outra como lacuna.
  */
-export function custoMandato(e: { salario: SalaryAccrued | null; cotaCents: number | null; mesesSemNotaCota: number }): CustoMandato {
+export function custoMandato(e: { salario: SalaryAccrued | null; cotaCents: number | null; mesesSemNotaCota: number; /** primeiro e último mês (AAAA-MM) com nota de cota: o intervalo que salário e cota compartilham */ intervalo?: { de: string; ate: string } | null }): CustoMandato {
   const { salario } = e;
   const fora: string[] = [];
   if (salario && salario.coveredMonths < salario.months) {
@@ -142,6 +142,9 @@ export function custoMandato(e: { salario: SalaryAccrued | null; cotaCents: numb
   }
   if (e.cotaCents !== null && e.mesesSemNotaCota > 0) {
     fora.push(`${e.mesesSemNotaCota} ${plural(e.mesesSemNotaCota, "mês", "meses")} sem nota de cota na fonte, entre o primeiro e o último com nota.`);
+  }
+  if (salario && e.cotaCents !== null && e.intervalo) {
+    fora.push(`A soma cobre de ${mm(`${e.intervalo.de}-01`)} a ${mm(`${e.intervalo.ate}-01`)}, do primeiro ao último mês com nota de cota. Salário e cota fora desse intervalo não entram.`);
   }
   if (salario && e.cotaCents !== null) return { estado: "soma", totalCents: salario.cents + e.cotaCents, salarioCents: salario.cents, cotaCents: e.cotaCents, fora };
   const faltam: ("salário" | "cota")[] = [];

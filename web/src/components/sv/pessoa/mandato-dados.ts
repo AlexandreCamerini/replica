@@ -72,21 +72,24 @@ export async function carregarMandato(ctx: ContextoPessoa): Promise<DadosMandato
   // 1) gasto: a janela depende da primeira nota carregada, que vem na mesma leitura
   const gastoR = await ler(data.getMandateSpend(id, { from: main.startedOn, to: fimMandato }));
   const janela = janelaMandato({ inicio: main.startedOn, fim: fimMandato, primeiraNotaEm: gastoR.ok ? gastoR.v.primeiraNotaEm : null, hojeIso });
-  const anoMax = hoje.ano;
+  // a soma de salário e cota cobre o MESMO intervalo: do primeiro ao último mês com nota de cota na janela
+  const vm = gastoR.ok && janela ? vmGastoMandato(gastoR.v, janela) : null;
+  const mesIni = vm?.meses[0]?.mes ?? null;
+  const mesFim = vm?.meses[vm.meses.length - 1]?.mes ?? null;
+  const anoMax = janela?.fim ? Number(janela.fim.slice(0, 4)) : hoje.ano;
 
   // 2) o resto, já com a janela
   const [salarioR, anualR, comissoesR, discursosR, salarioFontesR, sGastos, sExtras] = await Promise.all([
-    janela ? ler(data.getSalaryAccrued(id, undefined, janela.inicio)) : Promise.resolve({ ok: true as const, v: null }),
+    janela && mesIni && mesFim ? ler(data.getSalaryAccrued(id, undefined, `${mesIni}-01`, `${mesFim}-01`)) : Promise.resolve({ ok: true as const, v: null }),
     ler(data.getYearlyStats(id)),
     ler(data.getCommittees(id)),
-    janela ? ler(data.listSpeeches(id, { since: janela.inicio, limit: 1 })) : Promise.resolve({ ok: true as const, v: null }),
+    janela ? ler(data.listSpeeches(id, { since: janela.inicio, until: janela.fim ?? undefined, limit: 1 })) : Promise.resolve({ ok: true as const, v: null }),
     ler(data.getSalarySources(main.office)),
     ctx.stampDe(body ? `${body}.despesas` : null),
     ctx.stampDe("parlamento.extras"),
   ]);
 
   // ---------- gasto (cota) ----------
-  const vm = gastoR.ok && janela ? vmGastoMandato(gastoR.v, janela) : null;
   const fonteGasto = ctx.fonteConjunto("gastos", rotulo, sGastos, !!vm);
   const lacGasto = vm ? null : !gastoR.ok ? FALHOU : lacunaCobertura(ctx.cob("gastos"), `nota de gasto desde ${main.startedOn.slice(0, 4)}`, null, body === "senado" ? "O Senado tem verba própria, com outra fonte." : null);
 
@@ -98,9 +101,9 @@ export async function carregarMandato(ctx: ContextoPessoa): Promise<DadosMandato
     fontesSal.length > 0
       ? `Fonte: ${listaE(fontesSal.map((s) => s.name))}, ${cargaSal ? `carga registrada em ${fmtDate(cargaSal)}` : "data da carga não registrada"}.`
       : "Fonte: norma do subsídio do cargo, ainda não carregada.";
-  const lacSalario = sal ? null : !salarioR.ok ? FALHOU : lacunaSem(null, "Sem valor de subsídio carregado para este cargo neste período.");
+  const lacSalario = sal ? null : !salarioR.ok ? FALHOU : lacunaSem(null, mesIni ? "Sem valor de subsídio carregado para este cargo neste período." : "Sem nota de cota no período, a soma não tem intervalo de referência.");
 
-  const custo = janela ? custoMandato({ salario: sal, cotaCents: vm ? vm.totalCents : null, mesesSemNotaCota: vm?.mesesSemNota ?? 0 }) : null;
+  const custo = janela ? custoMandato({ salario: sal, cotaCents: vm ? vm.totalCents : null, mesesSemNotaCota: vm?.mesesSemNota ?? 0, intervalo: mesIni && mesFim ? { de: mesIni, ate: mesFim } : null }) : null;
 
   // ---------- o que fez ----------
   const anual: readonly YearStats[] = anualR.ok ? anualR.v : [];
@@ -144,7 +147,7 @@ export async function carregarMandato(ctx: ContextoPessoa): Promise<DadosMandato
   const fonteCom = ctx.fonteConjunto("comissoes", "comissões", sExtras, comJanela.length > 0);
   const comissoes: ItemMandato =
     comJanela.length > 0
-      ? { texto: nomesCom.length === 1 ? "1 comissão" : `${fmtInt(nomesCom.length)} comissões`, periodo: janela ? `na janela do mandato, ${frasePeriodo(janela.desdeAno, janela)}` : null, lacuna: null, fonte: fonteCom, lista: nomesCom }
+      ? { texto: nomesCom.length === 1 ? "1 comissão" : `${fmtInt(nomesCom.length)} comissões`, periodo: janela ? `participações que tocam o período a partir de ${janela.inicio.slice(5, 7)}/${janela.inicio.slice(0, 4)}` : null, lacuna: null, fonte: fonteCom, lista: nomesCom }
       : !comissoesR.ok
         ? { texto: null, periodo: null, lacuna: FALHOU, fonte: fonteCom }
         : cobCom?.estado === "lido"
@@ -156,7 +159,7 @@ export async function carregarMandato(ctx: ContextoPessoa): Promise<DadosMandato
   const fonteDisc = ctx.fonteConjunto("comissoes", "discursos", sExtras, !!nDisc);
   const discursos: ItemMandato =
     nDisc && nDisc > 0 && janela
-      ? { texto: `${fmtInt(nDisc)} ${nDisc === 1 ? "discurso" : "discursos"}`, periodo: `${frasePeriodo(janela.desdeAno, janela)}`, lacuna: null, fonte: fonteDisc }
+      ? { texto: `${fmtInt(nDisc)} ${nDisc === 1 ? "discurso" : "discursos"}`, periodo: `contados a partir de ${janela.inicio.slice(5, 7)}/${janela.inicio.slice(0, 4)}, quando começa o período desta página`, lacuna: null, fonte: fonteDisc }
       : !discursosR.ok
         ? { texto: null, periodo: null, lacuna: FALHOU, fonte: fonteDisc }
         : { texto: null, periodo: null, lacuna: { texto: "Nenhum discurso carregado.", motivo: "A leitura de discursos não tem cobertura confirmada para esta pessoa: por isso não dizemos que não houve." }, fonte: fonteDisc };
@@ -173,7 +176,7 @@ export async function carregarMandato(ctx: ContextoPessoa): Promise<DadosMandato
   marca("Presença", presenca.lacuna);
   marca("Comissões", comissoes.lacuna);
   marca("Discursos", discursos.lacuna);
-  if (janela?.truncada) fora.push({ oQue: `Antes de ${janela.desdeAno}`, motivo: `A fonte carregada começa em ${janela.desdeAno}; o que veio antes não está nesta página.` });
+  if (janela?.truncada) fora.push({ oQue: `Antes de ${janela.desdeAno}`, motivo: `Não há nota de cota carregada desta pessoa antes de ${janela.desdeAno}; o que veio antes não está nesta página.` });
   if (custo && custo.estado === "soma") for (const f of custo.fora) fora.push({ oQue: "Parte da soma", motivo: f });
 
   return {

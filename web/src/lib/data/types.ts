@@ -628,7 +628,7 @@ export interface DataSource extends DataSourceW4 {
   /** Equipe do gabinete, A–Z por nome. */
   listStaff(personId: string): Promise<StaffMember[]>;
   /** null = cargo sem valor pago publicado (teto ou nada). */
-  getSalaryAccrued(personId: string, year?: number, since?: string): Promise<SalaryAccrued | null>;
+  getSalaryAccrued(personId: string, year?: number, since?: string, until?: string): Promise<SalaryAccrued | null>;
   /** Presença por mês num ano (sessões deliberativas da Câmara; fora do exercício não conta). Só meses com sessão. */
   getPresenceByMonth(personId: string, year: number): Promise<{ month: number; present: number; total: number }[]>;
   /** U08: uma entrada por sessão deliberativa do ano, em ordem de data. total = presentes + ausentes + justificadas (fora do exercício não entra). */
@@ -657,7 +657,7 @@ export interface DataSource extends DataSourceW4 {
   /** Próximas sessões do Plenário (a partir de hoje, horário de Brasília) e a pauta. `casa` senado inclui o Congresso Nacional. */
   getAgenda(f: { body: Body; limit?: number }): Promise<AgendaView>;
   getCommittees(personId: string): Promise<CommitteeItem[]>;
-  listSpeeches(personId: string, f: { year?: number; since?: string; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
+  listSpeeches(personId: string, f: { year?: number; since?: string; until?: string; cursor?: string; limit?: number }): Promise<Page<SpeechItem>>;
   getContacts(personId: string): Promise<ContactItem[]>;
   getStamp(dataset: string): Promise<Stamp>;
   /**

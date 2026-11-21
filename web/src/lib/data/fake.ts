@@ -887,7 +887,7 @@ export const fakeSource: DataSource = {
       extra: Math.max(0, holders.length - capacity),
     };
   },
-  async getSalaryAccrued(personId, year, since) {
+  async getSalaryAccrued(personId, year, since, until) {
     // a demo não guarda a série histórica do subsídio: só a visão do mandato (que passa `since`) recebe uma conta, de valor único,
     // e só até out/2026 (último mês das notas da demo). Quem chama sem `since` (v1) segue sem série.
     if (!since || year) return null;
@@ -896,7 +896,8 @@ export const fakeSource: DataSource = {
     if (!m || !v || v.cents === null || v.ceiling) return null;
     const ini = m.startedOn.slice(0, 7) > since.slice(0, 7) ? m.startedOn.slice(0, 7) : since.slice(0, 7);
     const [y0, m0] = ini.split("-").map(Number);
-    const meses = (CURRENT_YEAR - y0) * 12 + (10 - m0) + 1;
+    const [yf, mf] = (until ?? `${CURRENT_YEAR}-10`).slice(0, 7).split("-").map(Number);
+    const meses = (yf - y0) * 12 + (mf - m0) + 1;
     if (meses <= 0) return null;
     return { cents: v.cents * meses, months: meses, coveredMonths: meses, firstMonth: `${ini}-01`, coveredFrom: `${ini}-01` };
   },

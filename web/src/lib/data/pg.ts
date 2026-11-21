@@ -941,7 +941,7 @@ export const pgSource: DataSource = {
       extra: Math.max(0, holders.length - capacity),
     } satisfies ChamberTransition;
   },
-  async getSalaryAccrued(personId, year, since) {
+  async getSalaryAccrued(personId, year, since, until) {
     // mês a mês, em todos os mandatos já exercidos; o valor de cada mês é o subsídio vigente no 1º dia dele.
     // Mês sem valor carregado (antes do primeiro valid_from) conta no tempo de cargo, não na soma.
     const [r] = await sql`
@@ -952,6 +952,7 @@ export const pgSource: DataSource = {
         where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
           ${year ? sql`and extract(year from gs) = ${year}` : sql``}
           ${since ? sql`and gs >= date_trunc('month', ${isoDate(since)}::date)` : sql``}
+          ${until ? sql`and gs <= date_trunc('month', ${isoDate(until)}::date)` : sql``}
       )
       select count(*)::int as months, count(sa.amount_cents)::int as covered, sum(sa.amount_cents)::bigint as cents,
              min(mo) as first, min(mo) filter (where sa.amount_cents is not null) as covered_from
@@ -1463,7 +1464,8 @@ export const pgSource: DataSource = {
     const limit = Math.min(f.limit ?? 10, 200);
     const offset = off(f.cursor);
     const where = sql`person_id = ${personId}::uuid ${f.year ? sql`and extract(year from occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
-      ${f.since ? sql`and occurred_at >= (${isoDate(f.since)}::date)::timestamp at time zone 'America/Sao_Paulo'` : sql``}`;
+      ${f.since ? sql`and occurred_at >= (${isoDate(f.since)}::date)::timestamp at time zone 'America/Sao_Paulo'` : sql``}
+      ${f.until ? sql`and occurred_at < ((${isoDate(f.until)}::date + 1)::timestamp at time zone 'America/Sao_Paulo')` : sql``}`;
     const [{ n }] = await sql`select count(*)::int as n from speeches where ${where}`;
     const rows = await sql`select id, occurred_at, summary, url from speeches where ${where} order by occurred_at desc, id desc limit ${limit} offset ${offset}`;
     return page(rows.map<SpeechItem>((r) => ({ id: String(r.id), occurredAt: isoTs(r.occurred_at), summary: (r.summary as string | null) ?? null, url: (r.url as string | null) ?? null })), Number(n), offset, limit);

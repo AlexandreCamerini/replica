@@ -128,14 +128,14 @@ export function BlocoFez({ d }: { d: DadosMandato }) {
               {comissoes.lista.slice(0, 5).map((n) => (
                 <li key={n}>{n}</li>
               ))}
-              {comissoes.lista.length > 5 && <li>e mais {fmtInt(comissoes.lista.length - 5)} (em ordem alfabética, a lista completa fica na página do mandato)</li>}
+              {comissoes.lista.length > 5 && <li>e mais {fmtInt(comissoes.lista.length - 5)}, em ordem alfabética</li>}
             </ul>
           )}
         </LinhaFez>
         <LinhaFez rotulo="Discursos" it={discursos} />
         <LinhaFez rotulo="Presença" it={presenca} />
       </dl>
-      <Nota>Só o que lemos desta pessoa, sem média nem comparação com outras. Cada número diz desde quando está carregado.</Nota>
+      <Nota>Só o que lemos desta pessoa, sem média nem comparação com outras. Votos, propostas e presença são somados por ano inteiro. Cada número diz desde quando está carregado.</Nota>
       <Fonte>{[votos, propostas, comissoes, discursos, presenca].filter((i) => i.texto).map((i) => i.fonte).filter(Boolean).join(" ") || "Fonte: nenhum dado de atuação carregado para este período."}</Fonte>
     </div>
   );

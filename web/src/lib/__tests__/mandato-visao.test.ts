@@ -164,3 +164,16 @@ test("comissoesNaJanela: só as que tocam a janela, em ordem A–Z", () => {
   const r = comissoesNaJanela(lista, "2023-02-01", "2026-12-31");
   assert.deepEqual(r.map((c) => c.name), ["Agricultura", "Saúde"]);
 });
+
+test("custoMandato: a soma diz o intervalo comum de salário e cota (primeiro ao último mês com nota)", () => {
+  const sal = { cents: 800_000, months: 10, coveredMonths: 10, firstMonth: "2023-03-01", coveredFrom: "2023-03-01" };
+  const c = custoMandato({ salario: sal, cotaCents: 400_000, mesesSemNotaCota: 0, intervalo: { de: "2023-03", ate: "2023-12" } });
+  assert.equal(c.estado, "soma");
+  assert.ok(c.fora.some((f) => f.startsWith("A soma cobre de 03/2023 a 12/2023")));
+});
+
+test("custoMandato: sem uma das partes não há intervalo nem soma, mesmo com intervalo informado", () => {
+  const c = custoMandato({ salario: null, cotaCents: 400_000, mesesSemNotaCota: 0, intervalo: { de: "2023-03", ate: "2023-12" } });
+  assert.equal(c.estado, "sem_soma");
+  assert.ok(!c.fora.some((f) => f.startsWith("A soma cobre")));
+});
