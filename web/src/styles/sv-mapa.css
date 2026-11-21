@@ -1,0 +1,34 @@
+/* Segue o Voto, D2 · mapa de votos por estado (components/sv/mapa-votos.tsx), na tela Votação.
+   Só tinta e papel: nunca --agora nem --vida. Sem animação, sem sombra, raio 0, sem bolhas. Voto não é cor.
+   O estado enche até o % de Sim entre os votos registrados (gradiente de duas paradas no mesmo offset, de baixo para cima). */
+.sv .sv-mv{margin:0 0 14px;display:flex;flex-direction:column;gap:10px}
+.sv .sv-mv svg{display:block;width:100%;max-width:680px;height:auto;margin-inline:auto;overflow:visible}
+
+.sv .sv-mv__s1{stop-color:var(--tinta)}
+.sv .sv-mv__s0{stop-color:var(--papel)}
+.sv .sv-mv__pt{stroke:var(--tinta);stroke-width:.9;stroke-linejoin:round}
+.sv .sv-mv__pt.is-sem{stroke-dasharray:5 3}
+
+/* área clicável do estado: invisível; só ganha contorno no foco e no estado escolhido */
+.sv .sv-mv__hit{fill:transparent;stroke:none}
+.sv .sv-mv__ld{stroke:var(--tinta);stroke-width:1;fill:none}
+.sv .sv-mv__pl{fill:var(--papel);stroke:var(--tinta);stroke-width:1}
+.sv .sv-mv__uf,.sv .sv-mv__pc{fill:var(--tinta);font-family:inherit;pointer-events:none}
+.sv .sv-mv__uf{font-size:12.5px;font-weight:800;letter-spacing:.02em}
+.sv .sv-mv__pc{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}
+
+.sv .sv-mv__a{cursor:pointer;outline:none}
+.sv .sv-mv__a.is-solo{cursor:default}
+.sv .sv-mv__a:hover .sv-mv__pl{stroke-width:2.5}
+/* foco visível sem cor: contorno grosso no estado e na etiqueta (o contorno do navegador não aparece em todo <a> de SVG) */
+.sv .sv-mv__a:focus-visible .sv-mv__hit{stroke:var(--tinta);stroke-width:4;stroke-linejoin:round}
+.sv .sv-mv__a:focus-visible .sv-mv__pl{stroke-width:4}
+/* estado escolhido: etiqueta invertida, como a UF escolhida na lista */
+.sv .sv-mv__a.is-sel .sv-mv__pl{fill:var(--tinta)}
+.sv .sv-mv__a.is-sel .sv-mv__uf,.sv .sv-mv__a.is-sel .sv-mv__pc{fill:var(--papel)}
+.sv .sv-mv__a.is-sel .sv-mv__hit{stroke:var(--tinta);stroke-width:2.5;stroke-linejoin:round}
+
+.sv .sv-mv__leg{display:flex;flex-direction:column;gap:6px}
+.sv .sv-mv__tot{font-weight:700}
+
+@media (prefers-reduced-motion:no-preference){.sv .sv-mv *{transition:none}}

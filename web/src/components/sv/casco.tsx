@@ -8,6 +8,7 @@ import "@/styles/sv-pessoa.css";
 import "@/styles/sv-decisao.css";
 import "@/styles/sv-temas.css";
 import "@/styles/sv-ajustes.css";
+import "@/styles/sv-mapa.css";
 import { Suspense } from "react";
 import { AvisoDeCarregamento } from "./carregando";
 import { AVISO_MANUTENCAO, emManutencao } from "@/lib/manutencao";
