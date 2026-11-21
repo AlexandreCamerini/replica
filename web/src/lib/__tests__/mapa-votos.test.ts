@@ -22,6 +22,9 @@ test("arredondamento para baixo: 2/3 é 66%, 199/200 é 99% e só 100% quando to
   assert.equal(pctSim(199, 200), 99);
   assert.equal(pctSim(200, 200), 100);
   assert.equal(pctSim(1, 1000), 0);
+  assert.equal(pctSim(29, 50), 58, "ponto flutuante: 0,58 × 100 não pode virar 57");
+  assert.equal(pctSim(87, 150), 58);
+  assert.equal(pctSim(116, 200), 58);
 });
 
 test("votos zero: sem base não há percentual e o estado não enche (nunca 0% inventado)", () => {
@@ -86,7 +89,7 @@ test("descrição traz os números e a base escrita; copy sem juízo", () => {
   const d = dadoDaUf("SP", { sim: 30, nao: 10, abstencao: 10 });
   assert.equal(descricaoUf("São Paulo", d, true), "São Paulo: 30 de 50 registrados votaram Sim (60%). Não: 10. Abstenção: 10. Abrir os votos do estado.");
   assert.match(BASE_DO_PERCENTUAL, /Sim \+ Não \+ abstenção/);
-  assert.match(FORA_DA_BASE, /ausência não conta como voto contra/);
+  assert.match(FORA_DA_BASE, /Ausência não conta como voto contra/);
   for (const proibida of [/benefici/i, /polêmic/i, /prejudic/i, /ranking/i]) {
     assert.doesNotMatch(BASE_DO_PERCENTUAL + FORA_DA_BASE + descricaoUf("X", d, true), proibida);
   }

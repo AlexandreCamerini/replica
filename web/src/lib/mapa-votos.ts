@@ -26,7 +26,7 @@ const n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x > 0 
 export function pctSim(sim: number, base: number): number | null {
   const b = n(base);
   if (b === 0) return null;
-  return Math.min(100, Math.floor((Math.min(n(sim), b) / b) * 100));
+  return Math.min(100, Math.floor((Math.min(n(sim), b) * 100) / b));
 }
 
 export function dadoDaUf(uf: string, contagem: ContagemUf | undefined, cadeiras: number | null = null): DadoUf {
@@ -88,5 +88,6 @@ export function descricaoUf(nome: string, d: DadoUf, comLink: boolean) {
 }
 
 export const BASE_DO_PERCENTUAL = "Sim ÷ (Sim + Não + abstenção) dos votos registrados no estado.";
-export const FORA_DA_BASE =
-  "Obstrução, quem presidia a sessão e quem não registrou voto ficam fora dessa conta; ausência não conta como voto contra. Arredondado para baixo.";
+export const FORA_DA_BASE_A = "Obstrução, quem presidia a sessão e quem não registrou voto ficam fora dessa conta.";
+export const FORA_DA_BASE_B = "Ausência não conta como voto contra. O percentual é arredondado para baixo.";
+export const FORA_DA_BASE = `${FORA_DA_BASE_A} ${FORA_DA_BASE_B}`;

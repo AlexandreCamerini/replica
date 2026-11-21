@@ -16,61 +16,52 @@ test.describe("sv · mapa de votos", () => {
     await axe();
   });
 
-  test("lista = mapa: cada estado com link no mapa tem o mesmo link na lista, na mesma ordem (alfabética)", async ({ page }) => {
+  test("lista = mapa: o mapa e a tabela do leitor de tela cobrem as mesmas UFs, em ordem alfabética, e a lista leva ao voto", async ({ page }) => {
     await page.goto(URL);
-    const doMapa = await page.locator("[data-mapa-votos] a[data-uf]").evaluateAll((as) => as.map((a) => (a as unknown as SVGAElement).getAttribute("href")));
-    const daLista = await page.locator("nav.sv-ufs a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
-    expect(doMapa.length).toBeGreaterThan(0);
-    expect(doMapa.map((h) => (h ?? "").replace(/#.*$/, ""))).toEqual(daLista);
-    const siglas = await page.locator("[data-mapa-votos] [data-uf]").evaluateAll((els) => els.map((e) => e.getAttribute("data-uf") ?? ""));
+    const siglas = await page.locator("[data-mapa-votos] g[data-uf]").evaluateAll((els) => els.map((e) => e.getAttribute("data-uf") ?? ""));
+    expect(siglas.length).toBe(27);
     expect(siglas).toEqual([...siglas].sort((a, b) => a.localeCompare(b, "pt-BR")));
+    expect(await page.locator("[data-mapa-tabela] tbody tr").count()).toBe(siglas.length);
+    const daLista = await page.locator("nav.sv-ufs a").evaluateAll((as) => as.map((a) => a.textContent?.trim() ?? ""));
+    expect(daLista.length).toBeGreaterThan(0);
+    for (const u of daLista) expect(siglas).toContain(u);
+    expect(daLista).toEqual([...daLista].sort());
   });
 
-  test("cada estado tem descrição (desc + aria-describedby) com os números, e o preenchimento bate com o texto", async ({ page }) => {
+  test("o mapa é só leitura visual: aria-hidden, sem links nem paradas de Tab; a % escrita bate com o preenchimento", async ({ page }) => {
     await page.goto(URL);
-    const links = page.locator("[data-mapa-votos] a[data-uf]");
-    const n = await links.count();
+    const fig = page.locator("[data-mapa-votos]");
+    await expect(fig.locator("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(await fig.locator("svg a, svg [tabindex]").count()).toBe(0);
+    const n = await fig.locator("g[data-uf]").count();
     for (let i = 0; i < n; i++) {
-      const a = links.nth(i);
-      const uf = await a.getAttribute("data-uf");
-      const id = await a.getAttribute("aria-describedby");
-      expect(id).toBe(`mv-d-${uf}`);
-      const desc = (await page.locator(`#${id}`).textContent()) ?? "";
-      expect(desc).toMatch(/registrados?/);
-      const pct = (await a.locator("text.sv-mv__pc").textContent())?.trim();
+      const g = fig.locator("g[data-uf]").nth(i);
+      const uf = await g.getAttribute("data-uf");
+      const pct = (await g.locator("text.sv-mv__pc").textContent())?.trim();
       const off = await page.locator(`#mv-g-${uf} stop`).first().getAttribute("offset");
       if (pct === "–") expect(off).toBe("0%");
-      else expect(`${off}`).toBe(pct);
+      else expect(off).toBe(pct);
     }
   });
 
-  test("teclado: Tab percorre os estados com foco visível sem cor; Enter abre o estado e a lista mostra os nomes", async ({ page }) => {
+  test("teclado: Tab chega à lista de estados com foco visível e Enter abre os votos do estado", async ({ page }) => {
     await page.goto(URL);
-    const primeiro = page.locator("[data-mapa-votos] a[data-uf]").first();
+    const primeiro = page.locator("nav.sv-ufs a").first();
     await primeiro.focus();
     await expect(primeiro).toBeFocused();
-    const fx = await primeiro.locator(".sv-mv__hit").evaluate((el) => {
-      const c = getComputedStyle(el);
-      return { w: parseFloat(c.strokeWidth), s: c.stroke };
-    });
-    expect(fx.w).toBeGreaterThanOrEqual(3);
-    expect(fx.s).toBe("rgb(20, 20, 20)"); // tinta
-    const uf = await primeiro.getAttribute("data-uf");
-    await page.keyboard.press("Tab");
-    await expect(page.locator("[data-mapa-votos] a[data-uf]").nth(1)).toBeFocused();
-    await primeiro.focus();
+    const uf = (await primeiro.textContent())?.trim();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(new RegExp(`uf=${uf}`));
     await expect(page.locator(`[data-placar-uf="${uf}"]`)).toBeVisible();
-    await expect(page.locator(`[data-mapa-votos] a[data-uf="${uf}"]`)).toHaveAttribute("aria-current", "page");
+    await expect(page.locator(`[data-mapa-votos] g[data-uf="${uf}"]`)).toHaveClass(/is-sel/);
   });
 
-  test("sem JavaScript: o mapa e os links funcionam", async ({ browser }) => {
+  test("sem JavaScript: o mapa aparece e a lista de estados leva ao voto", async ({ browser }) => {
     const ctx = await browser.newContext({ javaScriptEnabled: false, baseURL: process.env.E2E_BASE_URL || "http://localhost:3200" });
     const page = await ctx.newPage();
     await page.goto(URL);
     await expect(page.locator("[data-mapa-votos] svg")).toBeVisible();
-    const href = await page.locator("[data-mapa-votos] a[data-uf]").first().getAttribute("href");
+    const href = await page.locator("nav.sv-ufs a").first().getAttribute("href");
     await page.goto(href!);
     await expect(page.locator("[data-placar-uf]")).toBeVisible();
     await ctx.close();
@@ -90,9 +81,10 @@ test.describe("sv · mapa de votos", () => {
     const r = await page.locator("[data-mapa-votos]").evaluate((fig) => {
       const out: string[] = [];
       const ok = new Set(["rgb(20, 20, 20)", "rgb(242, 238, 229)", "rgba(0, 0, 0, 0)", "none"]);
-      for (const el of fig.querySelectorAll("svg *")) {
+      for (const el of fig.querySelectorAll("svg path, svg rect, svg text, svg stop")) {
         const c = getComputedStyle(el);
-        for (const p of ["fill", "stroke", "stopColor"] as const) {
+        const props = el.tagName === "stop" ? (["stopColor"] as const) : (["fill", "stroke"] as const);
+        for (const p of props) {
           const v = c[p as "fill"];
           if (v && !v.startsWith("url(") && !ok.has(v)) out.push(`${el.tagName}.${p}=${v}`);
         }
@@ -107,7 +99,7 @@ test.describe("sv · mapa de votos", () => {
 
   test("copy: sem juízo nem ranking no mapa e nas legendas", async ({ page }) => {
     await page.goto(URL);
-    const texto = (await page.locator("[data-mapa-votos]").evaluate((el) => el.textContent ?? "")) + (await page.locator("[data-mapa-votos] desc").allTextContents()).join(" ");
+    const texto = await page.locator("[data-mapa-votos]").evaluate((el) => el.textContent ?? "");
     for (const re of PROIBIDAS) expect(texto, String(re)).not.toMatch(re);
   });
 
