@@ -987,3 +987,4 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - Latência: `/pessoa/[slug]` espera o painel antes das outras leituras e `contextoPessoa` repete `getMandates`.
     - `?simular=erro_pagina` não chega ao painel.
     - Emendas e viagens ficam fora do painel.
+- **D340 (adendo 2) · Texto do mapa em 390 px (produto, sessão autônoma, 21/11/2026).** O rótulo do estado tem `font-size: 13px` dentro de um SVG de `viewBox` 886 de largura; o gate D2 lê o tamanho computado (13 px) e passa, mas na tela de 390 px o texto sai com uns 5 px. Aceito nesta v1 porque o SVG é `aria-hidden` e o mesmo número está na lista `nav.sv-ufs` e na tabela; correção candidata: esconder os rótulos do SVG abaixo de ~600 px, e medir o `<text>` por `getBoundingClientRect` no aceite.

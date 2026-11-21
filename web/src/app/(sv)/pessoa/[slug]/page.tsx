@@ -90,7 +90,8 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
   const id = person.id;
 
   // visão do mandato (painel do topo): leitura própria, cada falha vira lacuna do item
-  const dadosMandato = await contextoPessoa(person).then((c) => carregarMandato(c)).catch(() => null);
+  // A promise parte já; só se espera no render, para não serializar as demais leituras atrás do painel.
+  const dadosMandatoP = contextoPessoa(person).then((c) => carregarMandato(c)).catch(() => null);
 
   const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
   const votou = follows.includes(slug);
@@ -154,6 +155,7 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
   // U04: o ano do resumo é o da grade de presença (que cai para o anterior se o corrente está vazio); sem grade, o corrente
   const anoResumo = !posse && gradeR && gradeR.ok && gradeR.v.sessions.length > 0 ? gradeR.v.year : hoje.ano;
   const [statsAno, provR] = await Promise.all([ler(data.getStats(id, String(anoResumo) as `${number}`)), ler(data.getPartyProvenance(id))]);
+  const dadosMandato = await dadosMandatoP;
 
   const missing = stats.ok ? stats.v.missing : [];
   const lugar = place && place.ok ? place.v : null;
@@ -305,7 +307,11 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
         </div>
       </div>
 
-      {dadosMandato && <PainelMandato d={dadosMandato} />}
+      {dadosMandato ? (
+        <PainelMandato d={dadosMandato} />
+      ) : (
+        <Lacuna motivo="A leitura do mandato falhou agora. Os dados abaixo seguem valendo.">Visão do mandato indisponível.</Lacuna>
+      )}
 
       {/* D324: quatro respostas antes das seções, nesta ordem. O mesmo dado, a mesma fonte e a mesma lacuna de cada seção. */}
       <QuatroRespostas

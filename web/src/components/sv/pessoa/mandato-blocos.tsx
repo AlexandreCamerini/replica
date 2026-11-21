@@ -8,13 +8,10 @@ import { frasePeriodo } from "@/lib/mandato-visao";
 import { brl, MESES } from "./format";
 import type { DadosMandato, ItemMandato } from "./mandato-dados";
 
-/** "—" lido como "sem dado" por leitor de tela. */
+/** "—" sempre junto do texto "sem dado" no mesmo elemento (o aceite D2 acusa "—" isolado como lacuna sem motivo). */
 export function Traco() {
   return (
-    <>
-      <span aria-hidden="true">—</span>
-      <span className="sv-vh">sem dado</span>
-    </>
+    <span>— sem dado</span>
   );
 }
 
@@ -47,6 +44,7 @@ export function BlocoCusto({ d }: { d: DadosMandato }) {
       ) : (
         <>
           <Lacuna motivo={`Não somamos: ${custo.faltam.length > 1 ? "faltam" : "falta"} ${custo.faltam.join(" e ")}. Uma soma com uma parte só pareceria o custo inteiro.`}>Sem soma de salário e cota.</Lacuna>
+          {(salTxt || cotaTxt) && <p className="sv-t">Valores soltos, do que está carregado, {periodo}.</p>}
         </>
       )}
       <dl className="sv-pm__l">

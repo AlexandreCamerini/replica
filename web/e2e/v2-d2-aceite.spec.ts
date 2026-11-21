@@ -20,6 +20,7 @@ const ROTAS_PESSOA_SUB: Rota[] = [
   { nome: "pessoa-gastos-vereador", url: "/pessoa/alvaro-coutinho-sp/gastos" },
   { nome: "pessoa-equipe", url: "/pessoa/helena-siqueira/equipe" },
   { nome: "pessoa-votos", url: "/pessoa/helena-siqueira/votos" },
+  { nome: "pessoa-mandato", url: "/pessoa/helena-siqueira/mandato" },
 ];
 const ROTAS: Rota[] = [
   { nome: "inicio", url: "/" },
