@@ -1136,7 +1136,7 @@ export const pgSource: DataSource = {
     const win = sql`person_id = ${personId}::uuid and occurred_on >= ${from}::date ${to ? sql`and occurred_on <= ${to}::date` : sql``}`;
     const [[lim], cats, meses] = await Promise.all([
       sql`select min(occurred_on) as primeira, max(occurred_on) as ultima from expenses where person_id = ${personId}::uuid`,
-      sql`select category as label, sum(amount_cents)::bigint as cents, count(*)::int as n from expenses where ${win} group by 1 order by 1 collate pt_br`,
+      sql`select category as label, sum(amount_cents)::bigint as cents, count(*)::int as n from expenses where ${win} group by category order by category collate pt_br`,
       sql`select to_char(date_trunc('month', occurred_on), 'YYYY-MM') as mes, sum(amount_cents)::bigint as cents, count(*)::int as n from expenses where ${win} group by 1 order by 1`,
     ]);
     const porCategoria = cats.map((c) => ({ label: String(c.label), cents: Number(c.cents), notas: Number(c.n) }));

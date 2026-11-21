@@ -51,7 +51,7 @@ export default async function MandatoPessoa({ params, searchParams }: Props) {
             <BlocoCusto d={d} />
           </Linha>
 
-          <Linha id="m2" numero={2} pergunta={`Em que categorias foi gasta a ${d.rotulo}?`} fonte={d.gasto.fonte}>
+          <Linha id="m2" numero={2} pergunta="Em que categorias foi gasto o dinheiro?" fonte={d.gasto.fonte}>
             {vm ? (
               <div className="sv-bloco">
                 <table className="sv-gm" data-testid="tabela-categorias-mandato">

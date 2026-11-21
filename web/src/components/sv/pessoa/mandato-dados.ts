@@ -36,7 +36,7 @@ export type DadosMandato = {
 };
 
 const FALHOU = LACUNA_FALHA;
-const textoLacuna = (l: LacunaVm) => `${l.texto}${l.motivo ? ` ${typeof l.motivo === "string" ? l.motivo : ""}` : ""}`.trim();
+const textoLacuna = (l: LacunaVm) => `${l.texto}${typeof l.motivo === "string" && l.motivo ? ` · ${l.motivo}` : ""}`;
 
 /** Lê tudo o que a visão precisa. Cada leitura que falha vira lacuna daquele item, nunca erro de página. */
 export async function carregarMandato(ctx: ContextoPessoa): Promise<DadosMandato> {

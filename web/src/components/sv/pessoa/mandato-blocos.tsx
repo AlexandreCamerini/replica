@@ -46,7 +46,7 @@ export function BlocoCusto({ d }: { d: DadosMandato }) {
         </>
       ) : (
         <>
-          <Lacuna motivo={`Não somamos: falta ${custo.faltam.join(" e ")}. Uma soma com uma parte só pareceria o custo inteiro.`}>Sem soma de salário e cota.</Lacuna>
+          <Lacuna motivo={`Não somamos: ${custo.faltam.length > 1 ? "faltam" : "falta"} ${custo.faltam.join(" e ")}. Uma soma com uma parte só pareceria o custo inteiro.`}>Sem soma de salário e cota.</Lacuna>
         </>
       )}
       <dl className="sv-pm__l">
@@ -97,7 +97,7 @@ function LinhaFez({ rotulo, it, children }: { rotulo: string; it: ItemMandato; c
             {it.lacuna && (
               <span className="sv-sm">
                 {it.lacuna.texto}
-                {it.lacuna.motivo ? ` ${typeof it.lacuna.motivo === "string" ? it.lacuna.motivo : ""}` : ""}
+                {typeof it.lacuna.motivo === "string" && it.lacuna.motivo ? ` · ${it.lacuna.motivo}` : ""}
               </span>
             )}
           </>
@@ -136,7 +136,7 @@ export function BlocoFez({ d }: { d: DadosMandato }) {
         <LinhaFez rotulo="Presença" it={presenca} />
       </dl>
       <Nota>Só o que lemos desta pessoa, sem média nem comparação com outras. Cada número diz desde quando está carregado.</Nota>
-      <Fonte>{[votos.fonte, propostas.fonte, presenca.fonte].filter(Boolean).join(" ")}</Fonte>
+      <Fonte>{[votos, propostas, comissoes, discursos, presenca].filter((i) => i.texto).map((i) => i.fonte).filter(Boolean).join(" ") || "Fonte: nenhum dado de atuação carregado para este período."}</Fonte>
     </div>
   );
 }
