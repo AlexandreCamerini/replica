@@ -965,3 +965,25 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
   - **O que pago:** o número de gasto fica sem ponto de apoio de leitura. O que cabe sem ranking, e fica como candidato: o teto legal da cota (hoje "não carregado") e a série mensal da própria pessoa.
   - **Onde quebra:** o eleitor vai comparar de cabeça entre duas páginas; a tela não impede, só não ajuda. Uma série mensal da própria pessoa pode ser lida como "gastou mais em julho"; por isso sem destaque e em ordem cronológica.
   - **Desfazer:** só por decisão do dono, com desenho de como comparar sem ordenar. Nada técnico a reverter.
+- **D340 (adendo) · O mapa de votos da sv é só leitura visual; rota de toque, teclado e leitor de tela ficam fora do SVG (produto, sessão autônoma, 21/11/2026).**
+  - **Contexto:** a decisão D340 previa um link por estado. Links dentro do SVG quebram o gate do aceite D2 (`web/e2e/v2-d2-aceite.spec.ts`: alvos de toque de pelo menos 44 x 44 px e texto de pelo menos 13 px); os estados pequenos têm alvos de 20 a 42 px.
+  - **Decisão:**
+    - O SVG é `aria-hidden` e não tem `<Link>` por estado.
+    - Toque e teclado: a lista `nav.sv-ufs` (alvos de 44 px). Leitor de tela: a tabela "Números por estado", visualmente oculta (`div.sv-vh` > `table[data-mapa-tabela]`), com a mesma base do desenho.
+    - Voltar a `<Link>` no SVG exige exceção documentada no aceite D2 (decisão do dono).
+    - Fórmula do percentual: `(sim * 100) / votantes`, arredondado para baixo; votantes = Sim + Não + Abstenção registrados. Corrige o exemplo 29 de 50 = 58 (não 57).
+  - **Limitações aceitas:** o enchimento segue a altura da caixa do estado, não a área (distorce em estados alongados). Estado sem registro mostra "–" com contorno tracejado; numa votação real sem Sim, Não ou Abstenção na UF o aceite D2 pode acusar isso como "lacuna como zero".
+  - **Por quê:** o gate do aceite é anterior e mais forte que o conforto de um link no mapa; a rota equivalente já existe e cumpre o alvo de 44 px.
+  - **Desfazer:** só com exceção no aceite D2, por decisão do dono.
+- **D341 (adendo) · Janela e escopo da visão do mandato (produto, sessão autônoma, 21/11/2026).**
+  - **Decisão:**
+    - "Primeiro ano carregado" = primeira nota de cota da pessoa. A janela é `max(posse, 1º de janeiro desse ano)`, rotulada "desde AAAA", e "no que está carregado desde AAAA" quando truncada; nunca "total do mandato".
+    - Salário e cota compartilham o intervalo do primeiro ao último mês com nota de cota, e a tela diz o intervalo.
+    - Discursos sem cobertura própria: só contagem positiva; zero vira lacuna com motivo. Comissões são contadas por sobreposição com a janela.
+  - **Pendências registradas:**
+    - O salário soma por pessoa sem filtrar o cargo do mandato principal.
+    - Votos, propostas e presença vêm de `person_period_stats` por ano inteiro: mandato no meio do ano inclui meses do anterior. A correção real é no ETL (`mandate_periods` não é lida).
+    - `primeiraNotaEm` é da pessoa, não do início da carga do conjunto.
+    - Latência: `/pessoa/[slug]` espera o painel antes das outras leituras e `contextoPessoa` repete `getMandates`.
+    - `?simular=erro_pagina` não chega ao painel.
+    - Emendas e viagens ficam fora do painel.

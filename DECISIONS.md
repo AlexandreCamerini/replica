@@ -31,6 +31,7 @@ Branch: `claude/pendencias-autonomas`, local, a partir de `claude/go-live-www` (
 | D340 | Base do mapa de votos na sv | Sim entre os votos registrados, legenda "X de Y registrados"; voto nunca por cor; enchimento em tinta | Mantém a regra da v1, não trata ausente como contrário e respeita a DIRECAO (uma cor de quantidade) | Remover `components/sv/mapa-votos.tsx`; a lista por UF continua |
 | D341 | Visão consolidada do mandato | Painel no topo de `/pessoa/[slug]` e página `/pessoa/[slug]/mandato`; janela "desde AAAA"; deputado federal e senador, demais com lacuna | `career` mistura mandatos e `mandate_periods` não é lida; nunca "total do mandato" quando o mandato começou antes do primeiro ano carregado | Remover painel, rota e consultas novas; sem mudança de banco |
 | D342 | Média da casa como referência de gasto | Não comparar; só valores absolutos com "desde AAAA" e fonte | D82 e U04: comparar com a média é ranking implícito | Só por decisão nova do dono |
+| D340/D341 (adendos) | Mapa só leitura visual; janela e escopo do mandato | Mapa `aria-hidden` sem link por estado (rota = `nav.sv-ufs` e tabela oculta; link no SVG exige exceção no aceite D2); mandato "desde AAAA" a partir da primeira nota de cota, pendências de ETL registradas | Links no SVG quebram o gate D2 (alvos 44 px, texto 13 px); `mandate_periods` não é lida | Exceção no aceite D2 (dono); correção do ETL |
 
 ## Leituras de produção feitas (só leitura)
 
