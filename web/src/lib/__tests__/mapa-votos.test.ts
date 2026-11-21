@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BASE_DO_PERCENTUAL, FORA_DA_BASE, dadoDaUf, dadosDoMapa, descricaoUf, fraseSim, nivelDoEstado, pctSim, textoPct, totalDoMapa } from "../mapa-votos.ts";
+import { BASE_DO_PERCENTUAL, FORA_DA_BASE, PAINEL_PADRAO, dadoDaUf, dadosDoMapa, descricaoUf, fraseSim, nivelDoEstado, pctSim, rotuloUf, textoPainel, textoPct, totalDoMapa } from "../mapa-votos.ts";
 
 const linha = (uf: string, contagem: Record<string, number>, cadeiras = 10) => ({
   uf,
@@ -93,4 +93,34 @@ test("descrição traz os números e a base escrita; copy sem juízo", () => {
   for (const proibida of [/benefici/i, /polêmic/i, /prejudic/i, /ranking/i]) {
     assert.doesNotMatch(BASE_DO_PERCENTUAL + FORA_DA_BASE + descricaoUf("X", d, true), proibida);
   }
+});
+
+test("painel e nome acessível de uma UF: % e contagem reais, base Sim ÷ (Sim + Não + Abstenção)", () => {
+  // 324 Sim, 120 Não, 33 abstenção = 477 registrados; 324/477 = 67,9%: arredonda para baixo (67%)
+  const d = dadoDaUf("SP", { sim: 324, nao: 120, abstencao: 33, nao_votou: 20, obstrucao: 4 }, 70);
+  assert.equal(d.base, 477);
+  assert.equal(d.pct, 67);
+  assert.equal(rotuloUf(d), "SP: 67% Sim, 324 de 477 registrados");
+  assert.equal(textoPainel(d), "SP · 67% Sim · 324 de 477 registrados · Sim 324, Não 120, Abstenção 33");
+  // fora da base (não votou, obstrução) não entra no painel nem na conta
+  assert.doesNotMatch(textoPainel(d), /obstru|sem voto|nao_votou/i);
+});
+
+test("painel de UF sem registro: 'sem votos registrados', nunca 0%", () => {
+  const d = dadoDaUf("AC", { nao_votou: 3, obstrucao: 1 });
+  assert.equal(textoPainel(d), "AC · sem votos registrados");
+  assert.equal(rotuloUf(d), "AC: sem votos registrados");
+  assert.doesNotMatch(textoPainel(d) + rotuloUf(d), /0%/);
+  // 0% de verdade (há voto registrado, nenhum Sim) é outra coisa
+  assert.match(textoPainel(dadoDaUf("RR", { nao: 2 })), /^RR · 0% Sim · 0 de 2 registrados · Sim 0, Não 2, Abstenção 0$/);
+  assert.equal(rotuloUf(dadoDaUf("RR", { nao: 1 })), "RR: 0% Sim, 0 de 1 registrado");
+});
+
+test("ordem dos painéis e rótulos: alfabética de sigla, nunca por valor, e sem palavra de juízo", () => {
+  const placar = [linha("SP", { sim: 99, nao: 1 }), linha("AC", { nao: 5 }), linha("RJ", { sim: 1, nao: 1 })];
+  const out = dadosDoMapa(placar, ["SP", "RJ", "AC", "MG"]);
+  assert.deepEqual(out.map((d) => d.uf), ["AC", "MG", "RJ", "SP"]);
+  const textos = out.map((d) => `${rotuloUf(d)} ${textoPainel(d)}`).join(" ");
+  assert.doesNotMatch(textos, /benefici|pol[êe]mic|prejudic|ranking|lidera|mais votad|menos votad/i);
+  assert.match(PAINEL_PADRAO, /estado/);
 });

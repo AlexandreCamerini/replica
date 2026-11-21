@@ -184,8 +184,8 @@ export default async function Votacao({ params, searchParams }: { params: Promis
         ) : (
           <>
             {!uf && <Resposta tamanho="m">Escolha um estado para ver o voto de cada pessoa, em ordem alfabética.</Resposta>}
-            {/* mapa (servidor, só leitura visual): acima da lista de estados, que é a rota de toque e de teclado. Lacuna não chega aqui. */}
-            {ev.porUf.kind === "placar" && <MapaVotos placar={ev.porUf.ufs} ufSelecionada={uf} />}
+            {/* mapa interativo (D343): links por estado e painel de leitura; acima da lista de estados (alvos de 44 px, rota de toque). Lacuna não chega aqui. */}
+            {ev.porUf.kind === "placar" && <MapaVotos placar={ev.porUf.ufs} ufSelecionada={uf} votacaoId={ev.id} />}
             <nav className="sv-ufs" aria-label="Estado">
               {ufs.map((u) => (
                 <Link key={u} href={`/votacao/${ev.id}?uf=${u}`} aria-current={u === uf ? "page" : undefined}>

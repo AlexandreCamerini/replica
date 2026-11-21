@@ -87,6 +87,20 @@ export function descricaoUf(nome: string, d: DadoUf, comLink: boolean) {
   return `${nome}: ${fraseSim(d)} votaram Sim (${textoPct(d)}). Não: ${d.nao}. Abstenção: ${d.abs}.${abrir}`;
 }
 
+/** Nome acessível do link da UF no mapa: sigla, % e contagem, como a legenda. Sem registro: nunca 0%. */
+export function rotuloUf(d: DadoUf) {
+  return d.base === 0 ? `${d.uf}: sem votos registrados` : `${d.uf}: ${textoPct(d)} Sim, ${fraseSim(d)}`;
+}
+
+/** Linha do painel de leitura (acima do mapa): os números reais da UF, na mesma base da legenda. */
+export function textoPainel(d: DadoUf) {
+  if (d.base === 0) return `${d.uf} · sem votos registrados`;
+  return `${d.uf} · ${textoPct(d)} Sim · ${fraseSim(d)} · Sim ${d.sim}, Não ${d.nao}, Abstenção ${d.abs}`;
+}
+
+/** Painel quando nenhuma UF está em foco nem escolhida. */
+export const PAINEL_PADRAO = "Escolha um estado no mapa para ler o percentual e a contagem.";
+
 export const BASE_DO_PERCENTUAL = "Sim ÷ (Sim + Não + abstenção) dos votos registrados no estado.";
 export const FORA_DA_BASE_A = "Obstrução, quem presidia a sessão e quem não registrou voto ficam fora dessa conta.";
 export const FORA_DA_BASE_B = "Ausência não conta como voto contra. O percentual é arredondado para baixo.";

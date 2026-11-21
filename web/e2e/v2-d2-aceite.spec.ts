@@ -173,6 +173,10 @@ test.describe("alvos e texto", () => {
             (document.querySelector(".sv-skip") as HTMLElement | null)?.focus();
             for (const el of Array.from(document.querySelectorAll<HTMLElement>(".sv a[href], .sv button, .sv summary, .sv input:not([type=hidden]), .sv select, .sv textarea, .sv [role=button], .sv [tabindex]:not([tabindex='-1'])"))) {
               if (escondido(el)) continue;
+              // EXCEÇÃO decidida pelo dono em 21/11/2026 (D343), só para os links dos estados dentro do SVG do mapa de votos:
+              // os estados pequenos (DF, SE etc.) têm 20 a 42 px e não cabem em 44 px. O equivalente de toque é a lista
+              // `nav.sv-ufs` (alvos de 44 px, medidos aqui como qualquer outro) e a tabela "Números por estado". Nada mais é isentado.
+              if (el.closest("[data-mapa-votos] svg")) continue;
               const rc = el.getBoundingClientRect();
               if (rc.width === 0 && rc.height === 0) continue;
               const item = { sel: desc(el), texto: (el.textContent || (el as HTMLInputElement).value || el.getAttribute("aria-label") || "").trim().slice(0, 50), w: Math.round(rc.width), h: Math.round(rc.height) };

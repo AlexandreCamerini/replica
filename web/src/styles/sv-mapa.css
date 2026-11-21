@@ -1,7 +1,8 @@
 /* Segue o Voto, D2 · mapa de votos por estado (components/sv/mapa-votos.tsx), na tela Votação.
    Só tinta e papel: nunca --agora nem --vida. Sem animação, sem sombra, raio 0, sem bolhas. Voto não é cor.
    O estado enche, de baixo para cima, até o % de Sim entre os votos registrados (gradiente de duas paradas no mesmo offset).
-   O mapa é só leitura visual (aria-hidden): a rota de toque e de teclado é a lista de estados. */
+   Interativo (D343): cada estado é um link (<a> no SVG) para ?uf=XX; hover e foco = contorno de 2 px em tinta e etiqueta invertida
+   (sem cor, sem animação). Os links do SVG ficam fora do alvo de 44 px (exceção do dono ao aceite D2); a lista nav.sv-ufs tem 44 px. */
 .sv .sv-mv{margin:0 0 14px;display:flex;flex-direction:column;gap:10px}
 .sv .sv-mv svg{display:block;width:100%;max-width:680px;height:auto;margin-inline:auto;overflow:visible}
 
@@ -22,3 +23,16 @@
 
 .sv .sv-mv__leg{display:flex;flex-direction:column;gap:6px}
 .sv .sv-mv__tot{font-weight:700}
+
+/* painel de leitura: os números da UF sob o mouse ou em foco */
+.sv .sv-mv__painel{margin:0;padding:8px 10px;border:1px solid var(--tinta);min-height:3.4em;font-size:15px;font-weight:700;line-height:1.35;font-variant-numeric:tabular-nums;transition:none}
+
+/* link da UF: área de clique transparente, sem sublinhado; o foco nativo (outline) é trocado pelo contorno do estado */
+.sv .sv-mv__a{cursor:pointer;text-decoration:none;outline:none}
+.sv .sv-mv__hit{fill:transparent;stroke:none;vector-effect:non-scaling-stroke;transition:none}
+.sv .sv-mv__a:hover .sv-mv__hit,.sv .sv-mv__a:focus-visible .sv-mv__hit{stroke:var(--tinta);stroke-width:2px;stroke-linejoin:round}
+/* rótulo (camada de cima, link fora do Tab): inverte no mouse sobre ele e, com JS, junto com o foco ou o mouse no desenho da UF (.is-on) */
+.sv .sv-mv__pa{cursor:pointer;text-decoration:none;outline:none}
+.sv .sv-mv__pa:hover .sv-mv__pl,.sv .sv-mv__pa.is-on .sv-mv__pl{fill:var(--tinta);stroke-width:2.5}
+.sv .sv-mv__pa:hover .sv-mv__uf,.sv .sv-mv__pa:hover .sv-mv__pc,.sv .sv-mv__pa.is-on .sv-mv__uf,.sv .sv-mv__pa.is-on .sv-mv__pc{fill:var(--papel)}
+@media (prefers-reduced-motion:reduce){.sv .sv-mv__painel,.sv .sv-mv__hit{transition:none}}
