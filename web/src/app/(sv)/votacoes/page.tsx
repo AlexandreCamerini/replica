@@ -18,12 +18,20 @@ const TETO = 100; // a fonte devolve no máximo 100 (pg.ts e fake.ts): o que fic
 // Quantas das votações mais recentes da lista se olham em busca do placar por UF (cada uma é uma leitura de detalhe).
 const TENTATIVAS_MAPA = 5;
 /** A votação mais recente da lista (já em ordem da mais recente para a mais antiga) que tem placar por UF; null se nenhuma tem. */
-async function maisRecenteComPlacar(ids: readonly string[]): Promise<VotingEventDetail | null> {
-  for (const id of ids.slice(0, TENTATIVAS_MAPA)) {
-    const ev = await data.getVotingEvent(id).catch(() => null);
-    if (ev?.porUf.kind === "placar") return ev;
+async function maisRecenteComPlacar(ids: readonly string[]): Promise<{ ev: VotingEventDetail | null; olhadas: number; falhas: number }> {
+  const alvo = ids.slice(0, TENTATIVAS_MAPA);
+  let falhas = 0;
+  for (const id of alvo) {
+    let ev: VotingEventDetail | null = null;
+    try {
+      ev = await data.getVotingEvent(id);
+    } catch {
+      falhas++;
+      continue;
+    }
+    if (ev?.porUf.kind === "placar") return { ev, olhadas: alvo.length, falhas };
   }
-  return null;
+  return { ev: null, olhadas: alvo.length, falhas };
 }
 
 const DA_CASA = { camara: "da Câmara", senado: "do Senado" } as const;
@@ -41,7 +49,9 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
     data.getStamp(`${body}.votacoes`).catch(() => null),
   ]);
   const lida = lidoEm(stamp);
-  const comMapa = page && page.items.length > 0 ? await maisRecenteComPlacar(page.items.map((v) => v.id)) : null;
+  const busca = page && page.items.length > 0 ? await maisRecenteComPlacar(page.items.map((v) => v.id)) : null;
+  const comMapa = busca?.ev ?? null;
+  const leituraFalhou = !page || (!!busca && !comMapa && busca.falhas === busca.olhadas);
   const fonte = `Fonte: ${BODY_NAME[body]}, votações nominais, dados abertos${fraseLida(stamp, "as")}.`;
 
   const qs = (o: { casa?: Body; tudo?: boolean; n?: number }) => {
@@ -84,7 +94,7 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
         id="vts-mapa"
         variante={comMapa ? "padrao" : "lacuna"}
         numero={1}
-        pergunta="Como votou cada estado na votação mais recente?"
+        pergunta="Como votou cada estado na votação mais recente com voto por estado?"
         className="sv-c12"
         prova={
           <>
@@ -103,8 +113,8 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
             <MapaVotos placar={comMapa.porUf.ufs} ufSelecionada={null} votacaoId={comMapa.id} listaAbaixo={false} />
           </>
         ) : (
-          <Lacuna motivo={!page ? undefined : `Olhamos as ${TENTATIVAS_MAPA} votações mais recentes ${DA_CASA[body]} desta lista e nenhuma tem o voto de cada pessoa com estado identificado.`}>
-            {!page ? FALHOU_LEITURA : "O mapa por estado não está disponível para as votações mais recentes."}
+          <Lacuna motivo={leituraFalhou ? undefined : busca ? `Olhamos as ${busca.olhadas} votações mais recentes ${DA_CASA[body]} desta lista e nenhuma tem o voto de cada pessoa com estado identificado.` : undefined}>
+            {leituraFalhou ? FALHOU_LEITURA : "O mapa por estado não está disponível para as votações mais recentes."}
           </Lacuna>
         )}
       </Quadro>

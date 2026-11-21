@@ -27,8 +27,8 @@
 /* painel de leitura: os números da UF sob o mouse ou em foco */
 .sv .sv-mv__painel{margin:0;padding:8px 10px;border:1px solid var(--tinta);min-height:3.4em;font-size:15px;font-weight:700;line-height:1.35;font-variant-numeric:tabular-nums;transition:none}
 
-/* link da UF: área de clique transparente, sem sublinhado; o foco nativo (outline) é trocado pelo contorno do estado */
-.sv .sv-mv__a{cursor:pointer;text-decoration:none;outline:none}
+/* link da UF: área de clique transparente, sem sublinhado; o contorno de foco global (.sv a:focus-visible) continua e o traço de 2 px do estado se soma a ele */
+.sv .sv-mv__a{cursor:pointer;text-decoration:none}
 .sv .sv-mv__hit{fill:transparent;stroke:none;vector-effect:non-scaling-stroke;transition:none}
 .sv .sv-mv__a:hover .sv-mv__hit,.sv .sv-mv__a:focus-visible .sv-mv__hit{stroke:var(--tinta);stroke-width:2px;stroke-linejoin:round}
 /* rótulo (camada de cima, link fora do Tab): inverte no mouse sobre ele e, com JS, junto com o foco ou o mouse no desenho da UF (.is-on) */

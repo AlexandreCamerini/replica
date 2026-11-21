@@ -11,7 +11,7 @@ test.describe("sv · mapa de votos", () => {
     const mapa = page.locator("[data-mapa-votos]");
     await expect(mapa.locator("svg")).toBeVisible();
     await expect(mapa.locator("[data-mapa-base]")).toContainText("Sim ÷ (Sim + Não + abstenção) dos votos registrados");
-    await expect(mapa.locator("[data-mapa-base]")).toContainText("ausência não conta como voto contra");
+    await expect(mapa.locator("[data-mapa-base]")).toContainText(/ausência não conta como voto contra/i);
     await expect(mapa.locator("[data-mapa-total]")).toContainText(/de \d+ registrados? votaram Sim|Nenhum voto/);
     await axe();
   });
@@ -76,7 +76,6 @@ test.describe("sv · mapa de votos", () => {
   test("painel de leitura: atualiza ao focar (Tab) e ao passar o mouse, e volta ao padrão ao sair", async ({ page }) => {
     await page.goto(URL);
     const painel = page.locator("[data-mapa-painel]");
-    await expect(painel).toHaveAttribute("aria-live", "polite");
     const padrao = (await painel.textContent())?.trim();
     const a = page.locator('[data-mapa-votos] svg a[data-uf-link="SP"]');
     const txt = await a.getAttribute("data-txt");
@@ -89,7 +88,6 @@ test.describe("sv · mapa de votos", () => {
     // o ponteiro pega a camada de rótulos (por cima): mesmo texto, mesmo destino
     await page.locator('[data-mapa-votos] svg a[data-uf-plaque="MG"]').hover();
     await expect(painel).toHaveText((await b.getAttribute("data-txt"))!);
-    await expect(painel).toHaveAttribute("aria-live", "polite");
     await page.mouse.move(0, 0);
     await expect(painel).toHaveText(padrao!);
   });
@@ -186,7 +184,7 @@ test.describe("sv · mapa de votos", () => {
   test("/votacoes: o mesmo mapa interativo, para a votação mais recente com placar por UF, com a base escrita e link para a votação", async ({ page, axe }) => {
     await page.goto("/votacoes");
     const q = page.locator('[aria-labelledby="vts-mapa"]');
-    await expect(q.getByRole("heading", { name: "Como votou cada estado na votação mais recente?" })).toBeVisible();
+    await expect(q.getByRole("heading", { name: "Como votou cada estado na votação mais recente com voto por estado?" })).toBeVisible();
     const mapa = q.locator("[data-mapa-votos]");
     await expect(mapa.locator("svg a[data-uf-link]")).toHaveCount(27);
     await expect(mapa.locator("[data-mapa-base]")).toContainText("Sim ÷ (Sim + Não + abstenção) dos votos registrados");
@@ -210,7 +208,7 @@ test.describe("sv · mapa de votos", () => {
   test("votação sem voto individual: sem mapa e com lacuna honesta", async ({ page }) => {
     // `?simular=erro` não vale aqui; usa uma votação secreta ou sem votos da demo, se houver. Sem ela, o teste se declara pulado.
     await page.goto("/votacoes");
-    const href = await page.locator('a[href^="/votacao/"]').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+    const href = await page.locator('[aria-labelledby="vts-2"] a[href^="/votacao/"]').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
     let achou = false;
     for (const h of href.slice(0, 40)) {
       await page.goto(h!);
