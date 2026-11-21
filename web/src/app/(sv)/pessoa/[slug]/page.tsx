@@ -40,8 +40,10 @@ import {
   vmPatrimonio,
 } from "@/components/sv/pessoa/secoes";
 import { ESFERA } from "@/components/sv/pessoa/cargos";
-import { EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO, SEM_ORIGEM } from "@/components/sv/pessoa/contexto";
+import { contextoPessoa, EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO, SEM_ORIGEM } from "@/components/sv/pessoa/contexto";
 import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
+import { PainelMandato } from "@/components/sv/pessoa/painel-mandato";
+import { carregarMandato } from "@/components/sv/pessoa/mandato-dados";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
@@ -86,6 +88,9 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
   if (r.redirectTo) permanentRedirect(`/pessoa/${r.redirectTo}`);
   const person = r.person;
   const id = person.id;
+
+  // visão do mandato (painel do topo): leitura própria, cada falha vira lacuna do item
+  const dadosMandato = await contextoPessoa(person).then((c) => carregarMandato(c)).catch(() => null);
 
   const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
   const votou = follows.includes(slug);
@@ -299,6 +304,8 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
           <FollowButton slug={person.slug} name={person.displayName} on={votou} cheio={follows.length >= FOLLOW_MAX} />
         </div>
       </div>
+
+      {dadosMandato && <PainelMandato d={dadosMandato} />}
 
       {/* D324: quatro respostas antes das seções, nesta ordem. O mesmo dado, a mesma fonte e a mesma lacuna de cada seção. */}
       <QuatroRespostas

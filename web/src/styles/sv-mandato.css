@@ -1,0 +1,30 @@
+/* Segue o Voto, D2 · visão do mandato (painel da Pessoa e /pessoa/[slug]/mandato). Só tinta sobre papel: sem cor, sem sombra, raio 0.
+   Voto nunca por cor. Base = celular; duas colunas a partir de 900px. */
+.sv .sv-pm{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;min-width:0}
+.sv .sv-pm__b{display:flex;flex-direction:column;gap:6px;min-width:0;border:3px solid var(--tinta);padding:7px var(--pad) 8px}
+.sv .sv-pm__b .sv-a{font-size:21px;line-height:1.15}
+.sv .sv-pm__l{display:flex;flex-direction:column;min-width:0}
+.sv .sv-pm__l>div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1.5px solid var(--tinta);min-width:0}
+.sv .sv-pm__l dt{font-size:15px;line-height:1.3;font-weight:600;font-stretch:84%;color:var(--tinta2)}
+.sv .sv-pm__l dd{font-weight:800;text-align:right;min-width:0;overflow-wrap:anywhere}
+.sv .sv-pm__l--fez>div{display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
+.sv .sv-pm__l--fez dd{text-align:left;font-weight:400}
+.sv .sv-pm__l--fez dd b{font-weight:800}
+.sv .sv-pm__c{margin-top:4px;font-size:15px;line-height:1.35}
+.sv .sv-pm__c li{padding:2px 0}
+.sv .sv-pm__f li{padding:5px 0;border-top:1.5px solid var(--tinta);overflow-wrap:anywhere}
+.sv .sv-pm__f li:first-child{border-top:0}
+.sv .sv-pm__fora ul{padding-left:18px;list-style:disc}
+.sv .sv-pm__ir a{display:inline-flex;align-items:center;min-height:44px;font-weight:700}
+/* tabelas da página do mandato: sem barra, sem proporção */
+.sv .sv-gm{border-collapse:collapse;width:100%;font-size:16px;line-height:1.3}
+.sv .sv-gm th,.sv .sv-gm td{padding:5px 0;text-align:left;border-top:1.5px solid var(--tinta);vertical-align:middle}
+.sv .sv-gm tbody tr:first-child th,.sv .sv-gm tbody tr:first-child td{border-top:0}
+.sv .sv-gm th{font-weight:500;padding-right:10px;overflow-wrap:anywhere}
+.sv .sv-gm td{text-align:right;white-space:nowrap;font-weight:700;padding-left:8px}
+.sv .sv-gm td.sv-gm__n{font-weight:400;color:var(--tinta2)}
+.sv .sv-gm tfoot th,.sv .sv-gm tfoot td{border-top:3px solid var(--tinta);font-weight:800}
+@media (min-width:900px){
+  .sv .sv-pm{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .sv .sv-pm__b{padding:12px var(--pad)}
+}
