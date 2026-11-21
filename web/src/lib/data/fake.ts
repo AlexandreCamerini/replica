@@ -887,8 +887,19 @@ export const fakeSource: DataSource = {
       extra: Math.max(0, holders.length - capacity),
     };
   },
-  async getSalaryAccrued() {
-    return null; // a demo não guarda a série histórica do subsídio
+  async getSalaryAccrued(personId, year, since, until) {
+    // a demo não guarda a série histórica do subsídio: só a visão do mandato (que passa `since`) recebe uma conta, de valor único,
+    // e só até out/2026 (último mês das notas da demo). Quem chama sem `since` (v1) segue sem série.
+    if (!since || year) return null;
+    const m = mainMandate(personId);
+    const v = m && WITH_FULL_DATA.includes(m.office) ? salaryFor(m) : null;
+    if (!m || !v || v.cents === null || v.ceiling) return null;
+    const ini = m.startedOn.slice(0, 7) > since.slice(0, 7) ? m.startedOn.slice(0, 7) : since.slice(0, 7);
+    const [y0, m0] = ini.split("-").map(Number);
+    const [yf, mf] = (until ?? `${CURRENT_YEAR}-10`).slice(0, 7).split("-").map(Number);
+    const meses = (yf - y0) * 12 + (mf - m0) + 1;
+    if (meses <= 0) return null;
+    return { cents: v.cents * meses, months: meses, coveredMonths: meses, firstMonth: `${ini}-01`, coveredFrom: `${ini}-01` };
   },
   async getCampaignFinance() {
     return []; // a demo não simula a prestação de contas por categoria
@@ -948,6 +959,28 @@ export const fakeSource: DataSource = {
     return {
       ...page(all, f.cursor, f.limit ?? 20),
       byCategory: [...cats.entries()].sort((a, b) => b[1] - a[1]).map(([label, cents]) => ({ label, cents })),
+    };
+  },
+  async getMandateSpend(personId, f) {
+    const todas = expensesOf(personId);
+    const nela = todas.filter((e) => e.occurredOn >= f.from && (!f.to || e.occurredOn <= f.to));
+    const cat = new Map<string, { cents: number; notas: number }>();
+    const mes = new Map<string, { cents: number; notas: number }>();
+    for (const e of nela) {
+      const c = cat.get(e.category) ?? { cents: 0, notas: 0 };
+      cat.set(e.category, { cents: c.cents + e.amountCents, notas: c.notas + 1 });
+      const k = e.occurredOn.slice(0, 7);
+      const m = mes.get(k) ?? { cents: 0, notas: 0 };
+      mes.set(k, { cents: m.cents + e.amountCents, notas: m.notas + 1 });
+    }
+    const datas = todas.map((e) => e.occurredOn).sort();
+    return {
+      primeiraNotaEm: datas[0] ?? null,
+      ultimaNotaEm: datas.at(-1) ?? null,
+      notas: nela.length,
+      totalCents: nela.reduce((a, e) => a + e.amountCents, 0),
+      porCategoria: [...cat].map(([label, v]) => ({ label, ...v })).sort((a, b) => a.label.localeCompare(b.label, "pt-BR")),
+      porMes: [...mes].map(([m, v]) => ({ mes: m, ...v })).sort((a, b) => a.mes.localeCompare(b.mes)),
     };
   },
   async getAgreement(personIds, period) {

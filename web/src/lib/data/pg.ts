@@ -65,6 +65,7 @@ import type {
   Correction,
   PublishedAnswers,
   VerifiedBy,
+  MandateSpend,
 } from "./types";
 import { ANSWER_FIELDS, CAMPAIGN_ORIGINS } from "./types";
 import { label, parseProposalKey, proposalKey, termLabel, uniqueByKey } from "../pauta";
@@ -182,6 +183,11 @@ const toDataset = (d: string): MissingDataset["dataset"] =>
 
 type Row = Record<string, unknown>;
 const iso = (d: unknown) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d ?? "").slice(0, 10));
+/** Data ISO (AAAA-MM-DD) de um parâmetro de janela; qualquer outra coisa é erro de programação, nunca vai ao SQL. */
+const isoDate = (d: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(Date.parse(d))) throw new Error(`data inválida: ${d}`);
+  return d;
+};
 const isoTs = (d: unknown) => (d instanceof Date ? d.toISOString() : String(d ?? ""));
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
@@ -935,7 +941,7 @@ export const pgSource: DataSource = {
       extra: Math.max(0, holders.length - capacity),
     } satisfies ChamberTransition;
   },
-  async getSalaryAccrued(personId, year) {
+  async getSalaryAccrued(personId, year, since, until) {
     // mês a mês, em todos os mandatos já exercidos; o valor de cada mês é o subsídio vigente no 1º dia dele.
     // Mês sem valor carregado (antes do primeiro valid_from) conta no tempo de cargo, não na soma.
     const [r] = await sql`
@@ -945,6 +951,8 @@ export const pgSource: DataSource = {
              generate_series(date_trunc('month', m.started_on), date_trunc('month', least(m.ends_on - 1, current_date)), interval '1 month') gs
         where m.person_id = ${personId}::uuid and m.status <> 'eleito_aguardando_posse'
           ${year ? sql`and extract(year from gs) = ${year}` : sql``}
+          ${since ? sql`and gs >= date_trunc('month', ${isoDate(since)}::date)` : sql``}
+          ${until ? sql`and gs <= date_trunc('month', ${isoDate(until)}::date)` : sql``}
       )
       select count(*)::int as months, count(sa.amount_cents)::int as covered, sum(sa.amount_cents)::bigint as cents,
              min(mo) as first, min(mo) filter (where sa.amount_cents is not null) as covered_from
@@ -1120,6 +1128,27 @@ export const pgSource: DataSource = {
       ),
       byCategory: cats.map((c) => ({ label: String(c.label), cents: Number(c.cents) })),
     };
+  },
+  async getMandateSpend(personId, f) {
+    // Três leituras agregadas (nunca nota a nota): o conjunto da pessoa (primeira e última nota), a janela por categoria e a janela por mês.
+    // A janela é [from, to] em data de ocorrência; `to` ausente = sem limite superior. O estorno (valor negativo) entra como a fonte publica.
+    const from = isoDate(f.from);
+    const to = f.to ? isoDate(f.to) : null;
+    const win = sql`person_id = ${personId}::uuid and occurred_on >= ${from}::date ${to ? sql`and occurred_on <= ${to}::date` : sql``}`;
+    const [[lim], cats, meses] = await Promise.all([
+      sql`select min(occurred_on) as primeira, max(occurred_on) as ultima from expenses where person_id = ${personId}::uuid`,
+      sql`select category as label, sum(amount_cents)::bigint as cents, count(*)::int as n from expenses where ${win} group by category order by category collate pt_br`,
+      sql`select to_char(date_trunc('month', occurred_on), 'YYYY-MM') as mes, sum(amount_cents)::bigint as cents, count(*)::int as n from expenses where ${win} group by 1 order by 1`,
+    ]);
+    const porCategoria = cats.map((c) => ({ label: String(c.label), cents: Number(c.cents), notas: Number(c.n) }));
+    return {
+      primeiraNotaEm: lim?.primeira ? iso(lim.primeira) : null,
+      ultimaNotaEm: lim?.ultima ? iso(lim.ultima) : null,
+      notas: porCategoria.reduce((a, c) => a + c.notas, 0),
+      totalCents: porCategoria.reduce((a, c) => a + c.cents, 0),
+      porCategoria,
+      porMes: meses.map((m) => ({ mes: String(m.mes), cents: Number(m.cents), notas: Number(m.n) })),
+    } satisfies MandateSpend;
   },
   async getAgreement(personIds, period) {
     const out: Agreement[] = [];
@@ -1434,7 +1463,9 @@ export const pgSource: DataSource = {
   async listSpeeches(personId, f) {
     const limit = Math.min(f.limit ?? 10, 200);
     const offset = off(f.cursor);
-    const where = sql`person_id = ${personId}::uuid ${f.year ? sql`and extract(year from occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}`;
+    const where = sql`person_id = ${personId}::uuid ${f.year ? sql`and extract(year from occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
+      ${f.since ? sql`and occurred_at >= (${isoDate(f.since)}::date)::timestamp at time zone 'America/Sao_Paulo'` : sql``}
+      ${f.until ? sql`and occurred_at < ((${isoDate(f.until)}::date + 1)::timestamp at time zone 'America/Sao_Paulo')` : sql``}`;
     const [{ n }] = await sql`select count(*)::int as n from speeches where ${where}`;
     const rows = await sql`select id, occurred_at, summary, url from speeches where ${where} order by occurred_at desc, id desc limit ${limit} offset ${offset}`;
     return page(rows.map<SpeechItem>((r) => ({ id: String(r.id), occurredAt: isoTs(r.occurred_at), summary: (r.summary as string | null) ?? null, url: (r.url as string | null) ?? null })), Number(n), offset, limit);
