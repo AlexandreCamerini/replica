@@ -192,6 +192,13 @@ test.describe("sv · mapa de votos", () => {
     expect(href).toMatch(/^\/votacao\//);
     const uf = await mapa.locator("svg a[data-uf-link]").first().getAttribute("href");
     expect(uf).toContain(`${href}?uf=`);
+    // a exceção D2 do desenho do mapa só vale porque esta rota também tem a lista de estados de 44 px
+    const lista = q.locator("nav.sv-ufs a");
+    await expect(lista).toHaveCount(27);
+    const alturas = await lista.evaluateAll((as) => as.map((a) => a.getBoundingClientRect().height));
+    for (const h of alturas) expect(h).toBeGreaterThanOrEqual(44);
+    // o painel de leitura é eco visual: sem aria-live (o link em foco já anuncia % e contagem)
+    await expect(mapa.locator("[data-mapa-painel]")).not.toHaveAttribute("aria-live", /.*/);
     const siglas = await mapa.locator("g[data-uf]").evaluateAll((els) => els.map((e) => e.getAttribute("data-uf") ?? ""));
     expect(siglas).toEqual([...siglas].sort((a, b) => a.localeCompare(b, "pt-BR")));
     await axe();

@@ -32,8 +32,9 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
 
   return (
     <figure className="sv-mv" data-mapa-votos>
-      {/* painel de leitura: os números da UF sob o mouse ou em foco; sem JS mostra a UF escolhida */}
-      <p className="sv-mv__painel" data-mapa-painel data-padrao={padrao} aria-live="polite">
+      {/* painel de leitura: os números da UF sob o mouse ou em foco; sem JS mostra a UF escolhida. Sem aria-live: o link em foco já
+          anuncia % e contagem (aria-label e descrição), e o painel os repetiria; é só eco visual. */}
+      <p className="sv-mv__painel" data-mapa-painel data-padrao={padrao}>
         {padrao}
       </p>
       <MapaPainel />
