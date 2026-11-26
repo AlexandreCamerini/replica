@@ -40,8 +40,10 @@ import {
   vmPatrimonio,
 } from "@/components/sv/pessoa/secoes";
 import { ESFERA } from "@/components/sv/pessoa/cargos";
-import { EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO, SEM_ORIGEM } from "@/components/sv/pessoa/contexto";
+import { contextoPessoa, EXECUTIVO, MOTIVO_COTA, MOTIVO_PLENARIO, SEM_ORIGEM } from "@/components/sv/pessoa/contexto";
 import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
+import { PainelMandato } from "@/components/sv/pessoa/painel-mandato";
+import { carregarMandato } from "@/components/sv/pessoa/mandato-dados";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { data, type AttendanceGrid, type CoberturaConjunto, type ConjuntoPessoa, type OfficeSlug, type Stamp } from "@/lib/data";
 import { fonteDoConjunto } from "@/lib/data/cobertura";
@@ -86,6 +88,10 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
   if (r.redirectTo) permanentRedirect(`/pessoa/${r.redirectTo}`);
   const person = r.person;
   const id = person.id;
+
+  // visão do mandato (painel do topo): leitura própria, cada falha vira lacuna do item
+  // A promise parte já; só se espera no render, para não serializar as demais leituras atrás do painel.
+  const dadosMandatoP = contextoPessoa(person).then((c) => carregarMandato(c)).catch(() => null);
 
   const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
   const votou = follows.includes(slug);
@@ -149,6 +155,7 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
   // U04: o ano do resumo é o da grade de presença (que cai para o anterior se o corrente está vazio); sem grade, o corrente
   const anoResumo = !posse && gradeR && gradeR.ok && gradeR.v.sessions.length > 0 ? gradeR.v.year : hoje.ano;
   const [statsAno, provR] = await Promise.all([ler(data.getStats(id, String(anoResumo) as `${number}`)), ler(data.getPartyProvenance(id))]);
+  const dadosMandato = await dadosMandatoP;
 
   const missing = stats.ok ? stats.v.missing : [];
   const lugar = place && place.ok ? place.v : null;
@@ -299,6 +306,12 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
           <FollowButton slug={person.slug} name={person.displayName} on={votou} cheio={follows.length >= FOLLOW_MAX} />
         </div>
       </div>
+
+      {dadosMandato ? (
+        <PainelMandato d={dadosMandato} />
+      ) : (
+        <Lacuna motivo="A leitura do mandato falhou agora. Os dados abaixo seguem valendo.">Visão do mandato indisponível.</Lacuna>
+      )}
 
       {/* D324: quatro respostas antes das seções, nesta ordem. O mesmo dado, a mesma fonte e a mesma lacuna de cada seção. */}
       <QuatroRespostas

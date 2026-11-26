@@ -49,36 +49,36 @@ PG = "web/src/lib/data/pg.ts"
 # Campo sem entrada aqui não tem leitor no site e não gera linha em `corrections`.
 LEITORES: dict[tuple[str, str], list[dict[str, Any]]] = {
     ("vinculo_sapl", "status"): [
-        {"metodo": "getCouncilSite", "arquivo": PG, "linha": 425, "contem": "from sapl_houses h join places p", "escopo": "camara"},
-        {"metodo": "getAssembly", "arquivo": PG, "linha": 437, "contem": "left join sapl_houses h on b.adapter = 'sapl'", "escopo": "uf"},
-        {"metodo": "getCityCouncil", "arquivo": PG, "linha": 480, "contem": "h.status = 'ok'", "escopo": None},
-        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 816, "contem": "h.status = 'ok'", "escopo": None},
+        {"metodo": "getCouncilSite", "arquivo": PG, "linha": 431, "contem": "from sapl_houses h join places p", "escopo": "camara"},
+        {"metodo": "getAssembly", "arquivo": PG, "linha": 443, "contem": "left join sapl_houses h on b.adapter = 'sapl'", "escopo": "uf"},
+        {"metodo": "getCityCouncil", "arquivo": PG, "linha": 486, "contem": "h.status = 'ok'", "escopo": None},
+        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 822, "contem": "h.status = 'ok'", "escopo": None},
     ],
     ("vinculo_sapl", "base_url"): [
-        {"metodo": "getCouncilSite", "arquivo": PG, "linha": 424, "contem": "select h.status, h.base_url, h.note", "escopo": "camara"},
-        {"metodo": "getCityCouncil", "arquivo": PG, "linha": 478, "contem": "h.base_url", "escopo": None},
-        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 813, "contem": "h.base_url", "escopo": None},
+        {"metodo": "getCouncilSite", "arquivo": PG, "linha": 430, "contem": "select h.status, h.base_url, h.note", "escopo": "camara"},
+        {"metodo": "getCityCouncil", "arquivo": PG, "linha": 484, "contem": "h.base_url", "escopo": None},
+        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 819, "contem": "h.base_url", "escopo": None},
     ],
     ("cobertura", "status"): [
-        {"metodo": "getCoverage", "arquivo": PG, "linha": 412, "contem": "from data_coverage dc join places p", "escopo": "municipio"},
-        {"metodo": "getAssembly", "arquivo": PG, "linha": 442, "contem": "from data_coverage where place_id", "escopo": "uf", "datasets": ("presenca", "votos", "propostas", "gastos_gabinete")},
-        {"metodo": "statsForPeople", "arquivo": PG, "linha": 1764, "contem": "select place_id, dataset, status, reason from data_coverage", "escopo": None},
-        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 830, "contem": "from data_coverage where place_id = any(", "escopo": "municipio"},
-        {"metodo": "getCoverageMatrix", "arquivo": PG, "linha": 1496, "contem": "from data_coverage dc join places p on p.id = dc.place_id", "escopo": "municipio"},
+        {"metodo": "getCoverage", "arquivo": PG, "linha": 418, "contem": "from data_coverage dc join places p", "escopo": "municipio"},
+        {"metodo": "getAssembly", "arquivo": PG, "linha": 448, "contem": "from data_coverage where place_id", "escopo": "uf", "datasets": ("presenca", "votos", "propostas", "gastos_gabinete")},
+        {"metodo": "statsForPeople", "arquivo": PG, "linha": 1795, "contem": "select place_id, dataset, status, reason from data_coverage", "escopo": None},
+        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 836, "contem": "from data_coverage where place_id = any(", "escopo": "municipio"},
+        {"metodo": "getCoverageMatrix", "arquivo": PG, "linha": 1527, "contem": "from data_coverage dc join places p on p.id = dc.place_id", "escopo": "municipio"},
     ],
     ("cobertura", "reason"): [
-        {"metodo": "getCoverage", "arquivo": PG, "linha": 412, "contem": "from data_coverage dc join places p", "escopo": "municipio"},
-        {"metodo": "getAssembly", "arquivo": PG, "linha": 442, "contem": "from data_coverage where place_id", "escopo": "uf", "datasets": ("presenca", "votos", "propostas", "gastos_gabinete")},
-        {"metodo": "statsForPeople", "arquivo": PG, "linha": 1764, "contem": "select place_id, dataset, status, reason from data_coverage", "escopo": None},
-        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 830, "contem": "from data_coverage where place_id = any(", "escopo": "municipio"},
+        {"metodo": "getCoverage", "arquivo": PG, "linha": 418, "contem": "from data_coverage dc join places p", "escopo": "municipio"},
+        {"metodo": "getAssembly", "arquivo": PG, "linha": 448, "contem": "from data_coverage where place_id", "escopo": "uf", "datasets": ("presenca", "votos", "propostas", "gastos_gabinete")},
+        {"metodo": "statsForPeople", "arquivo": PG, "linha": 1795, "contem": "select place_id, dataset, status, reason from data_coverage", "escopo": None},
+        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 836, "contem": "from data_coverage where place_id = any(", "escopo": "municipio"},
     ],
     ("cobertura", "evidence_url"): [
-        {"metodo": "getCoverage", "arquivo": PG, "linha": 412, "contem": "evidence_url", "escopo": "municipio"},
-        {"metodo": "getAssembly", "arquivo": PG, "linha": 442, "contem": "evidence_url", "escopo": "uf", "datasets": ("presenca", "votos", "propostas", "gastos_gabinete")},
-        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 830, "contem": "from data_coverage where place_id = any(", "escopo": "municipio"},
+        {"metodo": "getCoverage", "arquivo": PG, "linha": 418, "contem": "evidence_url", "escopo": "municipio"},
+        {"metodo": "getAssembly", "arquivo": PG, "linha": 448, "contem": "evidence_url", "escopo": "uf", "datasets": ("presenca", "votos", "propostas", "gastos_gabinete")},
+        {"metodo": "getPeopleCoverage", "arquivo": PG, "linha": 836, "contem": "from data_coverage where place_id = any(", "escopo": "municipio"},
     ],
     ("contato_mandato", "contato"): [
-        {"metodo": "getContacts", "arquivo": PG, "linha": 1444, "contem": "from mandate_contacts mc join mandates m", "escopo": None},
+        {"metodo": "getContacts", "arquivo": PG, "linha": 1475, "contem": "from mandate_contacts mc join mandates m", "escopo": None},
     ],
 }
 SEM_LEITOR_NO_SITE = ("identidade", "status")  # fila de identidade e person_external_ids: nada do site público lê (decisão de identidade não gera `corrections`)
