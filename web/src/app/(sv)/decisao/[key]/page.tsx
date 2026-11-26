@@ -11,6 +11,7 @@ import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtWeekday } from "@/components/sv/fmt";
 import { aguardaPosse, fraseDesde, mandatoPrincipal } from "@/components/sv/mandato";
 import { placarDe } from "@/components/sv/placar";
+import { statusDeProposta } from "@/components/sv/status-proposta";
 import { COOKIE_TEXTO } from "@/components/sv/prefs";
 import { reuniaoTexto, vigenciaDe } from "@/components/sv/vigencia";
 import {
@@ -158,9 +159,11 @@ export default async function Decisao({ params, searchParams }: { params: Promis
   const follows = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
 
   // cada leitura que falha vira lacuna do próprio item, nunca erro da página; null = a leitura do conjunto falhou
-  const [escolhidos, eventosRaw] = await Promise.all([
+  const [escolhidos, eventosRaw, destino] = await Promise.all([
     carregarEscolhidos(follows, falhar).catch(() => null),
     Promise.all(p.votes.map((v) => data.getVotingEvent(v.id).catch(() => null))),
+    // F9: situação e lei de destino; undefined = a leitura falhou (lacuna), null = proposta fora do cadastro
+    data.getProposalDestiny((await params).key).catch(() => undefined),
   ]);
   const eventos = p.votes.map((v, i) => ({ v, ev: eventosRaw[i] }));
   // Quem o leitor marcou nunca some, mesmo de esfera desligada nos Ajustes: a escolha explícita vale mais que o
@@ -235,6 +238,40 @@ export default async function Decisao({ params, searchParams }: { params: Promis
         </Resposta>
         <p className="sv-t">{vig.explicacao}</p>
         {status && <p className="sv-t">{status}</p>}
+        <div data-destino={destino === undefined ? "falhou" : destino?.law ? "lei" : "situacao"}>
+          {destino === undefined ? (
+            <Lacuna>Não conseguimos ler a situação desta proposta agora.</Lacuna>
+          ) : destino ? (
+            <>
+              {destino.law && (
+                <p className="sv-t">
+                  {data.isDemo && <ExemploIlustrativo>Exemplo ilustrativo</ExemploIlustrativo>} <b>Virou lei:</b> {destino.law.number}, sancionada em {fmtDate(destino.law.sanctionedOn)}. {destino.law.summary}{" "}
+                  {destino.law.url && /^https?:\/\//i.test(destino.law.url) && (
+                    <a href={destino.law.url} rel="noopener noreferrer">
+                      Texto da lei na fonte
+                    </a>
+                  )}
+                </p>
+              )}
+              {(() => {
+                const st = statusDeProposta(destino.status);
+                if (st.origem === "tabela" && destino.law && st.frase === "Virou lei.") return null; // o destino acima já diz
+                return st.origem === "tabela" ? (
+                  <p className="sv-t">
+                    {st.frase} <span className="sv-sm">Situação na fonte: {st.original}.</span>
+                  </p>
+                ) : st.origem === "fonte" ? (
+                  <p className="sv-t">Situação na fonte: {st.original}.</p>
+                ) : (
+                  <Lacuna>A fonte não informa a situação desta proposta.</Lacuna>
+                );
+              })()}
+              <p className="sv-sm">Fonte: {BODY_NAME[e.body]}, cadastro da proposta.</p>
+            </>
+          ) : (
+            <Lacuna>Esta proposta ainda não está no cadastro de propostas, então não temos a situação nem a lei.</Lacuna>
+          )}
+        </div>
         <JaValeLegenda />
       </Quadro>
 

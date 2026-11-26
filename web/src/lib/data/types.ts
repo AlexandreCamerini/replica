@@ -516,6 +516,7 @@ export type PautaVote = { id: string; occurredAt: string; description: string; r
 export type PautaAuthor = { slug: string; name: string; role: "principal" | "coautoria" };
 /** Uma página de uma lista e o total que a fonte tem. `truncado` = há mais itens do que os devolvidos (total > itens.length). */
 export type Lista<T> = { itens: T[]; total: number; truncado: boolean };
+export type ProposalDestiny = { status: string | null; law: { number: string; sanctionedOn: string; summary: string; url: string | null } | null };
 export type PautaProposal = {
   entry: PautaEntry;
   status: PautaStatus;
@@ -692,6 +693,8 @@ export interface DataSource extends DataSourceW4 {
    */
   getPautaOverview(opts?: { simulate?: "erro" | "camara_nao_lida" | "pauta_velha" }): Promise<PautaOverview>;
   getPautaProposal(key: string): Promise<PautaProposal | null>;
+  /** F9: situação como a fonte escreve e a lei de destino (`proposals.became_law_id` + `laws`). null = proposta não carregada; `law` null = sem lei ligada (não afirma "não virou lei"). */
+  getProposalDestiny(key: string): Promise<ProposalDestiny | null>;
   listPocketRules(): Promise<PocketRule[]>;
   listCorrections(): Promise<Correction[]>;
   listSourceStatus(): Promise<SourceStatus[]>;
