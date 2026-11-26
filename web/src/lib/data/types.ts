@@ -710,6 +710,11 @@ export interface DataSource extends DataSourceW4 {
   getAttendanceGridForPeople(personIds: string[], year: number): Promise<PorPessoa<AttendanceGrid>>;
   /** Os `limit` votos mais recentes de cada pessoa no recorte "lei" (sem requerimento e urgência) e o total. */
   getRecentLawVotesForPeople(personIds: string[], limit: number): Promise<PorPessoa<VotosRecentes>>;
+  /**
+   * O voto registrado de cada pessoa em cada uma destas votações (D352), numa consulta, qualquer que seja o número de pessoas e votações.
+   * Sem recorte: quem chama já escolheu as votações. Votação sem voto da pessoa não aparece (não é zero nem "não votou").
+   */
+  getVotesForPeopleInEvents(personIds: string[], eventIds: string[]): Promise<PorPessoa<{ eventId: string; value: VoteValue }[]>>;
   /** Gasto do ano por categoria (mesma soma de `listExpenses(...).byCategory`). */
   getExpensesByCategoryForPeople(personIds: string[], year: number): Promise<PorPessoa<{ label: string; cents: number }[]>>;
   getPlaces(ibges: string[]): Promise<Place[]>;
