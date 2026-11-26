@@ -71,7 +71,7 @@ export function MudouDesde({ atos, hoje, minimo }: { atos: AtoDesde[]; hoje: str
         </ul>
       )}
       <p className="sv-nota">
-        A data da sua última visita fica só neste aparelho. A contagem usa a data de cada registro (do voto, da proposta ou do gasto), não a de quando o site o leu: registro que chega com atraso aparece na data dele. Contagem da fonte, em ordem alfabética, sem comparação entre pessoas.
+        A data da sua última visita fica guardada neste navegador e não é enviada ao servidor. A contagem usa a data de cada registro (do voto, da proposta ou do gasto), não a de quando o site o leu: registro que chega com atraso aparece na data dele. Contagem da fonte, em ordem alfabética, sem comparação entre pessoas.
         {minimo ? " A leitura parou no limite de registros: os números são um mínimo e pode faltar quem teve registros mais antigos no período." : ""}
       </p>
     </div>

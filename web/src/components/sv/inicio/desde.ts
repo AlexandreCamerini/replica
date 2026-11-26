@@ -1,7 +1,7 @@
 // "O que mudou com seus escolhidos desde a última visita" (F1/F2 do roteiro do eleitor, replica/roteiro-eleitor-2026-11.md, A1 e A2).
 // Puro (sem servidor nem React), para o teste unitário.
 //
-// A data da última visita fica só neste aparelho (localStorage): o servidor nunca a recebe. Por isso o servidor entrega os registros
+// A data da última visita fica neste navegador (localStorage): o servidor nunca a recebe. Por isso o servidor entrega os registros
 // dos últimos 60 dias e a conta "desde" é feita no navegador. Sem JavaScript, ou na primeira visita, vale a janela padrão de 14 dias,
 // dita na tela ("nos últimos 14 dias"), nunca um "desde" inventado.
 //
@@ -151,7 +151,8 @@ export function frasePessoa(r: ResumoPessoa, minimo: boolean): string {
   if (r.semVoto) partes.push(`ficou sem voto registrado em ${aoMenos}${plural(r.semVoto, "votação", "votações")}`);
   if (r.propostas) partes.push(`consta na autoria de ${aoMenos}${plural(r.propostas, "proposta", "propostas")}`);
   if (r.gastos) {
-    const valor = r.gastoCentavos === null ? "" : ` (${fmtReais(r.gastoCentavos)})`;
+    // valor zerado não aparece: "R$ 0,00" ao lado de uma contagem pareceria lacuna escrita como zero (a bateria de conteúdo a recusa)
+    const valor = r.gastoCentavos === null || r.gastoCentavos === 0 ? "" : ` (${fmtReais(r.gastoCentavos)})`;
     partes.push(`teve ${aoMenos}${plural(r.gastos, "gasto registrado", "gastos registrados")}${valor}`);
   }
   return partes.length <= 1 ? (partes[0] ?? "") : `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}`;

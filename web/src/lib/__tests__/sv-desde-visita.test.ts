@@ -136,3 +136,8 @@ test("frase: só o que houve, singular e plural, 'e' antes do último, 'pelo men
   assert.equal(frasePessoa({ ...base, semVoto: 3 }, false), "ficou sem voto registrado em 3 votações");
   assert.equal(frasePessoa({ ...base, votos: 4 }, true), "votou em pelo menos 4 votações");
 });
+
+test("frase: gasto de valor zerado não escreve 'R$ 0,00' (lacuna escrita como zero)", () => {
+  const base = { slug: "a", nome: "A", votos: 0, semVoto: 0, propostas: 0, gastos: 2, gastoCentavos: 0 };
+  assert.equal(frasePessoa(base, false), "teve 2 gastos registrados");
+});
