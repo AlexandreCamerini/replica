@@ -86,6 +86,15 @@
 }
 
 /* ---------- "Em quem eu votei" ---------- */
+/* F2 do roteiro do eleitor: "O que mudou" dentro do quadro. Mesma linguagem dos escolhidos: fio de tinta, texto de 15px, links de 44px. */
+.sv-mud{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.sv-mud__t{font-size:19px;line-height:23px;font-weight:800;font-stretch:90%;letter-spacing:-.01em}
+.sv-mud__l{display:block}
+.sv-mud__l>li{display:flex;flex-direction:column;gap:0;border-top:1.5px solid var(--tinta);padding:6px 0 2px}
+.sv-mud__f{font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.sv-mud__n{font-weight:800}
+.sv-mud__a{display:flex;flex-wrap:wrap;column-gap:14px}
+.sv .sv-mud__a a{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:700;white-space:normal}
 .sv-vazio{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .sv-esc{display:block}
 .sv-esc>li{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;border-top:1.5px solid var(--tinta);padding:6px 0 2px}

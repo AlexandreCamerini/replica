@@ -7,7 +7,10 @@ import { ESTADO_COBERTURA, FALHOU_LEITURA, naoHaNaLeitura } from "@/components/s
 import { lerOuFalhar } from "@/components/sv/simular";
 import { Cobertura, Fonte, Lacuna, Nota, Quadro, VotoMarca } from "@/components/sv/ui";
 import { data, type CoberturaConjunto, type MandateStatus, type OfficeSlug, type PersonVote, type Place } from "@/lib/data";
-import { dayKey, fmtLong } from "./datas";
+import { dayKey, fmtLong, hojeKey } from "./datas";
+import { comDiaCerto } from "@/components/sv/escolhidos/agrupar";
+import { JANELA_MAX, centavosDe, diaDe, somarDias, type AtoDesde } from "./desde";
+import { MudouDesde } from "./mudou-desde";
 import { compararNomes } from "@/lib/ordem-nomes";
 
 // Esfera em palavra, derivada do cargo do mandato. Mesma forma para toda pessoa; sem estilo próprio por esfera.
@@ -55,19 +58,21 @@ type Escolhido = {
 };
 
 const FALHOU = FALHOU_LEITURA;
+/** Registros lidos de uma vez para o "desde a última visita". Se a leitura chegar a este número, a tela diz "pelo menos". */
+const LIMITE_ATIVIDADE = 200;
 
 /**
  * `falhas`: quantas pessoas do cookie não puderam ser lidas (a leitura falhou). Slug que não existe mais é ignorado.
  * Leituras em lote (uma por conjunto, não por pessoa); cada conjunto que falha vira lacuna só dele.
  */
-async function carregar(slugs: string[], falhar: boolean): Promise<{ lista: Escolhido[]; falhas: number }> {
+async function carregar(slugs: string[], falhar: boolean): Promise<{ lista: Escolhido[]; falhas: number; ids: string[] }> {
   const pedidos = [...new Set(slugs)];
   const achadas = await lerOuFalhar(falhar, () => data.getPeopleBySlugs(pedidos)).catch(() => null);
-  if (!achadas) return { lista: [], falhas: pedidos.length };
+  if (!achadas) return { lista: [], falhas: pedidos.length, ids: [] };
   const vistos = new Set<string>();
   const pessoas = achadas.encontradas.map((x) => x.person).filter((p) => !vistos.has(p.id) && !!vistos.add(p.id));
   const ids = pessoas.map((p) => p.id).sort();
-  if (!ids.length) return { lista: [], falhas: 0 };
+  if (!ids.length) return { lista: [], falhas: 0, ids: [] };
   const [mandR, votosR, cobR] = await Promise.all([
     data.getMandatesForPeople(ids).catch(() => null), // null = leitura falhou, diferente de "sem mandato"
     data.getRecentLawVotesForPeople(ids, 3).catch(() => null),
@@ -93,7 +98,7 @@ async function carregar(slugs: string[], falhar: boolean): Promise<{ lista: Esco
     const votos = votosR ? (votosR[person.id]?.items ?? []) : null;
     return { slug: person.slug, nome: person.displayName, esfera: m ? ESFERA[m.office] : null, cargo, office: m?.office ?? null, uf, votos, posse, cobVotos: cobR ? (cobDe.get(person.id) ?? null) : null };
   });
-  return { lista: rows.sort((a, b) => compararNomes(a.nome, b.nome)), falhas: 0 };
+  return { lista: rows.sort((a, b) => compararNomes(a.nome, b.nome)), falhas: 0, ids };
 }
 
 function SemVotos({ e }: { e: Escolhido }) {
@@ -123,7 +128,18 @@ function SemVotos({ e }: { e: Escolhido }) {
 
 /** "Em quem eu votei": as pessoas do cookie sv_sigo, em ordem alfabética, todas com a mesma estrutura. */
 export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slugs: string[]; ufSigla: string | null; /** só na demonstração */ simularFalha?: boolean }) {
-  const { lista, falhas } = slugs.length ? await carregar(slugs, simularFalha) : { lista: [], falhas: 0 };
+  const { lista, falhas, ids } = slugs.length ? await carregar(slugs, simularFalha) : { lista: [], falhas: 0, ids: [] as string[] };
+  // F2 do roteiro do eleitor: os registros dos últimos 60 dias das pessoas marcadas. A conta "desde a última visita" é feita no
+  // navegador (mudou-desde.tsx), com a data guardada só no aparelho. null = a leitura falhou (lacuna, nunca "nada mudou").
+  const hoje = hojeKey();
+  const atividade = lista.length ? await lerOuFalhar(simularFalha, () => data.getActivity(ids, LIMITE_ATIVIDADE)).catch(() => null) : null;
+  const atos: AtoDesde[] | null = atividade
+    ? atividade.map(comDiaCerto).flatMap((x): AtoDesde[] => {
+        const dia = diaDe(x.occurredAt);
+        if (!dia || dia < somarDias(hoje, -JANELA_MAX) || dia > hoje) return [];
+        return [{ slug: x.personSlug, nome: x.personName, kind: x.kind, dia, chave: x.kind === "voto" ? x.href : x.kind === "proposta" ? x.title : `${x.href}#${dia}`, voto: x.kind === "voto" ? x.detail : null, centavos: x.kind === "gasto" ? centavosDe(x.detail) : null }];
+      })
+    : null;
 
   return (
     <Quadro
@@ -153,6 +169,11 @@ export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slu
         </div>
       ) : (
         <>
+          {atos === null ? (
+            <Lacuna motivo={'Bloco "O que mudou": a leitura dos registros destas pessoas falhou.'}>{FALHOU}</Lacuna>
+          ) : (
+            <MudouDesde atos={atos} hoje={hoje} minimo={!!atividade && atividade.length >= LIMITE_ATIVIDADE} />
+          )}
           <ul className="sv-esc">
             {lista.map((e) => (
               <li key={e.slug}>
