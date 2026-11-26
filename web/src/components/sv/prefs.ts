@@ -4,7 +4,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { data } from "@/lib/data";
-import { ESFERAS_COOKIE, ESFERAS_PADRAO, UF_COOKIE, parseCidade, parseEsferas, parseUf, type Prefs } from "./prefs-shared";
+import { ESFERAS_COOKIE, ESFERAS_PADRAO, FACIL_COOKIE, UF_COOKIE, parseCidade, parseEsferas, parseFacil, parseUf, type Prefs } from "./prefs-shared";
 
 export * from "./prefs-shared";
 
@@ -26,5 +26,5 @@ export const readPrefs = cache(async function readPrefs(): Promise<Prefs> {
   const uf = sigla ? ((opts ?? []).find((o) => o.sigla === sigla) ?? null) : null;
   const parsed = parseEsferas(jar.get(ESFERAS_COOKIE)?.value);
   const esferas = parsed ? { ...parsed, cidade: parseCidade(parsed.cidade, uf?.ibge) } : { ...ESFERAS_PADRAO };
-  return { uf, esferas, esferasPadrao: !parsed, ufFalhou: opts === null && !!bruto };
+  return { uf, esferas, esferasPadrao: !parsed, ufFalhou: opts === null && !!bruto, facil: parseFacil(jar.get(FACIL_COOKIE)?.value) };
 });

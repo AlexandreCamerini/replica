@@ -79,6 +79,21 @@
   .sv-nav{flex:1 1 auto}
   .sv .sv-nv a{min-height:56px;padding:2px 14px;font-size:21px}
 }
+/* F12 do roteiro do eleitor: botão "Aa" do modo leitura fácil, na linha da marca e do estado (alvo de 44px), e o modo em si. */
+.sv-id__r{display:flex;align-items:center;gap:8px;min-width:0}
+.sv-facil-f{display:flex}
+.sv .sv-facil{font:inherit;font-size:16px;font-weight:800;min-width:44px;min-height:44px;padding:0 8px;background:transparent;color:var(--tinta);border:2px solid var(--tinta);border-radius:0;cursor:pointer}
+.sv .sv-facil[aria-pressed="true"]{background:var(--tinta);color:var(--papel)}
+.sv .sv-facil:focus-visible{outline-offset:2px}
+/* a 320px a marca, o estado e o botão não cabem numa linha: a linha quebra em duas (o topo cresce, a página não rola na horizontal) */
+@media (max-width:399.98px){.sv-id{flex-wrap:wrap}}
+/* Modo leitura fácil (cookie sv_facil): tudo maior (zoom de 120%, que refaz a quebra de linha na largura que sobra), texto secundário na cor
+   do texto principal (contraste forte), links sublinhados e um pouco mais de espaço entre letras e palavras. Não muda o conteúdo nem a ordem. Os itens de menu com aria-current mantêm o sublinhado grosso que já os marca. */
+.sv.sv--facil{zoom:1.2;--tinta2:var(--tinta);letter-spacing:.01em;word-spacing:.04em}
+.sv--facil a:not(.sv-btn):not(.sv-marca):not([aria-current]){text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+/* o zoom multiplica as unidades de viewport e os tamanhos do aviso fixo de troca de página: desfaz o fator para a página não ganhar rolagem nem o aviso passar da tela */
+.sv.sv--facil{min-height:calc(100dvh / 1.2)}
+.sv--facil .sv-carga{max-width:min(22rem,calc((100vw - 24px) / 1.2))}
 /* D330: estado de carregamento. Texto em tinta sobre papel, sem cor nova e sem animação. Vazio, não aparece nem ocupa lugar. O aviso de troca de página fica preso ao canto de baixo: não empurra o conteúdo nem tira o foco; tem
    largura contida e texto curto (em janela pequena, quebra em duas linhas). Só existe com JavaScript: sem
    ele a página chega inteira e o navegador mostra o próprio carregamento. */
