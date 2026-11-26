@@ -52,14 +52,17 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
           ))}
         </defs>
         {/* o desenho: estado sem voto registrado fica vazio e com contorno tracejado (forma, não cor) */}
+        {/* a descrição longa de cada estado mora aqui, fora do link: dentro dele o texto do <desc> entrava no "conteúdo" do link e o axe
+            (label-content-name-mismatch) acusava o aria-label por não conter esse texto. O aria-describedby do link continua apontando para ela. */}
         {dados.map((d) => (
-          <path key={d.uf} d={M.paths[d.uf]} fill={`url(#mv-g-${d.uf})`} className={d.pct === null ? "sv-mv__pt is-sem" : "sv-mv__pt"} />
+          <path key={d.uf} d={M.paths[d.uf]} fill={`url(#mv-g-${d.uf})`} className={d.pct === null ? "sv-mv__pt is-sem" : "sv-mv__pt"}>
+            <desc id={`mv-d-${d.uf}`}>{descricaoUf(NOME[d.uf] ?? d.uf, d, true)}</desc>
+          </path>
         ))}
         {/* fio de papel por cima do contorno dos estados cheios: a fronteira entre dois estados cheios não some */}
         {dados.map((d) => (nivelDoEstado(d) > 0 ? <path key={`f-${d.uf}`} d={M.paths[d.uf]} className="sv-mv__fio" /> : null))}
         {/* camada de links (ordem alfabética = ordem do Tab): um por estado, com a área de clique transparente sobre o desenho */}
         {dados.map((d) => {
-          const nome = NOME[d.uf] ?? d.uf;
           const ativo = d.uf === ufSelecionada;
           const rotulo = rotuloUf(d);
           return (
@@ -75,7 +78,6 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
               data-txt={textoPainel(d)}
             >
               <title>{rotulo}</title>
-              <desc id={`mv-d-${d.uf}`}>{descricaoUf(nome, d, true)}</desc>
               <path d={M.paths[d.uf]} className="sv-mv__hit" />
             </Link>
           );

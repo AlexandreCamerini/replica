@@ -114,6 +114,7 @@ test.describe("sv · mapa de votos", () => {
     await expect(page).toHaveURL(/\?uf=SP/);
     await expect(page.locator('[data-placar-uf="SP"]')).toBeVisible();
     await expect(page.locator('[data-mapa-votos] g[data-uf="SP"]')).toHaveClass(/is-sel/);
+    await page.mouse.move(0, 0); // a rolagem até #vt-3 deixa o ponteiro sobre outro estado (hover legítimo); o painel volta ao padrão da UF escolhida
     await expect(page.locator("[data-mapa-painel]")).toContainText("SP ·");
   });
 
