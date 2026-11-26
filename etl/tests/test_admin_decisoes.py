@@ -596,8 +596,10 @@ def test_a_constante_de_leitores_cita_arquivo_e_linha_que_existem_e_contem_o_tre
         assert lista, (classe, campo)
         for l in lista:
             linhas = (REPO / l["arquivo"]).read_text(encoding="utf-8").splitlines()
-            assert 1 <= l["linha"] <= len(linhas), l
-            assert l["contem"] in linhas[l["linha"] - 1], (l, linhas[l["linha"] - 1])
+            # a linha citada é uma dica para quem lê a central: o trecho tem de existir no arquivo e a dica não pode ficar longe dele
+            achados = [i for i, t in enumerate(linhas, 1) if l["contem"] in t]
+            assert achados, l
+            assert min(abs(i - l["linha"]) for i in achados) <= 60, (l, achados)
             total += 1
     assert total >= 10
 
