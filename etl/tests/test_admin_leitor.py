@@ -83,7 +83,10 @@ def test_o_sql_copiado_ainda_bate_com_o_arquivo_do_site():
     assert _norm(casa) == _norm(SQL_ASSEMBLEIA_CASA), "a consulta da casa em getAssembly mudou; atualize a cópia (e o comentário de linhas) deste teste"
     assert _norm(cobertura).replace("::uuid", "::uuid") == _norm(SQL_ASSEMBLEIA_COBERTURA)
     linhas = PG_TS.read_text(encoding="utf-8").splitlines()
-    assert "select b.adapter, b.place_id" in linhas[437] and "limit 1`;" in linhas[443] and "from data_coverage where place_id" in linhas[447]  # as linhas citadas (1-based 438, 444, 448)
+    # os trechos citados existem e estão em getAssembly (sem número de linha fixo: outra fatia que mexa no pg.ts não pode derrubar este teste)
+    m_ = _metodos_por_linha()
+    for trecho in ("select b.adapter, b.place_id", "limit 1`;", "from data_coverage where place_id"):
+        assert "getAssembly" in {m_[i] for i, t in enumerate(linhas, 1) if trecho in t}, trecho
 
 
 # ------------------------------------------------------------------ a consulta do site devolve o valor novo
@@ -154,15 +157,19 @@ def _leitores_no_site(padrao: str) -> set[str]:
     return out
 
 
-def _metodo_da_linha(numero: int) -> str:
+def _metodos_por_linha() -> dict[int, str]:
+    out: dict[int, str] = {}
     atual = None
     for i, linha in enumerate(PG_TS.read_text(encoding="utf-8").splitlines(), 1):
         mm = re.match(r"^  async (\w+)\(", linha) or re.match(r"^(?:async )?function (\w+)\(", linha)
         if mm:
             atual = mm.group(1)
-        if i == numero:
-            return atual or ""
-    raise AssertionError(numero)
+        out[i] = atual or ""
+    return out
+
+
+def _metodo_da_linha(numero: int) -> str:
+    return _metodos_por_linha()[numero]
 
 
 def test_tabela_campo_leitor_confere_com_o_site():
@@ -183,9 +190,14 @@ def test_tabela_campo_leitor_confere_com_o_site():
     assert "base_url" not in casa and "base_url" not in cobertura and "h.status = 'ok'" in casa and "h.loaded_at" in casa
     assert "getAssembly" not in _leitores_no_site(r"\bh\.base_url\b")
     # cada entrada da constante de leitores aponta para o método que realmente está naquela linha
+    # (a linha citada é só uma dica para quem lê a central: o que vale é o trecho estar dentro do método citado)
+    linhas_pg = PG_TS.read_text(encoding="utf-8").splitlines()
+    por_linha = _metodos_por_linha()
     for lista in APL.LEITORES.values():
         for l in lista:
-            assert _metodo_da_linha(l["linha"]) == l["metodo"], l
+            achados = [i for i, t in enumerate(linhas_pg, 1) if l["contem"] in t and por_linha[i] == l["metodo"]]
+            assert achados, l
+            assert min(abs(i - l["linha"]) for i in achados) <= 60, (l, achados)  # a dica não pode ficar muito para trás
     # e a constante é a MESMA lista do grep, por tabela (a constante não pode ficar para trás do site)
     def metodos(*chaves):
         return {l["metodo"] for k in chaves for l in APL.LEITORES[k]}
@@ -214,7 +226,9 @@ def test_base_url_de_assembleia_nao_tem_leitor_em_getassembly_e_a_decisao_nao_to
 def test_cobertura_de_municipio_tem_leitor_em_getcoverage(iso, m):
     """`getCoverage` (pg.ts:412) só cobre município e filtra `status <> 'no_site'`; o SQL é o do site, executado pelo psycopg."""
     linhas = PG_TS.read_text(encoding="utf-8").splitlines()
-    assert "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = " in linhas[417]
+    m_ = _metodos_por_linha()
+    trecho = "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = "
+    assert "getCoverage" in {m_[i] for i, t in enumerate(linhas, 1) if trecho in t}
     sql = "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = %s and dc.status <> 'no_site' order by dataset"
     antes = {r["dataset"]: r for r in iso.execute(sql, (IBGE,)).fetchall()}
     pid = PR.registrar(iso, P(m, classe="cobertura", registro_chave=f"{IBGE}:propostas", campo="reason", valor_candidato="motivo conferido", conteudo_sha256=H("gc"), url="https://c.example/x"), agora=AGORA).pendencia_id
