@@ -351,7 +351,11 @@ export type CommitteeItem = { acronym: string | null; name: string; role: string
 export type SpeechItem = { id: string; occurredAt: string; summary: string | null; url: string | null };
 export type ContactItem = { kind: "email" | "telefone" | "gabinete" | "site" | "instagram" | "facebook" | "x" | "youtube" | "tiktok" | "outra_rede"; value: string };
 
-export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; scope?: VoteScope; cursor?: string; limit?: number };
+/**
+ * `topics`: slugs de `topics` (temas oficiais). Fica a votação cuja proposta tem QUALQUER um deles (`proposal_topics`); votação sem proposta ligada
+ * não tem tema e fica fora quando o filtro está ligado. Vazio ou ausente = sem filtro.
+ */
+export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; scope?: VoteScope; topics?: string[]; cursor?: string; limit?: number };
 
 export type Expense = {
   id: string;
