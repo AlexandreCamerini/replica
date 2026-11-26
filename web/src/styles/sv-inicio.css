@@ -67,6 +67,16 @@
   }
 }
 .sv-pg--rola .sv-folio{border-top:0}
+/* F3 do roteiro do eleitor: entradas por intenção dentro do cabeçalho. O fólio passa a ter duas partes em coluna (título/intro/data, depois as entradas);
+   a primeira mantém o desenho de antes (coluna no celular, linha a partir de 900px). */
+.sv-pg--rola .sv-folio{flex-direction:column;gap:6px}
+.sv-folio__t{display:flex;flex-direction:column;gap:2px}
+@media (min-width:900px){.sv-pg--rola .sv-folio__t{flex-direction:row;justify-content:space-between;align-items:baseline;gap:24px}}
+.sv-ent ul{display:flex;flex-wrap:wrap;gap:8px}
+.sv .sv-ent a{display:inline-flex;align-items:center;min-height:44px;padding:4px 14px;border:2px solid var(--tinta);font-size:16px;line-height:1.2;font-weight:800;font-stretch:90%;text-decoration:none}
+.sv .sv-ent a:focus-visible{outline-offset:2px}
+/* o clique numa entrada leva ao título do bloco: um respiro acima, para ele não colar no topo da janela */
+#inicio-representa,#inicio-semana{scroll-margin-top:12px}
 @media (min-width:900px){.sv-pg--rola .sv-folio{padding:4px 0 0}}
 @media (min-width:1100px){.sv-pg--rola .sv-folio{padding:0}}
 
