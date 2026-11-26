@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { houseName, notReadReason } from "./assembleias";
 import { UF_ROWS, stateSeats } from "./reference";
 import type {
+  OrientacaoDaBancada,
   AttendanceGrid,
   AttendanceState,
   ChamberTransition,
@@ -265,7 +266,17 @@ function personVoteRow(r: Row): PersonVote {
     },
     value: r.value as VoteValue,
     partyId: String(r.party_id ?? ""),
+    orientacao: orientacaoRow(r.orient),
   };
+}
+
+/** `orient` vem do jsonb da consulta (valor, quem, tipo); fora do formato = orientação não registrada, nunca um chute. */
+function orientacaoRow(o: unknown): OrientacaoDaBancada | null {
+  if (!o || typeof o !== "object") return null;
+  const { valor, quem, tipo } = o as Record<string, unknown>;
+  const valores = ["sim", "nao", "abstencao", "obstrucao", "liberado"];
+  if (typeof valor !== "string" || !valores.includes(valor) || typeof quem !== "string" || (tipo !== "partido" && tipo !== "bloco")) return null;
+  return { valor: valor as OrientacaoDaBancada["valor"], quem, tipo };
 }
 
 function officeName(r: Row) {
@@ -772,7 +783,12 @@ export const pgSource: DataSource = {
       )
       select x.person_id, x.total, x.id, x.kind, b.kind as body, x.occurred_at, x.result, x.yes_count, x.no_count, x.value, x.party_id,
              case when pr.id is not null then pr.type || ' ' || pr.number || '/' || pr.year || ' — ' || left(pr.summary_official, 220) || ' · ' || x.description else x.description end as description,
-             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = x.proposal_id order by t.slug limit 1) as topic
+             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = x.proposal_id order by t.slug limit 1) as topic,
+             (select jsonb_build_object('valor', po.orientation, 'quem', oa.label, 'tipo', oa.kind)
+                from party_orientations po join orientation_actors oa on oa.id = po.actor_id
+               where po.voting_event_id = x.id
+                 and ((oa.kind = 'partido' and oa.party_id = x.party_id) or (oa.kind = 'bloco' and exists (select 1 from bloc_members bm where bm.actor_id = oa.id and bm.party_id = x.party_id)))
+               order by (oa.kind = 'partido') desc, oa.label limit 1) as orient
       from base x join legislative_bodies b on b.id = x.body_id left join proposals pr on pr.id = x.proposal_id
       where x.rn <= ${n}
       order by x.person_id, x.rn`;
@@ -1097,7 +1113,13 @@ export const pgSource: DataSource = {
       select e.id, e.kind, b.kind as body, e.occurred_at, e.result, e.yes_count, e.no_count, v.value, v.party_id,
              -- a Câmara publica só o placar na descrição; a proposição votada dá o assunto
              case when pr.id is not null then pr.type || ' ' || pr.number || '/' || pr.year || ' — ' || left(pr.summary_official, 220) || ' · ' || e.description else e.description end as description,
-             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic
+             (select t.slug from proposal_topics pt join topics t on t.id = pt.topic_id where pt.proposal_id = e.proposal_id order by t.slug limit 1) as topic,
+             -- orientação da bancada do partido da pessoa nesta votação: a do partido; sem ela, a do bloco do partido (nunca governo ou maioria)
+             (select jsonb_build_object('valor', po.orientation, 'quem', oa.label, 'tipo', oa.kind)
+                from party_orientations po join orientation_actors oa on oa.id = po.actor_id
+               where po.voting_event_id = e.id
+                 and ((oa.kind = 'partido' and oa.party_id = v.party_id) or (oa.kind = 'bloco' and exists (select 1 from bloc_members bm where bm.actor_id = oa.id and bm.party_id = v.party_id)))
+               order by (oa.kind = 'partido') desc, oa.label limit 1) as orient
       from votes v join voting_events e on e.id = v.voting_event_id join legislative_bodies b on b.id = e.body_id left join proposals pr on pr.id = e.proposal_id
       where ${where}
       order by e.occurred_at desc, e.id desc limit ${limit} offset ${offset}`;
@@ -1243,9 +1265,11 @@ export const pgSource: DataSource = {
     const limit = Math.min(f.limit ?? 30, 100);
     const offset = off(f.cursor);
     const q = f.q?.trim();
+    const topics = (f.topics ?? []).filter((x) => /^[a-z0-9-]{1,60}$/.test(x)).slice(0, 10);
     const base = sql`b.kind = ${kind} and e.is_nominal
       ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
       ${f.result ? sql`and e.result = ${f.result}` : sql``}
+      ${topics.length ? sql`and exists (select 1 from proposal_topics pt join topics tp on tp.id = pt.topic_id where pt.proposal_id = e.proposal_id and tp.slug = any(${topics}::text[]))` : sql``}
       ${q ? sql`and (f_unaccent(lower(e.description)) like '%' || f_unaccent(lower(${q})) || '%' or f_unaccent(lower(coalesce(pr.summary_official, ''))) like '%' || f_unaccent(lower(${q})) || '%' or lower(coalesce(pr.type || ' ' || pr.number, '')) like '%' || lower(${q}) || '%')` : sql``}`;
     const lei = f.scope === "lei";
     const where = lei ? sql`${base} and e.kind <> all(${PROCEDURAL_KINDS}::text[])` : base;

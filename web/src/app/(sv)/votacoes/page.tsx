@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import "@/styles/sv-votacoes.css";
 import "@/styles/sv-votacao.css"; // .sv-ufs (lista de estados de 44 px)
@@ -9,6 +10,8 @@ import { BODY_NAME, clip, fmtDate, fmtInt } from "@/components/sv/fmt";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { VotacaoItem } from "@/components/sv/votacao-item";
+import { FiltroTemas } from "@/components/sv/votacoes-filtro-temas";
+import { TEMAS_COOKIE, parseTemas } from "@/components/sv/temas-escolhidos";
 import { MapaVotos } from "@/components/sv/mapa-votos";
 import { data, type Body, type VotingEventDetail } from "@/lib/data";
 
@@ -46,9 +49,14 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
   const tudo = so(sp.tudo) === "1";
   const pedido = Math.min(TETO, Math.max(PASSO, Number.parseInt(so(sp.n) ?? `${PASSO}`, 10) || PASSO));
 
+  // Assuntos escolhidos (cookie sv_temas, F5): só valem os que existem na lista de temas do contrato. Sem ler a lista, não se filtra (e a tela diz).
+  const [topicsLidos, jar] = await Promise.all([data.listTopics().catch(() => null), cookies()]);
+  const escolhidos = topicsLidos ? parseTemas(jar.get(TEMAS_COOKIE)?.value, topicsLidos.map((t) => t.slug)) : [];
+  const filtrando = escolhidos.length > 0;
+
   const [page, stamp] = await Promise.all([
     // `?simular=erro` só vale na demonstração (simular.ts): é como a leitura que falha é testada
-    lerOuFalhar(simulacao(sp.simular) === "erro", () => data.listVotingEvents({ body, limit: pedido, scope: tudo ? "tudo" : "lei" })).catch(() => null),
+    lerOuFalhar(simulacao(sp.simular) === "erro", () => data.listVotingEvents({ body, limit: pedido, scope: tudo ? "tudo" : "lei", ...(filtrando ? { topics: escolhidos } : {}) })).catch(() => null),
     data.getStamp(`${body}.votacoes`).catch(() => null),
   ]);
   const lida = lidoEm(stamp);
@@ -74,8 +82,8 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
 
   let resposta: string;
   if (!page) resposta = FALHOU_LEITURA;
-  else if (page.total === 0) resposta = `Nenhuma votação ${DA_CASA[body]} carregada ainda.`;
-  else resposta = `${fmtInt(page.total)} ${page.total === 1 ? (tudo ? "votação nominal" : "votação que muda o texto de uma proposta") : oQue} ${DA_CASA[body]}.`;
+  else if (page.total === 0) resposta = filtrando ? `Nenhuma votação ${DA_CASA[body]} com os assuntos escolhidos nas votações carregadas.` : `Nenhuma votação ${DA_CASA[body]} carregada ainda.`;
+  else resposta = `${fmtInt(page.total)} ${page.total === 1 ? (tudo ? "votação nominal" : "votação que muda o texto de uma proposta") : oQue} ${DA_CASA[body]}${filtrando ? " com os assuntos escolhidos" : ""}.`;
 
   return (
     <div className="sv-pg sv-pg--vts">
@@ -102,6 +110,7 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
         prova={
           <>
             <ExemploIlustrativo>Exemplo ilustrativo: votação inventada para a demonstração</ExemploIlustrativo> {comMapa ? `Votação nominal ${DA_CASA[body]} de ${fmtDate(comMapa.occurredAt)}, ${busca && busca.falhas > 0 ? "a mais recente com placar por estado entre as que conseguimos ler" : "a mais recente da lista com placar por estado"}. ` : ""}
+            {comMapa && filtrando ? " É a mais recente entre as votações dos assuntos escolhidos." : ""}
             {fonte}
           </>
         }
@@ -124,7 +133,7 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
             </nav>
           </>
         ) : (
-          <Lacuna motivo={leituraFalhou ? undefined : busca ? motivoSemMapa(busca, body) : undefined}>
+          <Lacuna motivo={leituraFalhou ? undefined : busca ? motivoSemMapa(busca, body) : filtrando && page?.total === 0 ? "Nenhuma votação com os assuntos escolhidos para mostrar no mapa." : undefined}>
             {leituraFalhou ? FALHOU_LEITURA : "O mapa por estado não está disponível para as votações mais recentes."}
           </Lacuna>
         )}
@@ -138,6 +147,7 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
           </p>
         )}
         <p className="sv-t">Votação simbólica não registra o voto de cada pessoa e não aparece aqui.</p>
+        <FiltroTemas topics={topicsLidos} escolhidos={escolhidos} voltar={qs({ n: pedido })} />
         {page &&
           (tudo ? (
             <p className="sv-t">

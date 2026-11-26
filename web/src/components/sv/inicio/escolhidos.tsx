@@ -11,6 +11,7 @@ import { dayKey, fmtLong, hojeKey } from "./datas";
 import { comDiaCerto } from "@/components/sv/escolhidos/agrupar";
 import { JANELA_MAX, centavosDe, diaDe, somarDias, type AtoDesde } from "./desde";
 import { MudouDesde } from "./mudou-desde";
+import { fraseOrientacao } from "@/components/sv/orientacao";
 import { compararNomes } from "@/lib/ordem-nomes";
 
 // Esfera em palavra, derivada do cargo do mandato. Mesma forma para toda pessoa; sem estilo próprio por esfera.
@@ -193,6 +194,10 @@ export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slu
                             <span>
                               {dia ? `${fmtLong(dia)} · ` : ""}
                               {clip(v.event.description, 110)}
+                              <span className="sv-sm sv-ori" data-orientacao={v.orientacao?.valor ?? "nao-identificada"}>
+                                {" "}
+                                {fraseOrientacao(v.orientacao)}
+                              </span>
                             </span>
                           </li>
                         );

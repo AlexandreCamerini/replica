@@ -33,7 +33,7 @@ export const CACHE_TTL_S = 3600;
  * obrigatório (ex.: PautaProposal.votacoes, VotingEventDetail.porUf), um valor antigo em cache quebraria a tela por até
  * uma hora. Troque esta versão sempre que a forma de um retorno mudar.
  */
-const CONTRATO = "c4-placar-fonte";
+const CONTRATO = "c5-orientacao-bancada";
 const PERSON_ARG: ReadonlySet<keyof DataSource> = new Set([
   "getMandates",
   "getCandidacies",

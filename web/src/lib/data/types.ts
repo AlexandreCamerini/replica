@@ -257,7 +257,13 @@ export type VotingEvent = {
   yes: number;
   no: number;
 };
-export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string };
+/**
+ * Orientação oficial da bancada do partido da pessoa numa votação: a do próprio partido ou, se o partido votou em bloco, a do bloco
+ * (nunca a do governo ou da maioria, que não são a bancada dela). Fato registrado pela fonte; não é nota nem alinhamento.
+ * `quem`: como a fonte escreve ("PT", "Bloco PP, UNIÃO, ..."). Ausente ou null = a fonte não registrou orientação para esta votação.
+ */
+export type OrientacaoDaBancada = { valor: OrientationValue; quem: string; tipo: "partido" | "bloco" };
+export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string; orientacao?: OrientacaoDaBancada | null };
 
 export type Body = "camara" | "senado";
 /** isSecret: a fonte marca a votação como secreta (`voting_events.is_secret`, D123); não é "não votou".
@@ -345,7 +351,11 @@ export type CommitteeItem = { acronym: string | null; name: string; role: string
 export type SpeechItem = { id: string; occurredAt: string; summary: string | null; url: string | null };
 export type ContactItem = { kind: "email" | "telefone" | "gabinete" | "site" | "instagram" | "facebook" | "x" | "youtube" | "tiktok" | "outra_rede"; value: string };
 
-export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; scope?: VoteScope; cursor?: string; limit?: number };
+/**
+ * `topics`: slugs de `topics` (temas oficiais). Fica a votação cuja proposta tem QUALQUER um deles (`proposal_topics`); votação sem proposta ligada
+ * não tem tema e fica fora quando o filtro está ligado. Vazio ou ausente = sem filtro.
+ */
+export type VotingEventFilter = { body: Body; year?: number; q?: string; result?: "aprovado" | "rejeitado"; scope?: VoteScope; topics?: string[]; cursor?: string; limit?: number };
 
 export type Expense = {
   id: string;

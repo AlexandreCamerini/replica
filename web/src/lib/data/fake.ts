@@ -483,7 +483,9 @@ function votesOfBody(body: "camara" | "senado") {
       if (value === "sim") yes++;
       if (value === "nao") no++;
       const list = byPerson.get(pid) ?? [];
-      list.push({ event: ev, value, partyId: party });
+      // a demonstração tem as duas formas: a bancada orientou (a mesma orientação que gerou o voto) e, em parte das votações, liberou
+      const liberou = rng(`lib:${ev.id}:${party}`)() < 0.12;
+      list.push({ event: ev, value, partyId: party, orientacao: { valor: liberou ? "liberado" : orient, quem: PARTIES.find((pt) => pt.id === party)?.acronym ?? party, tipo: "partido" } });
       byPerson.set(pid, list);
     }
     ev.yes = yes;
@@ -1017,7 +1019,8 @@ export const fakeSource: DataSource = {
     return { ...page(items, undefined, f.limit ?? 20), topics: [...topics].map(([slug, count]) => ({ slug, count })).sort((x, y) => x.slug.localeCompare(y.slug)) };
   },
   async listTopics() {
-    return TOPICS;
+    // como o pg (order by name collate pt_br): lista A–Z, nunca por uso
+    return [...TOPICS].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   },
   async getChamber(body) {
     const office: OfficeSlug = body === "senado" ? "senador" : "deputado_federal";
@@ -1032,7 +1035,7 @@ export const fakeSource: DataSource = {
     const q = f.q ? fold(f.q) : "";
     const base = events
       .filter((e) => e.occurredAt.slice(0, 10) <= TODAY && (e.yes || e.no))
-      .filter((e) => (!f.year || yearOf(e.occurredAt) === f.year) && (!f.result || e.result === f.result) && (!q || fold(e.description).includes(q)))
+      .filter((e) => (!f.year || yearOf(e.occurredAt) === f.year) && (!f.result || e.result === f.result) && (!q || fold(e.description).includes(q)) && (!f.topics?.length || (e.topic !== null && f.topics.includes(e.topic)))) // a demonstração tem um tema por votação; o pg usa EXISTS sobre proposal_topics (qualquer tema da proposta)
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
     const all = f.scope === "lei" ? base.filter((e) => e.kind !== "requerimento" && e.kind !== "urgencia") : base;
     const years = [...new Set(events.map((e) => yearOf(e.occurredAt)))].filter((y) => y <= CURRENT_YEAR).sort((a, b) => b - a);
