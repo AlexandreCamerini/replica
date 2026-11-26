@@ -1066,3 +1066,10 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
   - **Onde quebra:** relógio de servidor errado muda o aviso (leitura no futuro não é velha); `?simular=pauta_velha` só existe na demonstração; `/decisao/<chave>` e a `/pauta` v1 não têm o aviso.
   - **Não incluído:** filtro por assunto da pauta de comissão (o tema da pauta é texto oficial só da Câmara, D350); a lista da casa filtrada pelos assuntos escolhidos já existe desde a F5a.
   - **Desfazer:** apagar `aviso-pauta-velha.tsx`, `pauta-velha.ts`, `resultado.ts`, `sv-aviso.css`, a nota fixa de `votacoes/page.tsx` e a linha de comissão do `pauta-item.tsx`; voltar a linha de `votacao-item.tsx` para "Resultado: aprovado/rejeitado". Sem mudança de dado nem de esquema.
+
+- **D352 · Série mensal do gasto da própria pessoa e teto da cota como lacuna nomeada (produto, decisão do dono, 25/11/2026; F7 do roteiro, A4).**
+  - **Série mensal:** em `/pessoa/<slug>/gastos`, "Mês a mês" com os 12 meses do ano mostrado, cronológico, vinda de `getMandateSpend` (sem SQL novo). Mês sem nota = "Sem nota neste mês" (lacuna, nunca R$ 0). Só aparece se a soma dos meses fecha com o total por categoria; senão, lacuna "Série mensal indisponível". Sem comparação entre pessoas.
+  - **Teto legal (só Câmara):** `components/sv/pessoa/serie-mensal.ts` guarda a tabela `TETOS_COTA` (UF, vigência, valor, fonte, data de leitura), **vazia**: nenhum valor entra sem conferência contra a Câmara (amostra de 10 deputados de UFs diferentes). Enquanto vazia, a tela diz "Teto legal da cota: não carregado" com o motivo.
+  - **O que pago:** a tela do deputado ainda não mostra a escala do teto; ganho é a série. **Onde quebra:** a série depende de `porMes` e do total concordarem; nota sem data cai fora do ano. **Pendência do dono:** autorizar a coleta do teto por UF (fonte oficial) para preencher a tabela.
+  - **Desfazer:** apagar `serie-mensal.ts`, o bloco `g1b` de `gastos/page.tsx` e `sv-f7.spec.ts`; voltar a numeração das linhas.
+
