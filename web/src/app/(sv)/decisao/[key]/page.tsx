@@ -10,6 +10,7 @@ import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtWeekday } from "@/components/sv/fmt";
 import { aguardaPosse, fraseDesde, mandatoPrincipal } from "@/components/sv/mandato";
+import { noGlossario } from "@/components/sv/glossario-leis";
 import { placarDe } from "@/components/sv/placar";
 import { statusDeProposta } from "@/components/sv/status-proposta";
 import { COOKIE_TEXTO } from "@/components/sv/prefs";
@@ -176,6 +177,7 @@ export default async function Decisao({ params, searchParams }: { params: Promis
   const fontePauta = `${BODY_NAME[e.body]}, pauta, ${lida}`;
   const quem = deciders(e);
   const status = statusLinha(p.status);
+  const leis = noGlossario(e.summary);
   // Sem resposta publicada (D324): as caixas "Aguardando conferência" de cada campo (o que é, hoje, se aprovado, quem é
   // afetado, dinheiro, estimativa, quem paga) viram um aviso só. Etapa, quem decide, autoria, votos e texto oficial ficam.
   const aguardando = !a;
@@ -230,6 +232,31 @@ export default async function Decisao({ params, searchParams }: { params: Promis
         <p className="sv-t">
           <b>Onde se decide?</b> Federal · {BODY_NAME[e.body]} · {onde}. {momento.frase}
         </p>
+        {leis.length > 0 && (
+          <div data-leis-citadas="ementa">
+            <p className="sv-t">
+              <b>Leis citadas na ementa:</b>
+            </p>
+            <ul className="sv-t">
+              {leis.map(({ citada, verbete }) => (
+                <li key={citada.chave}>
+                  {citada.texto}:{" "}
+                  {verbete ? (
+                    <>
+                      {verbete.resumo}{" "}
+                      <a href={verbete.url} rel="noopener noreferrer">
+                        {verbete.fonte}
+                      </a>
+                      , lido em {fmtDate(verbete.lidoEm)}.
+                    </>
+                  ) : (
+                    <Lacuna>Ainda sem verbete conferido para esta lei.</Lacuna>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Quadro>
 
       <Quadro id="sv-d2" numero={num()} pergunta="Já vale?" className="sv-gb" prova={`Fonte: ${fontePauta}.`}>
