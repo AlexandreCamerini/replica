@@ -67,6 +67,8 @@ test.describe("F5 · filtro por assunto escolhido", () => {
     const caixas = page.locator(`${FILTRO} input[name="tema"]`);
     for (let i = 0; i < 7; i++) await caixas.nth(i).check();
     await page.locator(`${FILTRO} button[type="submit"]:not([name])`).click();
+    // espera a página voltar com o filtro ligado: o cookie só existe depois da resposta da ação
+    await expect(page.locator(FILTRO)).toHaveAttribute("data-filtro-temas", "ligado");
     const ck = (await context.cookies()).find((c) => c.name === "sv_temas");
     expect((ck?.value ?? "").split(".").length, "no máximo 5").toBe(5);
   });
