@@ -1183,6 +1183,13 @@ export const fakeSource: DataSource = {
       reads: { camara: semCamara ? { readAt: null, failed: 0, total: 0 } : { readAt, failed: camaraFailed, total: 9 }, senado: { readAt, failed: 0, total: 12 } },
     };
   },
+  async getProposalDestiny(key) {
+    const k = parseProposalKey(key);
+    if (!k) return null;
+    // demonstração: situação e lei por regra fixa do número (nenhum dado real)
+    if (k.number % 5 === 4) return { status: "Virou lei", law: { number: `Lei ${10_000 + k.number}/${k.year}`, sanctionedOn: `${k.year}-06-15`, summary: "Exemplo ilustrativo: lei inventada para a demonstração.", url: null } };
+    return { status: k.number % 5 === 1 ? "Arquivada" : k.number % 5 === 2 ? "Situação nova da fonte (exemplo)" : "Em tramitação", law: null };
+  },
   async getPautaProposal(key) {
     if (!parseProposalKey(key)) return null;
     const entry = [...demoPauta(), ...demoForaDaSemana()].find((e) => e.key === key);

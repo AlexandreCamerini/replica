@@ -1668,6 +1668,22 @@ export const pgSource: DataSource = {
     } satisfies PautaOverview;
   },
 
+  async getProposalDestiny(key) {
+    const k = parseProposalKey(key);
+    if (!k) return null;
+    const kind = k.body === "camara" ? "camara_deputados" : "senado";
+    const [r] = await sql`
+      select pr.status, l.number as law_number, l.sanctioned_on, l.summary as law_summary, l.url as law_url
+      from proposals pr join legislative_bodies b on b.id = pr.body_id and b.kind = ${kind}
+      left join laws l on l.id = pr.became_law_id
+      where pr.type = ${k.type} and pr.number = ${k.number} and pr.year = ${k.year}
+      limit 1`;
+    if (!r) return null;
+    return {
+      status: (r.status as string | null) ?? null,
+      law: r.law_number ? { number: String(r.law_number), sanctionedOn: iso(r.sanctioned_on), summary: String(r.law_summary), url: (r.law_url as string | null) ?? null } : null,
+    };
+  },
   async getPautaProposal(key) {
     const k = parseProposalKey(key);
     if (!k) return null;
