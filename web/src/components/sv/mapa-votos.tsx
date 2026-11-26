@@ -32,11 +32,16 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
 
   return (
     <figure className="sv-mv" data-mapa-votos>
-      {/* painel de leitura: os números da UF sob o mouse ou em foco; sem JS mostra a UF escolhida */}
-      <p className="sv-mv__painel" data-mapa-painel data-padrao={padrao} aria-live="polite">
+      {/* painel de leitura: os números da UF sob o mouse ou em foco; sem JS mostra a UF escolhida. Sem aria-live: o link em foco já
+          anuncia % e contagem (aria-label e descrição), e o painel os repetiria; é só eco visual. */}
+      <p className="sv-mv__painel" data-mapa-painel data-padrao={padrao}>
         {padrao}
       </p>
       <MapaPainel />
+      {/* atalho de teclado: o mapa tem 27 paradas de Tab (uma por estado); este link, só visível com foco, pula para depois dele */}
+      <a href="#mapa-votos-fim" className="sv-vh sv-mv__pular">
+        Pular o mapa
+      </a>
       <svg viewBox={`0 0 ${M.w} ${M.h}`} role="group" aria-label="Mapa do Brasil: percentual de votos Sim por estado, em ordem alfabética de sigla" focusable="false">
         <defs>
           {dados.map((d) => (
@@ -47,14 +52,17 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
           ))}
         </defs>
         {/* o desenho: estado sem voto registrado fica vazio e com contorno tracejado (forma, não cor) */}
+        {/* a descrição longa de cada estado mora aqui, fora do link: dentro dele o texto do <desc> entrava no "conteúdo" do link e o axe
+            (label-content-name-mismatch) acusava o aria-label por não conter esse texto. O aria-describedby do link continua apontando para ela. */}
         {dados.map((d) => (
-          <path key={d.uf} d={M.paths[d.uf]} fill={`url(#mv-g-${d.uf})`} className={d.pct === null ? "sv-mv__pt is-sem" : "sv-mv__pt"} />
+          <path key={d.uf} d={M.paths[d.uf]} fill={`url(#mv-g-${d.uf})`} className={d.pct === null ? "sv-mv__pt is-sem" : "sv-mv__pt"}>
+            <desc id={`mv-d-${d.uf}`}>{descricaoUf(NOME[d.uf] ?? d.uf, d, true)}</desc>
+          </path>
         ))}
         {/* fio de papel por cima do contorno dos estados cheios: a fronteira entre dois estados cheios não some */}
         {dados.map((d) => (nivelDoEstado(d) > 0 ? <path key={`f-${d.uf}`} d={M.paths[d.uf]} className="sv-mv__fio" /> : null))}
         {/* camada de links (ordem alfabética = ordem do Tab): um por estado, com a área de clique transparente sobre o desenho */}
         {dados.map((d) => {
-          const nome = NOME[d.uf] ?? d.uf;
           const ativo = d.uf === ufSelecionada;
           const rotulo = rotuloUf(d);
           return (
@@ -70,7 +78,6 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
               data-txt={textoPainel(d)}
             >
               <title>{rotulo}</title>
-              <desc id={`mv-d-${d.uf}`}>{descricaoUf(nome, d, true)}</desc>
               <path d={M.paths[d.uf]} className="sv-mv__hit" />
             </Link>
           );
@@ -83,8 +90,8 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
           const fora = !!l[4];
           const cx = l[0] + l[2] / 2;
           const cy = l[1] + l[3] / 2;
-          const pw = fora ? l[2] : 48;
-          const ph = 36;
+          const pw = fora ? l[2] : 52;
+          const ph = 44;
           const px = fora ? l[0] : cx - pw / 2;
           const ativo = d.uf === ufSelecionada;
           return (
@@ -94,7 +101,7 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
                 <rect x={px} y={cy - ph / 2} width={pw} height={ph} className="sv-mv__pl" />
                 {fora ? (
                   <>
-                    <text x={px + 8} y={cy + 5} className="sv-mv__uf">
+                    <text x={px + 6} y={cy + 6} className="sv-mv__uf">
                       {d.uf}
                     </text>
                     <text x={px + 34} y={cy + 6} className="sv-mv__pc">
@@ -103,10 +110,10 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
                   </>
                 ) : (
                   <>
-                    <text x={cx} y={cy - 3} textAnchor="middle" className="sv-mv__uf">
+                    <text x={cx} y={cy - 4} textAnchor="middle" className="sv-mv__uf">
                       {d.uf}
                     </text>
-                    <text x={cx} y={cy + 13} textAnchor="middle" className="sv-mv__pc">
+                    <text x={cx} y={cy + 15} textAnchor="middle" className="sv-mv__pc">
                       {textoPct(d)}
                     </text>
                   </>
@@ -116,7 +123,7 @@ export function MapaVotos({ placar, ufSelecionada, votacaoId, listaAbaixo = true
           );
         })}
       </svg>
-      <figcaption className="sv-mv__leg">
+      <figcaption className="sv-mv__leg" id="mapa-votos-fim" tabIndex={-1}>
         <p className="sv-t sv-mv__tot" data-mapa-total>
           {total.base > 0 ? `No conjunto dos estados: ${fraseSim(total)} votaram Sim (${textoPct(total)}).` : "Nenhum voto Sim, Não ou abstenção registrado nos estados desta votação."}
         </p>

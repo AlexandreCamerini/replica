@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "@/styles/sv-votacoes.css";
+import "@/styles/sv-votacao.css"; // .sv-ufs (lista de estados de 44 px)
 import { fraseLida, lidoEm } from "@/components/sv/carimbo";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA, SEM_DADO } from "@/components/sv/estados";
@@ -20,21 +21,23 @@ const TENTATIVAS_MAPA = 5;
 /** A votação mais recente da lista (já em ordem da mais recente para a mais antiga) que tem placar por UF; null se nenhuma tem. */
 async function maisRecenteComPlacar(ids: readonly string[]): Promise<{ ev: VotingEventDetail | null; olhadas: number; falhas: number }> {
   const alvo = ids.slice(0, TENTATIVAS_MAPA);
-  let falhas = 0;
-  for (const id of alvo) {
-    let ev: VotingEventDetail | null = null;
-    try {
-      ev = await data.getVotingEvent(id);
-    } catch {
-      falhas++;
-      continue;
-    }
-    if (ev?.porUf.kind === "placar") return { ev, olhadas: alvo.length, falhas };
+  // leituras em paralelo (uma lenta não segura as outras); a ESCOLHA segue a ordem da lista: a mais recente com placar vence
+  const lidas = await Promise.allSettled(alvo.map((id) => data.getVotingEvent(id)));
+  const falhas = lidas.filter((r) => r.status === "rejected").length;
+  for (const r of lidas) {
+    if (r.status === "fulfilled" && r.value?.porUf.kind === "placar") return { ev: r.value, olhadas: alvo.length, falhas };
   }
   return { ev: null, olhadas: alvo.length, falhas };
 }
 
 const DA_CASA = { camara: "da Câmara", senado: "do Senado" } as const;
+
+/** Lacuna do mapa: diz o que foi LIDO. Leitura que falhou não vira "nenhuma tem": as que falharam nunca foram olhadas. */
+function motivoSemMapa(b: { olhadas: number; falhas: number }, body: Body): string {
+  const lidas = b.olhadas - b.falhas;
+  if (b.falhas === 0) return `Olhamos as ${b.olhadas} votações mais recentes ${DA_CASA[body]} desta lista e nenhuma tem o voto de cada pessoa com estado identificado.`;
+  return `Lemos ${lidas} das ${b.olhadas} votações mais recentes ${DA_CASA[body]} desta lista e nenhuma das ${lidas} tem o voto de cada pessoa com estado identificado. ${b.falhas === 1 ? "A leitura de 1 votação falhou" : `As leituras de ${b.falhas} votações falharam`} e não entra nessa conta.`;
+}
 
 export default async function Votacoes({ searchParams }: { searchParams: Promise<{ casa?: string | string[]; tudo?: string | string[]; n?: string | string[]; simular?: string | string[] }> }) {
   const sp = await searchParams;
@@ -98,7 +101,7 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
         className="sv-c12"
         prova={
           <>
-            <ExemploIlustrativo>Exemplo ilustrativo: votação inventada para a demonstração</ExemploIlustrativo> {comMapa ? `Votação nominal ${DA_CASA[body]} de ${fmtDate(comMapa.occurredAt)}, a mais recente da lista com placar por estado. ` : ""}
+            <ExemploIlustrativo>Exemplo ilustrativo: votação inventada para a demonstração</ExemploIlustrativo> {comMapa ? `Votação nominal ${DA_CASA[body]} de ${fmtDate(comMapa.occurredAt)}, ${busca && busca.falhas > 0 ? "a mais recente com placar por estado entre as que conseguimos ler" : "a mais recente da lista com placar por estado"}. ` : ""}
             {fonte}
           </>
         }
@@ -110,10 +113,18 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
                 {clip(comMapa.proposal?.summary ?? comMapa.description, 160)}
               </Link>
             </p>
-            <MapaVotos placar={comMapa.porUf.ufs} ufSelecionada={null} votacaoId={comMapa.id} listaAbaixo={false} />
+            <MapaVotos placar={comMapa.porUf.ufs} ufSelecionada={null} votacaoId={comMapa.id} />
+            {/* lista de estados (alvos de 44 px, rota de toque): o aceite D2 isenta só o desenho do mapa porque esta lista existe */}
+            <nav className="sv-ufs" aria-label="Estado">
+              {comMapa.porUf.ufs.map((p) => (
+                <Link key={p.uf} href={`/votacao/${comMapa.id}?uf=${p.uf}#vt-3`} prefetch={false}>
+                  {p.uf}
+                </Link>
+              ))}
+            </nav>
           </>
         ) : (
-          <Lacuna motivo={leituraFalhou ? undefined : busca ? `Olhamos as ${busca.olhadas} votações mais recentes ${DA_CASA[body]} desta lista e nenhuma tem o voto de cada pessoa com estado identificado.` : undefined}>
+          <Lacuna motivo={leituraFalhou ? undefined : busca ? motivoSemMapa(busca, body) : undefined}>
             {leituraFalhou ? FALHOU_LEITURA : "O mapa por estado não está disponível para as votações mais recentes."}
           </Lacuna>
         )}

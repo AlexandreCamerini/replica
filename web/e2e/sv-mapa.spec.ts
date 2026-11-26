@@ -114,6 +114,7 @@ test.describe("sv · mapa de votos", () => {
     await expect(page).toHaveURL(/\?uf=SP/);
     await expect(page.locator('[data-placar-uf="SP"]')).toBeVisible();
     await expect(page.locator('[data-mapa-votos] g[data-uf="SP"]')).toHaveClass(/is-sel/);
+    await page.mouse.move(0, 0); // a rolagem até #vt-3 deixa o ponteiro sobre outro estado (hover legítimo); o painel volta ao padrão da UF escolhida
     await expect(page.locator("[data-mapa-painel]")).toContainText("SP ·");
   });
 
@@ -134,8 +135,9 @@ test.describe("sv · mapa de votos", () => {
     const page = await ctx.newPage();
     await page.goto(URL);
     await expect(page.locator("[data-mapa-votos] svg")).toBeVisible();
-    const doMapa = await page.locator('[data-mapa-votos] svg a[data-uf-link="SP"]').getAttribute("href");
-    await page.goto(doMapa!);
+    // clica no <a> do SVG (não navega por URL): prova que o link nativo funciona sem JS. force: o rótulo da mesma UF fica por cima do centro.
+    await page.locator('[data-mapa-votos] svg a[data-uf-link="SP"]').click({ force: true });
+    await expect(page).toHaveURL(/uf=SP/);
     await expect(page.locator('[data-placar-uf="SP"]')).toBeVisible();
     await expect(page.locator("[data-mapa-painel]")).toContainText("SP ·");
     await page.goto(URL);
@@ -192,17 +194,77 @@ test.describe("sv · mapa de votos", () => {
     expect(href).toMatch(/^\/votacao\//);
     const uf = await mapa.locator("svg a[data-uf-link]").first().getAttribute("href");
     expect(uf).toContain(`${href}?uf=`);
+    // a exceção D2 do desenho do mapa só vale porque esta rota também tem a lista de estados de 44 px
+    const lista = q.locator("nav.sv-ufs a");
+    await expect(lista).toHaveCount(27);
+    const alturas = await lista.evaluateAll((as) => as.map((a) => a.getBoundingClientRect().height));
+    for (const h of alturas) expect(h).toBeGreaterThanOrEqual(44);
+    // o painel de leitura é eco visual: sem aria-live (o link em foco já anuncia % e contagem)
+    await expect(mapa.locator("[data-mapa-painel]")).not.toHaveAttribute("aria-live", /.*/);
     const siglas = await mapa.locator("g[data-uf]").evaluateAll((els) => els.map((e) => e.getAttribute("data-uf") ?? ""));
     expect(siglas).toEqual([...siglas].sort((a, b) => a.localeCompare(b, "pt-BR")));
     await axe();
   });
 
-  test("/votacoes: sem votação com placar por UF o quadro é uma lacuna nomeada, nunca um mapa vazio", async ({ page }) => {
-    // casa=senado na demo pode não ter placar por UF; se tiver, o teste se declara pulado (não prova nada).
-    await page.goto("/votacoes?casa=senado");
-    test.skip((await page.locator("[data-mapa-votos]").count()) > 0, "a demo tem placar por UF no Senado");
-    await expect(page.locator('[aria-labelledby="vts-mapa"] .sv-lac')).toBeVisible();
-    await expect(page.locator("[data-mapa-votos]")).toHaveCount(0);
+  test("/votacoes: o quadro do mapa é sempre mapa completo (27 estados) ou lacuna nomeada, nunca um mapa vazio, no Senado e na Câmara", async ({ page }) => {
+    for (const casa of ["senado", "camara"]) {
+      await page.goto(`/votacoes?casa=${casa}`);
+      const q = page.locator('[aria-labelledby="vts-mapa"]');
+      if ((await q.locator("[data-mapa-votos]").count()) > 0) {
+        await expect(q.locator("svg a[data-uf-link]")).toHaveCount(27);
+        await expect(q.locator("nav.sv-ufs a")).toHaveCount(27);
+        await expect(q.locator(".sv-lac")).toHaveCount(0);
+      } else {
+        await expect(q.locator(".sv-lac")).toBeVisible();
+        await expect(q.locator("nav.sv-ufs")).toHaveCount(0);
+      }
+    }
+  });
+
+  test("/votacoes: leitura que falha vira lacuna que diz a falha, sem mapa nem lista de estados", async ({ page }) => {
+    // `?simular=erro` só vale na demonstração (simular.ts): o teste é determinístico, não depende do conteúdo da demo.
+    await page.goto("/votacoes?simular=erro");
+    const q = page.locator('[aria-labelledby="vts-mapa"]');
+    await expect(q.locator(".sv-lac")).toContainText("Não conseguimos ler esta fonte agora");
+    await expect(q.locator("[data-mapa-votos]")).toHaveCount(0);
+    await expect(q.locator("nav.sv-ufs")).toHaveCount(0);
+  });
+
+  test("teclado: 'Pular o mapa' só aparece com foco, mede 44 px e leva para depois das 27 paradas de Tab", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(URL);
+    const pular = page.locator("a.sv-mv__pular");
+    await expect(pular).toHaveText("Pular o mapa");
+    await pular.focus();
+    await expect(pular).toBeFocused();
+    const h = await pular.evaluate((a) => a.getBoundingClientRect().height);
+    expect(h).toBeGreaterThanOrEqual(44);
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#mapa-votos-fim$/);
+  });
+
+  test("UF inválida, em minúscula ou repetida em ?uf= não quebra a página: painel padrão e nenhuma UF selecionada", async ({ page }) => {
+    for (const q of ["uf=XX", "uf=sp", "uf=SP&uf=RJ", "uf=%00"]) {
+      const resp = await page.goto(`${URL}?${q}`);
+      expect(resp?.status(), q).toBeLessThan(400);
+      await expect(page.locator("[data-mapa-votos]"), q).toBeVisible();
+      if (q === "uf=XX" || q === "uf=%00") await expect(page.locator("[data-mapa-votos] .is-sel"), q).toHaveCount(0);
+    }
+  });
+
+  test("o texto desenhado no SVG tem ≥ 13 px na tela, ou os rótulos não aparecem (largura < 760 px)", async ({ page }) => {
+    for (const width of [390, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(URL);
+      const r = await page.locator("[data-mapa-votos]").evaluate((fig) => {
+        const svg = fig.querySelector("svg")!;
+        const escala = svg.getBoundingClientRect().width / (svg.viewBox.baseVal.width || 1);
+        const visiveis = Array.from(svg.querySelectorAll("text")).filter((t) => getComputedStyle(t).display !== "none" && !t.closest('[style*="display: none"]') && (t.closest("a") ? getComputedStyle(t.closest("a")!).display !== "none" : true));
+        return { n: visiveis.length, menor: Math.min(...visiveis.map((t) => parseFloat(getComputedStyle(t).fontSize) * escala)) };
+      });
+      if (width < 760) expect(r.n, `${width}px: rótulos escondidos`).toBe(0);
+      else expect(r.menor, `${width}px: menor texto desenhado`).toBeGreaterThanOrEqual(12.9);
+    }
   });
 
   test("votação sem voto individual: sem mapa e com lacuna honesta", async ({ page }) => {

@@ -38,7 +38,7 @@ export function MapaPainel() {
       mostrar(painel.dataset.padrao ?? "");
       marcar(null);
     };
-        fig.addEventListener("mouseover", entra);
+    fig.addEventListener("mouseover", entra);
     fig.addEventListener("focusin", entra);
     fig.addEventListener("mouseout", sai);
     fig.addEventListener("focusout", sai);

@@ -24,7 +24,8 @@ test.describe("painel do mandato na Pessoa", () => {
   test("todo número de atuação diz desde quando; sem comparação, ranking ou média", async ({ page }) => {
     await page.goto(`/pessoa/${FEDERAL}`);
     const texto = await page.getByTestId("painel-mandato").innerText();
-    expect(texto).not.toMatch(PROIBIDO);
+    // a nota "sem média nem comparação com outras" NEGA a média: é o texto exigido, não o termo proibido
+    expect(texto.replace(/sem média nem comparação/gi, "")).not.toMatch(PROIBIDO);
     // cada linha (dt/dd) do bloco que traz número carrega o próprio "desde"/"a partir de"
     const linhas = page.getByTestId("bloco-fez").locator(".sv-pm__r");
     for (const l of await linhas.all()) {

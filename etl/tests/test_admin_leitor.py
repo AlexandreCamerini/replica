@@ -83,7 +83,7 @@ def test_o_sql_copiado_ainda_bate_com_o_arquivo_do_site():
     assert _norm(casa) == _norm(SQL_ASSEMBLEIA_CASA), "a consulta da casa em getAssembly mudou; atualize a cópia (e o comentário de linhas) deste teste"
     assert _norm(cobertura).replace("::uuid", "::uuid") == _norm(SQL_ASSEMBLEIA_COBERTURA)
     linhas = PG_TS.read_text(encoding="utf-8").splitlines()
-    assert "select b.adapter, b.place_id" in linhas[431] and "limit 1`;" in linhas[437] and "from data_coverage where place_id" in linhas[441]  # as linhas citadas (1-based 432, 438, 442)
+    assert "select b.adapter, b.place_id" in linhas[437] and "limit 1`;" in linhas[443] and "from data_coverage where place_id" in linhas[447]  # as linhas citadas (1-based 438, 444, 448)
 
 
 # ------------------------------------------------------------------ a consulta do site devolve o valor novo
@@ -214,7 +214,7 @@ def test_base_url_de_assembleia_nao_tem_leitor_em_getassembly_e_a_decisao_nao_to
 def test_cobertura_de_municipio_tem_leitor_em_getcoverage(iso, m):
     """`getCoverage` (pg.ts:412) só cobre município e filtra `status <> 'no_site'`; o SQL é o do site, executado pelo psycopg."""
     linhas = PG_TS.read_text(encoding="utf-8").splitlines()
-    assert "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = " in linhas[411]
+    assert "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = " in linhas[417]
     sql = "select dataset, status, reason, evidence_url, checked_on from data_coverage dc join places p on p.id = dc.place_id where p.ibge_code = %s and dc.status <> 'no_site' order by dataset"
     antes = {r["dataset"]: r for r in iso.execute(sql, (IBGE,)).fetchall()}
     pid = PR.registrar(iso, P(m, classe="cobertura", registro_chave=f"{IBGE}:propostas", campo="reason", valor_candidato="motivo conferido", conteudo_sha256=H("gc"), url="https://c.example/x"), agora=AGORA).pendencia_id
