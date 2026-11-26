@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Prefs } from "./prefs-shared";
 import { FALHOU_LEITURA, SELO } from "./estados";
-import { NavLink } from "./shell-client";
+import { BotaoFacil, NavLink } from "./shell-client";
 
 // Casco da D2: link "pular", topo (marca + UF + "trocar estado"), navegação, rodapé. Server component, sem JS essencial: a
 // navegação fica sempre visível (sem menu hambúrguer). O layout lê o cookie e passa a UF por prop.
@@ -28,7 +28,7 @@ const ROTAS = [
 export const CONTEUDO_ID = "sv-conteudo";
 
 /** Topo: "pular", marca, UF escolhida (ou "Escolha seu estado") e a navegação. Ordem do DOM = ordem visual. */
-export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boolean }) {
+export function Topo({ uf, ufFalhou = false, facil = false }: { uf: Prefs["uf"]; ufFalhou?: boolean; /** modo leitura fácil ligado */ facil?: boolean }) {
   return (
     <>
       <a className="sv-skip" href={`#${CONTEUDO_ID}`}>
@@ -39,23 +39,26 @@ export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boo
           <Link className="sv-marca" href="/">
             segue o voto
           </Link>
-          <p className="sv-uf">
-            {uf ? (
-              <>
-                {/* no celular só a sigla aparece; o nome completo continua no texto (leitor de tela) */}
-                <span className="sv-uf__n">{uf.nome} (</span>
-                {uf.sigla}
-                <span className="sv-uf__n">)</span> · <Link href="/ajustes">trocar estado</Link>
-              </>
-            ) : ufFalhou ? (
-              <>
-                Seu estado: {FALHOU_LEITURA.charAt(0).toLowerCase()}
-                {FALHOU_LEITURA.slice(1)} · <Link href="/ajustes">Ajustes</Link>
-              </>
-            ) : (
-              <Link href="/ajustes">Escolha seu estado</Link>
-            )}
-          </p>
+          <div className="sv-id__r">
+            <p className="sv-uf">
+              {uf ? (
+                <>
+                  {/* no celular só a sigla aparece; o nome completo continua no texto (leitor de tela) */}
+                  <span className="sv-uf__n">{uf.nome} (</span>
+                  {uf.sigla}
+                  <span className="sv-uf__n">)</span> · <Link href="/ajustes">trocar estado</Link>
+                </>
+              ) : ufFalhou ? (
+                <>
+                  Seu estado: {FALHOU_LEITURA.charAt(0).toLowerCase()}
+                  {FALHOU_LEITURA.slice(1)} · <Link href="/ajustes">Ajustes</Link>
+                </>
+              ) : (
+                <Link href="/ajustes">Escolha seu estado</Link>
+              )}
+            </p>
+            <BotaoFacil ligada={facil} />
+          </div>
         </div>
         <nav className="sv-nav" aria-label="Navegação principal">
           <ul className="sv-nv">
