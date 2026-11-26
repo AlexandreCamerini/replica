@@ -2,6 +2,8 @@
 // Nunca há UF padrão: sem cookie válido, o estado é "sem estado escolhido" (uf = null).
 export const UF_COOKIE = "sv_uf";
 export const ESFERAS_COOKIE = "sv_esferas";
+/** Modo leitura fácil (F12 do roteiro do eleitor): "1" = ligado. Ausente ou qualquer outro valor = desligado. */
+export const FACIL_COOKIE = "sv_facil";
 export const PREFS_MAX_AGE = 60 * 60 * 24 * 365;
 
 /** Texto obrigatório onde a escolha é feita. */
@@ -22,6 +24,8 @@ export type Prefs = {
    * ler, em vez de convidar a "Escolha seu estado" quem já escolheu.
    */
   ufFalhou?: boolean;
+  /** modo leitura fácil ligado (cookie sv_facil = "1") */
+  facil?: boolean;
 };
 
 const SIGLA = /^[A-Z]{2}$/;
@@ -62,6 +66,11 @@ export function parseEsferas(raw: string | null | undefined): Esferas | null {
 export function serializeEsferas(e: Esferas): string {
   const c = e.cidade && CIDADE.test(e.cidade) ? `.c${e.cidade}` : "";
   return `e${e.estadual ? 1 : 0}.m${e.municipal ? 1 : 0}${c}`;
+}
+
+/** Cookie do modo leitura fácil: só "1" liga. Nunca lança. */
+export function parseFacil(raw: string | null | undefined): boolean {
+  return raw === "1";
 }
 
 /** Destino de volta depois de gravar: só caminho interno (começa com uma única "/"), sem "//" nem "\\" (sem redirecionamento aberto). */

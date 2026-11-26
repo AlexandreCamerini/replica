@@ -25,8 +25,8 @@ import { data } from "@/lib/data";
 export async function Casco({ children }: { children: React.ReactNode }) {
   const prefs = await readPrefs();
   return (
-    <div className="sv">
-      <Topo uf={prefs.uf} ufFalhou={prefs.ufFalhou} />
+    <div className={prefs.facil ? "sv sv--facil" : "sv"}>
+      <Topo uf={prefs.uf} ufFalhou={prefs.ufFalhou} facil={!!prefs.facil} />
       {data.isDemo && (
         <aside className="sv-demo" aria-label="Versão de demonstração">
           <div className="sv-wrap">Versão de demonstração. Exemplo ilustrativo: pessoas, partidos e números são fictícios.</div>

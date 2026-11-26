@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { COOKIE_TEXTO, ESFERAS_COOKIE, UF_COOKIE, readPrefs, ufOptions } from "@/components/sv/prefs";
+import { COOKIE_TEXTO, ESFERAS_COOKIE, FACIL_COOKIE, UF_COOKIE, readPrefs, ufOptions } from "@/components/sv/prefs";
+import { alternarFacil } from "@/components/sv/facil-actions";
 import { LeituraAssembleia, carregarAssembleia } from "@/components/sv/ajustes/leitura-assembleia";
 import { FALHOU_LEITURA } from "@/components/sv/estados";
 import { Lacuna, Notice, Pergunta, Proxima, Quadro, Selo, Fonte } from "@/components/sv/ui";
@@ -181,7 +182,21 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
           <li>
             <b>Cidade</b> também em <code>{ESFERAS_COOKIE}</code>: o código do IBGE da cidade escolhida.
           </li>
+          <li>
+            <b>Leitura fácil</b> <code>{FACIL_COOKIE}</code>: se o modo de letra maior e contraste forte está ligado.
+          </li>
         </ul>
+        <p className="sv-t">
+          Leitura fácil: letra 20% maior, mais espaço entre letras e palavras, links sublinhados e texto em contraste forte. O mesmo botão está no topo de toda página, em “Aa”.
+        </p>
+        <form action={alternarFacil}>
+          <input type="hidden" name="voltar" value={VOLTAR} />
+          <input type="hidden" name="ligar" value={prefs.facil ? "0" : "1"} />
+          <button type="submit" className="sv-enviar">
+            {prefs.facil ? "Desligar a leitura fácil" : "Ligar a leitura fácil"}
+          </button>
+          <AvisoDeEnvio />
+        </form>
         <p className="sv-t">Apagar os cookies do navegador volta tudo ao início: sem estado, com a Assembleia ligada e a Câmara Municipal desligada.</p>
       </Quadro>
 

@@ -483,7 +483,9 @@ function votesOfBody(body: "camara" | "senado") {
       if (value === "sim") yes++;
       if (value === "nao") no++;
       const list = byPerson.get(pid) ?? [];
-      list.push({ event: ev, value, partyId: party });
+      // a demonstração tem as duas formas: a bancada orientou (a mesma orientação que gerou o voto) e, em parte das votações, liberou
+      const liberou = rng(`lib:${ev.id}:${party}`)() < 0.12;
+      list.push({ event: ev, value, partyId: party, orientacao: { valor: liberou ? "liberado" : orient, quem: PARTIES.find((pt) => pt.id === party)?.acronym ?? party, tipo: "partido" } });
       byPerson.set(pid, list);
     }
     ev.yes = yes;

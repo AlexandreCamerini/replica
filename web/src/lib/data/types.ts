@@ -257,7 +257,13 @@ export type VotingEvent = {
   yes: number;
   no: number;
 };
-export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string };
+/**
+ * Orientação oficial da bancada do partido da pessoa numa votação: a do próprio partido ou, se o partido votou em bloco, a do bloco
+ * (nunca a do governo ou da maioria, que não são a bancada dela). Fato registrado pela fonte; não é nota nem alinhamento.
+ * `quem`: como a fonte escreve ("PT", "Bloco PP, UNIÃO, ..."). Ausente ou null = a fonte não registrou orientação para esta votação.
+ */
+export type OrientacaoDaBancada = { valor: OrientationValue; quem: string; tipo: "partido" | "bloco" };
+export type PersonVote = { event: VotingEvent; value: VoteValue; partyId: string; orientacao?: OrientacaoDaBancada | null };
 
 export type Body = "camara" | "senado";
 /** isSecret: a fonte marca a votação como secreta (`voting_events.is_secret`, D123); não é "não votou".
