@@ -131,6 +131,27 @@ async function Pauta({ falhar, simularPauta }: { falhar: boolean; simularPauta?:
             ))}
           </ol>
         )}
+        {plenario.length + o.later.length > 0 && (
+          <div className="sv-cal" data-calendario="pauta" role="group" aria-labelledby="cal-t">
+            <p className="sv-t" id="cal-t">
+              Levar para a agenda: arquivo .ics com o plenário de agora até 14 dias, sem filtro por assunto.
+            </p>
+            <p className="sv-cal__l">
+              <a className="sv-btn" href="/calendario/pauta.ics" download aria-label="Baixar calendário da pauta: as duas Casas">
+                As duas Casas
+              </a>
+              <a className="sv-btn" href="/calendario/pauta.ics?casa=camara" download aria-label="Baixar calendário da pauta: só a Câmara">
+                Só a Câmara
+              </a>
+              <a className="sv-btn" href="/calendario/pauta.ics?casa=senado" download aria-label="Baixar calendário da pauta: só o Senado">
+                Só o Senado
+              </a>
+            </p>
+            <p className="sv-nota">
+              O arquivo é um retrato da pauta lida {dataLeitura ? `em ${fmtDateTime(dataLeitura)}` : "(data da leitura não registrada)"}: não se atualiza sozinho, e a data pode mudar. O horário é o do início da sessão, não o da votação da proposta. Importar de novo pode duplicar os eventos: apague os antigos da pauta antes.
+            </p>
+          </div>
+        )}
       </Quadro>
 
       <Quadro id="dc-com" variante={comissoes.length ? "padrao" : "lacuna"} numero={n++} pergunta="O que está em comissão?" className="sv-tira" prova={`Em ordem de data, nas reuniões de comissão lidas. ${prova}`}>

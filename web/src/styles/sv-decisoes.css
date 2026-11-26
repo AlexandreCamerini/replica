@@ -9,3 +9,7 @@
 @media (min-width:900px){
   .sv .sv-pg--dcs .sv-quadro--dom .sv-a--dom{font-size:clamp(40px,4.6vw,64px)}
 }
+
+/* F5b: levar a pauta do plenário para a agenda (.ics). Três botões de 44 px em linha que quebra; o aviso de "retrato" fica logo abaixo. */
+.sv .sv-cal{margin-top:var(--s4,16px);display:flex;flex-direction:column;gap:8px;min-width:0}
+.sv .sv-cal__l{display:flex;flex-wrap:wrap;gap:8px;margin:0}

@@ -5,6 +5,7 @@ import { AvisoPautaVelha } from "@/components/sv/aviso-pauta-velha";
 import { fmtDate } from "@/components/sv/fmt";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { dayKey, fmtFolio, hojeKey } from "@/components/sv/inicio/datas";
+import { Entradas } from "@/components/sv/inicio/entradas";
 import { Escolhidos } from "@/components/sv/inicio/escolhidos";
 import { JaRolou } from "@/components/sv/inicio/ja-rolou";
 import { Lemos } from "@/components/sv/inicio/lemos";
@@ -112,9 +113,12 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   return (
     <div className={`sv-pg sv-pg--rola${convidar ? " sv-pg--convite" : ""}`}>
       <div className="sv-folio sv-gh">
-        <h1>O que está rolando?</h1>
-        <p className="sv-intro">Aqui você acompanha o que o Congresso decide e o que fazem as pessoas em quem você votou.</p>
-        <p className="sv-so-larga sv-agora">{fmtFolio(dayKey(new Date()) ?? hoje)}</p>
+        <div className="sv-folio__t">
+          <h1>O que está rolando?</h1>
+          <p className="sv-intro">Aqui você acompanha o que o Congresso decide e o que fazem as pessoas em quem você votou.</p>
+          <p className="sv-so-larga sv-agora">{fmtFolio(dayKey(new Date()) ?? hoje)}</p>
+        </div>
+        <Entradas />
       </div>
 
       {convidar && <Convite />}

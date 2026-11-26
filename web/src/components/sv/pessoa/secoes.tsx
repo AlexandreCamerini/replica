@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { clip, fmtDate, fmtInt } from "@/components/sv/fmt";
 import { ESTADO_COBERTURA, FALHOU_LEITURA, fraseCobertura, naoHaNaLeitura, SEM_DADO } from "@/components/sv/estados";
 import { Fonte, Lacuna, Pergunta, Resposta, VotoMarca } from "@/components/sv/ui";
+import { fraseOrientacao } from "@/components/sv/orientacao";
 import { CAMPAIGN_ORIGINS, type Amendment, type CampaignFinance, type Candidacy, type CoberturaConjunto, type CommitteeItem, type CoverageStatus, type PersonVote } from "@/lib/data";
 import { brl, brlCurto, listaE, MESES } from "./format";
 
@@ -201,6 +202,9 @@ export function ListaVotos({ itens, marcarProcedimento }: { itens: PersonVote[];
             <p className="sv-t">
               {v.value === "nao_votou" && <b>Não é voto contra. </b>}
               <Link href={`/votacao/${v.event.id}`}>{clip(v.event.description, 110)}</Link>
+            </p>
+            <p className="sv-votos__o" data-orientacao={v.orientacao?.valor ?? "nao-identificada"}>
+              {fraseOrientacao(v.orientacao)}
             </p>
             <p className="sv-votos__q">
               {fmtDate(v.event.occurredAt)}

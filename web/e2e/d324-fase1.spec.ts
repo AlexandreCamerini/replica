@@ -34,7 +34,7 @@ const medirTopo = () => {
     menor: Math.min(...links.map((r) => Math.min(r.width, r.height))),
     n: links.length,
     estouro: document.documentElement.scrollWidth - window.innerWidth,
-    menus: document.querySelectorAll(".sv-topo button, .sv-topo details, .sv-topo [aria-expanded]").length,
+    menus: document.querySelectorAll(".sv-topo button:not(.sv-facil), .sv-topo details, .sv-topo [aria-expanded]").length // o "Aa" (leitura fácil) é um botão de liga e desliga, não um menu,
   };
 };
 
@@ -141,6 +141,7 @@ test.describe("2. topo compacto", () => {
       expect(links.length).toBe(4);
       await page.locator(".sv-marca").focus();
       await page.keyboard.press("Tab"); // UF ou "Escolha seu estado"
+      await page.keyboard.press("Tab"); // botão "Aa" (leitura fácil, F12)
       for (const link of links) {
         await page.keyboard.press("Tab");
         await expect(link).toBeFocused();
