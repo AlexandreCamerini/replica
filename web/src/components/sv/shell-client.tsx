@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** Seção de cada rota da Direção 2: dentro de uma decisão, "O que mexe comigo?" continua marcado; o mesmo para tema, votação e pessoa. */
+/** Seção de cada rota da Direção 2: dentro de uma decisão, o link "O que mexe comigo?" (rodapé) continua marcado; no topo, votação e pessoa marcam "Votações" e "Pessoas". */
 const SECAO: Record<string, string> = {
   "": "/",
   acompanhando: "/acompanhando",
@@ -20,7 +20,7 @@ const SECAO: Record<string, string> = {
 };
 
 /**
- * Link de navegação com aria-current: "page" na própria página, "true" dentro da seção (ex.: uma decisão sob "O que mexe comigo?").
+ * Link de navegação com aria-current: "page" na própria página, "true" dentro da seção (ex.: uma votação sob "Votações" no topo, ou uma decisão sob "O que mexe comigo?" no rodapé).
  * É client só para ler o caminho; o HTML sai correto do servidor e funciona sem JavaScript.
  */
 export function NavLink({ href, children }: { href: string; children: React.ReactNode }) {

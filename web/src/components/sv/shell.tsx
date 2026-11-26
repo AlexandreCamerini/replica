@@ -3,41 +3,31 @@ import type { Prefs } from "./prefs-shared";
 import { FALHOU_LEITURA, SELO } from "./estados";
 import { NavLink } from "./shell-client";
 
-// Casco da D2: link "pular", topo (marca + UF + "trocar estado"), navegação em duas camadas, rodapé. Server component, sem JS
-// essencial: a navegação fica sempre visível (sem menu hambúrguer). O layout lê o cookie e passa a UF por prop.
-// Abaixo de 900px as duas camadas viram uma linha só, que rola na horizontal (sv.css, bloco "casco"): o topo cabe em 130px.
+// Casco da D2: link "pular", topo (marca + UF + "trocar estado"), navegação, rodapé. Server component, sem JS essencial: a
+// navegação fica sempre visível (sem menu hambúrguer). O layout lê o cookie e passa a UF por prop.
+// F1 do roteiro do eleitor (replica/roteiro-eleitor-2026-11.md; revisa as D324 a D326 só no menu): uma linha só, com quatro
+// destinos de rótulo curto, que cabe em 390px sem rolar. As perguntas longas continuam como título de cada página (h1).
+// "Custo" entra quando o dado do custo das casas existir (fatia F10); até lá o menu tem quatro destinos.
 
-/** As duas perguntas principais. */
+/** Menu principal: os quatro destinos de sempre. Ordem do DOM = ordem visual. */
 const PRINCIPAIS = [
-  { href: "/", label: "O que está rolando?" },
-  { href: "/acompanhando", label: "O que meus escolhidos estão fazendo?" },
+  { href: "/", label: "Início" },
+  { href: "/acompanhando", label: "Meus escolhidos" },
+  { href: "/votacoes", label: "Votações" },
+  { href: "/pessoas", label: "Pessoas" },
 ] as const;
 
-/**
- * Linha "Também:", em três partes na ordem em que aparecem. "Pessoas" e "Votações" entraram aqui na D324 (antes só no
- * rodapé) e, na D325, ganharam um grupo próprio (`FIXOS`): abaixo de 900px ele fica preso à borda direita da linha que
- * rola, para os dois ficarem à vista sem rolar. A partir de 900px o grupo não existe na tela (display:contents).
- */
-const TAMBEM_ANTES = [
+/** Rodapé: o que saiu do topo (as duas rotas de temas e decisões, ajustes) e "Como funciona". As rotas seguem as mesmas. */
+const ROTAS = [
   { href: "/decisoes", label: "O que mexe comigo?" },
   { href: "/temas", label: "O que está em jogo?" },
-] as const;
-const FIXOS = [
-  { href: "/pessoas", label: "Pessoas" },
-  { href: "/votacoes", label: "Votações" },
-] as const;
-const TAMBEM_DEPOIS = [{ href: "/ajustes", label: "Ajustes" }] as const;
-
-/** Rodapé: repete "Votações" e "Pessoas" (também estão no topo) e traz "Como funciona". */
-const ROTAS = [
-  { href: "/votacoes", label: "Votações" },
-  { href: "/pessoas", label: "Pessoas" },
+  { href: "/ajustes", label: "Ajustes" },
   { href: "/como-funciona", label: "Como funciona" },
 ] as const;
 
 export const CONTEUDO_ID = "sv-conteudo";
 
-/** Topo: "pular", marca, UF escolhida (ou "Escolha seu estado") e as duas camadas de navegação. Ordem do DOM = ordem visual. */
+/** Topo: "pular", marca, UF escolhida (ou "Escolha seu estado") e a navegação. Ordem do DOM = ordem visual. */
 export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boolean }) {
   return (
     <>
@@ -67,34 +57,14 @@ export function Topo({ uf, ufFalhou = false }: { uf: Prefs["uf"]; ufFalhou?: boo
             )}
           </p>
         </div>
-        <nav className="sv-perg" aria-label="Perguntas">
-          <ul className="sv-nv1">
+        <nav className="sv-nav" aria-label="Navegação principal">
+          <ul className="sv-nv">
             {PRINCIPAIS.map((n) => (
               <li key={n.href}>
                 <NavLink href={n.href}>{n.label}</NavLink>
               </li>
             ))}
           </ul>
-          <p className="sv-nv2">
-            <span className="sv-nv2__t">Também:</span>
-            {TAMBEM_ANTES.map((n) => (
-              <NavLink key={n.href} href={n.href}>
-                {n.label}
-              </NavLink>
-            ))}
-            <span className="sv-fixo">
-              {FIXOS.map((n) => (
-                <NavLink key={n.href} href={n.href}>
-                  {n.label}
-                </NavLink>
-              ))}
-            </span>
-            {TAMBEM_DEPOIS.map((n) => (
-              <NavLink key={n.href} href={n.href}>
-                {n.label}
-              </NavLink>
-            ))}
-          </p>
         </nav>
       </header>
     </>

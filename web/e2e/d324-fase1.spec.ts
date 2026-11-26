@@ -20,207 +20,12 @@ const visivelNoCentro = (el: Element) => {
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
-// 1. Navegação: "Pessoas" e "Votações" no topo
-// ---------------------------------------------------------------------------------------------------------------------
-test.describe("1. navegação do topo", () => {
-  for (const [width, height] of [[390, 844], [1440, 900]] as const)
-    test(`Pessoas e Votações estão na navegação "Perguntas" a ${width}px, com aria-current`, async ({ page }) => {
-      await page.setViewportSize({ width, height });
-      const nav = page.getByRole("navigation", { name: "Perguntas" });
-      for (const [url, nome, atual] of [
-        ["/pessoas", "Pessoas", "page"],
-        ["/pessoa/helena-siqueira", "Pessoas", "true"],
-        ["/votacoes", "Votações", "page"],
-        ["/votacao/camara-v2026-15", "Votações", "true"],
-      ] as const) {
-        await page.goto(url);
-        const link = nav.getByRole("link", { name: nome, exact: true });
-        // D325: à vista ao abrir a página, sem rolar a linha (a 390px os dois ficam presos à borda direita dela)
-        await expect(link, `${url}: ${nome}`).toBeInViewport({ ratio: 1 });
-        expect(await link.evaluate(visivelNoCentro), `${url}: ${nome} não está coberto`).toBe(true);
-        await expect(link, `${url}: ${nome}`).toHaveAttribute("aria-current", atual);
-        // o outro link está lá, sem marca de atual; e só um item da navegação fica marcado
-        const outro = nav.getByRole("link", { name: nome === "Pessoas" ? "Votações" : "Pessoas", exact: true });
-        await expect(outro).toHaveCount(1);
-        await expect(outro).not.toHaveAttribute("aria-current", /.+/);
-        await expect(nav.locator("[aria-current]")).toHaveCount(1);
-      }
-      // na home, nenhum dos dois é o atual
-      await page.goto("/");
-      await expect(nav.getByRole("link", { name: "Pessoas", exact: true })).not.toHaveAttribute("aria-current", /.+/);
-      await expect(nav.getByRole("link", { name: "O que está rolando?" })).toHaveAttribute("aria-current", "page");
-    });
-
-  test("a 390px, Pessoas e Votações à vista sem rolar; pelo teclado, nenhum link da linha fica escondido", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    for (const url of ["/", "/acompanhando", "/temas"]) {
-      await page.goto(url);
-      const nav = page.getByRole("navigation", { name: "Perguntas" });
-      expect(await page.locator(".sv-perg").evaluate((n) => n.scrollLeft), `${url}: a linha começa do início`).toBe(0);
-      for (const nome of ["Pessoas", "Votações"]) {
-        const link = nav.getByRole("link", { name: nome, exact: true });
-        await expect(link, `${url}: ${nome}`).toBeInViewport({ ratio: 1 });
-        expect(await link.evaluate(visivelNoCentro), `${url}: ${nome}`).toBe(true);
-      }
-      // a primeira pergunta continua à vista, inteira
-      await expect(nav.getByRole("link", { name: "O que está rolando?" })).toBeInViewport({ ratio: 1 });
-      // Tab por todos os links da navegação, na ordem do DOM: o focado nunca fica sob o grupo preso (WCAG 2.4.11)
-      const links = await nav.getByRole("link").all();
-      expect(links.length).toBe(7);
-      await page.locator(".sv-marca").focus();
-      await page.keyboard.press("Tab"); // UF ou "Escolha seu estado"
-      for (const link of links) {
-        await page.keyboard.press("Tab");
-        await expect(link).toBeFocused();
-        const nome = (await link.innerText()).trim();
-        // a pergunta mais longa é mais larga que o espaço livre a 390px: ela não cabe inteira, mas a maior parte e o centro ficam à vista
-        await expect(link, `${url}: ${nome} focado`).toBeInViewport({ ratio: 0.6 });
-        expect(await link.evaluate(visivelNoCentro), `${url}: ${nome} focado e coberto`).toBe(true);
-      }
-    }
-    // com espaçamento de texto WCAG 1.4.12 a linha continua sem estourar a página
-    await page.addStyleTag({ content: "*{letter-spacing:.12em !important;word-spacing:.16em !important}" });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
-  });
-
-  test("a partir de 900px o grupo de Pessoas e Votações não existe na tela: a linha Também é a mesma", async ({ page }) => {
-    for (const width of [900, 1440]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto("/");
-      expect(await page.locator(".sv-fixo").evaluate((e) => getComputedStyle(e).display), `${width}px`).toBe("contents");
-      // os cinco links da linha "Também" seguem na mesma linha, na ordem de antes
-      const r = await page.locator(".sv-nv2 a").evaluateAll((as) => as.map((a) => ({ t: (a.textContent ?? "").trim(), y: Math.round(a.getBoundingClientRect().top) })));
-      expect(r.map((x) => x.t), `${width}px`).toEqual(["O que mexe comigo?", "O que está em jogo?", "Pessoas", "Votações", "Ajustes"]);
-      expect(new Set(r.map((x) => x.y)).size, `${width}px: uma linha só`).toBe(1);
-    }
-  });
-
-  // D326: a partir de 1280px as duas camadas voltam a dividir a mesma linha. O espaço das perguntas depende da largura do
-  // nome do estado no topo: o teste passa por todos.
-  const UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"];
-  const medirLinha = async () => {
-    await document.fonts.ready; // sem isto a medida pode sair com a fonte de reserva
-    const nav = document.querySelector(".sv-perg")!.getBoundingClientRect();
-    const ul = document.querySelector(".sv-nv1")!;
-    const nv1 = [...document.querySelectorAll(".sv-nv1 a")].map((a) => a.getBoundingClientRect());
-    const nv2 = document.querySelector(".sv-nv2")!.getBoundingClientRect();
-    const mesmaLinha = Math.abs(nv2.top - nav.top) < 2 && nv2.left >= Math.max(...nv1.map((r) => r.right)) - 1;
-    return {
-      topo: Math.round(document.querySelector(".sv-topo")!.getBoundingClientRect().bottom),
-      alturaPerguntas: Math.max(...nv1.map((r) => Math.round(r.height))),
-      // "Também" ao lado das perguntas: começa na mesma altura que elas e termina à direita delas
-      mesmaLinha,
-      estouro: document.documentElement.scrollWidth - window.innerWidth,
-      // Espaço livre da linha, em px: o que sobra depois do mínimo das perguntas (flex-basis) e da linha "Também". As duas
-      // crescem por igual (flex-grow 1), então o livre é o dobro do que as perguntas ganharam. Só vale com as duas na mesma
-      // linha; com a linha "Também" embaixo não há o que medir (-1).
-      livre: mesmaLinha ? Math.floor((ul.getBoundingClientRect().width - parseFloat(getComputedStyle(ul).flexBasis)) * 2) : -1,
-      base: getComputedStyle(ul).flexBasis,
-    };
-  };
-  // Espaço livre mínimo exigido onde a linha tem de caber. Com menos de 1px (primeira versão da D326) o teste passava no
-  // Chrome do macOS e a linha descia no Chromium do Linux, que mede o texto um pouco mais largo: exigir a sobra pega isso nos dois.
-  const LIVRE_MIN = 12;
-
-  test("a partir de 1280px o topo volta a uma linha só (86px), com qualquer estado guardado", async ({ page, context }) => {
-    test.setTimeout(240_000);
-    const falhas: string[] = [];
-    let menor = { livre: Infinity, caso: "" };
-    const casos: [string | null, string, number][] = [];
-    for (const uf of [null, ...UFS]) casos.push([uf, "/", 1280]);
-    // o link atual fica em negrito (mais largo): conta nas rotas em que a segunda pergunta ou um link da linha "Também" é o atual
-    for (const uf of [null, "RN", "MS"]) for (const url of ["/acompanhando", "/decisoes", "/temas", "/votacoes"]) casos.push([uf, url, 1280]);
-    // o conteúdo tem teto de 1232px: em tela mais larga a conta é a mesma, e o pior caso (RN em /decisoes) também
-    for (const uf of [null, "RN"]) for (const w of [1440, 1920]) for (const url of ["/", "/decisoes"]) casos.push([uf, url, w]);
-    for (const [uf, url, width] of casos) {
-      await context.clearCookies();
-      if (uf) await context.addCookies([{ ...SP, value: uf }]);
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto(url);
-      if (uf) await expect(page.locator(".sv-uf"), `${uf} aplicado`).toContainText(`(${uf})`);
-      const m = await page.evaluate(medirLinha);
-      const caso = `${uf ?? "sem estado"} ${url} a ${width}px`;
-      if (m.mesmaLinha && m.livre < menor.livre) menor = { livre: m.livre, caso };
-      if (m.topo > 87 || m.alturaPerguntas > 52 || !m.mesmaLinha || m.estouro > 0 || m.livre < LIVRE_MIN) falhas.push(`${caso}: ${JSON.stringify(m)}`);
-    }
-    // fica no log do ci: é a única medida da sobra no Chromium do Linux
-    console.log(`D326: menor espaço livre do topo = ${menor.livre}px (${menor.caso}); mínimo exigido ${LIVRE_MIN}px`);
-    expect(falhas).toEqual([]);
-  });
-
-  test("com a barra de rolagem clássica (17px a menos de conteúdo) a linha ainda cabe; sem espaço, a linha Também desce sem estourar", async ({ page, context }) => {
-    // A barra clássica (Windows) não muda a media query, só tira largura do conteúdo. O Chromium do teste esconde a barra:
-    // o aperto é simulado com margem no html, numa janela de 1280px. 17px cabem na sobra; 80px, não.
-    for (const [aperto, cabe] of [[17, true], [80, false]] as const) {
-      await context.clearCookies();
-      await context.addCookies([{ ...SP, value: "RN" }]);
-      await page.setViewportSize({ width: 1280, height: 900 });
-      await page.goto("/decisoes");
-      await expect(page.locator(".sv-uf")).toContainText("(RN)");
-      await page.addStyleTag({ content: `html{margin-right:${aperto}px}` });
-      const m = await page.evaluate(medirLinha);
-      expect(m.mesmaLinha, `RN com ${aperto}px a menos`).toBe(cabe);
-      expect(m.alturaPerguntas, `RN com ${aperto}px a menos: perguntas em até duas linhas`).toBeLessThanOrEqual(56);
-      expect(m.estouro, `RN com ${aperto}px a menos`).toBeLessThanOrEqual(aperto);
-      expect(m.topo, `RN com ${aperto}px a menos`).toBeLessThanOrEqual(cabe ? 87 : 112);
-    }
-  });
-
-  test("com o texto do topo maior (zoom só de texto) nada estoura, e até 130% as perguntas seguem em até duas linhas", async ({ page, context }) => {
-    // Zoom só de texto (Firefox, Safari) aumenta toda fonte e não a janela. Simulado com as fontes do topo multiplicadas:
-    // perguntas (21px), linha "Também" e estado (14px), marca (26px). A largura mínima das perguntas está em em e cresce junto.
-    for (const fator of [1.15, 1.3, 2]) {
-      const px = (n: number) => `${(n * fator).toFixed(2)}px`;
-      const css = `.sv .sv-nv1,.sv .sv-nv1 a{font-size:${px(21)}}.sv .sv-nv2,.sv .sv-nv2 a,.sv .sv-uf,.sv .sv-uf a{font-size:${px(14)}}.sv .sv-marca{font-size:${px(26)}}`;
-      for (const uf of [null, "RN"]) {
-        await context.clearCookies();
-        if (uf) await context.addCookies([{ ...SP, value: uf }]);
-        await page.setViewportSize({ width: 1440, height: 900 });
-        await page.goto("/decisoes");
-        if (uf) await expect(page.locator(".sv-uf")).toContainText(`(${uf})`);
-        await page.addStyleTag({ content: css });
-        const m = await page.evaluate(medirLinha);
-        const caso = `${uf ?? "sem estado"} com texto a ${Math.round(fator * 100)}%`;
-        // duas linhas de 1,15 da fonte, mais 4px de respiro do link e 2px de arredondamento; nunca menos que os 52px da linha
-        // A 200% não há largura para duas linhas nem com a linha inteira (a coluna da marca e do estado também cresce): as
-        // perguntas quebram em mais linhas, sozinhas na linha, e o que se exige é não estourar.
-        if (fator < 2) expect(m.alturaPerguntas, `${caso}: perguntas em até duas linhas (${JSON.stringify(m)})`).toBeLessThanOrEqual(Math.max(52, Math.ceil(2 * 21 * fator * 1.15) + 6));
-        else expect(m.mesmaLinha, `${caso}: a linha Também não fica ao lado das perguntas (${JSON.stringify(m)})`).toBe(false);
-        expect(m.estouro, `${caso}: sem estouro (${JSON.stringify(m)})`).toBeLessThanOrEqual(0);
-      }
-    }
-  });
-
-  test("abaixo de 1280px a linha Também segue embaixo, sem estourar nem quebrar as perguntas em três linhas", async ({ page, context }) => {
-    for (const uf of [null, "RN"]) {
-      await context.clearCookies();
-      if (uf) await context.addCookies([{ ...SP, value: uf }]);
-      for (const width of [900, 1100, 1200, 1279]) {
-        await page.setViewportSize({ width, height: 900 });
-        await page.goto("/");
-        if (uf) await expect(page.locator(".sv-uf"), `${uf} aplicado`).toContainText(`(${uf})`);
-        const m = await page.evaluate(medirLinha);
-        expect(m.mesmaLinha, `${uf} ${width}px`).toBe(false);
-        expect(m.alturaPerguntas, `${uf} ${width}px`).toBeLessThanOrEqual(56);
-        expect(m.topo, `${uf} ${width}px`).toBeLessThanOrEqual(112);
-        expect(m.estouro, `${uf} ${width}px`).toBeLessThanOrEqual(0);
-      }
-    }
-  });
-
-  test("o rodapé continua com Votações, Pessoas e Como funciona", async ({ page }) => {
-    await page.goto("/");
-    const rod = page.locator("footer.sv-rod");
-    for (const nome of ["Votações", "Pessoas", "Como funciona"]) await expect(rod.getByRole("link", { name: nome, exact: true })).toBeVisible();
-  });
-});
-
-// ---------------------------------------------------------------------------------------------------------------------
-// 2. Topo compacto no celular
+// 1 e 2 (F1 do roteiro do eleitor, que revisa as D324 a D326 só no menu): uma linha de quatro destinos curtos, sem rolagem.
+// "Custo" entra com o dado do custo das casas (F10); "Temas", "O que mexe comigo?" e "Ajustes" foram para o rodapé.
 // ---------------------------------------------------------------------------------------------------------------------
 const medirTopo = () => {
   const topo = document.querySelector(".sv-topo")!.getBoundingClientRect();
-  const nav = document.querySelector<HTMLElement>(".sv-perg")!;
+  const nav = document.querySelector<HTMLElement>(".sv-nav")!;
   const links = Array.from(nav.querySelectorAll("a")).map((a) => a.getBoundingClientRect());
   return {
     fim: Math.round(topo.bottom),
@@ -233,9 +38,77 @@ const medirTopo = () => {
   };
 };
 
+const DESTINOS = ["Início", "Meus escolhidos", "Votações", "Pessoas"];
+
+test.describe("1. navegação do topo (quatro destinos)", () => {
+  for (const [width, height] of [[390, 844], [1440, 900]] as const)
+    test(`os quatro destinos estão na navegação a ${width}px, com aria-current`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      const nav = page.getByRole("navigation", { name: "Navegação principal" });
+      for (const [url, nome, atual] of [
+        ["/", "Início", "page"],
+        ["/acompanhando", "Meus escolhidos", "page"],
+        ["/pessoas", "Pessoas", "page"],
+        ["/pessoa/helena-siqueira", "Pessoas", "true"],
+        ["/votacoes", "Votações", "page"],
+        ["/votacao/camara-v2026-15", "Votações", "true"],
+      ] as const) {
+        await page.goto(url);
+        expect(await nav.getByRole("link").allInnerTexts(), url).toEqual(DESTINOS);
+        const link = nav.getByRole("link", { name: nome, exact: true });
+        await expect(link, `${url}: ${nome}`).toBeInViewport({ ratio: 1 });
+        await expect(link, `${url}: ${nome}`).toHaveAttribute("aria-current", atual);
+        // só um item da navegação fica marcado
+        await expect(nav.locator("[aria-current]"), url).toHaveCount(1);
+      }
+      // páginas que saíram do topo (temas, decisões, ajustes): nenhum item do topo fica marcado, o link vive no rodapé
+      for (const url of ["/decisoes", "/temas", "/ajustes"]) {
+        await page.goto(url);
+        await expect(nav.locator("[aria-current]"), url).toHaveCount(0);
+      }
+    });
+
+  test("cada rótulo tem no máximo duas palavras", async ({ page }) => {
+    await page.goto("/");
+    for (const t of await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link").allInnerTexts()) {
+      expect(t.trim().split(/\s+/).length, t).toBeLessThanOrEqual(2);
+    }
+  });
+
+  test("o rodapé guarda o que saiu do topo e as rotas antigas seguem abrindo", async ({ page }) => {
+    await page.goto("/");
+    const rodape = page.locator("footer.sv-rod");
+    for (const [nome, rota] of [
+      ["O que mexe comigo?", "/decisoes"],
+      ["O que está em jogo?", "/temas"],
+      ["Ajustes", "/ajustes"],
+      ["Como funciona", "/como-funciona"],
+    ] as const) {
+      const link = rodape.getByRole("link", { name: nome, exact: true });
+      await expect(link, nome).toHaveAttribute("href", rota);
+      const r = await page.request.get(rota);
+      expect(r.status(), `${rota} segue abrindo`).toBe(200);
+    }
+  });
+
+  // a partir de 900px a linha segue de uma vez só, ao lado da marca
+  test("a partir de 900px o menu é uma linha só, sem rolagem", async ({ page }) => {
+    for (const width of [900, 1100, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      const m = await page.evaluate(medirTopo);
+      expect(m.n, `${width}px`).toBe(4);
+      expect(m.linhas, `${width}px: uma linha`).toBe(1);
+      expect(m.rola, `${width}px`).toBeLessThanOrEqual(0);
+      expect(m.estouro, `${width}px`).toBeLessThanOrEqual(0);
+      expect(m.menor, `${width}px: alvos de toque ≥ 44px`).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
 test.describe("2. topo compacto", () => {
   for (const leitor of ["anon", "com estado"] as const)
-    test(`a 390px o topo termina em até 130px e as perguntas ficam numa linha que rola [${leitor}]`, async ({ page, context }) => {
+    test(`a 390px o topo termina em até 130px e o menu cabe numa linha sem rolar [${leitor}]`, async ({ page, context }) => {
       // o estado de nome mais comprido: no celular só a sigla aparece, e a primeira linha não quebra
       if (leitor === "com estado") await context.addCookies([{ ...SP, value: "RN" }]);
       await page.setViewportSize({ width: 390, height: 844 });
@@ -243,11 +116,11 @@ test.describe("2. topo compacto", () => {
         await page.goto(url);
         const m = await page.evaluate(medirTopo);
         // o <main> começa logo abaixo do topo; na demonstração há uma faixa "Versão de demonstração" entre os dois, que
-        // produção não tem: por isso a medida é o fim do topo (era 229px antes da D324)
+        // produção não tem: por isso a medida é o fim do topo
         expect(m.fim, `${url}: fim do topo`).toBeLessThanOrEqual(130);
-        expect(m.n, "sete links na navegação").toBe(7);
+        expect(m.n, "quatro links na navegação").toBe(4);
         expect(m.linhas, `${url}: todos os links na mesma linha`).toBe(1);
-        expect(m.rola, `${url}: a linha rola na horizontal`).toBeGreaterThan(0);
+        expect(m.rola, `${url}: o menu não rola na horizontal`).toBeLessThanOrEqual(0);
         expect(m.menor, `${url}: alvos de toque ≥ 44px`).toBeGreaterThanOrEqual(44);
         expect(m.estouro, `${url}: a página não rola na horizontal`).toBeLessThanOrEqual(0);
         expect(m.menus, `${url}: sem menu que abre e fecha`).toBe(0);
@@ -259,6 +132,27 @@ test.describe("2. topo compacto", () => {
       }
     });
 
+  test("a 390px os quatro links ficam à vista e, pelo teclado, cada um recebe o foco sem ficar coberto", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const url of ["/", "/acompanhando", "/temas"]) {
+      await page.goto(url);
+      const nav = page.getByRole("navigation", { name: "Navegação principal" });
+      const links = await nav.getByRole("link").all();
+      expect(links.length).toBe(4);
+      await page.locator(".sv-marca").focus();
+      await page.keyboard.press("Tab"); // UF ou "Escolha seu estado"
+      for (const link of links) {
+        await page.keyboard.press("Tab");
+        await expect(link).toBeFocused();
+        await expect(link, `${url}: ${(await link.innerText()).trim()}`).toBeInViewport({ ratio: 1 });
+        expect(await link.evaluate(visivelNoCentro), `${url}: foco coberto`).toBe(true);
+      }
+    }
+    // com espaçamento de texto WCAG 1.4.12 o menu continua sem estourar a página
+    await page.addStyleTag({ content: "*{letter-spacing:.12em !important;word-spacing:.16em !important}" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  });
+
   test("a 390px o topo compacto funciona sem JavaScript", async ({ browser }, info) => {
     const context = await browser.newContext({ baseURL: info.project.use.baseURL as string, javaScriptEnabled: false, locale: "pt-BR", viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
@@ -266,24 +160,9 @@ test.describe("2. topo compacto", () => {
     const m = await page.evaluate(medirTopo);
     expect(m.fim).toBeLessThanOrEqual(130);
     expect(m.linhas).toBe(1);
-    await page.getByRole("navigation", { name: "Perguntas" }).getByRole("link", { name: "Votações", exact: true }).click();
+    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Votações", exact: true }).click();
     await expect(page).toHaveURL(/\/votacoes$/);
     await context.close();
-  });
-
-  test("a partir de 900px a navegação não rola e segue em duas camadas", async ({ page }) => {
-    for (const width of [900, 1100, 1440]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto("/");
-      const m = await page.evaluate(() => {
-        const nav = document.querySelector<HTMLElement>(".sv-perg")!;
-        return { rola: nav.scrollWidth - nav.clientWidth, overflow: getComputedStyle(nav).overflowX, nv1: getComputedStyle(document.querySelector(".sv-nv1")!).display, estouro: document.documentElement.scrollWidth - window.innerWidth };
-      });
-      expect(m.overflow, `${width}px`).toBe("visible");
-      expect(m.rola, `${width}px`).toBeLessThanOrEqual(0);
-      expect(m.nv1, `${width}px`).toBe("grid");
-      expect(m.estouro, `${width}px`).toBeLessThanOrEqual(0);
-    }
   });
 
   test("topo compacto no perfil de celular @mobile", async ({ page, context }) => {

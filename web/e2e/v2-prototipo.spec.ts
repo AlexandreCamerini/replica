@@ -41,7 +41,7 @@ for (const width of [390, 768, 1280]) {
       // o cabeçalho antigo não aparece no protótipo
       await expect(page.locator("header.sticky"), url).toHaveCount(0);
       // a navegação nova está sempre visível, sem botão de menu
-      await expect(page.getByRole("navigation", { name: "Perguntas" }), url).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Navegação principal" }), url).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow, `${url} tem rolagem horizontal`).toBeLessThanOrEqual(0);
       const text = await page.locator(".sv-main").innerText();
@@ -112,25 +112,26 @@ test("v2: a navegação fica sempre visível e marca a seção atual com aria-cu
     // sem hambúrguer: nenhum botão Menu/Fechar e nenhum #sv-menu
     await expect(page.getByRole("button", { name: /^(Menu|Fechar)$/ })).toHaveCount(0);
     await expect(page.locator("#sv-menu")).toHaveCount(0);
-    const nav = page.getByRole("navigation", { name: "Perguntas" });
-    const rolando = nav.getByRole("link", { name: "O que está rolando?" });
-    const escolhidos = nav.getByRole("link", { name: "O que meus escolhidos estão fazendo?" });
-    await expect(rolando).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Navegação principal" });
+    const inicio = nav.getByRole("link", { name: "Início", exact: true });
+    const escolhidos = nav.getByRole("link", { name: "Meus escolhidos", exact: true });
+    await expect(inicio).toBeVisible();
     await expect(escolhidos).toBeVisible();
-    for (const n of ["O que mexe comigo?", "O que está em jogo?", "Ajustes"]) await expect(nav.getByRole("link", { name: n })).toBeVisible();
-    await expect(rolando).toHaveAttribute("aria-current", "page");
+    for (const n of ["Votações", "Pessoas"]) await expect(nav.getByRole("link", { name: n, exact: true })).toBeVisible();
+    await expect(inicio).toHaveAttribute("aria-current", "page");
     await expect(escolhidos).not.toHaveAttribute("aria-current", /.+/);
 
     await escolhidos.click();
     await expect(page).toHaveURL(/\/acompanhando$/);
     await expect(escolhidos).toHaveAttribute("aria-current", "page");
-    await expect(rolando).not.toHaveAttribute("aria-current", /.+/);
+    await expect(inicio).not.toHaveAttribute("aria-current", /.+/);
 
-    // dentro de uma decisão, "O que mexe comigo?" segue marcado (seção), sem ser a página
+    // as páginas que saíram do topo vivem no rodapé: dentro delas nenhum item do topo fica marcado
     await page.goto("/decisao/camara-pl-79-2020");
-    await expect(nav.getByRole("link", { name: "O que mexe comigo?" })).toHaveAttribute("aria-current", "true");
+    await expect(nav.locator("[aria-current]")).toHaveCount(0);
+    await expect(page.locator("footer.sv-rod").getByRole("link", { name: "O que mexe comigo?" })).toHaveAttribute("aria-current", "true");
     await page.goto("/ajustes");
-    await expect(nav.getByRole("link", { name: "Ajustes" })).toHaveAttribute("aria-current", "page");
+    await expect(page.locator("footer.sv-rod").getByRole("link", { name: "Ajustes" })).toHaveAttribute("aria-current", "page");
   }
 });
 
@@ -138,7 +139,7 @@ test("v2: página inexistente responde 404 dentro do shell novo", async ({ page 
   const res = await page.goto("/decisao/nao-existe");
   expect(res?.status()).toBe(404);
   await expect(page.locator(".sv h1")).toHaveText("Não consta");
-  await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegação principal" })).toBeVisible();
   await expect(page.locator("header.sticky")).toHaveCount(0);
   const res2 = await page.goto("/pessoa/nao-existe");
   expect(res2?.status()).toBe(404);
@@ -149,7 +150,7 @@ test("páginas do desenho anterior continuam com o shell delas", async ({ page }
   await page.goto("/no-seu-bolso");
   await expect(page.locator("header.sticky")).toBeVisible();
   await expect(page.locator(".sv")).toHaveCount(0);
-  await expect(page.getByRole("navigation", { name: "Perguntas" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Navegação principal" })).toHaveCount(0);
 });
 
 test("v2: marcar em quem votei põe a pessoa em Escolhidos e no Início", async ({ page }) => {

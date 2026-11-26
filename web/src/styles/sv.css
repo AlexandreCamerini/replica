@@ -55,86 +55,29 @@
 .sv-uf{font-size:14px;line-height:1.2;font-weight:600;font-stretch:84%;color:var(--tinta2);text-align:right;min-width:0}
 .sv .sv-uf a{display:inline-flex;align-items:center;min-height:44px;padding-inline:6px;font-weight:700;color:var(--tinta)}
 .sv .sv-uf a:focus-visible{outline-offset:-3px}
-.sv-perg{display:block;flex:0 0 100%;min-width:0}
-.sv-nv1{display:grid;grid-template-columns:minmax(0,1fr);border-top:3px solid var(--tinta);border-bottom:1.5px solid var(--tinta)}
-.sv-nv1 li+li{border-top:1.5px solid var(--tinta)}
-.sv .sv-nv1 a{display:flex;align-items:center;min-height:44px;padding:2px 4px;font-size:19px;line-height:1.15;font-weight:600;font-stretch:90%;letter-spacing:-.01em;text-decoration:none}
-.sv .sv-nv1 a[aria-current]{font-weight:800;text-decoration:underline;text-decoration-thickness:4px;text-underline-offset:6px}
-.sv-nv2{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;padding:0 4px;font-size:13px;line-height:1.3;font-weight:600;font-stretch:84%;color:var(--tinta2)}
-.sv .sv-nv2 a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding-inline:6px;font-weight:600;color:var(--tinta)}
-.sv .sv-nv2 a[aria-current]{font-weight:800;text-decoration-thickness:3px}
-.sv .sv-nv1 a:focus-visible,.sv .sv-nv2 a:focus-visible{outline-offset:-3px}
-/* grupo de "Pessoas" e "Votações" (D325): só existe na tela abaixo de 900px; no desktop os links seguem na linha "Também" */
-.sv-fixo{display:contents}
-/* Abaixo de 900px (D324): o topo cabe em duas linhas de 44px (antes eram cinco). Marca e UF na primeira; as duas camadas
-   da navegação viram uma linha só, que rola na horizontal: sem menu e sem JavaScript. O link cortado na borda direita mostra
-   que há mais. O nome do estado fica só para leitor de tela; a sigla aparece. A partir de 900px nada disto vale.
-   D325: "Pessoas" e "Votações" ficam presos à borda direita da linha (position:sticky), à vista sem rolar; o resto passa
-   por baixo deles. Para isso a linha "Também" se desfaz (display:contents) e os links viram itens da própria linha que
-   rola, que é o bloco de referência do sticky. scroll-padding: um link focado pelo teclado nunca para escondido sob o grupo. */
+/* F1 do roteiro do eleitor (revisa as D324 a D326 só no menu): uma linha de quatro destinos curtos, em grade de colunas iguais.
+   Sem rolagem, sem menu que abre e fecha, sem JavaScript. Cada rótulo tem no máximo duas palavras e pode quebrar em duas linhas
+   (overflow-wrap:anywhere: com espaçamento de texto maior a palavra mais longa não estoura a página). Alvo de 44px. */
+.sv-nav{display:block;flex:0 0 100%;min-width:0}
+.sv-nv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:3px solid var(--tinta);border-bottom:1.5px solid var(--tinta)}
+.sv-nv li+li{border-left:1.5px solid var(--tinta)}
+.sv .sv-nv a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:2px 3px;text-align:center;font-size:14px;line-height:1.2;font-weight:600;font-stretch:90%;letter-spacing:-.01em;overflow-wrap:anywhere;text-decoration:none}
+.sv .sv-nv a[aria-current]{font-weight:800;text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:4px}
+.sv .sv-nv a:focus-visible{outline-offset:-3px}
+/* Abaixo de 900px o topo cabe em duas linhas: marca e UF na primeira, o menu na segunda. O nome do estado fica só para leitor de
+   tela; a sigla aparece. */
 @media (max-width:899.98px){
   .sv-id{flex-wrap:nowrap}
   .sv .sv-marca{flex:none}
   .sv-uf__n{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-  .sv-perg{display:flex;align-items:stretch;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;border-top:3px solid var(--tinta);border-bottom:1.5px solid var(--tinta)}
-  .sv-nv1{display:flex;flex:none;border:0}
-  .sv-nv1 li+li{border-top:0}
-  /* as duas perguntas em até duas linhas cada (D325): cabem inteiras à esquerda do grupo preso, sem passar por baixo dele.
-     A largura de cada uma segue o texto dela (se o texto mudar, revise os max-width); com espaçamento de texto maior
-     quebram em mais linhas e a linha cresce. Sublinhado da pergunta atual mais fino e mais perto: não invade a 2ª linha. */
-  .sv .sv-nv1 a{padding:2px 6px 2px 4px;font-size:14px;line-height:1.25;white-space:normal;text-wrap:balance}
-  .sv .sv-nv1 a[aria-current]{text-decoration-thickness:2px;text-underline-offset:2px}
-  .sv .sv-nv1 li:first-child a{max-width:6em}
-  .sv .sv-nv1 li+li a{max-width:11em}
-  /* --sv-fixo-w: largura do grupo preso e, a mesma, a margem que o navegador deixa ao rolar até um link focado */
-  .sv-perg{--sv-fixo-w:7.25rem;scroll-padding-inline-end:var(--sv-fixo-w)}
-  .sv-nv2{display:contents}
-  .sv .sv-nv2 a{flex:none;white-space:nowrap;font-size:13px;font-weight:600;font-stretch:84%}
-  .sv .sv-nv2 a[aria-current]{font-weight:800}
-  /* "Também:" é texto, não link: a ponta dele, cortada pelo grupo preso, mostra que a linha continua. Se a ponta fosse de
-     um link, o navegador não rolaria até ele ao receber foco (já estaria "à vista") e ele ficaria sob o grupo. */
-  .sv-nv2__t{display:flex;flex:none;align-items:center;white-space:nowrap;padding:0 2px 0 4px;border-left:1.5px solid var(--tinta);font-size:13px;color:var(--tinta2)}
-  .sv-fixo{position:sticky;right:0;z-index:1;display:flex;flex:none;align-items:stretch;justify-content:flex-end;min-width:var(--sv-fixo-w);background-color:var(--papel);border-left:1.5px solid var(--tinta)}
-  .sv .sv-fixo a{padding-inline:4px}
 }
 @media (min-width:900px){
-  .sv-topo{flex-wrap:nowrap;column-gap:24px}
+  .sv-topo{flex-wrap:nowrap;align-items:center;column-gap:24px}
   .sv-id{flex:none;flex-direction:column;align-items:flex-start;justify-content:flex-start}
   .sv .sv-marca{font-size:26px;line-height:30px}
   .sv-uf{margin-top:-6px;text-align:left}
-  .sv-perg{flex:1 1 auto;display:flex;flex-wrap:wrap;align-items:stretch;column-gap:18px}
-  .sv-nv1{flex:1 1 520px;min-width:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-  .sv-nv1 li+li{border-top:0;border-left:1.5px solid var(--tinta)}
-  .sv .sv-nv1 a{min-height:56px;padding:2px 14px;font-size:21px}
-  .sv-nv2{flex:1 1 360px;justify-content:flex-end;align-content:center;font-size:14px;column-gap:14px;padding:0;border-top:3px solid var(--tinta);border-bottom:1.5px solid var(--tinta)}
-}
-@media (min-width:1100px){
-  .sv-nv1{flex:1 1 560px;grid-template-columns:max-content minmax(0,1fr)}
-  /* com cinco links a linha "Também" não cabe mais ao lado das perguntas: ocupa a linha de baixo inteira, como já era entre 900 e 1100px */
-  .sv-nv2{flex:1 1 auto}
-  .sv .sv-nv1 a{min-height:52px}
-}
-/* D326: a partir de 1280px as duas camadas voltam a dividir a mesma linha (o topo volta aos 86px de antes da D324). A linha
-   "Também" fica mais justa; as perguntas pedem no mínimo 450px (abaixo de 445px a segunda iria a três linhas). A medida
-   está em em sobre a fonte das perguntas (21,43em de 21px), para crescer junto com o zoom só de texto: em px fixo, o texto
-   crescia, o mínimo não, e a segunda pergunta ia a três linhas ao lado da linha "Também".
-   A segunda pergunta quebra em duas linhas (cada uma com 24px; as duas cabem nos 52px da linha). Quando não há esse
-   espaço (zoom só de texto, espaçamento de texto maior, janela com conteúdo mais estreito), a linha "Também" desce sozinha
-   para baixo, como abaixo de 1280px, e as perguntas ficam com a linha inteira. Sozinha, a linha "Também" pode encolher e
-   quebrar os links dentro dela (flex-shrink 1): não estoura a página.
-   Folga: o conteúdo tem teto de 1232px, então a conta é a mesma em qualquer tela a partir de 1280px. Com o estado de nome
-   mais longo (RN) e o link atual em negrito sobrava menos de 1px, e o Chromium do Linux mede o texto um pouco mais largo:
-   a linha descia. O espaço entre a marca e as perguntas (16px) e entre os links de "Também" (3px) deixa perto de 23px
-   livres no pior caso; o teste exige pelo menos 12px. Quem mede: e2e/d324-fase1.spec.ts, com os 27 estados. */
-@media (min-width:1280px){
-  .sv-topo{column-gap:16px}
-  .sv-perg{column-gap:12px}
-  .sv-nv1{font-size:21px;flex:1 1 21.43em}
-  .sv .sv-nv1 li+li a{text-wrap:balance}
-  /* sublinhado da pergunta atual mais perto do texto: em duas linhas, o de 4px a 6px da linha de base tocaria a segunda */
-  .sv .sv-nv1 a[aria-current]{text-decoration-thickness:3px;text-underline-offset:3px}
-  .sv-nv2{flex:1 1 auto;column-gap:3px;padding-left:4px}
-  .sv .sv-nv2 a{padding-inline:4px}
+  .sv-nav{flex:1 1 auto}
+  .sv .sv-nv a{min-height:56px;padding:2px 14px;font-size:21px}
 }
 /* D330: estado de carregamento. Texto em tinta sobre papel, sem cor nova e sem animação. Vazio, não aparece nem ocupa lugar. O aviso de troca de página fica preso ao canto de baixo: não empurra o conteúdo nem tira o foco; tem
    largura contida e texto curto (em janela pequena, quebra em duas linhas). Só existe com JavaScript: sem

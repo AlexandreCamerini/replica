@@ -7,7 +7,7 @@ test("a raiz é a Direção 2 e pode ser indexada", async ({ page }) => {
   const res = await page.goto("/");
   expect(res?.status()).toBe(200);
   await expect(page.locator(".sv h1")).toHaveCount(1);
-  await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegação principal" })).toBeVisible();
   await expect(page.locator("header.sticky")).toHaveCount(0);
   await expect(page).toHaveTitle(/Segue o Voto/);
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0);

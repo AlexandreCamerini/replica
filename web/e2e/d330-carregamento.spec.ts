@@ -37,7 +37,7 @@ test.describe("carregamento: troca de página", () => {
     const cdp = await context.newCDPSession(page);
     await cdp.send("Network.enable");
     await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 2500, downloadThroughput: 200 * 1024, uploadThroughput: 1024 * 1024 });
-    await page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Votações", exact: true }).click();
+    await page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Votações", exact: true }).click();
     await expect(page.locator(AVISO)).toHaveText(TEXTO);
     await expect(page.locator(AVISO)).toBeVisible();
     await expect(page).toHaveURL(/\/votacoes$/, { timeout: 30_000 });
@@ -50,7 +50,7 @@ test.describe("carregamento: troca de página", () => {
     await context.addCookies(cookies);
     await page.goto("/", { waitUntil: "networkidle" });
     const rede = await segurar(page, /\/pessoas(\?|$)/);
-    const link = page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Pessoas", exact: true });
+    const link = page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Pessoas", exact: true });
     await link.click();
     const aviso = page.locator(AVISO);
     await expect(aviso).toHaveText(TEXTO);
@@ -88,7 +88,7 @@ test.describe("carregamento: troca de página", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/", { waitUntil: "networkidle" });
     const rede = await segurar(page, /\/pessoas(\?|$)/);
-    const link = page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Pessoas", exact: true });
+    const link = page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Pessoas", exact: true });
     await link.click();
     await expect(page.locator(AVISO)).toHaveText(TEXTO);
     const m = await page.evaluate((sel) => {
@@ -110,7 +110,7 @@ test.describe("carregamento: troca de página", () => {
     await page.setViewportSize({ width: 320, height: 256 });
     await page.goto("/", { waitUntil: "networkidle" });
     const rede = await segurar(page, /\/pessoas(\?|$)/);
-    await page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Pessoas", exact: true }).click();
+    await page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Pessoas", exact: true }).click();
     await expect(page.locator(AVISO)).toHaveText(TEXTO);
     await expect(page.locator(AVISO)).toContainText("Ainda carregando.", { timeout: 25_000 }); // o texto muda aos 8 s; folga para máquina carregada (some aos 30 s)
     await expect(page.locator(AVISO)).toContainText("Não é preciso clicar de novo");
@@ -145,12 +145,12 @@ test.describe("carregamento: troca de página", () => {
     await expect(page.locator(AVISO)).toBeHidden();
     await page.goto("/pessoas", { waitUntil: "networkidle" });
     // o link da página em que já se está
-    await page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Pessoas", exact: true }).click();
+    await page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Pessoas", exact: true }).click();
     await page.waitForTimeout(1000);
     await expect(page.locator(AVISO)).toBeHidden();
     // clique com tecla de nova aba: esta aba não carrega nada
     const rede = await segurar(page, /\/votacoes(\?|$)/);
-    await page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Votações", exact: true }).click({ modifiers: ["ControlOrMeta"] });
+    await page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Votações", exact: true }).click({ modifiers: ["ControlOrMeta"] });
     await page.waitForTimeout(1000);
     await expect(page.locator(AVISO)).toBeHidden();
     await expect(page).toHaveURL(/\/pessoas$/);
@@ -160,12 +160,12 @@ test.describe("carregamento: troca de página", () => {
   test("voltar pelo histórico com uma troca de página em andamento: o aviso some", async ({ page, context }) => {
     await context.addCookies(cookies);
     await page.goto("/", { waitUntil: "networkidle" });
-    await page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Votações", exact: true }).click();
+    await page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Votações", exact: true }).click();
     await expect(page).toHaveURL(/\/votacoes$/);
     await expect(page.locator("h1")).toBeVisible();
     // uma troca que não chega: o aviso fica na tela
     const rede = await segurar(page, /\/pessoas(\?|$)/);
-    await page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Pessoas", exact: true }).click();
+    await page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Pessoas", exact: true }).click();
     await expect(page.locator(AVISO)).toHaveText(TEXTO);
     // a pessoa desiste e volta: o endereço muda para o anterior e o aviso some
     await page.goBack();
@@ -248,7 +248,7 @@ test.describe("carregamento: sem JavaScript", () => {
       await expect(page.locator(AVISO), url).toHaveText("");
     }
     await page.goto("/");
-    await page.locator('nav[aria-label="Perguntas"]').getByRole("link", { name: "Pessoas", exact: true }).click();
+    await page.locator('nav[aria-label="Navegação principal"]').getByRole("link", { name: "Pessoas", exact: true }).click();
     await expect(page).toHaveURL(/\/pessoas$/);
     // D331: sem filtro do eleitor, nenhuma pessoa e nenhum botão de marcar; o filtro abre a lista
     await expect(page.locator("#pp-pede")).toBeVisible();
