@@ -5,7 +5,7 @@
 # Uso:
 #   scripts/entregar-fatia.sh <commit> <branch> <título> <arquivo-do-corpo> [--baixo-risco] [--mesclar]
 #
-#   <commit>             sha do commit da fatia (existe no repositório; as worktrees compartilham os objetos)
+#   <commit>             sha do commit da fatia, ou vários separados por vírgula (aplicados na ordem). Existem no repositório; as worktrees compartilham os objetos
 #   <branch>             claude/<nome-da-fatia>
 #   <título>             título da PR
 #   <arquivo-do-corpo>   arquivo com o corpo da PR (caminho absoluto)
@@ -29,6 +29,8 @@ SECO="${ENTREGA_SECO:-0}"
 
 usa() { sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 64; }
 die() { echo "erro: $*" >&2; exit "${2:-1}"; }
+# shellcheck source=lib-entrega.sh
+. "$(cd "$(dirname "$0")" && pwd)/lib-entrega.sh"
 exec 3>&1  # saída original: o modo seco escreve nela, mesmo quando o comando teria a saída redirecionada para o log
 rode() { if [ "$SECO" = 1 ]; then echo "[seco] $*" >&3; return 0; fi; "$@"; }
 
@@ -47,7 +49,10 @@ done
 # --- validação das entradas (falha cedo, antes de tocar em qualquer coisa)
 [ -d "$WT/.git" ] || [ -f "$WT/.git" ] || die "worktree não encontrada: $WT (use ENTREGA_WT)" 66
 G() { git -C "$WT" "$@"; }
-G cat-file -e "${COMMIT}^{commit}" 2>/dev/null || die "commit $COMMIT não existe neste repositório" 66
+IFS=, read -r -a COMMITS <<< "$COMMIT"
+[ "${#COMMITS[@]}" -gt 0 ] || die "nenhum commit informado" 64
+for c in "${COMMITS[@]}"; do G cat-file -e "${c}^{commit}" 2>/dev/null || die "commit $c não existe neste repositório" 66; done
+ULTIMO="${COMMITS[${#COMMITS[@]}-1]}"
 printf '%s' "$BRANCH" | grep -Eq '^claude/[a-z0-9][a-z0-9._-]{2,60}$' || die "branch deve ser claude/<nome-em-minúsculas>: $BRANCH" 64
 [ -n "$TITULO" ] || die "título vazio" 64
 [ -s "$CORPO" ] || die "arquivo do corpo ausente ou vazio: $CORPO" 66
@@ -55,7 +60,7 @@ printf '%s' "$BRANCH" | grep -Eq '^claude/[a-z0-9][a-z0-9._-]{2,60}$' || die "br
 command -v gh >/dev/null || die "gh não encontrado" 69
 mkdir -p "$SAIDA"
 LOG="$SAIDA/${BRANCH//\//_}.txt"
-{ echo "fatia: $BRANCH"; echo "commit: $COMMIT"; echo "início: $(date -u +%FT%TZ)"; } > "$LOG"
+{ echo "fatia: $BRANCH"; echo "commits: $COMMIT"; echo "início: $(date -u +%FT%TZ)"; } > "$LOG"
 anota() { echo "$*" | tee -a "$LOG"; }
 
 # worktree sem alteração em arquivo rastreado (o que não é rastreado, como web/.next-mi, não atrapalha)
@@ -80,20 +85,25 @@ else
     anota "2/5 criando $BRANCH a partir de origin/main"
     rode git -C "$WT" switch -c "$BRANCH" origin/main || die "não consegui criar $BRANCH" 73
   fi
-  # o commit já está na branch? (cherry-pick repetido viraria vazio)
-  if [ "$SECO" != 1 ] && G merge-base --is-ancestor "$COMMIT" HEAD 2>/dev/null; then
+  # o último commit já está na branch? (cherry-pick repetido viraria vazio)
+  if [ "$SECO" != 1 ] && G merge-base --is-ancestor "$ULTIMO" HEAD 2>/dev/null; then
     anota "3/5 o commit já está na branch: pulando cherry-pick"
   else
-    anota "3/5 cherry-pick de $COMMIT"
-    if ! rode git -C "$WT" cherry-pick "$COMMIT" >>"$LOG" 2>&1; then
-      if [ -e "$GD/CHERRY_PICK_HEAD" ] && [ -z "$(G diff --name-only --diff-filter=U)" ]; then
-        anota "cherry-pick vazio (o conteúdo já está em main): pulando"; rode git -C "$WT" cherry-pick --skip >>"$LOG" 2>&1
-      else
-        rode git -C "$WT" cherry-pick --abort >>"$LOG" 2>&1
-        anota "CONFLITO no cherry-pick de $COMMIT sobre o main atual. Nada foi enviado. Esta fatia precisa ser refeita sobre o main."
-        echo "resultado: conflito" >> "$LOG"; exit 3
+    for c in "${COMMITS[@]}"; do
+      anota "3/5 cherry-pick de $c"
+      if ! rode git -C "$WT" cherry-pick "$c" >>"$LOG" 2>&1; then
+        if [ -e "$GD/CHERRY_PICK_HEAD" ] && [ -z "$(G diff --name-only --diff-filter=U)" ]; then
+          anota "cherry-pick vazio (o conteúdo já está em main): pulando"; rode git -C "$WT" cherry-pick --skip >>"$LOG" 2>&1
+        elif [ -e "$GD/CHERRY_PICK_HEAD" ] && resolve_conflitos_de_registro "$WT"; then
+          anota "conflito só no registro de decisões (acréscimo ao fim de outra fatia): mantive os dois lados"
+          git -C "$WT" -c core.editor=true cherry-pick --continue >>"$LOG" 2>&1 || { git -C "$WT" cherry-pick --abort >>"$LOG" 2>&1; anota "não consegui concluir o cherry-pick depois de resolver o registro. Nada foi enviado."; echo "resultado: conflito" >> "$LOG"; exit 3; }
+        else
+          rode git -C "$WT" cherry-pick --abort >>"$LOG" 2>&1
+          anota "CONFLITO no cherry-pick de $c sobre o main atual (fora do registro de decisões). Nada foi enviado. Esta fatia precisa ser refeita sobre o main."
+          echo "resultado: conflito" >> "$LOG"; exit 3
+        fi
       fi
-    fi
+    done
   fi
   anota "4/5 enviando a branch (sem force)"
   rode git -C "$WT" push -u origin "$BRANCH" >>"$LOG" 2>&1 || { anota "push falhou (ver $LOG)"; echo "resultado: push falhou" >> "$LOG"; exit 4; }
