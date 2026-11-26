@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import "@/styles/sv-tema.css";
 import { fraseLida, lidoEm } from "@/components/sv/carimbo";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { fmtDate, fmtInt } from "@/components/sv/fmt";
 import { FalhaDeLeitura } from "@/components/sv/falha-leitura";
+import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { lerOuFalhar, simulacao } from "@/components/sv/simular";
+import { carregarMarcadosNoTema } from "@/components/sv/tema-marcados";
+import { MarcadosNoTemaQuadro } from "@/components/sv/tema-marcados-quadro";
 import { loadThemes } from "@/components/sv/temas";
 import { Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { VotacaoItem } from "@/components/sv/votacao-item";
@@ -31,11 +35,19 @@ const plural = (n: number, um: string, varios: string) => (n === 1 ? `1 ${um}` :
 export default async function Tema({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ simular?: string | string[] }> }) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   // null = tema que não existe (404); undefined = a leitura falhou (lacuna, nunca 500). `?simular=erro` só vale na demonstração.
-  const r = await lerOuFalhar(simulacao(sp.simular) === "erro", () => load(slug)).catch(() => undefined);
+  const sim = simulacao(sp.simular);
+  const r = await lerOuFalhar(sim === "erro", () => load(slug)).catch(() => undefined);
   if (r === null) notFound();
   if (r === undefined) return <FalhaDeLeitura titulo="O que o Congresso votou sobre este tema?" pergunta="Quantas votações recentes sobre este tema?" oQue="as votações deste tema" proxima={{ href: "/temas", pergunta: "O que está em jogo no Congresso?" }} />;
   const { t, p } = r;
-  const [stC, stS] = await Promise.all([data.getStamp("camara.votacoes").catch(() => null), data.getStamp("senado.votacoes").catch(() => null)]);
+  // Quem o leitor marcou (cookie sv_sigo, lido só aqui no servidor) e como votou nas votações deste tema (D352).
+  // `?simular=erro_pagina`: a leitura das pessoas falha; `?simular=erro_dados`: a leitura dos votos de cada pessoa falha.
+  const marcados = parseFollows((await cookies()).get(FOLLOW_COOKIE)?.value);
+  const [stC, stS, marcadosNoTema] = await Promise.all([
+    data.getStamp("camara.votacoes").catch(() => null),
+    data.getStamp("senado.votacoes").catch(() => null),
+    carregarMarcadosNoTema(marcados, t, (fn) => lerOuFalhar(sim === "erro_pagina", fn), (fn) => lerOuFalhar(sim === "erro_dados", fn)),
+  ]);
   const lida = [lidoEm(stC), lidoEm(stS)].filter((x): x is string => !!x).sort()[0] ?? null; // a leitura mais antiga das duas
   const fonte = `Fonte: Câmara dos Deputados (votações nominais${fraseLida(stC, "as")}) e Senado Federal (votações nominais${fraseLida(stS, "as")}). O tema é o atribuído pela própria Casa.`;
   const camara = t.events.filter((e) => e.body === "camara").length;
@@ -98,7 +110,9 @@ export default async function Tema({ params, searchParams }: { params: Promise<{
         <Nota>O placar da lista é o total que a fonte publicou, Sim e Não. Abstenção e Sem voto estão na página de cada votação. Sem voto não é voto contra.</Nota>
       </Quadro>
 
-      <Selo id="tm1-selo" numero={4} lidoEm={lida} className="sv-c7" />
+      <MarcadosNoTemaQuadro id="tm1-esc" numero={4} tema={t.name} r={marcadosNoTema} stamps={{ camara: stC, senado: stS }} />
+
+      <Selo id="tm1-selo" numero={5} lidoEm={lida} className="sv-c7" />
       <Proxima href="/temas" pergunta="O que está em jogo no Congresso?" className="sv-c5" />
     </div>
   );

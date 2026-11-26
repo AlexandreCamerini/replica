@@ -9,6 +9,7 @@ import { PessoaNaoLida } from "@/components/sv/pessoa/falha";
 import { carregarPessoa, contextoPessoa, lerPessoa, inteiroPositivo, MOTIVO_COTA, texto } from "@/components/sv/pessoa/contexto";
 import { brl, hojeBR, ler, statusLacuna } from "@/components/sv/pessoa/format";
 import { Falha, Linha, Sem, SemCobertura, TabelaGastos, vmGastos } from "@/components/sv/pessoa/secoes";
+import { serieMensal, tetoDe } from "@/components/sv/pessoa/serie-mensal";
 import { CabecalhoSub, Paginacao } from "@/components/sv/pessoa/sub";
 import { Lacuna, Nota, Selo } from "@/components/sv/ui";
 import { data, type OfficeSlug } from "@/lib/data";
@@ -78,6 +79,10 @@ export default async function GastosPessoa({ params, searchParams }: Props) {
   const v = res && res.ok ? res.v : null;
   const temDado = !!v && v.byCategory.length > 0;
   const vm = v ? vmGastos(v.byCategory, ano) : null;
+  // F7: série mensal do ano (mesma fonte do total por categoria; só aparece se fecha com ele) e teto legal da cota (só Câmara; conjunto ainda não carregado)
+  const mensalR = temDado && vm ? await ler(data.getMandateSpend(id, { from: `${ano}-01-01`, to: `${ano}-12-31` })) : null;
+  const serie = mensalR && mensalR.ok && vm ? serieMensal(mensalR.v.porMes, ano, vm.total) : null;
+  const teto = ctx.body === "camara" ? tetoDe(ctx.ufSigla, `${ano}-12-31`) : null;
   const itens = v?.items ?? [];
   const mes = !ctx.body && !!ctx.office && CASA_SO_MES.has(ctx.office) && ctx.cob("gastos")?.estado === "lido";
   const forma = ctx.main ? ESFERA[ctx.main.office] : null;
@@ -110,8 +115,52 @@ export default async function GastosPessoa({ params, searchParams }: Props) {
         )}
       </Linha>
 
+      {temDado && vm && (
+        <Linha id="g1b" numero={2} pergunta={`Mês a mês em ${ano}`} fonte={ctx.fonteConjunto("gastos", rotulo, sGastos, true)}>
+          <div className="sv-bloco">
+            {serie ? (
+              <table className="sv-gm" data-serie-mensal="ano">
+                <caption className="sv-vh">Gastos do gabinete em {ano}, mês a mês, em ordem cronológica</caption>
+                <thead className="sv-vh">
+                  <tr>
+                    <th scope="col">Mês</th>
+                    <th scope="col">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serie.linhas.map((l) => (
+                    <tr key={l.mes}>
+                      <th scope="row">{l.nome}</th>
+                      <td>{l.cents === null ? <Lacuna>Sem nota neste mês</Lacuna> : brl(l.cents)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th scope="row">Total</th>
+                    <td>{brl(serie.totalCents)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            ) : (
+              <Lacuna motivo="A soma dos meses não fechou com o total por categoria, então não mostramos a série.">Série mensal indisponível.</Lacuna>
+            )}
+            <Nota>Só os gastos desta pessoa, mês da nota, sem comparação com outras. Mês sem nota não é mês sem gasto: é mês em que a fonte não publicou nota.</Nota>
+            {teto && (
+              <p data-teto-cota={teto.estado}>
+                {teto.estado === "lido" ? (
+                  <>Teto legal da cota: {brl(teto.teto.cents)} por mês. Fonte: {teto.teto.fonte}, lida em {fmtDate(teto.teto.lidoEm)}.</>
+                ) : (
+                  <Lacuna motivo={teto.motivo}>Teto legal da cota: não carregado.</Lacuna>
+                )}
+              </p>
+            )}
+          </div>
+        </Linha>
+      )}
+
       {temDado && v && (
-        <Linha id="g2" numero={2} pergunta="Nota por nota" fonte={ctx.fonteConjunto("gastos", rotulo, sGastos, true)}>
+        <Linha id="g2" numero={3} pergunta="Nota por nota" fonte={ctx.fonteConjunto("gastos", rotulo, sGastos, true)}>
           <div className="sv-bloco">
             <form className="sv-form-d2 sv-filtro" action={base} method="get" aria-label="Filtrar as notas">
               <label className="sv-sub" htmlFor="g-ano">

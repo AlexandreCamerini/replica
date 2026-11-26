@@ -9,6 +9,7 @@ import { data } from "@/lib/data";
  * `camara_nao_lida`: a pauta da Câmara volta sem leitura (`readAt` null), pela opção da fonte demo.
  * `pauta_velha`: a pauta das duas Casas volta lida há 3 dias (aviso de pauta velha, F6), pela opção da fonte demo.
  * `erro_pagina`: a leitura principal da página falha (a pessoa, a proposta, os assuntos), onde `erro` já simula outra leitura.
+ *   Na tela do tema (D352), onde `erro` simula a leitura do tema: `erro_pagina` faz falhar a leitura das pessoas marcadas e `erro_dados` a dos votos delas.
  * `atos_repetidos`: em Escolhidos, a atividade vem com registros que a tela escreveria iguais (D328), como na fonte real.
  */
 export type Simulacao = "erro" | "erro_dados" | "erro_pagina" | "camara_nao_lida" | "pauta_velha" | "atos_repetidos" | null;

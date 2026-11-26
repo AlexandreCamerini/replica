@@ -796,6 +796,17 @@ export const pgSource: DataSource = {
     const total = new Map(rows.map((r) => [String(r.person_id), Number(r.total)]));
     return Object.fromEntries(ids.map((id) => [id, { items: itens[id], total: total.get(id) ?? 0 }]));
   },
+  async getVotesForPeopleInEvents(personIds, eventIds) {
+    const ids = uuids(personIds);
+    if (!ids.length) return {};
+    const evs = [...new Set(eventIds.filter((id) => /^[0-9a-f-]{36}$/.test(id)))]; // sem teto: cortar daria "sem voto" falso
+    if (!evs.length) return Object.fromEntries(ids.map((id) => [id, []]));
+    const rows = await sql`
+      select v.person_id, v.voting_event_id, v.value from votes v
+      where v.person_id = any(${ids}::uuid[]) and v.voting_event_id = any(${evs}::uuid[])
+      order by v.person_id, v.voting_event_id`;
+    return porPessoa(ids, rows, (r) => ({ eventId: String(r.voting_event_id), value: String(r.value) as VoteValue }));
+  },
   async getExpensesByCategoryForPeople(personIds, year) {
     const ids = uuids(personIds);
     if (!ids.length) return {};

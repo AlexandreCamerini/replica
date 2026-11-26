@@ -60,6 +60,7 @@ const PEOPLE_BATCH: ReadonlySet<keyof DataSource> = new Set([
   "getStatsForPeople",
   "getAttendanceGridForPeople",
   "getRecentLawVotesForPeople",
+  "getVotesForPeopleInEvents",
   "getExpensesByCategoryForPeople",
 ] as const);
 

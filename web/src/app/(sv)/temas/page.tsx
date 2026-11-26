@@ -313,6 +313,10 @@ export default async function Temas({ searchParams }: { searchParams: Promise<{ 
         }
       >
         <Resposta tamanho="fala">Não cruzamos a pauta com os votos de quem você escolheu. Veja o último voto de cada pessoa.</Resposta>
+        {/* D352: o cruzamento existe para o que já foi votado, na página de cada assunto; a pauta (o que ainda vai ser votado) não tem voto */}
+        <p className="sv-t">
+          Para o que já foi votado, abra um assunto da <a href="#tm-assuntos">lista de assuntos</a>: a página dele mostra como estas pessoas votaram nas votações mais recentes que lemos, e quem não vota no Congresso aparece como lacuna.
+        </p>
         <ul className="sv-pes">
           {escolhidos.map((e) =>
             e.ok ? (

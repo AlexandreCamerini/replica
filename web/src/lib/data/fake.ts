@@ -1260,6 +1260,10 @@ export const fakeSource: DataSource = {
       ),
     );
   },
+  async getVotesForPeopleInEvents(ids, eventIds) {
+    const evs = new Set(eventIds);
+    return Object.fromEntries(ids.map((id) => [id, votesOf(id).filter((v) => evs.has(v.event.id)).map((v) => ({ eventId: v.event.id, value: v.value }))]));
+  },
   async getExpensesByCategoryForPeople(ids, year) {
     return Object.fromEntries(await Promise.all(ids.map(async (id) => [id, (await fakeSource.listExpenses(id, { year, limit: 1 })).byCategory] as const)));
   },

@@ -1085,3 +1085,47 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
   - **F10 (custo da casa) e F11 (mudou a representação do meu estado): adiadas, sem código.** As duas dependem de dado que não existe e não pode ser inventado: dotação e valor pago de Câmara e Senado conferidos contra a fonte (F10; regra do roteiro: "sem o dado, entrada e menu não existem") e cobertura de suplentes, BUG-050/052 (F11). Sem o dado, qualquer tela seria só uma lacuna, e a regra do roteiro manda a entrada "Quanto custa?" e o destino "Custo" nem aparecerem. **Pendência do dono:** autorizar a leitura das fontes oficiais (orçamento da Câmara e do Senado) e do banco `civico_ensaio` para levantar suplência.
   - **Desfazer (F8):** apagar `glossario-leis.ts`, o bloco `data-leis-citadas` da página e `sv-f8.spec.ts`.
 
+- **D352 · Na tela do tema, como votaram as pessoas que o leitor marcou (produto, Fase 5 do plano do dono, 26/11/2026).** Novo quadro 4 em `/tema/[slug]`, "Como votaram as pessoas que eu marquei?"; o selo passa a 5. Lê o cookie `sv_sigo` só no servidor (nenhum cookie novo) e funciona sem JavaScript.
+  - **O que mostra:** um bloco por pessoa (título h3), em ordem alfabética (`compararNomes`), um embaixo do outro. Cada voto traz a data, a forma e a palavra (`VotoMarca`, nunca cor), o link para `/votacao/<id>`, o rótulo da proposta, o tipo que a fonte registra (`kind`: "Texto principal" ou "Destaque"; sem tipo, nada é afirmado), a Casa e o resultado (`fraseResultado`). A fonte vem por Casa, com a data da leitura. O cargo traz a esfera, o período do mandato e a fonte do mandato (`FONTE_MANDATO`). Cinco votos à vista e o resto num `details`. Não há soma por pessoa, tabela nem coluna lado a lado; uma nota diz "Não somamos nem comparamos".
+  - **Regra (pura, `tema-marcados-regra.ts`):** um voto conta pela votação, cruzada por id com as votações que a tela do tema lista. A lacuna olha TODOS os mandatos da pessoa e o dia da votação no fuso de Brasília, não o cargo de hoje. Assim, o deputado que vira governador em 01/01/2027 continua com os votos de quando era deputado. Voto que a fonte publicou vale mesmo sem mandato carregado na data. Lacunas com nome:
+    - não vota no Congresso, com o lugar onde vota: Assembleia, Câmara Legislativa do DF ou Câmara Municipal;
+    - cargo do Executivo;
+    - outra Casa;
+    - aguarda posse;
+    - nenhum mandato valia nas datas;
+    - votações secretas ou sem voto individual;
+    - sem voto registrado ("Sem voto não é voto contra");
+    - sem voto com o mandato licenciado, afastado, renunciado ou cassado, dito com a situação da fonte (o fim registrado de renúncia e cassação pode ser o previsto);
+    - sem mandato nos dados;
+    - leitura que falhou.
+
+    Votação coberta pelo mandato e sem voto vira nota, nunca zero. Votação secreta não conta como "sem voto".
+  - **Leitura:** três lotes, com número constante de consultas: `getPeopleBySlugs`, `getMandatesForPeople` e o novo `getVotesForPeopleInEvents(personIds, eventIds)`, uma consulta em `votes` por pessoa × votação, sem limite de página (fake e pg, tag `person:<id>`). Falha das pessoas ou dos mandatos vira lacuna do quadro. Falha dos votos vira lacuna só de quem tem mandato no Congresso. O resto da tela segue. Na demonstração, `?simular=erro_pagina` faz falhar as pessoas e `?simular=erro_dados` os votos.
+  - **`/temas`:** o quadro "Qual desses mexe com quem eu elegi?" ganhou uma linha que leva à lista de assuntos e diz que a página de cada um mostra os votos nas votações mais recentes lidas. A pauta (o que ainda vai ser votado) continua sem cruzamento, porque não tem voto.
+  - **Escolhas conservadoras:**
+    - a lacuna "não vota" depende só de mandato no Congresso, nunca do cargo atual;
+    - cargo fora da lista conhecida não ganha afirmação de "Executivo";
+    - sem lista, o quadro não traz prova de ordem nem de fonte de votos;
+    - os arquivos se chamam `tema-marcados*`, para não confundir com `temas-escolhidos.ts` (assuntos escolhidos, F5a).
+  - **Revisão independente (opus, só leitura, duas rodadas):** 2 BLOQUEIA e 8 CORRIGIR na primeira, e 2 CORRIGIR na rechecagem (o tipo da votação vinha da descrição, que na Câmara é o placar; licença e renúncia viravam "sem registro"), todos corrigidos:
+    - cruzamento pelo cargo de hoje;
+    - linha que escondia texto ou destaque;
+    - distrital como "Assembleia";
+    - cargo sem fonte e data;
+    - prova sem lista;
+    - seletor de numeração inexistente;
+    - "Art. 17" × "Presidia";
+    - teste com `skip` silencioso;
+    - leitura por pessoa com limite de 500;
+    - frase de `/temas` sem link.
+  - **Dívidas:**
+    - pessoa só com candidatura cai em "sem mandato";
+    - o título e a esfera do bloco são do mandato principal de hoje: a ex-deputada que virou governadora aparece como governadora, com os votos da Câmara abaixo (a Casa está em cada linha, o mandato com que votou não);
+    - a fonte do mandato traz o período, não a data da leitura;
+    - `summary` sem indicador visual de abrir (herdado de `sv.css`);
+    - a virada de mandato tem teste unitário e não e2e, porque a demonstração não tem pessoa com mandato federal antigo e cargo novo;
+    - a janela do tema são as votações mais recentes lidas (até 100 por Casa), não o histórico inteiro.
+  - **Testes:**
+    - `sv-tema-marcados.test.ts` (9): virada de mandato, posse no meio da janela, votação secreta, fuso;
+    - `e2e/d352-tema-marcados.spec.ts` (8): três esferas com `sv_sigo`, sem placar, voto igual ao da página da votação, falhas, `details` sem JS a 390 px, axe e numeração.
+  - **Desfazer:** apagar `tema-marcados*.ts(x)`, o quadro em `tema/[slug]/page.tsx` (selo volta a 4), a linha de `/temas`, as regras `sv-tm1-esc/votos/vd/vk/pn` e `getVotesForPeopleInEvents`. Sem mudança de dado nem de esquema.
