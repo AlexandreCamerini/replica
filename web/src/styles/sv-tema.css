@@ -6,3 +6,13 @@
 .sv .sv-tm1-res li{padding:6px 0;border-top:1.5px solid var(--tinta);font-size:19px;line-height:1.3;font-weight:700}
 .sv .sv-tm1-res li:first-child{border-top:0}
 .sv .sv-pg--tm1 .sv-folio--dom h1{text-wrap:balance}
+/* D352: votos das pessoas marcadas. Uma pessoa por bloco, em coluna (nunca lado a lado); cada voto numa linha, com a data
+   em palavra de mesmo peso. O voto é forma e palavra (sv-voto), sem cor. */
+.sv .sv-tm1-esc>li{padding:10px 0 12px}
+.sv .sv-tm1-votos{list-style:none;margin:4px 0 0;padding:0}
+.sv .sv-tm1-votos li{padding:5px 0;border-top:1px solid var(--tinta);font-size:16px;line-height:1.4}
+.sv .sv-tm1-votos li:first-child{border-top:0}
+.sv .sv-tm1-vd{font-weight:700;font-stretch:84%;color:var(--tinta2)}
+.sv .sv-tm1-esc .sv-fonte,.sv .sv-tm1-esc .sv-nota{margin-top:4px}
+.sv .sv-tm1-pn{font-size:16px;line-height:1.45;font-weight:800;font-stretch:90%}
+.sv .sv-tm1-vk{display:block;font-size:14px;line-height:1.4;color:var(--tinta2)}
