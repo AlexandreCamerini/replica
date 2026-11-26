@@ -7,3 +7,15 @@
 @media (min-width:900px){
   .sv .sv-pg--vts .sv-quadro--dom .sv-a--dom{font-size:clamp(40px,4.6vw,64px)}
 }
+
+/* F5 do roteiro do eleitor: filtro por assunto escolhido, dentro do quadro de contagem. Checkbox de 44px é o .sv-chk de sv.css; aqui só a lista em colunas. */
+.sv .sv-ft{display:flex;flex-direction:column;gap:6px;border-top:1.5px solid var(--tinta);padding-top:8px}
+.sv .sv-ft__t{font-size:19px;line-height:23px;font-weight:800;font-stretch:90%;letter-spacing:-.01em}
+.sv .sv-ft__f{display:flex;flex-direction:column;gap:10px;padding-top:4px}
+.sv .sv-ft__fs{border:0;margin:0;padding:0;min-width:0}
+.sv .sv-ft__l{display:grid;grid-template-columns:minmax(0,1fr);gap:0 20px}
+.sv .sv-ft__l .sv-chk label{font-size:16px;font-weight:600;letter-spacing:0}
+.sv .sv-ft__b{display:flex;flex-wrap:wrap;gap:10px}
+.sv .sv-btn.sv-btn--vazio{background:transparent;color:var(--tinta)}
+@media (min-width:700px){.sv .sv-ft__l{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:1100px){.sv .sv-ft__l{grid-template-columns:repeat(3,minmax(0,1fr))}}

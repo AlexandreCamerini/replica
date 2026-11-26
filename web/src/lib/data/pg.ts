@@ -1243,9 +1243,11 @@ export const pgSource: DataSource = {
     const limit = Math.min(f.limit ?? 30, 100);
     const offset = off(f.cursor);
     const q = f.q?.trim();
+    const topics = (f.topics ?? []).filter((x) => /^[a-z0-9-]{1,60}$/.test(x)).slice(0, 10);
     const base = sql`b.kind = ${kind} and e.is_nominal
       ${f.year ? sql`and extract(year from e.occurred_at at time zone 'America/Sao_Paulo') = ${f.year}` : sql``}
       ${f.result ? sql`and e.result = ${f.result}` : sql``}
+      ${topics.length ? sql`and exists (select 1 from proposal_topics pt join topics tp on tp.id = pt.topic_id where pt.proposal_id = e.proposal_id and tp.slug = any(${topics}::text[]))` : sql``}
       ${q ? sql`and (f_unaccent(lower(e.description)) like '%' || f_unaccent(lower(${q})) || '%' or f_unaccent(lower(coalesce(pr.summary_official, ''))) like '%' || f_unaccent(lower(${q})) || '%' or lower(coalesce(pr.type || ' ' || pr.number, '')) like '%' || lower(${q}) || '%')` : sql``}`;
     const lei = f.scope === "lei";
     const where = lei ? sql`${base} and e.kind <> all(${PROCEDURAL_KINDS}::text[])` : base;
