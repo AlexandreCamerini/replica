@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "@/styles/sv-decisoes.css";
+import { AvisoPautaVelha } from "@/components/sv/aviso-pauta-velha";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FALHOU_LEITURA, SEM_DADO } from "@/components/sv/estados";
 import { clip, fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
@@ -39,15 +40,15 @@ export default async function Decisoes({ searchParams }: { searchParams: Promise
           Viraram lei
         </Link>
       </nav>
-      {tab === "pauta" ? <Pauta falhar={falhar} camaraNaoLida={sim === "camara_nao_lida"} /> : <Leis falhar={falhar} />}
+      {tab === "pauta" ? <Pauta falhar={falhar} simularPauta={sim === "camara_nao_lida" || sim === "pauta_velha" ? sim : undefined} /> : <Leis falhar={falhar} />}
       <Proxima href="/temas" pergunta="O que está em jogo no Congresso?" className="sv-c5" />
     </div>
   );
 }
 
-async function Pauta({ falhar, camaraNaoLida }: { falhar: boolean; camaraNaoLida: boolean }) {
+async function Pauta({ falhar, simularPauta }: { falhar: boolean; simularPauta?: "camara_nao_lida" | "pauta_velha" }) {
   // a opção só existe na demonstração; sem simulação, a chamada é a de sempre (sem argumento)
-  const o: PautaOverview | null = await lerOuFalhar(falhar, () => (camaraNaoLida ? data.getPautaOverview({ simulate: "camara_nao_lida" }) : data.getPautaOverview())).catch(() => null);
+  const o: PautaOverview | null = await lerOuFalhar(falhar, () => (simularPauta ? data.getPautaOverview({ simulate: simularPauta }) : data.getPautaOverview())).catch(() => null);
   if (!o) {
     return (
       <>
@@ -94,6 +95,7 @@ async function Pauta({ falhar, camaraNaoLida }: { falhar: boolean; camaraNaoLida
   let n = 1;
   return (
     <>
+      <AvisoPautaVelha reads={o.reads} />
       <Quadro id="dc-1" variante={readAt ? "dom" : "lacuna"} numero={n++} pergunta="O que está marcado para ser decidido?" prova={prova}>
         {readAt ? <Resposta tamanho="dom">{resposta}</Resposta> : <Lacuna>{resposta}</Lacuna>}
         {comissoes.length > 0 && <p className="sv-t">Em comissão, nas reuniões lidas: {plural(comissoes.length, "proposta", "propostas")}. Comissão é uma etapa: a decisão final costuma vir depois, no plenário.</p>}

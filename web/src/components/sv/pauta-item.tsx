@@ -31,6 +31,11 @@ export function PautaItem({ e, legenda = false, quando }: { e: PautaEntry; legen
       <p className="sv-t">
         {quando ?? quandoOnde(e)} Quem decide: {low(d.who)} {d.needs}
       </p>
+      {e.stage === "comissao" && (
+        <p className="sv-t" data-etapa="comissao">
+          <b>Reunião de comissão: não é votação de plenário.</b>
+        </p>
+      )}
       <p className="sv-vale-l">
         Já vale? <JaVale estado={v.estado} frase={v.frase} />
       </p>

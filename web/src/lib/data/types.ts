@@ -688,9 +688,9 @@ export interface DataSource extends DataSourceW4 {
   // R3 · pauta
   /**
    * `simulate` só é lido pela fonte de demonstração: "erro" = a leitura da Câmara falhou em parte das reuniões;
-   * "camara_nao_lida" = a pauta da Câmara ainda não foi lida (`readAt` null, sem itens da Câmara).
+   * "pauta_velha" = as duas Casas lidas há 3 dias (aviso de pauta velha). "camara_nao_lida" = a pauta da Câmara ainda não foi lida (`readAt` null, sem itens da Câmara).
    */
-  getPautaOverview(opts?: { simulate?: "erro" | "camara_nao_lida" }): Promise<PautaOverview>;
+  getPautaOverview(opts?: { simulate?: "erro" | "camara_nao_lida" | "pauta_velha" }): Promise<PautaOverview>;
   getPautaProposal(key: string): Promise<PautaProposal | null>;
   listPocketRules(): Promise<PocketRule[]>;
   listCorrections(): Promise<Correction[]>;

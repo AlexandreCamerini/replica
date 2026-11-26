@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { AvisoPautaVelha } from "@/components/sv/aviso-pauta-velha";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { BODY_NAME, billLabel, clip, fmtDate, fmtDateTime, fmtInt, fmtWeekday } from "@/components/sv/fmt";
@@ -101,12 +102,13 @@ function quando(e: PautaEntry): string {
 }
 
 export default async function Temas({ searchParams }: { searchParams: Promise<{ simular?: string | string[] }> }) {
-  const falhar = simulacao((await searchParams).simular) === "erro_pagina";
+  const sim = simulacao((await searchParams).simular);
+  const falhar = sim === "erro_pagina";
   // p null = a leitura dos assuntos falhou: o quadro dos assuntos vira lacuna nomeada, o resto da página segue (nunca 500)
   const [prefs, p, overview, follows] = await Promise.all([
     readPrefs(),
     lerOuFalhar(falhar, loadThemes).catch(() => null),
-    data.getPautaOverview().catch(() => null) as Promise<PautaOverview | null>,
+    (sim === "pauta_velha" ? data.getPautaOverview({ simulate: "pauta_velha" }) : data.getPautaOverview()).catch(() => null) as Promise<PautaOverview | null>,
     cookies().then((jar) => parseFollows(jar.get(FOLLOW_COOKIE)?.value)),
   ]);
   const escolhidos = await carregarEscolhidos(follows);
@@ -353,6 +355,7 @@ export default async function Temas({ searchParams }: { searchParams: Promise<{ 
           {fmtDate(new Date().toISOString())}
         </p>
       </div>
+      {overview && <AvisoPautaVelha reads={overview.reads} />}
       {quadro1}
       {temPauta && (
         <div className="sv-tm-sec sv-gc">

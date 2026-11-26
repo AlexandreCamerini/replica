@@ -1,0 +1,6 @@
+/* Segue o Voto, F6 · aviso de pauta velha. Importado pelo próprio componente (aviso-pauta-velha.tsx); só regras sob .sv e com prefixo sv-. */
+/* F6: aviso de pauta velha (no topo da pauta e antes da semana, na raiz). Moldura grossa em tinta: destaca sem usar cor para dizer o estado. */
+.sv .sv-aviso{border:3px solid var(--tinta);padding:12px 16px;margin:0 0 var(--s4,16px);display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--papel)}
+.sv .sv-aviso__t{margin:0;font-weight:800;font-size:1.0625rem}
+.sv .sv-aviso__l{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px}
+.sv .sv-aviso__n{margin:0}
