@@ -2,13 +2,12 @@ import Link from "next/link";
 import type { VotingEventSummary } from "@/lib/data";
 import { BODY_NAME, clip, fmtDate, fmtInt } from "./fmt";
 import { PLACAR_MOTIVO } from "./placar";
+import { fraseResultado } from "./resultado";
 import { Lacuna, VotoQuadrado } from "./ui";
 
 // Uma votação numa lista (Votações, Tema): data, esfera em palavra, o que foi votado, resultado e o placar que a fonte publicou.
 // O placar da lista é `placarFonte` (null = a fonte não publicou, vira lacuna; 0 publicado é dado). `yes`/`no` não servem:
 // fundem "não publicou" com zero. Abstenção e Sem voto só existem na página da votação.
-
-const RESULTADO = { aprovado: "aprovado", rejeitado: "rejeitado" } as const;
 
 export const PLACAR_NAO_PUBLICADO = "A fonte não publicou o placar total desta votação.";
 
@@ -42,7 +41,7 @@ export function VotacaoItem({ v }: { v: VotingEventSummary }) {
       </p>
       <p className="sv-vl__k">
         {v.proposal?.label ? `${v.proposal.label}. ` : ""}
-        {v.result ? `Resultado: ${RESULTADO[v.result]}.` : "Resultado não publicado pela fonte."}
+        {fraseResultado(v)}
       </p>
       <div className="sv-vl__p">
         <PlacarDaFonte v={v} />

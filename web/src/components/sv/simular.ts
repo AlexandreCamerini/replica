@@ -7,14 +7,15 @@ import { data } from "@/lib/data";
  * `erro`: as leituras que a página embrulha com `lerOuFalhar` falham (pessoas, respostas, representantes…).
  * `erro_dados`: em Escolhidos, a pessoa é lida, mas cada conjunto dela (presença, votos, gastos…) e a atividade falham.
  * `camara_nao_lida`: a pauta da Câmara volta sem leitura (`readAt` null), pela opção da fonte demo.
+ * `pauta_velha`: a pauta das duas Casas volta lida há 3 dias (aviso de pauta velha, F6), pela opção da fonte demo.
  * `erro_pagina`: a leitura principal da página falha (a pessoa, a proposta, os assuntos), onde `erro` já simula outra leitura.
  * `atos_repetidos`: em Escolhidos, a atividade vem com registros que a tela escreveria iguais (D328), como na fonte real.
  */
-export type Simulacao = "erro" | "erro_dados" | "erro_pagina" | "camara_nao_lida" | "atos_repetidos" | null;
+export type Simulacao = "erro" | "erro_dados" | "erro_pagina" | "camara_nao_lida" | "pauta_velha" | "atos_repetidos" | null;
 
 export function simulacao(raw: string | string[] | undefined): Simulacao {
   if (!data.isDemo || typeof raw !== "string") return null;
-  return raw === "erro" || raw === "erro_dados" || raw === "erro_pagina" || raw === "camara_nao_lida" || raw === "atos_repetidos" ? raw : null;
+  return raw === "erro" || raw === "erro_dados" || raw === "erro_pagina" || raw === "camara_nao_lida" || raw === "pauta_velha" || raw === "atos_repetidos" ? raw : null;
 }
 
 /** Com `falhar`, a leitura nem é feita e a promessa é rejeitada, como uma falha real da fonte. */

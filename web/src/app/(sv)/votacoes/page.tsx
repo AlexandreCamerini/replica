@@ -82,6 +82,11 @@ export default async function Votacoes({ searchParams }: { searchParams: Promise
       <div className="sv-folio sv-folio--dom">
         <h1>Como votaram no Congresso?</h1>
         <p className="sv-intro">Cada votação nominal, com o voto de cada pessoa, da mais recente para a mais antiga.</p>
+        <p className="sv-nota sv-vts-fixa" data-nota-fixa="votacoes">
+          {body === "camara"
+            ? "Na Câmara só entram votações nominais, em que a fonte registra o voto de cada pessoa. Votação simbólica não aparece. Em votação secreta a fonte publica o resultado, não o voto de cada pessoa."
+            : "No Senado entram as votações que a fonte lista. Algumas não trazem o voto de cada pessoa (as secretas e as abertas em que a fonte não publicou os votos): nelas a lista diz que o voto não foi publicado."}
+        </p>
       </div>
 
       <nav className="sv-abas" aria-label="Casa">

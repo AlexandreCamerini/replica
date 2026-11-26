@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { AvisoPautaVelha } from "@/components/sv/aviso-pauta-velha";
 import { fmtDate } from "@/components/sv/fmt";
 import { FOLLOW_COOKIE, parseFollows } from "@/components/sv/follow-shared";
 import { dayKey, fmtFolio, hojeKey } from "@/components/sv/inicio/datas";
@@ -98,7 +99,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const place = cidade && uf && cidade.uf === uf.sigla ? cidade : (ufPlace ?? null);
   const [overview, groups, tse] = await Promise.all([
     // a opção só existe na demonstração; sem simulação, a chamada é a de sempre (sem argumento)
-    (sim === "camara_nao_lida" ? data.getPautaOverview({ simulate: "camara_nao_lida" }) : data.getPautaOverview()).catch(() => null),
+    (sim === "camara_nao_lida" || sim === "pauta_velha" ? data.getPautaOverview({ simulate: sim }) : data.getPautaOverview()).catch(() => null),
     place ? lerOuFalhar(falhar, () => data.getRepresentatives(place)).catch(() => null) : Promise.resolve([] as RepresentativeGroup[]),
     data.getStamp("tse.candidatos").catch(() => null),
   ]);
@@ -118,6 +119,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
 
       {convidar && <Convite />}
       <Escolhidos slugs={follows} ufSigla={uf?.sigla ?? null} simularFalha={falhar} />
+      {overview && <AvisoPautaVelha reads={overview.reads} />}
       <Semana overview={overview} ufSigla={uf?.sigla ?? null} estadualLigado={esferas.estadual} hoje={hoje} simularFalha={falhar} />
       <JaRolou />
       <VaiRolar overview={overview} fimDaSemana={fimDaSemana} />

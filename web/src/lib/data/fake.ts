@@ -1158,7 +1158,10 @@ export const fakeSource: DataSource = {
 
   // Pauta: dois itens reais da leitura de 04/11/2026, com datas movidas para a semana corrente.
   async getPautaOverview(opts) {
-    const { starts, ends, readAt } = demoWeek();
+    const semana = demoWeek();
+    const { starts, ends } = semana;
+    // simulate "pauta_velha": as duas Casas lidas há 3 dias (a semana e os itens são os mesmos)
+    const readAt = opts?.simulate === "pauta_velha" ? new Date(Date.now() - 3 * 86400e3).toISOString() : semana.readAt;
     // simulate "erro": a leitura da Câmara falhou em 2 das 9 reuniões (events_failed > 0)
     const camaraFailed = opts?.simulate === "erro" ? 2 : 0;
     // como no pg.ts (`withReview`): item com respostas publicadas leva `reviewedAt`, `verifiedBy` e o título simples só em `diz`
