@@ -6,9 +6,10 @@ test("gastos: série mensal fecha com o total, mês sem nota é lacuna e não ze
   const t = page.locator('[data-serie-mensal="ano"]');
   await expect(t).toBeVisible();
   await expect(t.locator("tbody tr")).toHaveCount(12);
-  const totais = await page.locator("table.sv-g tfoot td").allInnerTexts();
-  expect(totais.length).toBeGreaterThan(1);
-  expect(totais[0]).toBe(totais[1]);
+  const totalMensal = (await t.locator("tfoot td").first().innerText()).trim();
+  const totalCategorias = (await page.locator("table.sv-g tfoot td").first().innerText()).trim();
+  expect(totalMensal).toMatch(/^R\$/);
+  expect(totalMensal).toBe(totalCategorias);
   await expect(t).not.toContainText("R$ 0,00");
 });
 

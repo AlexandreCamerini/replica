@@ -119,7 +119,7 @@ export default async function GastosPessoa({ params, searchParams }: Props) {
         <Linha id="g1b" numero={2} pergunta={`Mês a mês em ${ano}`} fonte={ctx.fonteConjunto("gastos", rotulo, sGastos, true)}>
           <div className="sv-bloco">
             {serie ? (
-              <table className="sv-g" data-serie-mensal="ano">
+              <table className="sv-gm" data-serie-mensal="ano">
                 <caption className="sv-vh">Gastos do gabinete em {ano}, mês a mês, em ordem cronológica</caption>
                 <thead className="sv-vh">
                   <tr>
