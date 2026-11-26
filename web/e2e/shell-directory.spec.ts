@@ -30,7 +30,7 @@ test.describe("Shell e diretório", () => {
     expect((await request.get("/xyz-nao-existe")).status()).toBe(404);
     await page.goto("/xyz-nao-existe");
     // D316: o 404 do site é o da Direção 2
-    await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Navegação principal" })).toBeVisible();
   });
 
   test("SH-E2 sem rolagem horizontal em 390 px @mobile", async ({ page }) => {

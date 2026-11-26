@@ -282,7 +282,7 @@ test.describe("sem JavaScript", () => {
       await expect(page.locator(".sv h1")).toHaveCount(1);
       await expect(page.locator(".sv h1")).toBeVisible();
       expect((await page.locator(".sv-main").innerText()).length, "conteúdo do main").toBeGreaterThan(200);
-      await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Navegação principal" })).toBeVisible();
       await context.close();
     });
   }
@@ -1290,7 +1290,7 @@ test.describe("404 do site", () => {
       const res = await page.goto(url);
       expect(res?.status(), url).toBe(404);
       await expect(page.locator(".sv h1")).toHaveText("Não consta");
-      await expect(page.getByRole("navigation", { name: "Perguntas" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Navegação principal" })).toBeVisible();
       await expect(page.locator("header.sticky")).toHaveCount(0);
       const q = page.locator('[aria-labelledby="nf-1"]');
       await expect(q).toContainText("Não encontramos esta página.");
@@ -1433,9 +1433,9 @@ test.describe("estados das sete telas", () => {
     for (const id of ["verificacao", "fontes", "regras", "correcoes"]) await expect(page.locator(`#${id}`), id).toHaveCount(1);
   });
 
-  test("CSS da tela chega também por navegação do cliente (rodapé → Votações)", async ({ page }) => {
+  test("CSS da tela chega também por navegação do cliente (menu do topo → Votações)", async ({ page }) => {
     await abrir(page, "/");
-    await page.locator("footer.sv-rod").getByRole("link", { name: "Votações" }).click();
+    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Votações", exact: true }).click();
     await expect(page).toHaveURL(/\/votacoes$/);
     // regra que só existe em sv-votacoes.css (importado pela página, não pelo layout)
     await expect(page.locator(".sv-pg--vts > .sv-abas")).toHaveCSS("margin-top", "2px");
