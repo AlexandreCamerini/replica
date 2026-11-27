@@ -88,7 +88,7 @@ export default async function VotosPessoa({ params, searchParams }: Props) {
               </>
             )}
             <Nota>
-              <ExemploIlustrativo>Exemplo ilustrativo: pessoa e valores fictícios</ExemploIlustrativo> Cada voto leva à página da votação, com o placar.
+              <ExemploIlustrativo>Exemplo ilustrativo: pessoa e valores fictícios</ExemploIlustrativo> Cada voto leva à página da votação, com o placar. Esta lista inclui as votações em que a pessoa aparece como “Sem voto”; o total de votos no perfil conta só os votos registrados, por isso os números podem ser diferentes.
             </Nota>
           </div>
         ) : ctx.posse ? (
