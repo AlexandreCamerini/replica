@@ -19,19 +19,24 @@ export type VigiaDeps = {
   tetoMs: number;
   agendar: (fn: () => void, ms: number) => unknown;
   cancelar: (t: unknown) => void;
+  /** Diagnóstico: chamado quando uma requisição é solta, com o motivo e quanto tempo ficou presa. */
+  aoSoltar?: (motivo: "pool_vazio" | "teto", ms: number) => void;
+  agora?: () => number;
 };
 
-type Espera = { soltar: () => void; timer: unknown };
+type Espera = { soltar: () => void; timer: unknown; desde: number };
 
 export function criarVigia(d: VigiaDeps) {
   const esperas = new Map<object, Espera>();
 
-  const soltar = (ctx: object) => {
+  const agora = d.agora ?? (() => Date.now());
+  const soltar = (ctx: object, motivo: "pool_vazio" | "teto") => {
     const e = esperas.get(ctx);
     if (!e) return;
     esperas.delete(ctx);
     d.cancelar(e.timer);
     e.soltar();
+    d.aoSoltar?.(motivo, agora() - e.desde);
   };
 
   return {
@@ -42,18 +47,18 @@ export function criarVigia(d: VigiaDeps) {
       const e = esperas.get(ctx);
       if (e) {
         d.cancelar(e.timer);
-        e.timer = d.agendar(() => soltar(ctx), d.tetoMs);
+        e.timer = d.agendar(() => soltar(ctx, "teto"), d.tetoMs);
         return;
       }
       let r!: () => void;
       const p = new Promise<void>((res) => (r = res));
-      esperas.set(ctx, { soltar: r, timer: d.agendar(() => soltar(ctx), d.tetoMs) });
+      esperas.set(ctx, { soltar: r, timer: d.agendar(() => soltar(ctx, "teto"), d.tetoMs), desde: agora() });
       ctx.waitUntil(p);
     },
     /** Algo mudou no pool ou uma consulta terminou. Sem nada aberto, abrindo ou na fila, solta todas as requisições. */
     aoMudarPool() {
       if (esperas.size === 0 || d.pendentes() > 0) return;
-      for (const ctx of [...esperas.keys()]) soltar(ctx);
+      for (const ctx of [...esperas.keys()]) soltar(ctx, "pool_vazio");
     },
     /** Para teste e diagnóstico. */
     get segurando() {
@@ -68,13 +73,9 @@ export function opcoesDoPool(env: Record<string, string | undefined>) {
     const n = Number(v);
     return Number.isInteger(n) && n >= min && n <= max ? n : padrao;
   };
-  const ambiente = (env.VERCEL_ENV ?? "local").replace(/[^a-z]/gi, "");
-  const deploy = (env.VERCEL_DEPLOYMENT_ID ?? "").replace(/[^a-z0-9]/gi, "").slice(-8);
   return {
     max: inteiro(env.PG_POOL_MAX, 10, 1, 50),
     idle_timeout: inteiro(env.PG_IDLE_TIMEOUT, 20, 1, 300),
     connect_timeout: 10,
-    // identifica no pg_stat_activity de qual ambiente e deploy é a conexão (o postgres.js já manda 'postgres.js' por padrão)
-    application_name: deploy ? `sv_${ambiente}_${deploy}` : `sv_${ambiente}`,
   };
 }

@@ -15,7 +15,6 @@ export const sql: Sql = (g.__pgPool ??= postgres(process.env.DATABASE_URL ?? "",
   connect_timeout: o.connect_timeout,
   prepare: false, // o pooler do Supabase em modo transação não aceita prepared statements
   transform: { undefined: null },
-  connection: { application_name: o.application_name },
 }));
 
 // Contexto da requisição que a Vercel põe no processo (o mesmo que @vercel/functions lê). Fora da Vercel não existe.
@@ -37,6 +36,11 @@ if (!g.__pgVigia) {
     tetoMs: o.idle_timeout * 1000 + 10_000,
     agendar: (fn, ms) => setTimeout(fn, ms),
     cancelar: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+    // prova da D358 fora da produção: o Supavisor troca o application_name, então o banco não diz qual instância segura conexão
+    aoSoltar:
+      process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production"
+        ? (motivo, ms) => console.info(`[D358] pool solto: ${motivo} em ${ms} ms`)
+        : undefined,
   });
   // `start` roda no contexto assíncrono de quem fez a consulta (README do postgres.js, Tracing), por isso o waitUntil é o da requisição certa.
   dc.subscribe("tracing:postgres:query:start", () => vigia.aoConsultar());

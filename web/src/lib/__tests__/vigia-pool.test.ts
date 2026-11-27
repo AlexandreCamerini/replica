@@ -114,12 +114,26 @@ test("sem contexto da Vercel (dev, build, fundo) nada é registrado e nada quebr
   assert.equal(m.timers.size, 0);
 });
 
-test("opções do pool: padrões de hoje, env válida vale, env inválida cai no padrão; nome identifica o deploy", () => {
-  assert.deepEqual(opcoesDoPool({}), { max: 10, idle_timeout: 20, connect_timeout: 10, application_name: "sv_local" });
-  const o = opcoesDoPool({ PG_POOL_MAX: "3", PG_IDLE_TIMEOUT: "5", VERCEL_ENV: "preview", VERCEL_DEPLOYMENT_ID: "dpl_5ZatATSrDqM6p3KA7e1C6JwBQwdk" });
-  assert.deepEqual([o.max, o.idle_timeout, o.application_name], [3, 5, "sv_preview_6JwBQwdk"]);
+test("opções do pool: padrões de hoje, env válida vale, env inválida cai no padrão", () => {
+  assert.deepEqual(opcoesDoPool({}), { max: 10, idle_timeout: 20, connect_timeout: 10 });
+  const o = opcoesDoPool({ PG_POOL_MAX: "3", PG_IDLE_TIMEOUT: "5" });
+  assert.deepEqual([o.max, o.idle_timeout], [3, 5]);
   for (const v of ["0", "-1", "2.5", "abc", "", "999"]) assert.equal(opcoesDoPool({ PG_POOL_MAX: v }).max, 10);
   assert.equal(opcoesDoPool({ PG_IDLE_TIMEOUT: "0" }).idle_timeout, 20);
-  // nada que quebre a mensagem de início da conexão
-  assert.match(opcoesDoPool({ VERCEL_ENV: "pro\0d", VERCEL_DEPLOYMENT_ID: "x\0y" }).application_name, /^sv_[a-z]+_[a-z0-9]+$/i);
+});
+
+test("diagnóstico: diz o motivo e quanto tempo a requisição ficou presa", () => {
+  const ditos: string[] = [];
+  let t = 1000;
+  let ctx: Contexto | undefined = { waitUntil: () => {} };
+  const timers: (() => void)[] = [];
+  const v = criarVigia({ contexto: () => ctx, pendentes: () => 0, tetoMs: 30_000, agora: () => t, agendar: (fn) => timers.push(fn), cancelar: () => {}, aoSoltar: (m, ms) => ditos.push(`${m}:${ms}`) });
+  v.aoConsultar();
+  t = 1250;
+  v.aoMudarPool();
+  ctx = { waitUntil: () => {} };
+  v.aoConsultar();
+  t = 31_250;
+  timers.at(-1)!();
+  assert.deepEqual(ditos, ["pool_vazio:250", "teto:30000"]);
 });
