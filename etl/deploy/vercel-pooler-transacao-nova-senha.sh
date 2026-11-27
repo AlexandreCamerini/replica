@@ -80,4 +80,4 @@ PROMO=$(npx --yes vercel promote "$NOVO" --scope "${VERCEL_SCOPE:-sementedev}" -
   if [[ "$PROMO" == *"already the current production deployment"* ]]; then echo "$NOVO já é o deploy de produção."
   else echo "ATENÇÃO: a promoção falhou e o site está sem banco. Promova $NOVO pelo painel da Vercel (Deployments > Promote)."; exit 1; fi
 }
-echo "Pronto: produção em $NOVO, lendo pelo pooler em modo transação."
+echo "Pronto: produção em $NOVO, lendo pelo pooler na porta $PORTA_ALVO."

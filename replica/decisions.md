@@ -1162,3 +1162,13 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - O script testa a conexão como `web_reader` antes de gravar e recusa a URL, sem mudar nada, se não conectar.
     - `vercel-pooler-transacao-nova-senha.sh`, para quando a senha do `web_reader` não é conhecida, segue esta ordem: testa a conexão admin na 5432 e na 6543; grava a URL nova e refaz o deploy sem promover (depois do rollback a Vercel não publica sozinha); troca a senha; testa como `web_reader` na 6543; promove. A queda fica entre a troca de senha e a promoção, que leva segundos.
     - Quem usa a senha do `web_reader` em produção: só o site. O ETL usa `civico_etl` (`ETL_DATABASE_URL` nos workflows) e a central usa `admin_central`. Um `.env.local` que aponte para a produção como `web_reader` deixa de funcionar.
+  - **Desfecho (27/11/2026): o modo transação foi aplicado e DESFEITO; o site voltou ao modo sessão (5432).**
+    - 03:20 UTC: a senha do `web_reader` foi redefinida e o deploy `dpl_5ZatATSr…` foi para o ar na 6543. O teste do script falhou numa corrida com o cache do pooler (03:20:48 "Validation secrets changed"), mas o deploy lia o banco às 03:22.
+    - Logo depois, o site travou: requisições penduradas até 300 s (`Vercel Runtime Timeout`), e no banco só 2 conexões do `web_reader`, paradas em `active / ClientRead` havia mais de 4 min, no meio de uma consulta com parâmetros. Causa provável: a Vercel congela a função depois da resposta com o `postgres.js` no meio do protocolo. No modo transação, a conexão presa é do pool compartilhado e trava todo mundo.
+    - 03:42–03:43 UTC: `PORTA_ALVO=5432 vercel-pooler-transacao-nova-senha.sh`, com outra senha nova e o deploy `dpl_9jip7S2V…` (`replica-dajrnnd6o`). `28P01` entre 03:42:46 e 03:42:49 (o deploy entrou no ar antes da troca de senha, porque o rollback já não estava ativo); nenhum erro depois de 03:43:30; 6 de 6 leituras com o cookie trouxeram pessoas e votos.
+    - Queda total: cerca de 03:20 a 03:43 UTC, mais o primeiro incidente das 02:48 (senha errada) até o rollback.
+  - **Estado e pendências:**
+    - De novo o modo sessão, com o mesmo limite de pool da D356 (falhas em rajada).
+    - A correção certa fica para outra fatia, testada fora da produção: soltar as conexões antes do congelamento (`attachDatabasePool`/`waitUntil` da Vercel, ou `PG_POOL_MAX` baixo com `idle_timeout` curto), medida com carga num Preview.
+    - Restou 1 conexão `active / ClientRead` antiga do `web_reader`; o pooler deve fechá-la sozinho.
+    - Os scripts ficam com `PORTA_ALVO` (padrão 6543). Não rodar de novo na 6543 sem a correção acima.
