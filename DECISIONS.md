@@ -99,3 +99,15 @@ Plano aprovado: `~/.claude/plans/peaceful-finding-yeti-of-729cfe37-b397-4402-ac1
 | D-P5 | Scripts de entrega | Idempotentes (pulam o que já foi feito, limpam cherry-pick vazio), sem `--force`, sem segredo, sem apagar branch, com modo seco (`ENTREGA_SECO=1`) | A repetição de comandos no celular gerou PRs duplicadas (#68) e cherry-picks vazios | Apagar `scripts/entregar-*.sh` |
 
 Pendências do dono desta execução (não bloqueiam o resto): autorizar leitura do `civico_ensaio` e de fontes oficiais (F7, F9, F10); domínio no Resend e revisão da D316/D317 (F13); decisão aberta da lista de 44 px em `/votacoes` (D343); rodar o script de entrega e, se quiser, mesclar.
+
+## D359 · fatia 2 (27/11/2026): 301 de /p/, /votacoes/:id e /quem
+
+O hook de sessão autônoma bloqueou a pergunta ao dono; o ponto abaixo seguiu a opção mais conservadora e reversível.
+
+| # | Decisão | Opção escolhida | Motivo | Como desfazer |
+|---|---|---|---|---|
+| D359-1 | 301 de `/p/:slug → /pessoa/:slug` e remoção de `(v1)/p` | NÃO executada; fica pendente do dono | `replica/comparativo-v1-sv.md` mostra funções só do perfil antigo (custo do mandato, salário acumulado, emendas de todos os anos, assembleias, cota por sucessão, comparar). Cerca de 25 specs e2e testam esse conteúdo. Redirecionar apaga função até migrá-la, e reescrever os specs exige Playwright, que não abre neste sandbox | Dizer "301 de /p/": migro as funções ou aceito perdê-las, e reescrevo os specs com Playwright pelo terminal |
+| D359-2 | 301 de `/votacoes/:id` e `/quem` | Também pendente: mesmo risco de paridade (os specs `f07`, `d-congresso`, `w3a-sapl-secretas` e 9 sobre `/quem` testam o conteúdo antigo) | Sem verificar o `(sv)` equivalente por spec, o ganho (poucos robôs nessas rotas) não paga o risco | Idem |
+| D359-3 | O que já cobre a carga medida | Fatia 1 (commit d77eabc): robots, noindex em `*.vercel.app`, rodapé `nofollow` | Reversível por revert e sem perda de função | `git revert d77eabc` |
+
+Pendências do dono: regra de limite para robôs no firewall da Vercel (o lugar certo para segurar `/p/<slug>` sem apagar função); conferir na aba Firewall quem são os robôs; decidir entre migrar as funções do perfil antigo para o `(sv)` ou aceitar perdê-las; `pool_size` no Supabase (pode ter custo).
