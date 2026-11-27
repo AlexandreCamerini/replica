@@ -1129,3 +1129,17 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - `sv-tema-marcados.test.ts` (9): virada de mandato, posse no meio da janela, votação secreta, fuso;
     - `e2e/d352-tema-marcados.spec.ts` (8): três esferas com `sv_sigo`, sem placar, voto igual ao da página da votação, falhas, `details` sem JS a 390 px, axe e numeração.
   - **Desfazer:** apagar `tema-marcados*.ts(x)`, o quadro em `tema/[slug]/page.tsx` (selo volta a 4), a linha de `/temas`, as regras `sv-tm1-esc/votos/vd/vk/pn` e `getVotesForPeopleInEvents`. Sem mudança de dado nem de esquema.
+- **D353 · Votos iguais na tela do tema viram uma linha; diagnóstico da falha de leitura em produção (operação, 27/11/2026).** Conferência da D352 em produção, com dados reais.
+  - **Defeito achado e corrigido:** numa sessão, a mesma proposta tem várias votações nominais do mesmo tipo. A pessoa vota igual em todas, e o quadro escrevia linhas idênticas: o PL 4497/2024 em 09/12/2025 apareceu 4 vezes para cada deputado. `agruparVotos` (puro, em `tema-marcados-regra.ts`) junta as votações com mesmo dia em Brasília, Casa, proposta, tipo e voto numa linha: "Mesmo voto em N votações desta proposta neste dia: votação 1, votação 2…", com link para cada uma. Mesmo padrão da D328. Voto diferente na mesma proposta não junta.
+  - **Conferido em produção (antes desta correção):**
+    - um vereador, um deputado estadual e um senador aparecem com lacunas nomeadas;
+    - os deputados federais aparecem com voto, data, tipo e fonte;
+    - um suplente que tomou posse depois das votações cai em "nenhum mandato valia nas datas";
+    - `getVotesForPeopleInEvents` rodou contra o Postgres real.
+  - **Falha de leitura vista na conferência: NÃO é defeito da D352.**
+    - O pooler do Supabase em modo sessão (`pool_size` 15) recusa conexões em rajadas (`EMAXCONNSESSION`; nos logs do Supavisor, 24 recusas em 27/11 00:27–00:28 UTC, no mesmo minuto da falha). A rajada vem de robôs em `/p/*` pelo www.segueovoto.com.br e já ocorria no deploy da #77.
+    - Cada instância da função abre até `PG_POOL_MAX` = 10 conexões, ociosas por 20 s. Duas instâncias quentes esgotam o pool, e toda leitura sem cache falha nesse intervalo (a tela mostra a lacuna de leitura, não 500). Fora das rajadas, tudo lê.
+  - **Não incluído (decisão do dono):** a correção do pool é de configuração de produção. Opções:
+    - `DATABASE_URL` no pooler em modo transação (porta 6543; o código já usa `prepare: false`);
+    - ou `PG_POOL_MAX` baixo (2–3) na Vercel;
+    - e, à parte, limitar a varredura de robôs em `/p/*`.

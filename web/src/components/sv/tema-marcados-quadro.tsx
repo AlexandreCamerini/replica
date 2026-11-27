@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Stamp, VotingEventSummary } from "@/lib/data";
+import type { Stamp, VoteValue, VotingEventSummary } from "@/lib/data";
 import { fraseLida } from "./carimbo";
 import { esferaDoCargo } from "./esfera";
 import { FALHOU_LEITURA } from "./estados";
@@ -7,7 +7,7 @@ import { BODY_NAME, clip, fmtDate } from "./fmt";
 import { FONTE_MANDATO } from "./pessoa/mandato-dados";
 import { fraseResultado } from "./resultado";
 import type { MarcadoNoTema, MarcadosNoTema } from "./tema-marcados";
-import type { Casa, StatusFora } from "./tema-marcados-regra";
+import { agruparVotos, type Casa, type StatusFora } from "./tema-marcados-regra";
 import { Lacuna, Nota, Quadro, VotoMarca } from "./ui";
 
 // "Como votaram as pessoas que eu marquei?" na tela de um tema (D352).
@@ -88,18 +88,35 @@ function Votos({ e, stamps }: { e: MarcadoNoTema; stamps: Record<Casa, Stamp | n
     }
   }
   // Data, voto e o que se votou: o tipo registrado pela fonte (texto principal ou destaque), o rótulo, a Casa e o resultado.
-  const linha = ({ votacao: v, voto }: (typeof s.votos)[number]) => (
+  // Votações iguais na tela (mesmo dia, proposta, tipo e voto) viram uma linha que leva a cada uma (como a D328).
+  const linha = ({ votacao: v, voto, votacoes }: ReturnType<typeof agruparVotos<VotingEventSummary, VoteValue>>[number]) => (
     <li key={v.id}>
-      <span className="sv-tm1-vd">{fmtDate(v.occurredAt)}</span> <VotoMarca voto={voto} /> em <Link href={`/votacao/${v.id}`}>{titulo(v)}</Link>
+      <span className="sv-tm1-vd">{fmtDate(v.occurredAt)}</span> <VotoMarca voto={voto} /> em{" "}
+      {votacoes.length === 1 ? <Link href={`/votacao/${v.id}`}>{titulo(v)}</Link> : titulo(v)}
       <span className="sv-tm1-vk">
         {v.proposal?.label ? `${v.proposal.label}. ` : ""}
         {v.kind && TIPO[v.kind] ? `${TIPO[v.kind]}. ` : ""}
-        {BODY_NAME[v.body]}. {fraseResultado(v)}
+        {BODY_NAME[v.body]}.{" "}
+        {votacoes.length === 1 ? (
+          fraseResultado(v)
+        ) : (
+          <>
+            Mesmo voto em {votacoes.length} votações desta proposta neste dia:{" "}
+            {votacoes.map((x, i) => (
+              <span key={x.id}>
+                {i > 0 && ", "}
+                <Link href={`/votacao/${x.id}`}>votação {i + 1}</Link>
+              </span>
+            ))}
+            .
+          </>
+        )}
       </span>
     </li>
   );
-  const aVista = s.votos.slice(0, A_VISTA);
-  const resto = s.votos.slice(A_VISTA);
+  const grupos = agruparVotos(s.votos, (v) => v.proposal?.label || v.description);
+  const aVista = grupos.slice(0, A_VISTA);
+  const resto = grupos.slice(A_VISTA);
   return (
     <>
       <ul className="sv-tm1-votos">{aVista.map(linha)}</ul>

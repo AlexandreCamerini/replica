@@ -93,3 +93,18 @@ test("licença, afastamento, renúncia e cassação: a falta de voto diz a situa
   const s = situacaoNoTema([dep()], [vC1, vC2], [{ eventId: "c1", voto: "sim" }]);
   assert.equal(s.tipo === "votou" && s.statusFora, null);
 });
+
+test("votos iguais na mesma proposta e no mesmo dia viram uma linha; voto diferente não junta", async () => {
+  const { agruparVotos } = await import("../../components/sv/tema-marcados-regra.ts");
+  const v = (id: string, hora: string, prop: string, kind = "texto") => ({ id, body: "camara" as const, occurredAt: `2025-12-09T${hora}:00-03:00`, kind, prop });
+  const votos = [
+    { votacao: v("d", "22:00", "PL 1"), voto: "sim" },
+    { votacao: v("c", "21:00", "PL 1"), voto: "sim" },
+    { votacao: v("b", "20:00", "PL 1"), voto: "nao" },
+    { votacao: v("a", "19:00", "PL 1", "destaque"), voto: "sim" },
+    { votacao: v("z", "18:00", "PL 2"), voto: "sim" },
+  ];
+  const g = agruparVotos(votos, (x) => x.prop);
+  assert.deepEqual(g.map((x) => x.votacoes.map((y) => y.id)), [["c", "d"], ["b"], ["a"], ["z"]]);
+  assert.equal(g[0].votacao.id, "d"); // a linha leva a data e o voto do mais recente
+});
