@@ -125,3 +125,16 @@ Pendências do dono: regra de limite para robôs no firewall da Vercel (o lugar 
 
 Não medido: efeito do redirect por user agent (robô que finge ser navegador não é pego; o regex usa lookahead e só foi validado por teste unitário e pelo `routes-manifest`); custo real de cada item (a fatura da Vercel e do GitHub Actions é do dono).
 Conferir no Preview: `curl -sI -A "Googlebot" https://<preview>/p/algum-slug` deve dar 308 para `/pessoa/algum-slug`; com `-A "Mozilla/5.0 Safari"` e com `-A "WhatsApp/2.0"` deve dar 200.
+
+## D359 · ETL principal 1x por dia (27/11/2026, autorizado pelo dono; substitui o D359-8 "pendente")
+
+| # | Decisão | Opção escolhida | Motivo | Como desfazer |
+|---|---|---|---|---|
+| D359-10 | Cron do `etl.yml` | Uma linha só: `1 8 * * *` (08:01 UTC = 05:01 BRT, todos os dias). Saíram `17 */3 * * *`, `31 3 * * 2-6` e `1 8 * * 2-6` | Corta de ~10 disparos por dia para 1. Domingo e segunda entram porque o prazo do site é 60 h e a janela de sábado a terça já passaria disso | Restaurar os 3 crons e as constantes abaixo |
+| D359-11 | Constantes da agenda | `TICK_HOUR=8`, `TICK_MINUTE=1`, `TICK_EVERY_H=24` em `schedule.py`; `SCHEDULER_HOUR/MINUTE/EVERY_HOURS` iguais em `web/src/lib/sources.ts`; `next_tick` e `nextSchedulerTick` passaram a respeitar a hora-base | A "próxima leitura prevista" do rodapé continua certa (valor diário às 05h BRT) | Voltar a `TICK_MINUTE=17`, `TICK_EVERY_H=3`, hora-base 0 |
+| D359-12 | Prazo do site para Câmara e Senado | `maxAge` 36 h → 60 h (`schedule.MAX_AGE_H`, `sources.ts`, retrato `agenda.json`). `everyHours` fica 20 | Com 1 chamada por dia, 60 h = um dia mais uma chamada perdida (o cron do GitHub pula disparos). 36 h daria alerta falso a cada atraso | Voltar a 36 |
+| D359-13 | Janela noturna do Senado (00:30–02:00 BRT) | Sem disparo próprio: às 05:01 BRT ela já fechou e a leitura entra como reposição (D318), sem alerta. A janela da Câmara (05:00–07:00) segue coberta | Não há como ler às 00:31 e às 05:01 com 1 chamada por dia | Restaurar o cron `31 3 * * 2-6` |
+
+Verificado: `chk` das constantes, do cron e de 120 pares carimbo×cadência contra o `sources.ts` real (node) e contra `schedule.next_read`; retrato `agenda.json` igual ao vivo; testes unitários do site 422/422.
+Não verificado: o `pytest` de `etl/tests` não rodou (sem pytest no `.venv` e sem rede para o PyPI neste sandbox); o CI roda. Efeito real nos minutos do GitHub Actions e no frescor medido: só depois de alguns dias.
+Risco aceito: se o GitHub pular o disparo de um dia, a fonte envelhece até 48 h e o site continua "no prazo" (limite 60 h); duas perdas seguidas acendem o alerta.

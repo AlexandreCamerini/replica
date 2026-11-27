@@ -10,9 +10,9 @@ export const SOURCE_META: Record<string, SourceMeta> = {
     brings: "deputados federais e seus mandatos, lista de presença das sessões, votações nominais e orientações, proposições com autoria e tema, cota parlamentar, comissões, discursos, equipe de gabinete (nome e nível)",
     cadence: "todo dia",
     everyHours: 20,
-    maxAgeHours: 36,
+    maxAgeHours: 60,
   },
-  senado: { brings: "senadores (em exercício e afastados da legislatura) e votações nominais, abertas e secretas", cadence: "todo dia", everyHours: 20, maxAgeHours: 36 },
+  senado: { brings: "senadores (em exercício e afastados da legislatura) e votações nominais, abertas e secretas", cadence: "todo dia", everyHours: 20, maxAgeHours: 60 },
   tse: {
     brings: "candidaturas e eleitos, bens declarados, votos por candidato e por município, receitas e despesas de campanha somadas por categoria e por tipo de fonte (partido, fundos públicos, pessoas físicas, recursos próprios...); só partidos e empresas aparecem com nome de doador, pessoa física nunca",
     cadence: "a cada divulgação do TSE; conferimos uma vez por mês",
@@ -86,12 +86,13 @@ export function ageLabel(hours: number): string {
   return `há ${Math.floor(hours / 24)} dias`;
 }
 
-// catálogo D13: "próxima leitura prevista". A agenda é chamada de SCHEDULER_EVERY_HOURS em SCHEDULER_EVERY_HOURS horas (UTC), no minuto SCHEDULER_MINUTE
+// catálogo D13: "próxima leitura prevista". A agenda é chamada de SCHEDULER_EVERY_HOURS em SCHEDULER_EVERY_HOURS horas (UTC), a partir de SCHEDULER_HOUR:SCHEDULER_MINUTE (D359: 1x por dia, 08:01 UTC)
 // (cron do .github/workflows/etl.yml); uma fonte de cadência `everyHours` é relida na primeira chamada depois de carimbo + cadência.
 // Mesma conta de schedule.next_read; test_schedule.py confere as constantes e os resultados. É um teto: tarefa que falha ou é adiada lê depois,
 // e as leituras noturnas da Câmara e do Senado (catálogo D06) podem adiantar o carimbo.
-export const SCHEDULER_MINUTE = 17;
-export const SCHEDULER_EVERY_HOURS = 3;
+export const SCHEDULER_HOUR = 8;
+export const SCHEDULER_MINUTE = 1;
+export const SCHEDULER_EVERY_HOURS = 24;
 
 const HOUR_MS = 3_600_000;
 
@@ -100,7 +101,7 @@ export function nextSchedulerTick(t: number): number {
   const d = new Date(t);
   let c = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), SCHEDULER_MINUTE);
   if (c < t) c += HOUR_MS;
-  while (new Date(c).getUTCHours() % SCHEDULER_EVERY_HOURS !== 0) c += HOUR_MS;
+  while (((new Date(c).getUTCHours() - SCHEDULER_HOUR) % SCHEDULER_EVERY_HOURS + SCHEDULER_EVERY_HOURS) % SCHEDULER_EVERY_HOURS !== 0) c += HOUR_MS;
   return c;
 }
 

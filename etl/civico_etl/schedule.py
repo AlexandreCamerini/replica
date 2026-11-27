@@ -64,8 +64,8 @@ NOT_FRESHNESS = ("sapl.descoberta", "sapl-ale.descoberta")
 
 # Mesma régua de web/src/lib/sources.ts (SOURCE_META[*].maxAgeHours); test_schedule.py falha se divergir.
 MAX_AGE_H: dict[str, int] = {
-    "camara": 36,
-    "senado": 36,
+    "camara": 60,  # D359: leitura diária; 60 h = um dia mais uma chamada perdida (o cron do GitHub pula disparos)
+    "senado": 60,
     "tse": 60 * D,
     "ibge": 400 * D,
     "alesp": 8 * D,
@@ -83,10 +83,12 @@ MAX_AGE_H: dict[str, int] = {
 # Fonte -> variável de ambiente sem a qual a carga não roda (catálogo D01). Sem a variável e sem carga alguma, a fonte "aguarda a chave" em vez de alertar.
 SOURCE_ENV: dict[str, str] = {"transparencia": "TRANSPARENCIA_API_KEY", "cgu": "TRANSPARENCIA_API_KEY"}
 
-# catálogo D13: de quanto em quanto tempo a agenda é chamada (cron do .github/workflows/etl.yml: minuto 17, a cada 3 h UTC). A "próxima leitura prevista"
-# do site arredonda para o próximo desses momentos. web/src/lib/sources.ts repete as duas constantes; test_schedule.py confere as três réguas.
-TICK_MINUTE = 17
-TICK_EVERY_H = 3
+# catálogo D13: quando a agenda é chamada (cron do .github/workflows/etl.yml). D359: uma vez por dia, 08:01 UTC (05:01 em Brasília, 1 min depois de abrir a
+# janela da Câmara). A "próxima leitura prevista" do site arredonda para o próximo desses momentos. web/src/lib/sources.ts repete as três constantes;
+# test_schedule.py confere as réguas. Com uma chamada por dia, a janela noturna do Senado (00:30-02:00) já fechou nela: vira reposição (D318), sem alerta.
+TICK_HOUR = 8
+TICK_MINUTE = 1
+TICK_EVERY_H = 24
 
 
 def next_tick(t: datetime) -> datetime:
@@ -94,7 +96,7 @@ def next_tick(t: datetime) -> datetime:
     c = t.astimezone(timezone.utc).replace(minute=TICK_MINUTE, second=0, microsecond=0)
     if c < t:
         c += timedelta(hours=1)
-    while c.hour % TICK_EVERY_H:
+    while (c.hour - TICK_HOUR) % TICK_EVERY_H:
         c += timedelta(hours=1)
     return c
 
