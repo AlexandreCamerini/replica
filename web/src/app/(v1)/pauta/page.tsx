@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: "Vem aí",
   description: "Propostas sobre dinheiro, trabalho e benefícios marcadas na Câmara e no Senado, por dia.",
 };
-export const revalidate = 600;
+export const revalidate = 86400; // D359: 1x/dia basta (era 10 min)
 
 type Props = { searchParams: Promise<{ casa?: string; simular?: string }> };
 

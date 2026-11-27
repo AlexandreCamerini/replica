@@ -75,7 +75,7 @@ export const dayKey = (iso: string) => new Date(iso).toLocaleDateString("sv-SE",
 export const weekLastDay = (weekEnds: string) => new Date(new Date(weekEnds).getTime() - 12 * 3600 * 1000).toISOString();
 
 /** Leitura com mais de 24 h: aviso de sistema (Regra 2). */
-export const isStale = (readAt: string | null, now = Date.now()) => !readAt || now - new Date(readAt).getTime() > 24 * 3600 * 1000;
+export const isStale = (readAt: string | null, now = Date.now()) => !readAt || now - new Date(readAt).getTime() > 36 * 3600 * 1000; // D359: a leitura da pauta é diária; 36 h absorve atraso do agendador sem acender o aviso
 
 /** Uma proposta conta uma vez, mesmo em duas reuniões: fica a mais cedo. */
 export function uniqueByKey<T extends PautaEntry>(rows: T[]): T[] {

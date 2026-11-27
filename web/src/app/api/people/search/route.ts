@@ -7,6 +7,6 @@ export async function GET(req: NextRequest) {
   const rows = await data.searchPeople(q, 8);
   return NextResponse.json(
     rows.map((h) => ({ slug: h.person.slug, name: h.person.displayName, office: h.officeName, place: h.placeLabel, party: h.party.acronym })),
-    { headers: { "Cache-Control": "public, s-maxage=600" } },
+    { headers: { "Cache-Control": "public, s-maxage=86400" } },
   );
 }

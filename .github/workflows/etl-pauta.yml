@@ -9,9 +9,7 @@ name: etl · pauta
 
 on:
   schedule:
-    - cron: "*/30 11-23 * * 1-5" # seg–sex, 08:00–20:30 em Brasília
-    - cron: "*/30 0-1 * * 2-6" # seg–sex, 21:00–22:30 em Brasília
-    - cron: "0 */3 * * 0,6" # fim de semana, a cada 3 h (evita o aviso de 24 h)
+    - cron: "0 11 * * *" # D359: 1x por dia, 08:00 em Brasília (eram ~45 disparos por dia útil). O aviso de pauta velha só acende após 36 h
   workflow_dispatch:
 
 concurrency:

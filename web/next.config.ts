@@ -12,6 +12,14 @@ export const MODO_PRODUCAO_DA_CENTRAL = "producao";
 /** Extensões de página do build da central. Os arquivos da central são `page.admin.tsx`, `route.admin.ts`, `layout.admin.tsx`, `not-found.admin.tsx` e `middleware.admin.ts`. */
 export const EXTENSOES_DA_CENTRAL = ["admin.tsx", "admin.ts"] as const;
 export const CSP_MINIMA = "frame-ancestors 'none'";
+/** `[Cc][Rr]...`: o `has` do Next usa regex sem flag, então a caixa vira classe de caracteres. */
+const semCaixa = (palavra: string): string => [...palavra].map((c) => (/[a-z]/i.test(c) ? `[${c.toLowerCase()}${c.toUpperCase()}]` : c)).join("");
+/** D359: robôs de busca, de IA e de raspagem que se declaram no user agent (nenhum navegador comum traz estas palavras). */
+export const ROBOS_DECLARADOS = ["bot", "crawl", "spider", "slurp", "scrap", "headless", "python-requests", "curl/", "wget", "go-http-client", "java/", "okhttp", "libwww", "httpclient", "meta-externalagent", "bytespider", "ahrefs", "semrush", "mj12"] as const;
+/** Quem monta pré-visualização de link compartilhado (o card de WhatsApp, X, Telegram...) não é raspador: segue vendo `/p/`. */
+export const PREVIEW_DE_LINK = ["facebookexternalhit", "whatsapp", "twitterbot", "telegrambot", "slackbot", "linkedinbot", "discordbot", "skypeuripreview"] as const;
+export const UA_ROBO = `^(?!.*(${PREVIEW_DE_LINK.map(semCaixa).join("|")})).*(${ROBOS_DECLARADOS.map(semCaixa).join("|")}).*$`;
+
 /** Host de aliases da Vercel (produção e Preview), onde o site não pode ser indexado. */
 export const HOST_VERCEL_APP = ".*\\.vercel\\.app";
 
@@ -23,13 +31,27 @@ export function configuracao(env: Record<string, string | undefined>): NextConfi
     // os testes e2e sobem um servidor próprio sem colidir com o dev server (mesma pasta .next quebra as rotas)
     distDir: env.NEXT_DIST_DIR || ".next",
     images: { remotePatterns: [{ protocol: "https", hostname: "www.camara.leg.br" }, { protocol: "http", hostname: "www.senado.leg.br" }] },
-    // D359: o mesmo site também responde em *.vercel.app (produção e Preview). Esses hosts nunca entram em buscador: noindex por cabeçalho, sem middleware (o site não tem).
-    // Só o host decide; o www.segueovoto.com.br não casa. O robots.txt desses hosts também fecha tudo (src/lib/seo.ts).
-    async headers() {
-      return [{ source: "/:path*", has: [{ type: "host", value: HOST_VERCEL_APP }], headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }];
-    },
   };
-  if (!ehBuildDaCentral(env)) return base;
+  // D359: redirects e headers são só do build do SITE; a central (abaixo) mantém o contrato anterior, sem redirect.
+  if (!ehBuildDaCentral(env)) {
+    return {
+      ...base,
+      // o mesmo site também responde em *.vercel.app (produção e Preview). Esses hosts nunca entram em buscador: noindex por cabeçalho, sem middleware (o site não tem).
+      // Só o host decide; o www.segueovoto.com.br não casa. O robots.txt desses hosts também fecha tudo (src/lib/seo.ts).
+      // D359 (custo zero): robô declarado que pede o perfil antigo ou /sugestoes é mandado ao destino canônico pelo roteador da Vercel, sem acionar função nem banco. Pessoas não são afetadas.
+      async redirects() {
+        const robo = [{ type: "header" as const, key: "user-agent", value: UA_ROBO }];
+        return [
+          { source: "/p/:slug", has: robo, destination: "/pessoa/:slug", permanent: true },
+          { source: "/p/:slug/:resto*", has: robo, destination: "/pessoa/:slug", permanent: true },
+          { source: "/sugestoes", has: robo, destination: "/", permanent: true },
+        ];
+      },
+      async headers() {
+        return [{ source: "/:path*", has: [{ type: "host", value: HOST_VERCEL_APP }], headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }];
+      },
+    };
+  }
   return {
     ...base,
     pageExtensions: [...EXTENSOES_DA_CENTRAL],

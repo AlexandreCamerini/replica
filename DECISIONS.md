@@ -111,3 +111,17 @@ O hook de sessão autônoma bloqueou a pergunta ao dono; o ponto abaixo seguiu a
 | D359-3 | O que já cobre a carga medida | Fatia 1 (commit d77eabc): robots, noindex em `*.vercel.app`, rodapé `nofollow` | Reversível por revert e sem perda de função | `git revert d77eabc` |
 
 Pendências do dono: regra de limite para robôs no firewall da Vercel (o lugar certo para segurar `/p/<slug>` sem apagar função); conferir na aba Firewall quem são os robôs; decidir entre migrar as funções do perfil antigo para o `(sv)` ou aceitar perdê-las; `pool_size` no Supabase (pode ter custo).
+
+## D359 · custo zero e atualização no máximo diária (27/11/2026, pedido do dono)
+
+| # | Decisão | Opção escolhida | Motivo | Como desfazer |
+|---|---|---|---|---|
+| D359-4 | Robô declarado em `/p/*` e `/sugestoes` | 308 por user agent no `next.config.ts` (`redirects()` com `has: user-agent`) para `/pessoa/:slug` e `/`. Não pega WhatsApp, X, Telegram, Facebook, Slack, LinkedIn nem Discord (cards de link) | O roteador da Vercel responde sem acionar função nem banco; pessoas continuam no perfil antigo; sem plano pago nem firewall | `git revert` do commit |
+| D359-5 | Cache | `CACHE_TTL_S` 1 h → 24 h; `revalidate` de `/no-seu-bolso`, `/proposta/[key]` e `/pauta` 10 min → 24 h; `s-maxage` das APIs `people` 1 h/10 min → 24 h | Menos regeneração, menos leitura de banco e menos função. A ETL revalida por tag, o TTL é só rede de segurança | Voltar os valores |
+| D359-6 | Agenda da pauta | `etl-pauta.yml` de ~45 disparos por dia útil para 1 por dia (08:00 BRT); aviso de pauta velha de 24 h para 36 h (`web/src/lib/pauta.ts`) | Minutos do Actions em repositório privado são pagos (D274); 36 h evita aviso falso por atraso do agendador | Restaurar os 3 crons |
+| D359-7 | Rascunho por IA | `etl-rascunho.yml` fica com o disparo das 08:30 (lote, 50% do preço); o das 14:30 (síncrono) saiu. Teto de 20 para 10 chamadas por dia | Cada chamada à API da Anthropic custa dinheiro | Restaurar o cron `30 17 * * 1-5` |
+| D359-8 | `etl.yml` (a cada 3 h mais as 2 janelas de Senado e Câmara) | NÃO alterado; pendente do dono | A cadência de 3 h está amarrada a `schedule.py` (`TICK_*`), `web/src/lib/sources.ts` e `test_schedule.py`, e às réguas de prazo do alerta (20 h Câmara/Senado, 36 h site). Mudar só o cron geraria alerta falso. Cortar para 1x/dia pede mudar as 3 constantes e o teste juntos | Dizer "ETL 1x por dia": altero cron, `TICK_*`, `sources.ts` e o teste |
+| D359-9 | `vercel.json` cron `/api/cron/vigia` | Já é 1x/dia (00:45 UTC); mantido | Dentro do pedido | n/a |
+
+Não medido: efeito do redirect por user agent (robô que finge ser navegador não é pego; o regex usa lookahead e só foi validado por teste unitário e pelo `routes-manifest`); custo real de cada item (a fatura da Vercel e do GitHub Actions é do dono).
+Conferir no Preview: `curl -sI -A "Googlebot" https://<preview>/p/algum-slug` deve dar 308 para `/pessoa/algum-slug`; com `-A "Mozilla/5.0 Safari"` e com `-A "WhatsApp/2.0"` deve dar 200.

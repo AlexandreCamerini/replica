@@ -16,9 +16,10 @@ const SITE = {
 
 test("next.config, build do SITE: sem ADMIN_CENTRAL (ou com valor que não é 1/producao) devolve EXATAMENTE o objeto do ponto de partida da fase (5148ddd: distDir e images)", () => {
   for (const env of [{}, { ADMIN_CENTRAL: "" }, { ADMIN_CENTRAL: "PRODUCAO" }, { ADMIN_CENTRAL: "0" }, { VERCEL_ENV: "production" }, { ADMIN_DATABASE_URL: "x" }]) {
-    const { headers, ...resto } = configuracao(env);
+    const { headers, redirects, ...resto } = configuracao(env);
     assert.deepEqual(resto, SITE, JSON.stringify(env));
-    assert.equal(typeof headers, "function", "D359: único acréscimo ao site, o noindex dos hosts *.vercel.app");
+    assert.equal(typeof headers, "function", "D359: noindex dos hosts *.vercel.app");
+    assert.equal(typeof redirects, "function", "D359: redirect de robôs declarados");
   }
   for (const k of ["rewrites", "pageExtensions", "experimental", "skipTrailingSlashRedirect"] as const) assert.equal(configuracao({})[k], undefined, k);
   assert.equal(configuracao({ NEXT_DIST_DIR: ".next-x" }).distDir, ".next-x");
@@ -220,4 +221,15 @@ test("D359: o site manda X-Robots-Tag noindex só para hosts *.vercel.app, e nen
   const host = new RegExp(`^${(regras[0].has as { value: string }[])[0].value}$`);
   assert.ok(host.test("replica-virid-sigma.vercel.app") && host.test("replica-git-x-sementedev.vercel.app"));
   assert.ok(!host.test("www.segueovoto.com.br") && !host.test("admin.segueovoto.com.br") && !host.test("vercel.app.evil.com"));
+});
+
+test("D359: redirect por user agent leva só robô declarado de /p/ e /sugestoes ao destino canônico", async () => {
+  const regras = await configuracao({}).redirects!();
+  assert.deepEqual(regras.map((r) => [r.source, r.destination]), [["/p/:slug", "/pessoa/:slug"], ["/p/:slug/:resto*", "/pessoa/:slug"], ["/sugestoes", "/"]]);
+  for (const r of regras) assert.equal((r.has as { key: string }[])[0].key, "user-agent");
+  const ua = new RegExp((regras[0].has as { value: string }[])[0].value);
+  for (const robo of ["Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.1)", "Mozilla/5.0 (compatible; AhrefsBot/7.0)", "python-requests/2.31", "Mozilla/5.0 HeadlessChrome/120", "Mozilla/5.0 (compatible; ClaudeBOT/1.0)", "Mozilla/5.0 (compatible; Bytespider; spider-feedback@bytedance.com)"]) assert.ok(ua.test(robo), robo);
+  for (const pessoa of ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0"]) assert.ok(!ua.test(pessoa), pessoa);
+  for (const preview of ["facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)", "WhatsApp/2.23.20.0 A", "Twitterbot/1.0", "TelegramBot (like TwitterBot)", "Slackbot-LinkExpanding 1.0", "LinkedInBot/1.0", "Mozilla/5.0 (compatible; Discordbot/2.0)"]) assert.ok(!ua.test(preview), preview);
+  assert.equal(typeof configuracao({ ADMIN_CENTRAL: "producao" }).redirects, "undefined", "a central não herda o redirect do site");
 });
