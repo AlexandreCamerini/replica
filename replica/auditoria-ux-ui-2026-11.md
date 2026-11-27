@@ -16,15 +16,16 @@ Base: branch de trabalho com o main até a #81 (F1–F9 e Fase 5). Dados: demons
 | Link de votação em `/acompanhando` com alvo de 24 px (D05) | `min-height: 44px` em `.sv-esc__vv-t a` | medição de alvos (§1) |
 | Tabela mensal da F7 reutilizava classes de outra tabela (colisão `sv-gm`/`sv-g`, D11) | classe própria `sv-gser` | `sv-f7.spec.ts`, bateria A–Z de categorias |
 
+| C02 (corrigido em texto) | 144 votos no perfil, 122 na lista "só leis" e 38 de procedimento não somam | Causa: o perfil usa `person_period_stats.votes_registered` (exclui "Sem voto", só mandato) e a lista conta todas as linhas de `votes`, inclusive "Sem voto". `/votos` agora explica a diferença. Não alterei SQL: unificar a base é decisão de produto |
+
 ## 3. Falsos positivos descartados
+- C01 "Foi trabalhar?/Faltou" para o Senado: em produção o Senado não tem linha de presença (`mandato-dados.ts:140`), então a tela mostra lacuna; a contradição só existe nos dados de demonstração. O título "Foi trabalhar?" é decisão da D2.
 - C18 "cinco perguntas": o quadro de escolhidos tem de fato cinco perguntas (q1–q5).
 - C06, C12, C20 (fornecedor incompatível com a categoria, "Aprovada" com 249 Sim numa PEC, 32 senadores entram): dados inventados da demonstração, todos sob "Exemplo ilustrativo". Não são código.
 
 ## 4. Mensurável e NÃO corrigido nesta rodada (cada um vira fatia própria)
 | id | Achado | Por que fica |
 |---|---|---|
-| C01 | "Foi trabalhar?" e "Faltou a 4 sessões… sem justificativa" afirmam presença que a mesma página diz não existir para o Senado | Mexe em texto de produto e no cálculo de presença; precisa de decisão de redação |
-| C02 | 144 votos no mandato, 122 em leis e 38 de procedimento escondidos não somam | Investigar a contagem em `pg.ts`/`fake.ts` antes de mexer |
 | C03, C08 | Total do ano corrente sem o intervalo de meses ("R$ 487 mil em 2026") | Cruza com D352/F7; precisa do `ate` da leitura |
 | C04 | "Ficou fora da soma" sem lacuna nomeada; salário é valor × meses sem dizer | Texto de produto |
 | C05 | Fonte do salário de senadora leva à home da Câmara | Verificar se é dado da demo ou código |
