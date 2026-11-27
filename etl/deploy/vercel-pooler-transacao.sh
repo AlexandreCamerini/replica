@@ -22,7 +22,7 @@ DRY=0; [[ "${1:-}" == "--dry-run" ]] && DRY=1
 # ainda não vale) e sem promover; imprime "deploy novo: <url>" para quem chamou promover depois do teste.
 SO_PREPARAR="${SO_PREPARAR:-0}"
 # PORTA_ALVO=5432 volta ao modo sessão (D357: postgres.js travou no modo transação, conexões presas em ClientRead).
-PORTA_ALVO="${PORTA_ALVO:-6543}"
+PORTA_ALVO="${PORTA_ALVO:-5432}"   # padrão 5432: a 6543 travou o site (D357); só use 6543 com a correção do pool
 [[ "$PORTA_ALVO" == "6543" || "$PORTA_ALVO" == "5432" ]] || { echo "PORTA_ALVO só aceita 6543 ou 5432."; exit 1; }
 
 vs() { npx --yes vercel "$@" --scope "$SCOPE"; }

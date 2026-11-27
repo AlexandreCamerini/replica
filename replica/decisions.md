@@ -1171,4 +1171,4 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - De novo o modo sessão, com o mesmo limite de pool da D356 (falhas em rajada).
     - A correção certa fica para outra fatia, testada fora da produção: soltar as conexões antes do congelamento (`attachDatabasePool`/`waitUntil` da Vercel, ou `PG_POOL_MAX` baixo com `idle_timeout` curto), medida com carga num Preview.
     - Restou 1 conexão `active / ClientRead` antiga do `web_reader`; o pooler deve fechá-la sozinho.
-    - Os scripts ficam com `PORTA_ALVO` (padrão 6543). Não rodar de novo na 6543 sem a correção acima.
+    - Os scripts ficam com `PORTA_ALVO`, agora com padrão 5432. Não rodar com 6543 sem a correção acima.

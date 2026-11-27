@@ -13,7 +13,7 @@
 # Uso: bash etl/deploy/vercel-pooler-transacao-nova-senha.sh
 set -euo pipefail
 # PORTA_ALVO=5432: grava a URL do modo sessão em vez do modo transação (D357).
-export PORTA_ALVO="${PORTA_ALVO:-6543}"
+export PORTA_ALVO="${PORTA_ALVO:-5432}"   # padrão 5432: a 6543 travou o site (D357)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 command -v psql >/dev/null || { echo "psql não encontrado (brew install libpq). Abortado, nada mudou."; exit 1; }
