@@ -1129,3 +1129,46 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - `sv-tema-marcados.test.ts` (9): virada de mandato, posse no meio da janela, votação secreta, fuso;
     - `e2e/d352-tema-marcados.spec.ts` (8): três esferas com `sv_sigo`, sem placar, voto igual ao da página da votação, falhas, `details` sem JS a 390 px, axe e numeração.
   - **Desfazer:** apagar `tema-marcados*.ts(x)`, o quadro em `tema/[slug]/page.tsx` (selo volta a 4), a linha de `/temas`, as regras `sv-tm1-esc/votos/vd/vk/pn` e `getVotesForPeopleInEvents`. Sem mudança de dado nem de esquema.
+- **D356 · Votos iguais na tela do tema viram uma linha; diagnóstico da falha de leitura em produção (operação, 27/11/2026).** Conferência da D352 em produção, com dados reais.
+  - **Defeito achado e corrigido:** numa sessão, a mesma proposta tem várias votações nominais do mesmo tipo. A pessoa vota igual em todas, e o quadro escrevia linhas idênticas: o PL 4497/2024 em 09/12/2025 apareceu 4 vezes para cada deputado. `agruparVotos` (puro, em `tema-marcados-regra.ts`) junta as votações com mesmo dia em Brasília, Casa, proposta, tipo e voto numa linha: "Mesmo voto em N votações desta proposta neste dia: votação 1, votação 2…", com link para cada uma. Mesmo padrão da D328. Voto diferente na mesma proposta não junta.
+  - **Conferido em produção (antes desta correção):**
+    - um vereador, um deputado estadual e um senador aparecem com lacunas nomeadas;
+    - os deputados federais aparecem com voto, data, tipo e fonte;
+    - um suplente que tomou posse depois das votações cai em "nenhum mandato valia nas datas";
+    - `getVotesForPeopleInEvents` rodou contra o Postgres real.
+  - **Falha de leitura vista na conferência: NÃO é defeito da D352.**
+    - O pooler do Supabase em modo sessão (`pool_size` 15) recusa conexões em rajadas (`EMAXCONNSESSION`; nos logs do Supavisor, 24 recusas em 27/11 00:27–00:28 UTC, no mesmo minuto da falha). A rajada vem de robôs em `/p/*` pelo www.segueovoto.com.br e já ocorria no deploy da #77.
+    - Cada instância da função abre até `PG_POOL_MAX` = 10 conexões, ociosas por 20 s. Duas instâncias quentes esgotam o pool, e toda leitura sem cache falha nesse intervalo (a tela mostra a lacuna de leitura, não 500). Fora das rajadas, tudo lê.
+  - **Não incluído (decisão do dono):** a correção do pool é de configuração de produção. Opções:
+    - `DATABASE_URL` no pooler em modo transação (porta 6543; o código já usa `prepare: false`);
+    - ou `PG_POOL_MAX` baixo (2–3) na Vercel;
+    - e, à parte, limitar a varredura de robôs em `/p/*`.
+- **D357 · Site lê o banco pelo pooler em modo transação (operação, decisão do dono em 27/11/2026).** Resolve o esgotamento do pool da D356.
+  - **Decisão:** a `DATABASE_URL` de leitura passa do pooler do Supabase em modo sessão (5432, `pool_size` 15 no total) para o modo transação (6543), como `integration.md` já previa para a web. O código já usa `prepare: false`; as transações (`sql.begin` em `admin/consultas.ts`) seguem válidas nesse modo. O ETL continua em modo sessão, por causa do advisory lock e da tabela temporária.
+  - **Como:** `etl/deploy/vercel-pooler-transacao.sh`, rodado pelo dono, porque a URL é segredo e não passa pelo agente.
+    - Pede a URL sem eco e recusa o que não for `web_reader` em `*.pooler.supabase.com:6543`.
+    - Troca o valor no lugar com `vercel env update --environment production`, no escopo `sementedev`.
+    - Refaz o deploy de produção.
+    - Não toca `DATABASE_WRITE_URL`, `PG_POOL_MAX` nem a `DATABASE_URL` própria da branch do ensaio do Railway.
+    - Os scripts antigos usam o escopo `alexandrecamerini`, onde o projeto não está mais.
+  - **O que pago:** o modo transação não aceita estado de sessão (`SET` fora de transação, `LISTEN`, prepared statements); hoje o site não usa nada disso. A variável trocada também cobre o Preview geral, que passa junto.
+  - **Desfazer:** trocar a `DATABASE_URL` pelo painel da Vercel pela URL da porta 5432 e refazer o deploy.
+  - **Incidente na aplicação (27/11/2026, 02:48 UTC):** o script gravou a URL do modo transação com a senha errada. Host, usuário e porta passaram na validação; a senha não dá para conferir antes de gravar. O deploy refeito (`dpl_9Vq158…`) falha em toda leitura do banco com `28P01 password authentication failed for user "web_reader"`.
+    - Escolha conservadora e reversível: rollback para o deploy anterior (`dpl_BSUbPdLZah…`, `replica-id0n8zzob`), construído com a URL antiga, da porta 5432.
+    - O rollback pelo agente foi negado pela permissão e fica com o dono: `npx vercel rollback replica-id0n8zzob-sementedev.vercel.app --scope sementedev`.
+    - Pendente: a `DATABASE_URL` gravada continua com a senha errada. Antes do próximo deploy de produção, é preciso regravá-la com a senha certa do `web_reader`, na porta 6543, ou voltar à URL da porta 5432.
+    - Lição para o script: testar a conexão antes de gravar (`psql "$URL" -c 'select 1'` sem eco), para recusar senha errada.
+  - **Depois do incidente:** o rollback foi feito pelo dono; a produção voltou e leu tudo em 6 de 6 leituras sequenciais.
+    - O script testa a conexão como `web_reader` antes de gravar e recusa a URL, sem mudar nada, se não conectar.
+    - `vercel-pooler-transacao-nova-senha.sh`, para quando a senha do `web_reader` não é conhecida, segue esta ordem: testa a conexão admin na 5432 e na 6543; grava a URL nova e refaz o deploy sem promover (depois do rollback a Vercel não publica sozinha); troca a senha; testa como `web_reader` na 6543; promove. A queda fica entre a troca de senha e a promoção, que leva segundos.
+    - Quem usa a senha do `web_reader` em produção: só o site. O ETL usa `civico_etl` (`ETL_DATABASE_URL` nos workflows) e a central usa `admin_central`. Um `.env.local` que aponte para a produção como `web_reader` deixa de funcionar.
+  - **Desfecho (27/11/2026): o modo transação foi aplicado e DESFEITO; o site voltou ao modo sessão (5432).**
+    - 03:20 UTC: a senha do `web_reader` foi redefinida e o deploy `dpl_5ZatATSr…` foi para o ar na 6543. O teste do script falhou numa corrida com o cache do pooler (03:20:48 "Validation secrets changed"), mas o deploy lia o banco às 03:22.
+    - Logo depois, o site travou: requisições penduradas até 300 s (`Vercel Runtime Timeout`), e no banco só 2 conexões do `web_reader`, paradas em `active / ClientRead` havia mais de 4 min, no meio de uma consulta com parâmetros. Causa provável: a Vercel congela a função depois da resposta com o `postgres.js` no meio do protocolo. No modo transação, a conexão presa é do pool compartilhado e trava todo mundo.
+    - 03:42–03:43 UTC: `PORTA_ALVO=5432 vercel-pooler-transacao-nova-senha.sh`, com outra senha nova e o deploy `dpl_9jip7S2V…` (`replica-dajrnnd6o`). `28P01` entre 03:42:46 e 03:42:49 (o deploy entrou no ar antes da troca de senha, porque o rollback já não estava ativo); nenhum erro depois de 03:43:30; 6 de 6 leituras com o cookie trouxeram pessoas e votos.
+    - Queda total: cerca de 03:20 a 03:43 UTC, mais o primeiro incidente das 02:48 (senha errada) até o rollback.
+  - **Estado e pendências:**
+    - De novo o modo sessão, com o mesmo limite de pool da D356 (falhas em rajada).
+    - A correção certa fica para outra fatia, testada fora da produção: soltar as conexões antes do congelamento (`attachDatabasePool`/`waitUntil` da Vercel, ou `PG_POOL_MAX` baixo com `idle_timeout` curto), medida com carga num Preview.
+    - Restou 1 conexão `active / ClientRead` antiga do `web_reader`; o pooler deve fechá-la sozinho.
+    - Os scripts ficam com `PORTA_ALVO`, agora com padrão 5432. Não rodar com 6543 sem a correção acima.

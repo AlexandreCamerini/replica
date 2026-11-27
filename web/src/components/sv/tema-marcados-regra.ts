@@ -87,3 +87,23 @@ export function situacaoNoTema<V extends VotacaoDoTema, T>(mandatos: readonly Ma
   if (federais.some((m) => m.status === "eleito_aguardando_posse")) return { tipo: "lacuna", motivo: "aguarda_posse", casas: casasDoMandato };
   return { tipo: "lacuna", motivo: "fora_do_mandato", casas: casasDoMandato };
 }
+
+/**
+ * Junta os votos que a tela escreveria iguais (como a D328 em "O que fizeram por último"): numa sessão a mesma proposta tem
+ * várias votações nominais com o mesmo tipo, e a pessoa vota igual em todas. Mesmo dia (em Brasília), mesma proposta
+ * (`chave`), mesmo tipo e mesmo voto viram uma linha, que leva a cada votação. Voto diferente na mesma proposta não junta.
+ * Mantém a ordem (mais recente primeiro); o grupo fica na posição do seu voto mais recente.
+ */
+export function agruparVotos<V extends VotacaoDoTema & { kind?: string }, T>(
+  votos: readonly { votacao: V; voto: T }[],
+  chave: (v: V) => string,
+): { votacao: V; voto: T; votacoes: V[] }[] {
+  const grupos = new Map<string, { votacao: V; voto: T; votacoes: V[] }>();
+  for (const { votacao, voto } of votos) {
+    const k = [diaDaVotacao(votacao.occurredAt), votacao.body, chave(votacao), votacao.kind ?? "", String(voto)].join("\u0000");
+    const g = grupos.get(k);
+    if (g) g.votacoes.push(votacao);
+    else grupos.set(k, { votacao, voto, votacoes: [votacao] });
+  }
+  return [...grupos.values()].map((g) => ({ ...g, votacoes: [...g.votacoes].reverse() })); // dentro do grupo, da primeira à última do dia
+}
