@@ -179,13 +179,13 @@ export async function Escolhidos({ slugs, ufSigla, simularFalha = false }: { slu
             {lista.map((e) => (
               <li key={e.slug}>
                 <span className="sv-esc__id">
-                  <strong className="sv-esc__n">{e.nome}</strong>
-                  {e.esfera && <span className="sv-esc__c">Esfera: {e.esfera}</span>}
-                  <span className="sv-esc__c">{e.cargo}</span>
+                  <strong className="sv-iesc__n">{e.nome}</strong>
+                  {e.esfera && <span className="sv-iesc__c">Esfera: {e.esfera}</span>}
+                  <span className="sv-iesc__c">{e.cargo}</span>
                 </span>
                 <div className="sv-esc__u">
                   {!e.posse && e.votos && e.votos.length > 0 ? (
-                    <ul className="sv-vl">
+                    <ul className="sv-ivl">
                       {e.votos.map((v) => {
                         const dia = dayKey(v.event.occurredAt);
                         return (

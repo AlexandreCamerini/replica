@@ -8,7 +8,7 @@ export function CabecalhoSub({ ctx, titulo, esfera }: { ctx: ContextoPessoa; tit
   const p = ctx.person;
   return (
     <div className="sv-cab">
-      <p className="sv-vt sv-vt--sub">
+      <p className="sv-pvt sv-pvt--sub">
         <span aria-hidden="true">←</span>&nbsp;Voltar a&nbsp;<Link href={`/pessoa/${p.slug}`}>{p.displayName}</Link>
       </p>
       <h1>{titulo}</h1>

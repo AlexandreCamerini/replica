@@ -10,7 +10,8 @@
 .sv .sv-cab__c{font-size:16px;line-height:1.4;font-weight:600}
 .sv .sv-cab__x{font-size:16px;line-height:1.45;max-width:62ch}
 .sv .sv-cab__f{margin-top:4px}
-.sv .sv-vt a{display:inline-flex;align-items:center;min-height:44px;font-weight:700;font-size:15px}
+.sv .sv-pvt{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1.5px solid var(--tinta)}
+.sv .sv-pvt a{display:inline-flex;align-items:center;min-height:44px;font-weight:700;font-size:15px}
 
 /* quatro respostas no topo (D324): mesma moldura para toda pessoa; pergunta, resposta, fonte e link para a seção.
    Uma coluna no celular, duas a partir de 900px, quatro a partir de 1100px. Sem cor: tinta sobre papel. */
@@ -72,7 +73,7 @@
 .sv .sv-voltas li{padding:6px 0;border-top:1.5px solid var(--tinta);font-size:16px;line-height:1.45}
 
 /* rotas da Pessoa (gastos, equipe, votos): volta pelo nome, filtro sem JS, lista empilhada, paginação */
-.sv .sv-vt--sub{display:flex;flex-wrap:wrap;align-items:center;font-weight:700;font-size:15px}
+.sv .sv-pvt--sub{display:flex;flex-wrap:wrap;align-items:center;font-weight:700;font-size:15px}
 .sv .sv-filtro{max-width:32rem;padding-bottom:6px}
 .sv .sv-filtro .sv-sub{min-height:44px;display:flex;align-items:flex-end}
 .sv .sv-notas{border-bottom:1.5px solid var(--tinta)}
@@ -100,7 +101,7 @@
   .sv .sv-pg--pessoa{grid-template-columns:minmax(0,1fr);gap:0}
   .sv .sv-cab{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:16px;border-top:3px solid var(--tinta);padding:10px 0 12px}
   .sv .sv-cab h1{font-size:36px}
-  .sv .sv-cab>.sv-vt,.sv .sv-cab__x,.sv .sv-cab__f{flex:0 0 100%}
+  .sv .sv-cab>.sv-pvt,.sv .sv-cab__x,.sv .sv-cab__f{flex:0 0 100%}
   .sv .sv-q4{padding:12px var(--pad) 6px;margin-bottom:14px}
   .sv .sv-q4__l{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px}
   .sv .sv-q4__a{font-size:21px}

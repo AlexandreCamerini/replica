@@ -281,7 +281,7 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
   return (
     <div className="sv-pg sv-pg--pessoa">
       <div className="sv-cab">
-        <p className="sv-vt">
+        <p className="sv-pvt">
           <Link href="/acompanhando">
             <span aria-hidden="true">←</span>&nbsp;Voltar a Escolhidos
           </Link>

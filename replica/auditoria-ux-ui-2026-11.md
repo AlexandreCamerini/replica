@@ -18,6 +18,15 @@ Base: branch de trabalho com o main até a #81 (F1–F9 e Fase 5). Dados: demons
 
 | C02 (corrigido em texto) | 144 votos no perfil, 122 na lista "só leis" e 38 de procedimento não somam | Causa: o perfil usa `person_period_stats.votes_registered` (exclui "Sem voto", só mandato) e a lista conta todas as linhas de `votes`, inclusive "Sem voto". `/votos` agora explica a diferença. Não alterei SQL: unificar a base é decisão de produto |
 
+## 3a. Segunda rodada (mesma data): colisões de classe e CSS morto
+Medição de estilo calculado antes e depois, a 1280 px, nas telas afetadas (script no navegador embutido; a Início e `/acompanhando` com `sv_sigo` de duas pessoas):
+- **D02 `.sv-vl`:** a lista de votos dentro do cartão da Início herdava a grade de 3 colunas da lista de votações (colunas de 40, 140 e 60 px). Agora `.sv-ivl`: coluna simples, como `sv-inicio.css` já pretendia.
+- **D03 `.sv-esc__n`/`__c`:** o nome na Início saía com 34 px (regra de `/acompanhando`) em vez dos 24 px previstos. Agora `.sv-iesc__n`/`__c`.
+- **D04 `.sv-vt`:** o link "Voltar a…" da pessoa herdava o bloco de votos da decisão. Agora `.sv-pvt` (pessoa) e `.sv-dvt` (decisão), com o visual atual preservado (conferido por estilo calculado; a decisão testada em `/decisao/camara-pl-9996-2026`).
+- **D15 CSS morto:** 43 regras de `sv.css` cujas classes não aparecem em nenhum `.ts/.tsx` nem em e2e (script: classe sem uso literal nem prefixo dinâmico). Um `@media` vazio removido. Sobraram 0 pelo mesmo critério.
+- Só a Início mudou de aparência (nome e lista de votos), no sentido pretendido. Pessoa, decisão, `/acompanhando` e `/votacoes` ficaram idênticos.
+- axe zero e sem rolagem lateral em 6 rotas × 3 larguras; tsc e 418 testes de unidade ok. e2e atualizados: `d329` (`.sv-iesc__n`) e `v2-d2-aceite` (`.sv-dvt`). O Playwright só roda no CI.
+
 ## 3. Falsos positivos descartados
 - C01 "Foi trabalhar?/Faltou" para o Senado: em produção o Senado não tem linha de presença (`mandato-dados.ts:140`), então a tela mostra lacuna; a contradição só existe nos dados de demonstração. O título "Foi trabalhar?" é decisão da D2.
 - C18 "cinco perguntas": o quadro de escolhidos tem de fato cinco perguntas (q1–q5).
@@ -30,8 +39,6 @@ Base: branch de trabalho com o main até a #81 (F1–F9 e Fase 5). Dados: demons
 | C04 | "Ficou fora da soma" sem lacuna nomeada; salário é valor × meses sem dizer | Texto de produto |
 | C05 | Fonte do salário de senadora leva à home da Câmara | Verificar se é dado da demo ou código |
 | C11 | Sessão de ontem listada como "Ainda não vale" | Regra de data da pauta; cruza com F6 |
-| D02, D03, D04 | Colisões de classe `.sv-vl`, `.sv-esc__n`, `.sv-vt` entre telas | Refatoração de CSS com risco visual; pede captura antes/depois |
-| D15 | ~33 classes de CSS morto | Limpeza segura, mas grande |
 | a11y média | Título igual em todas as `/votacao/<id>`; sem tratamento de forced-colors; botão de marcar troca de nome e usa aria-pressed (`follow.tsx:15`, `pessoas-lista.tsx:28`); thead/caption ocultos com `position:absolute` | O botão de marcar tem e2e que fixa o nome atual |
 | 1.4.12 | Links de voto passam ~9 px a 320 px com espaçamento de texto | Achar o contêiner de grade |
 

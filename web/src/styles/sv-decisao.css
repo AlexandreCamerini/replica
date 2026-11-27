@@ -36,9 +36,9 @@
 .sv .sv-pes a{display:inline-flex;align-items:center;min-height:44px}
 .sv-aut .sv-esf{display:inline}
 .sv-pes__v{display:block;padding:1px 0}
-.sv-vt{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1.5px solid var(--tinta)}
-.sv .sv-vt a{display:inline-flex;align-items:center;min-height:44px}
-.sv-vt .sv-cont{align-self:flex-start}
+.sv-dvt{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1.5px solid var(--tinta)}
+.sv .sv-dvt a{display:inline-flex;align-items:center;min-height:44px;font-weight:700;font-size:15px}
+.sv-dvt .sv-cont{align-self:flex-start}
 
 /* Onde eu confiro?: mais de um link, um abaixo do outro */
 .sv-quadro .sv-a a+a{margin-top:2px}
