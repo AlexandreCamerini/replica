@@ -1,6 +1,10 @@
 # Runbook: www.segueovoto.com.br no ar
 
-Estado em 19/11/2026: **não executado**. O site roda na Vercel; o que falta é o DNS.
+Estado em 19/11/2026: **executado**. O site está no ar em `https://www.segueovoto.com.br`. Faltam só o Supabase Auth e o Turnstile (login), da seção "Depois do DNS".
+
+**Duas armadilhas encontradas na execução, para a próxima vez (por exemplo, a central `admin.`):**
+- O registro.br não mostrava a edição de DNS porque o domínio tinha um **provedor de serviços** selecionado (`HSTDOMAINS`), sem relação com a compra. Removido em "Alterar provedor" > `NENHUM`, o painel passou a permitir a troca dos servidores.
+- Depois da delegação, a Vercel marcou o domínio como configurado, mas **não emitiu o certificado** em 20 min. Emitir pela API (`issue_cert` com os nomes) resolveu na hora.
 
 ## O que já está pronto, conferido pela API da Vercel
 
