@@ -15,8 +15,12 @@ const SITE = {
 };
 
 test("next.config, build do SITE: sem ADMIN_CENTRAL (ou com valor que não é 1/producao) devolve EXATAMENTE o objeto do ponto de partida da fase (5148ddd: distDir e images)", () => {
-  for (const env of [{}, { ADMIN_CENTRAL: "" }, { ADMIN_CENTRAL: "PRODUCAO" }, { ADMIN_CENTRAL: "0" }, { VERCEL_ENV: "production" }, { ADMIN_DATABASE_URL: "x" }]) assert.deepEqual(configuracao(env), SITE, JSON.stringify(env));
-  for (const k of ["rewrites", "headers", "pageExtensions", "experimental", "skipTrailingSlashRedirect"] as const) assert.equal(configuracao({})[k], undefined, k);
+  for (const env of [{}, { ADMIN_CENTRAL: "" }, { ADMIN_CENTRAL: "PRODUCAO" }, { ADMIN_CENTRAL: "0" }, { VERCEL_ENV: "production" }, { ADMIN_DATABASE_URL: "x" }]) {
+    const { headers, ...resto } = configuracao(env);
+    assert.deepEqual(resto, SITE, JSON.stringify(env));
+    assert.equal(typeof headers, "function", "D359: único acréscimo ao site, o noindex dos hosts *.vercel.app");
+  }
+  for (const k of ["rewrites", "pageExtensions", "experimental", "skipTrailingSlashRedirect"] as const) assert.equal(configuracao({})[k], undefined, k);
   assert.equal(configuracao({ NEXT_DIST_DIR: ".next-x" }).distDir, ".next-x");
 });
 
@@ -207,4 +211,13 @@ test("fator (A4, D335): nada do corpo escolhe o fator; ele é sempre o do e-mail
   assert.equal([...src.matchAll(/gravarSessao\(/g)].length, 2);
   const form = readFileSync(new URL("../../components/admin-entrada/formularios.tsx", import.meta.url), "utf8");
   assert.ok(!/fatorId/.test(form));
+});
+
+test("D359: o site manda X-Robots-Tag noindex só para hosts *.vercel.app, e nenhum outro cabeçalho", async () => {
+  const regras = await configuracao({}).headers!();
+  assert.equal(regras.length, 1);
+  assert.deepEqual(regras[0].headers, [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]);
+  const host = new RegExp(`^${(regras[0].has as { value: string }[])[0].value}$`);
+  assert.ok(host.test("replica-virid-sigma.vercel.app") && host.test("replica-git-x-sementedev.vercel.app"));
+  assert.ok(!host.test("www.segueovoto.com.br") && !host.test("admin.segueovoto.com.br") && !host.test("vercel.app.evil.com"));
 });

@@ -93,7 +93,7 @@ export function Rodape() {
             <Link href="/como-funciona#correcoes">{SELO.apontarErro}</Link>
           </li>
           <li>
-            <Link href="/no-seu-bolso">Páginas do desenho anterior</Link>
+            <Link href="/no-seu-bolso" rel="nofollow">Páginas do desenho anterior</Link>
           </li>
         </ul>
         <p className="sv-ass">Seu voto não termina na urna.</p>

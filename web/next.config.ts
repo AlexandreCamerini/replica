@@ -12,6 +12,8 @@ export const MODO_PRODUCAO_DA_CENTRAL = "producao";
 /** Extensões de página do build da central. Os arquivos da central são `page.admin.tsx`, `route.admin.ts`, `layout.admin.tsx`, `not-found.admin.tsx` e `middleware.admin.ts`. */
 export const EXTENSOES_DA_CENTRAL = ["admin.tsx", "admin.ts"] as const;
 export const CSP_MINIMA = "frame-ancestors 'none'";
+/** Host de aliases da Vercel (produção e Preview), onde o site não pode ser indexado. */
+export const HOST_VERCEL_APP = ".*\\.vercel\\.app";
 
 /** `true` quando o BUILD é o da central (`ADMIN_CENTRAL` = `1` ou `producao`). */
 export const ehBuildDaCentral = (env: Record<string, string | undefined>): boolean => env.ADMIN_CENTRAL === "1" || env.ADMIN_CENTRAL === MODO_PRODUCAO_DA_CENTRAL;
@@ -21,6 +23,11 @@ export function configuracao(env: Record<string, string | undefined>): NextConfi
     // os testes e2e sobem um servidor próprio sem colidir com o dev server (mesma pasta .next quebra as rotas)
     distDir: env.NEXT_DIST_DIR || ".next",
     images: { remotePatterns: [{ protocol: "https", hostname: "www.camara.leg.br" }, { protocol: "http", hostname: "www.senado.leg.br" }] },
+    // D359: o mesmo site também responde em *.vercel.app (produção e Preview). Esses hosts nunca entram em buscador: noindex por cabeçalho, sem middleware (o site não tem).
+    // Só o host decide; o www.segueovoto.com.br não casa. O robots.txt desses hosts também fecha tudo (src/lib/seo.ts).
+    async headers() {
+      return [{ source: "/:path*", has: [{ type: "host", value: HOST_VERCEL_APP }], headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }];
+    },
   };
   if (!ehBuildDaCentral(env)) return base;
   return {

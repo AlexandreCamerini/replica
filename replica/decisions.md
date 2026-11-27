@@ -1172,3 +1172,16 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - A correção certa fica para outra fatia, testada fora da produção: soltar as conexões antes do congelamento (`attachDatabasePool`/`waitUntil` da Vercel, ou `PG_POOL_MAX` baixo com `idle_timeout` curto), medida com carga num Preview.
     - Restou 1 conexão `active / ClientRead` antiga do `web_reader`; o pooler deve fechá-la sozinho.
     - Os scripts ficam com `PORTA_ALVO`, agora com padrão 5432. Não rodar com 6543 sem a correção acima.
+- **D358 · Pool de leitura solta as conexões antes de a Vercel congelar a função (REVERTIDA, 27/11/2026).** Mergeada na PR #86 (conferida no Preview: a soltura fecha as conexões ociosas com a função viva) e revertida na PR #87 pelo dono.
+  - **Motivo da reversão:** após o merge, o pooler recusou conexões (`EMAXCONNSESSION`; modo sessão, 15 vagas no total). Medido depois: as recusas se concentram em dois padrões que independem da D358, as rajadas de robôs da madrugada (49 a 188 por hora, 00–04 UTC, com o código antigo) e a troca de deploy (62 na troca da #86, 59 na troca da #87).
+  - **Premissa errada, a corrigir em D356 e D357:** o `PG_POOL_MAX` real na Vercel é 3 (e `PG_WRITE_POOL_MAX` 2), não o padrão 10 do código.
+  - **Não medido:** se a D358 ajudaria ou pioraria sem as rajadas; a reversão deixou a pergunta aberta.
+- **D359 · Rajadas de robôs: fechar a entrada pelo desenho anterior (27/11/2026, aprovada pelo dono; fatia 1 de 2).** Inventário em `replica/inventario-rotas-d359.md`.
+  - **Medido:** as recusas do pooler vêm de pedidos a `/p/<slug>` (um slug diferente por pedido, 71.637 páginas, cerca de 23 links `/p/` cada) e `/sugestoes?tipo=…&p=<slug>`, nos dois domínios. O cache de 1 h do `unstable_cache` não ajuda: cada robô pede uma pessoa nova.
+  - **Feito nesta fatia (sem remover rota):**
+    - `robots.txt` passa a fechar `/p/`, `/sugestoes`, `/cidades/` e `/no-seu-bolso`;
+    - em host `*.vercel.app` (alias de produção e Preview) o `robots.txt` fecha tudo e sai `X-Robots-Tag: noindex, nofollow` (cabeçalho no `next.config.ts`; o contrato "o site não tem `headers`" da AC-29 mudou só nisso, com teste);
+    - o link do rodapé "Páginas do desenho anterior" ganha `rel="nofollow"` e continua, porque `sobre`, `dados-abertos`, `ajudar`, `entrar` e `conta` só existem em `(v1)`.
+  - **Não feito, e por quê:** os 301 `/p/:slug → /pessoa/:slug`, `/votacoes/:id → /votacao/:id` e `/quem → /pessoas`, e a remoção das páginas `(v1)` correspondentes. `(v1)/p` tem 13 componentes e cerca de 25 specs e2e que afirmam o conteúdo do perfil antigo; o `/pessoa/` tem outro conteúdo. Migrar os specs exige rodar o Playwright, que não abre neste sandbox, e o `push`/`gh` também estão bloqueados. Fica como fatia 2, com CI.
+  - **Passos do dono (Vercel, fora do agente):** regra de limite para robôs no firewall; conferir na aba Firewall quem são os robôs; avaliar `pool_size` do Supabase (pode ter custo).
+  - **Não medido:** efeito do `Disallow` (robôs ruins o ignoram); tráfego por rota; se o destino `/pessoa/<slug>` também é raspado.

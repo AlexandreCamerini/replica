@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { FORA_DO_BUSCADOR, origemPublica, PAGINAS_DO_SITEMAP, robots, sitemap } from "../seo.ts";
+import { ehHostVercelApp, FORA_DO_BUSCADOR, origemPublica, PAGINAS_DO_SITEMAP, robots, sitemap } from "../seo.ts";
 
 const PROD = { SITE_URL: "https://www.segueovoto.com.br" };
 
@@ -26,7 +26,7 @@ test("robots: em produção indexa o site, fecha as páginas pessoais e a API, e
   assert.ok(!(r.rules[0].disallow as string[]).some((c) => c.startsWith("/admin")), "a central é outro projeto: o robots do site não anuncia o caminho dela");
   assert.equal(r.rules.length, 1);
   assert.equal(r.rules[0].allow, "/");
-  for (const c of ["/api/", "/ajustes", "/acompanhando", "/comecar", "/conta", "/entrar"]) assert.ok((r.rules[0].disallow as string[]).includes(c), c);
+  for (const c of ["/api/", "/ajustes", "/acompanhando", "/comecar", "/conta", "/entrar", "/p/", "/sugestoes", "/cidades/", "/no-seu-bolso"]) assert.ok((r.rules[0].disallow as string[]).includes(c), c);
 });
 
 test("sitemap: vazio sem origem pública; em produção só URLs absolutas do www, sem página pessoal", () => {
@@ -36,7 +36,8 @@ test("sitemap: vazio sem origem pública; em produção só URLs absolutas do ww
   assert.equal(s[0].url, "https://www.segueovoto.com.br");
   for (const e of s) {
     assert.ok(e.url.startsWith("https://www.segueovoto.com.br"), e.url);
-    assert.ok(!FORA_DO_BUSCADOR.some((f) => new URL(e.url).pathname.startsWith(f.replace(/\/$/, ""))), e.url);
+    // por segmento: "/p/" não pode casar "/pessoas"
+    assert.ok(!FORA_DO_BUSCADOR.some((f) => { const c = f.replace(/\/$/, ""); const p = new URL(e.url).pathname; return p === c || p.startsWith(`${c}/`); }), e.url);
   }
 });
 
@@ -61,6 +62,18 @@ test("robots.ts e sitemap.ts leem o ambiente na requisição, não no build", ()
   for (const f of ["robots.ts", "sitemap.ts"]) {
     const src = readFileSync(new URL(`../../app/${f}`, import.meta.url), "utf8");
     assert.match(src, /export const dynamic = "force-dynamic";/, f);
-    assert.match(src, /\(process\.env\)/, f);
+    assert.match(src, /\(process\.env[,)]/, f);
+  }
+});
+
+test("D359: em host *.vercel.app o robots.txt fecha tudo e não anuncia sitemap, mesmo com SITE_URL de produção", () => {
+  const fechado = { rules: [{ userAgent: "*", disallow: "/" }] };
+  for (const h of ["replica-virid-sigma.vercel.app", "replica-git-x-sementedev.vercel.app:443", "REPLICA.VERCEL.APP"]) {
+    assert.ok(ehHostVercelApp(h), h);
+    assert.deepEqual(robots(PROD, h), fechado, h);
+  }
+  for (const h of ["www.segueovoto.com.br", "vercel.app.evil.com", "", null, undefined]) {
+    assert.ok(!ehHostVercelApp(h), String(h));
+    assert.equal(robots(PROD, h).sitemap, "https://www.segueovoto.com.br/sitemap.xml");
   }
 });
