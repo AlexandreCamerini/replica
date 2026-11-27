@@ -25,4 +25,4 @@ export function parseCommon(sp: URLSearchParams) {
 export const VOTE_VALUES: VoteValue[] = ["sim", "nao", "abstencao", "obstrucao", "art17", "nao_votou"];
 export const bad = (errors: string[]) => NextResponse.json({ errors }, { status: 400 });
 export const notFound = () => NextResponse.json({ error: "pessoa não encontrada" }, { status: 404 });
-export const cache = { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" };
+export const cache = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" };

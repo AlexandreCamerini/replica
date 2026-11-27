@@ -99,3 +99,42 @@ Plano aprovado: `~/.claude/plans/peaceful-finding-yeti-of-729cfe37-b397-4402-ac1
 | D-P5 | Scripts de entrega | Idempotentes (pulam o que já foi feito, limpam cherry-pick vazio), sem `--force`, sem segredo, sem apagar branch, com modo seco (`ENTREGA_SECO=1`) | A repetição de comandos no celular gerou PRs duplicadas (#68) e cherry-picks vazios | Apagar `scripts/entregar-*.sh` |
 
 Pendências do dono desta execução (não bloqueiam o resto): autorizar leitura do `civico_ensaio` e de fontes oficiais (F7, F9, F10); domínio no Resend e revisão da D316/D317 (F13); decisão aberta da lista de 44 px em `/votacoes` (D343); rodar o script de entrega e, se quiser, mesclar.
+
+## D359 · fatia 2 (27/11/2026): 301 de /p/, /votacoes/:id e /quem
+
+O hook de sessão autônoma bloqueou a pergunta ao dono; o ponto abaixo seguiu a opção mais conservadora e reversível.
+
+| # | Decisão | Opção escolhida | Motivo | Como desfazer |
+|---|---|---|---|---|
+| D359-1 | 301 de `/p/:slug → /pessoa/:slug` e remoção de `(v1)/p` | NÃO executada; fica pendente do dono | `replica/comparativo-v1-sv.md` mostra funções só do perfil antigo (custo do mandato, salário acumulado, emendas de todos os anos, assembleias, cota por sucessão, comparar). Cerca de 25 specs e2e testam esse conteúdo. Redirecionar apaga função até migrá-la, e reescrever os specs exige Playwright, que não abre neste sandbox | Dizer "301 de /p/": migro as funções ou aceito perdê-las, e reescrevo os specs com Playwright pelo terminal |
+| D359-2 | 301 de `/votacoes/:id` e `/quem` | Também pendente: mesmo risco de paridade (os specs `f07`, `d-congresso`, `w3a-sapl-secretas` e 9 sobre `/quem` testam o conteúdo antigo) | Sem verificar o `(sv)` equivalente por spec, o ganho (poucos robôs nessas rotas) não paga o risco | Idem |
+| D359-3 | O que já cobre a carga medida | Fatia 1 (commit d77eabc): robots, noindex em `*.vercel.app`, rodapé `nofollow` | Reversível por revert e sem perda de função | `git revert d77eabc` |
+
+Pendências do dono: regra de limite para robôs no firewall da Vercel (o lugar certo para segurar `/p/<slug>` sem apagar função); conferir na aba Firewall quem são os robôs; decidir entre migrar as funções do perfil antigo para o `(sv)` ou aceitar perdê-las; `pool_size` no Supabase (pode ter custo).
+
+## D359 · custo zero e atualização no máximo diária (27/11/2026, pedido do dono)
+
+| # | Decisão | Opção escolhida | Motivo | Como desfazer |
+|---|---|---|---|---|
+| D359-4 | Robô declarado em `/p/*` e `/sugestoes` | 308 por user agent no `next.config.ts` (`redirects()` com `has: user-agent`) para `/pessoa/:slug` e `/`. Não pega WhatsApp, X, Telegram, Facebook, Slack, LinkedIn nem Discord (cards de link) | O roteador da Vercel responde sem acionar função nem banco; pessoas continuam no perfil antigo; sem plano pago nem firewall | `git revert` do commit |
+| D359-5 | Cache | `CACHE_TTL_S` 1 h → 24 h; `revalidate` de `/no-seu-bolso`, `/proposta/[key]` e `/pauta` 10 min → 24 h; `s-maxage` das APIs `people` 1 h/10 min → 24 h | Menos regeneração, menos leitura de banco e menos função. A ETL revalida por tag, o TTL é só rede de segurança | Voltar os valores |
+| D359-6 | Agenda da pauta | `etl-pauta.yml` de ~45 disparos por dia útil para 1 por dia (08:00 BRT); aviso de pauta velha de 24 h para 36 h (`web/src/lib/pauta.ts`) | Minutos do Actions em repositório privado são pagos (D274); 36 h evita aviso falso por atraso do agendador | Restaurar os 3 crons |
+| D359-7 | Rascunho por IA | `etl-rascunho.yml` fica com o disparo das 08:30 (lote, 50% do preço); o das 14:30 (síncrono) saiu. Teto de 20 para 10 chamadas por dia | Cada chamada à API da Anthropic custa dinheiro | Restaurar o cron `30 17 * * 1-5` |
+| D359-8 | `etl.yml` (a cada 3 h mais as 2 janelas de Senado e Câmara) | NÃO alterado; pendente do dono | A cadência de 3 h está amarrada a `schedule.py` (`TICK_*`), `web/src/lib/sources.ts` e `test_schedule.py`, e às réguas de prazo do alerta (20 h Câmara/Senado, 36 h site). Mudar só o cron geraria alerta falso. Cortar para 1x/dia pede mudar as 3 constantes e o teste juntos | Dizer "ETL 1x por dia": altero cron, `TICK_*`, `sources.ts` e o teste |
+| D359-9 | `vercel.json` cron `/api/cron/vigia` | Já é 1x/dia (00:45 UTC); mantido | Dentro do pedido | n/a |
+
+Não medido: efeito do redirect por user agent (robô que finge ser navegador não é pego; o regex usa lookahead e só foi validado por teste unitário e pelo `routes-manifest`); custo real de cada item (a fatura da Vercel e do GitHub Actions é do dono).
+Conferir no Preview: `curl -sI -A "Googlebot" https://<preview>/p/algum-slug` deve dar 308 para `/pessoa/algum-slug`; com `-A "Mozilla/5.0 Safari"` e com `-A "WhatsApp/2.0"` deve dar 200.
+
+## D359 · ETL principal 1x por dia (27/11/2026, autorizado pelo dono; substitui o D359-8 "pendente")
+
+| # | Decisão | Opção escolhida | Motivo | Como desfazer |
+|---|---|---|---|---|
+| D359-10 | Cron do `etl.yml` | Uma linha só: `1 8 * * *` (08:01 UTC = 05:01 BRT, todos os dias). Saíram `17 */3 * * *`, `31 3 * * 2-6` e `1 8 * * 2-6` | Corta de ~10 disparos por dia para 1. Domingo e segunda entram porque o prazo do site é 60 h e a janela de sábado a terça já passaria disso | Restaurar os 3 crons e as constantes abaixo |
+| D359-11 | Constantes da agenda | `TICK_HOUR=8`, `TICK_MINUTE=1`, `TICK_EVERY_H=24` em `schedule.py`; `SCHEDULER_HOUR/MINUTE/EVERY_HOURS` iguais em `web/src/lib/sources.ts`; `next_tick` e `nextSchedulerTick` passaram a respeitar a hora-base | A "próxima leitura prevista" do rodapé continua certa (valor diário às 05h BRT) | Voltar a `TICK_MINUTE=17`, `TICK_EVERY_H=3`, hora-base 0 |
+| D359-12 | Prazo do site para Câmara e Senado | `maxAge` 36 h → 60 h (`schedule.MAX_AGE_H`, `sources.ts`, retrato `agenda.json`). `everyHours` fica 20 | Com 1 chamada por dia, 60 h = um dia mais uma chamada perdida (o cron do GitHub pula disparos). 36 h daria alerta falso a cada atraso | Voltar a 36 |
+| D359-13 | Janela noturna do Senado (00:30–02:00 BRT) | Sem disparo próprio: às 05:01 BRT ela já fechou e a leitura entra como reposição (D318), sem alerta. A janela da Câmara (05:00–07:00) segue coberta | Não há como ler às 00:31 e às 05:01 com 1 chamada por dia | Restaurar o cron `31 3 * * 2-6` |
+
+Verificado: `chk` das constantes, do cron e de 120 pares carimbo×cadência contra o `sources.ts` real (node) e contra `schedule.next_read`; retrato `agenda.json` igual ao vivo; testes unitários do site 422/422.
+Não verificado: o `pytest` de `etl/tests` não rodou (sem pytest no `.venv` e sem rede para o PyPI neste sandbox); o CI roda. Efeito real nos minutos do GitHub Actions e no frescor medido: só depois de alguns dias.
+Risco aceito: se o GitHub pular o disparo de um dia, a fonte envelhece até 48 h e o site continua "no prazo" (limite 60 h); duas perdas seguidas acendem o alerta.

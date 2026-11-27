@@ -2,7 +2,7 @@
 #
 # Custo: uma chamada por proposta nova ou PDF novo (o mesmo PDF na mesma versão do prompt não é refeito).
 # Teto por dia = disparos × limite × custo por proposta. Medido no PL 79/2020: ~US$ 0,03 (6 páginas).
-# Com 2 disparos e limite 10: no máximo 20 chamadas/dia. PDF grande custa mais; acima de 80 páginas é recusado.
+# D359: 1 disparo por dia (o das 14:30 saiu) e limite 10: no máximo 10 chamadas/dia, em lote (50% do preço). PDF grande custa mais; acima de 80 páginas é recusado.
 # Precisa de ETL_DATABASE_URL e ANTHROPIC_API_KEY. Sem algum deles, o run termina com aviso e não falha.
 # O limite padrão vem da variável de repositório RASCUNHO_LIMITE (padrão 10); o modelo, de RASCUNHO_MODEL.
 #
@@ -17,7 +17,6 @@ name: etl · rascunho
 on:
   schedule:
     - cron: "30 11 * * 1-5" # seg–sex 08:30 em Brasília, depois da primeira leitura da pauta: LOTE (a condição abaixo compara esta string)
-    - cron: "30 17 * * 1-5" # seg–sex 14:30, pega o que entrou na pauta de manhã
   workflow_dispatch:
     inputs:
       chave:

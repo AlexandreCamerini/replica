@@ -87,7 +87,7 @@ def test_tentativa_recente_que_falhou_espera_o_retry():
 
 def test_fora_do_prazo_e_sem_carga():
     st = {k: NOW for k in S.MAX_AGE_H}
-    st["camara"] = NOW - timedelta(hours=40)
+    st["camara"] = NOW - timedelta(hours=70)  # D359: prazo da camara = 60 h
     st["tcu"] = None
     out = {o["source"]: o for o in S.overdue_sources(st, NOW)}
     assert set(out) == {"camara", "tcu"}
@@ -183,20 +183,24 @@ def test_cadencia_do_site_e_a_da_agenda():
 
 def test_constantes_do_cron_iguais_no_workflow_na_agenda_e_no_site():
     ts = SOURCES_TS.read_text()
+    assert int(re.search(r"SCHEDULER_HOUR = (\d+)", ts).group(1)) == S.TICK_HOUR
     assert int(re.search(r"SCHEDULER_MINUTE = (\d+)", ts).group(1)) == S.TICK_MINUTE
     assert int(re.search(r"SCHEDULER_EVERY_HOURS = (\d+)", ts).group(1)) == S.TICK_EVERY_H
-    assert f'cron: "{S.TICK_MINUTE} */{S.TICK_EVERY_H} * * *"' in WORKFLOW.read_text()
+    assert S.TICK_EVERY_H == 24, "D359: 1 chamada por dia; mudar a cadência pede mudar o cron junto"
+    assert f'cron: "{S.TICK_MINUTE} {S.TICK_HOUR} * * *"' in WORKFLOW.read_text()
+    assert len(re.findall(r"- cron:", WORKFLOW.read_text())) == 1, "uma única linha de cron no etl.yml"
 
 
 def test_proxima_leitura():
     u = lambda *a: datetime(*a, tzinfo=timezone.utc)  # noqa: E731
-    assert S.next_tick(u(2026, 11, 8, 12, 0)) == u(2026, 11, 8, 12, 17)
-    assert S.next_tick(u(2026, 11, 8, 12, 18)) == u(2026, 11, 8, 15, 17)
-    assert S.next_tick(u(2026, 11, 8, 23, 30)) == u(2026, 11, 9, 0, 17)
-    # carimbo 11:00 + 20 h = 07:00 do dia seguinte -> próxima chamada às 09:17
-    assert S.next_read(20, u(2026, 11, 8, 11), u(2026, 11, 8, 12)) == u(2026, 11, 9, 9, 17)
+    assert S.next_tick(u(2026, 11, 8, 7, 0)) == u(2026, 11, 8, 8, 1)
+    assert S.next_tick(u(2026, 11, 8, 8, 1)) == u(2026, 11, 8, 8, 1)
+    assert S.next_tick(u(2026, 11, 8, 8, 2)) == u(2026, 11, 9, 8, 1)
+    assert S.next_tick(u(2026, 11, 8, 23, 30)) == u(2026, 11, 9, 8, 1)
+    # carimbo 11:00 + 20 h = 07:00 do dia seguinte -> próxima chamada às 08:01
+    assert S.next_read(20, u(2026, 11, 8, 11), u(2026, 11, 8, 12)) == u(2026, 11, 9, 8, 1)
     # já vencida: a próxima chamada depois de agora
-    assert S.next_read(20, u(2026, 11, 1), u(2026, 11, 8, 12)) == u(2026, 11, 8, 12, 17)
+    assert S.next_read(20, u(2026, 11, 1), u(2026, 11, 8, 12)) == u(2026, 11, 9, 8, 1)
 
 
 def _node_roda_ts() -> bool:
@@ -275,8 +279,8 @@ def test_janela_perdida_e_reposta_fora_de_hora_uma_vez():
     ok, why = S.is_due(t, _at(4, 3, 20), _at(4, 3, 17), _at(4, 6, 17))
     assert not ok and "fora da janela" in why
     assert S.is_due(t, _at(4, 3, 20), _at(4, 3, 17), _at(5, 0, 31))[0]  # quinta, janela nova: vence normalmente
-    # a reposição não carimbou (fonte fora do ar, ou exit 0 sem carimbo): não tenta em toda chamada de 3 h, só depois de REPOSICAO_RETRY_H
-    assert S.REPOSICAO_RETRY_H > S.TICK_EVERY_H
+    # a reposição não carimbou (fonte fora do ar, ou exit 0 sem carimbo): não tenta de novo antes de REPOSICAO_RETRY_H (D359: com 1 chamada por dia, a espera já está embutida; a régua vale para chamadas manuais)
+    assert S.REPOSICAO_RETRY_H <= S.TICK_EVERY_H
     ok, why = S.is_due(t, ontem, _at(4, 3, 17), _at(4, 6, 17))
     assert not ok and "reposição: última tentativa há 3.0 h" in why
     assert not S.is_due(t, ontem, _at(4, 3, 17), _at(4, 9, 16))[0]
@@ -336,7 +340,7 @@ def test_janelas_das_tarefas_noturnas_cabem_nos_crons_do_workflow():
     """Cada janela tem de conter pelo menos um disparo do cron, com 20 min de folga antes do fim (o GitHub atrasa)."""
     wf = WORKFLOW.read_text()
     crons = re.findall(r'- cron: "([^"]+)"', wf)
-    assert len(crons) >= 3
+    assert len(crons) >= 1  # D359: um disparo por dia
     fires: list[tuple[int, int, int]] = []  # (dia da semana UTC no padrão cron 0=dom, hora, minuto)
     for c in crons:
         mi, hr, _, _, dow = c.split()
@@ -354,7 +358,11 @@ def test_janelas_das_tarefas_noturnas_cabem_nos_crons_do_workflow():
             opened = w.opened_at(utc)
             if opened and utc + timedelta(minutes=20) <= datetime.combine(utc.astimezone(BRT).date(), w.end, BRT):
                 hit = True
-        assert hit, f"nenhum disparo do cron cai (com folga) na janela de {name}"
+        if name == "senado.noturna":
+            # D359: com um tick por dia (08:01 UTC = 05:01 BRT) a janela 00:30-02:00 já fechou: a leitura vem pela reposição (D318), sem alerta
+            assert not hit and by[name].retry_h is not None and by[name].retry_h <= S.TICK_EVERY_H
+        else:
+            assert hit, f"nenhum disparo do cron cai (com folga) na janela de {name}"
 
 
 def test_camara_noturna_so_depois_de_o_csv_ser_regerado():

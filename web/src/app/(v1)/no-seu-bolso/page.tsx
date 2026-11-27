@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 // A pauta muda ao longo do dia: a página nunca fica parada mais que 10 minutos.
-export const revalidate = 600;
+export const revalidate = 86400; // D359: 1x/dia basta (era 10 min)
 
 export default async function Entrada() {
   const o = await data.getPautaOverview();

@@ -201,7 +201,7 @@ def test_orquestradores_conferem_com_os_arquivos():
             assert c.tarefas  # quem está no run-due tem tarefa
     lin = agendar.splitlines()[66]  # agendar-local.sh:67
     assert "write_plist pauta" in lin
-    assert 'run: uv run --frozen civico-etl pauta' in pauta_yml.splitlines()[62]  # etl-pauta.yml:63
+    assert 'run: uv run --frozen civico-etl pauta' in pauta_yml.splitlines()[60]  # etl-pauta.yml:61
 
 
 def test_datasets_e_fontes_conferem_com_as_chamadas_a_db_run():

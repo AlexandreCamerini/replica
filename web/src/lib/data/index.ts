@@ -25,9 +25,9 @@ export const fonteSemCache = (): Promise<DataSource> => source();
 
 // Cache de dados (só com DATA_SOURCE=pg). Toda leitura leva a tag `data`, que o ETL invalida no fim de cada run
 // (POST /api/revalidate); `ds:<método>`, `person:<id>` e `place:<ibge>` permitem invalidação mais fina.
-// O TTL é a rede de segurança: se a revalidação falhar, o dado novo aparece em no máximo uma hora.
+// O TTL é a rede de segurança: se a revalidação falhar, o dado novo aparece em no máximo um dia (D359).
 // Os argumentos entram na chave do unstable_cache; os retornos são JSON puro (datas como string ISO).
-export const CACHE_TTL_S = 3600;
+export const CACHE_TTL_S = 86400; // D359: 1 dia (era 1 h). A ETL roda no máximo 1x/dia e revalida por tag; o TTL é só a rede de segurança
 /**
  * Versão da FORMA dos retornos na chave do cache. O cache de dados sobrevive a deploy: quando um retorno ganha campo
  * obrigatório (ex.: PautaProposal.votacoes, VotingEventDetail.porUf), um valor antigo em cache quebraria a tela por até

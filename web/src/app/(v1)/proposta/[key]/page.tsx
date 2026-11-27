@@ -13,7 +13,7 @@ import { count, date } from "@/lib/format";
 import { bodyFullName, ofBody, dateTime, dayLong, dayShort, deciders, isUrgent, label, reasonText, time, typeName } from "@/lib/pauta";
 
 type Props = { params: Promise<{ key: string }> };
-export const revalidate = 600;
+export const revalidate = 86400; // D359: 1x/dia basta (era 10 min)
 
 const load = (key: string) => data.getPautaProposal(key);
 
