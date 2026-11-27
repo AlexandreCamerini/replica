@@ -1,4 +1,5 @@
 import "server-only";
+import postgres from "postgres";
 import { houseName, notReadReason } from "./assembleias";
 import { UF_ROWS, stateSeats } from "./reference";
 import type {
@@ -70,7 +71,6 @@ import type {
 import { ANSWER_FIELDS, CAMPAIGN_ORIGINS } from "./types";
 import { label, parseProposalKey, proposalKey, termLabel, uniqueByKey } from "../pauta";
 import { pgW4 } from "./pg-w4";
-import { sql } from "./pool";
 import { placarPorUf } from "./cadeiras";
 import { lista } from "./lista";
 import { FAMILIAS_CARIMBO, coberturaDe, type CarimboFonte } from "./cobertura";
@@ -80,6 +80,15 @@ import { SINAIS_INICIAIS } from "../ordem-nomes";
 // Implementação Postgres do contrato DataSource. Lê como `web_reader` (só select nas tabelas públicas; RLS).
 // Nenhuma query fora daqui. Listas públicas ordenam por nome (collation pt_br), nunca por métrica: regra de neutralidade.
 
+// um pool por processo, mesmo com hot reload em dev
+const g = globalThis as unknown as { __pgPool?: ReturnType<typeof postgres> };
+const sql = (g.__pgPool ??= postgres(process.env.DATABASE_URL ?? "", {
+  max: Number(process.env.PG_POOL_MAX ?? 10),
+  idle_timeout: 20,
+  connect_timeout: 10,
+  prepare: false, // pooler do Supabase em modo transação não suporta prepared statements
+  transform: { undefined: null },
+}));
 
 const PLURAL: Record<OfficeSlug, string> = {
   presidente: "Presidência",

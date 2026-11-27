@@ -1,10 +1,18 @@
 import "server-only";
-import { sql } from "./pool";
+import postgres from "postgres";
 import type { ElectionResult, OfficeSlug } from "./types";
 import type { DataSourceW4, ElectionCandidate, IndicatorKey, PartyRow, TaxLine, YearIndicators } from "./types-w4";
 
-// Consultas da onda W4. Mesmo pool de pg.ts (pool.ts, um por processo). Listas ordenam por nome (A–Z), nunca por métrica;
+// Consultas da onda W4. Mesmo pool de pg.ts (um por processo). Listas ordenam por nome (A–Z), nunca por métrica;
 // a única exceção é a ordem por votos dentro de uma disputa, que é o próprio resultado da urna.
+const g = globalThis as unknown as { __pgPool?: ReturnType<typeof postgres> };
+const sql = (g.__pgPool ??= postgres(process.env.DATABASE_URL ?? "", {
+  max: Number(process.env.PG_POOL_MAX ?? 10),
+  idle_timeout: 20,
+  connect_timeout: 10,
+  prepare: false,
+  transform: { undefined: null },
+}));
 
 const OFFICE_LABEL: Partial<Record<OfficeSlug, string>> = {
   presidente: "Presidente",
