@@ -1257,7 +1257,7 @@ test.describe("listas sem truncar em silêncio", () => {
     await abrir(page, "/decisao/camara-pl-9996-2026");
     const q = page.locator('[aria-labelledby="sv-d8"]');
     await expect(q).toContainText("Mostrando as 5 mais recentes de 7 votações que lemos desta proposta.");
-    await expect(q.locator(".sv-vt")).toHaveCount(5);
+    await expect(q.locator(".sv-dvt")).toHaveCount(5);
     const aut = page.locator(".sv-aut > li");
     await expect(aut).toHaveCount(20);
     await expect(page.locator("body")).toContainText("Mostrando 20 de 23 autores que lemos");
