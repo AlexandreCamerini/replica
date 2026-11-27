@@ -22,7 +22,7 @@ PKG = ETL / "civico_etl"
 
 # Citações que não dá para resolver estaticamente. Uma citação nova desse tipo derruba test_nao_resolvidos_sao_exatamente_os_conhecidos.
 NAO_RESOLVIDOS = [
-    (".github/workflows/etl.yml", 60, "--only", "$ONLY", "valor vem de inputs.only (texto livre do workflow_dispatch); o schedule.TASKS valida em tempo de execução"),
+    (".github/workflows/etl.yml", 58, "--only", "$ONLY", "valor vem de inputs.only (texto livre do workflow_dispatch); o schedule.TASKS valida em tempo de execução"),
 ]
 
 

@@ -87,7 +87,7 @@ def test_tentativa_recente_que_falhou_espera_o_retry():
 
 def test_fora_do_prazo_e_sem_carga():
     st = {k: NOW for k in S.MAX_AGE_H}
-    st["camara"] = NOW - timedelta(hours=40)
+    st["camara"] = NOW - timedelta(hours=70)  # D359: prazo da camara = 60 h
     st["tcu"] = None
     out = {o["source"]: o for o in S.overdue_sources(st, NOW)}
     assert set(out) == {"camara", "tcu"}
@@ -340,7 +340,7 @@ def test_janelas_das_tarefas_noturnas_cabem_nos_crons_do_workflow():
     """Cada janela tem de conter pelo menos um disparo do cron, com 20 min de folga antes do fim (o GitHub atrasa)."""
     wf = WORKFLOW.read_text()
     crons = re.findall(r'- cron: "([^"]+)"', wf)
-    assert len(crons) >= 3
+    assert len(crons) >= 1  # D359: um disparo por dia
     fires: list[tuple[int, int, int]] = []  # (dia da semana UTC no padrão cron 0=dom, hora, minuto)
     for c in crons:
         mi, hr, _, _, dow = c.split()
@@ -358,7 +358,11 @@ def test_janelas_das_tarefas_noturnas_cabem_nos_crons_do_workflow():
             opened = w.opened_at(utc)
             if opened and utc + timedelta(minutes=20) <= datetime.combine(utc.astimezone(BRT).date(), w.end, BRT):
                 hit = True
-        assert hit, f"nenhum disparo do cron cai (com folga) na janela de {name}"
+        if name == "senado.noturna":
+            # D359: com um tick por dia (08:01 UTC = 05:01 BRT) a janela 00:30-02:00 já fechou: a leitura vem pela reposição (D318), sem alerta
+            assert not hit and by[name].retry_h is not None and by[name].retry_h <= S.TICK_EVERY_H
+        else:
+            assert hit, f"nenhum disparo do cron cai (com folga) na janela de {name}"
 
 
 def test_camara_noturna_so_depois_de_o_csv_ser_regerado():
