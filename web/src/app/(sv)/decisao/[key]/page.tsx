@@ -501,7 +501,7 @@ export default async function Decisao({ params, searchParams }: { params: Promis
           const fonteVt = `${BODY_NAME[casaDoEvento(v, ev)]}, votação nominal`;
           const resumoVazio = v.yes === null && v.no === null ? true : (v.yes ?? 0) + (v.no ?? 0) === 0;
           return (
-            <div className="sv-vt" key={v.id}>
+            <div className="sv-dvt" key={v.id}>
               <h3 className="sv-sub">
                 <Link href={`/votacao/${v.id}`}>{clip(v.description, 150)}</Link>
               </h3>

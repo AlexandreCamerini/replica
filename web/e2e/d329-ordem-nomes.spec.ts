@@ -84,7 +84,7 @@ test.describe("ordem alfabética com acento solto e sinal no começo do nome", (
     const blocos = (await page.locator(".sv-esc__pessoas .sv-esc__n").allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
     expect(blocos).toEqual(["Álvaro Aguiar", SINAL, "Bruno Sampaio", "Helena Siqueira"]);
     await page.goto("/");
-    const naHome = (await page.locator(".sv-main ul.sv-esc > li .sv-esc__n").allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
+    const naHome = (await page.locator(".sv-main ul.sv-esc > li .sv-iesc__n").allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
     expect(naHome, "a mesma ordem na home").toEqual(blocos);
   });
 
