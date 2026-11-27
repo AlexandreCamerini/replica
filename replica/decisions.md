@@ -1153,3 +1153,8 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - Os scripts antigos usam o escopo `alexandrecamerini`, onde o projeto não está mais.
   - **O que pago:** o modo transação não aceita estado de sessão (`SET` fora de transação, `LISTEN`, prepared statements); hoje o site não usa nada disso. A variável trocada também cobre o Preview geral, que passa junto.
   - **Desfazer:** trocar a `DATABASE_URL` pelo painel da Vercel pela URL da porta 5432 e refazer o deploy.
+  - **Incidente na aplicação (27/11/2026, 02:48 UTC):** o script gravou a URL do modo transação com a senha errada. Host, usuário e porta passaram na validação; a senha não dá para conferir antes de gravar. O deploy refeito (`dpl_9Vq158…`) falha em toda leitura do banco com `28P01 password authentication failed for user "web_reader"`.
+    - Escolha conservadora e reversível: rollback para o deploy anterior (`dpl_BSUbPdLZah…`, `replica-id0n8zzob`), construído com a URL antiga, da porta 5432.
+    - O rollback pelo agente foi negado pela permissão e fica com o dono: `npx vercel rollback replica-id0n8zzob-sementedev.vercel.app --scope sementedev`.
+    - Pendente: a `DATABASE_URL` gravada continua com a senha errada. Antes do próximo deploy de produção, é preciso regravá-la com a senha certa do `web_reader`, na porta 6543, ou voltar à URL da porta 5432.
+    - Lição para o script: testar a conexão antes de gravar (`psql "$URL" -c 'select 1'` sem eco), para recusar senha errada.
