@@ -1143,3 +1143,13 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - `DATABASE_URL` no pooler em modo transação (porta 6543; o código já usa `prepare: false`);
     - ou `PG_POOL_MAX` baixo (2–3) na Vercel;
     - e, à parte, limitar a varredura de robôs em `/p/*`.
+- **D354 · Site lê o banco pelo pooler em modo transação (operação, decisão do dono em 27/11/2026).** Resolve o esgotamento do pool da D353.
+  - **Decisão:** a `DATABASE_URL` de leitura passa do pooler do Supabase em modo sessão (5432, `pool_size` 15 no total) para o modo transação (6543), como `integration.md` já previa para a web. O código já usa `prepare: false`; as transações (`sql.begin` em `admin/consultas.ts`) seguem válidas nesse modo. O ETL continua em modo sessão, por causa do advisory lock e da tabela temporária.
+  - **Como:** `etl/deploy/vercel-pooler-transacao.sh`, rodado pelo dono, porque a URL é segredo e não passa pelo agente.
+    - Pede a URL sem eco e recusa o que não for `web_reader` em `*.pooler.supabase.com:6543`.
+    - Troca o valor no lugar com `vercel env update --environment production`, no escopo `sementedev`.
+    - Refaz o deploy de produção.
+    - Não toca `DATABASE_WRITE_URL`, `PG_POOL_MAX` nem a `DATABASE_URL` própria da branch do ensaio do Railway.
+    - Os scripts antigos usam o escopo `alexandrecamerini`, onde o projeto não está mais.
+  - **O que pago:** o modo transação não aceita estado de sessão (`SET` fora de transação, `LISTEN`, prepared statements); hoje o site não usa nada disso. A variável trocada também cobre o Preview geral, que passa junto.
+  - **Desfazer:** trocar a `DATABASE_URL` pelo painel da Vercel pela URL da porta 5432 e refazer o deploy.
