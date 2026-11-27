@@ -1129,7 +1129,7 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - `sv-tema-marcados.test.ts` (9): virada de mandato, posse no meio da janela, votação secreta, fuso;
     - `e2e/d352-tema-marcados.spec.ts` (8): três esferas com `sv_sigo`, sem placar, voto igual ao da página da votação, falhas, `details` sem JS a 390 px, axe e numeração.
   - **Desfazer:** apagar `tema-marcados*.ts(x)`, o quadro em `tema/[slug]/page.tsx` (selo volta a 4), a linha de `/temas`, as regras `sv-tm1-esc/votos/vd/vk/pn` e `getVotesForPeopleInEvents`. Sem mudança de dado nem de esquema.
-- **D353 · Votos iguais na tela do tema viram uma linha; diagnóstico da falha de leitura em produção (operação, 27/11/2026).** Conferência da D352 em produção, com dados reais.
+- **D356 · Votos iguais na tela do tema viram uma linha; diagnóstico da falha de leitura em produção (operação, 27/11/2026).** Conferência da D352 em produção, com dados reais.
   - **Defeito achado e corrigido:** numa sessão, a mesma proposta tem várias votações nominais do mesmo tipo. A pessoa vota igual em todas, e o quadro escrevia linhas idênticas: o PL 4497/2024 em 09/12/2025 apareceu 4 vezes para cada deputado. `agruparVotos` (puro, em `tema-marcados-regra.ts`) junta as votações com mesmo dia em Brasília, Casa, proposta, tipo e voto numa linha: "Mesmo voto em N votações desta proposta neste dia: votação 1, votação 2…", com link para cada uma. Mesmo padrão da D328. Voto diferente na mesma proposta não junta.
   - **Conferido em produção (antes desta correção):**
     - um vereador, um deputado estadual e um senador aparecem com lacunas nomeadas;
@@ -1143,7 +1143,7 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - `DATABASE_URL` no pooler em modo transação (porta 6543; o código já usa `prepare: false`);
     - ou `PG_POOL_MAX` baixo (2–3) na Vercel;
     - e, à parte, limitar a varredura de robôs em `/p/*`.
-- **D354 · Site lê o banco pelo pooler em modo transação (operação, decisão do dono em 27/11/2026).** Resolve o esgotamento do pool da D353.
+- **D357 · Site lê o banco pelo pooler em modo transação (operação, decisão do dono em 27/11/2026).** Resolve o esgotamento do pool da D356.
   - **Decisão:** a `DATABASE_URL` de leitura passa do pooler do Supabase em modo sessão (5432, `pool_size` 15 no total) para o modo transação (6543), como `integration.md` já previa para a web. O código já usa `prepare: false`; as transações (`sql.begin` em `admin/consultas.ts`) seguem válidas nesse modo. O ETL continua em modo sessão, por causa do advisory lock e da tabela temporária.
   - **Como:** `etl/deploy/vercel-pooler-transacao.sh`, rodado pelo dono, porque a URL é segredo e não passa pelo agente.
     - Pede a URL sem eco e recusa o que não for `web_reader` em `*.pooler.supabase.com:6543`.

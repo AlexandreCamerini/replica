@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# D354: troca a DATABASE_URL de leitura do site (a variável que cobre Production) para o pooler do Supabase em MODO TRANSAÇÃO (porta 6543).
+# D357: troca a DATABASE_URL de leitura do site (a variável que cobre Production) para o pooler do Supabase em MODO TRANSAÇÃO (porta 6543).
 #
 # Por quê: em modo sessão (5432) o pooler tem pool_size 15 no total, e cada instância da função da Vercel segura até
 # PG_POOL_MAX (10) conexões por 20 s; duas instâncias quentes esgotam o pool e toda leitura sem cache falha
-# (EMAXCONNSESSION, D353). Em modo transação a conexão volta ao pool a cada transação. O código já usa prepare:false,
+# (EMAXCONNSESSION, D356). Em modo transação a conexão volta ao pool a cada transação. O código já usa prepare:false,
 # que o modo transação exige (integration.md previa a web na 6543). O ETL continua em modo sessão: não é tocado aqui.
 #
 # Só mexe na DATABASE_URL que cobre Production, com `vercel env update` (troca o valor no lugar, sem janela sem URL; no CLI 65
@@ -41,6 +41,13 @@ if (( ! DRY )); then
   [[ "$port" == "6543" ]] || { echo "Porta $port: o modo transação é a 6543 (5432 é o modo sessão). Abortado, nada mudou."; exit 1; }
   [[ "$DB_URL" == *sslmode=* ]] || { if [[ "$DB_URL" == *\?* ]]; then DB_URL="$DB_URL&sslmode=require"; else DB_URL="$DB_URL?sslmode=require"; fi; }
   unset rest cred hostpart user hostport host port
+  # D357 (incidente de 27/11): a senha errada passou na validação e derrubou a produção. Agora a URL só é gravada se
+  # conectar de verdade como web_reader. Nada é impresso: a saída do psql vai para /dev/null e o erro vira uma frase fixa.
+  command -v psql >/dev/null || { echo "psql não encontrado (brew install libpq). Sem testar a conexão não gravo. Abortado, nada mudou."; exit 1; }
+  quem=$(PGCONNECT_TIMEOUT=15 psql "$DB_URL" -Atqc "select current_user" 2>/dev/null) || quem=""
+  [[ "$quem" == "web_reader" ]] || { echo "A URL não conectou como web_reader (senha, host ou rede). Abortado, nada mudou."; exit 1; }
+  echo "Conexão testada: entrou como web_reader."
+  unset quem
 fi
 
 echo "1/3 DATABASE_URL (a que cobre Production) -> pooler em modo transação"
