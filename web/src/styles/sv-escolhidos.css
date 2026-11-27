@@ -15,7 +15,7 @@
 .sv .sv-esc__vv li{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;padding:4px 0}
 .sv .sv-esc__vv-v{font-size:17px;line-height:22px;font-weight:800}
 .sv .sv-esc__vv-t{font-size:14px;line-height:1.4;font-weight:400;font-stretch:88%}
-.sv .sv-esc__vv-t a{display:inline-flex;align-items:center;min-height:24px}
+.sv .sv-esc__vv-t a{display:inline-flex;align-items:center;min-height:44px}
 .sv .sv-esc__fd li{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;border-top:1.5px solid var(--tinta);padding:6px 0 7px}
 .sv .sv-esc__fd-d{font-size:14px;line-height:1.3;font-weight:700;font-stretch:84%;color:var(--tinta2)}
 .sv .sv-esc__fd-t{font-size:16px;line-height:1.4}

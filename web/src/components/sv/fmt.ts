@@ -34,7 +34,16 @@ export function fmtWeekday(iso: string | null | undefined): string {
 
 export const fmtInt = (n: number) => new Intl.NumberFormat("pt-BR").format(n);
 
-export const clip = (s: string, max: number) => (s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`);
+/** Corta em `max` caracteres, nunca no meio de uma palavra: recua até o último espaço (se ele estiver na segunda metade do trecho) e tira vírgula, ponto e vírgula e dois-pontos soltos. */
+export const clip = (s: string, max: number) => {
+  if (s.length <= max) return s;
+  let cut = s.slice(0, max - 1);
+  if (!/\s/.test(s[max - 1] ?? "")) {
+    const i = cut.search(/\s\S*$/);
+    if (i >= (max - 1) / 2) cut = cut.slice(0, i);
+  }
+  return `${cut.trimEnd().replace(/[,;:\s]+$/, "")}…`;
+};
 
 /** "PL 3775/2025" */
 export const billLabel = (e: { type: string; number: number; year: number }) => `${e.type} ${e.number}/${e.year}`;
