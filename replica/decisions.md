@@ -1158,3 +1158,7 @@ Numeração: a última D em `origin/main` é a D336. A D337 (passkey) e a D338 (
     - O rollback pelo agente foi negado pela permissão e fica com o dono: `npx vercel rollback replica-id0n8zzob-sementedev.vercel.app --scope sementedev`.
     - Pendente: a `DATABASE_URL` gravada continua com a senha errada. Antes do próximo deploy de produção, é preciso regravá-la com a senha certa do `web_reader`, na porta 6543, ou voltar à URL da porta 5432.
     - Lição para o script: testar a conexão antes de gravar (`psql "$URL" -c 'select 1'` sem eco), para recusar senha errada.
+  - **Depois do incidente:** o rollback foi feito pelo dono; a produção voltou e leu tudo em 6 de 6 leituras sequenciais.
+    - O script testa a conexão como `web_reader` antes de gravar e recusa a URL, sem mudar nada, se não conectar.
+    - `vercel-pooler-transacao-nova-senha.sh`, para quando a senha do `web_reader` não é conhecida, segue esta ordem: testa a conexão admin na 5432 e na 6543; grava a URL nova e refaz o deploy sem promover (depois do rollback a Vercel não publica sozinha); troca a senha; testa como `web_reader` na 6543; promove. A queda fica entre a troca de senha e a promoção, que leva segundos.
+    - Quem usa a senha do `web_reader` em produção: só o site. O ETL usa `civico_etl` (`ETL_DATABASE_URL` nos workflows) e a central usa `admin_central`. Um `.env.local` que aponte para a produção como `web_reader` deixa de funcionar.

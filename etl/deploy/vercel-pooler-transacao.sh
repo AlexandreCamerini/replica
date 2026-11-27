@@ -18,6 +18,9 @@ set -euo pipefail
 SCOPE="${VERCEL_SCOPE:-sementedev}"   # o projeto está no time sementedev (os scripts antigos usam alexandrecamerini)
 PROJECT="replica"
 DRY=0; [[ "${1:-}" == "--dry-run" ]] && DRY=1
+# SO_PREPARAR=1 (usado por vercel-pooler-transacao-nova-senha.sh): grava a URL e refaz o deploy, sem testar a conexão (a senha
+# ainda não vale) e sem promover; imprime "deploy novo: <url>" para quem chamou promover depois do teste.
+SO_PREPARAR="${SO_PREPARAR:-0}"
 
 vs() { npx --yes vercel "$@" --scope "$SCOPE"; }
 v()  { npx --yes vercel "$@" --scope "$SCOPE" --project "$PROJECT"; }
@@ -27,11 +30,13 @@ command -v npx >/dev/null || { echo "npx não encontrado (instale Node)"; exit 1
 vs whoami >/dev/null 2>&1 || { echo "Faça login antes: npx vercel login"; exit 1; }
 v env ls >/dev/null 2>&1 || { echo "Projeto $PROJECT não encontrado no escopo $SCOPE. Abortado, nada mudou."; exit 1; }
 
-DB_URL=""
+DB_URL="${DB_URL:-}"   # pode vir do ambiente (vercel-pooler-transacao-nova-senha.sh); senão, pede
 if (( ! DRY )); then
+  [[ -n "$DB_URL" ]] || {
   echo "Cole a URL do pooler em MODO TRANSAÇÃO, usuário web_reader (Supabase > Connect > Transaction pooler, porta 6543)."
   echo "Nada será exibido."
   read -r -s DB_URL; echo
+  }
   # validação sem imprimir a URL: esquema, usuário, host do pooler e porta 6543
   [[ "$DB_URL" =~ ^postgres(ql)?:// ]] || { echo "Não parece uma URL postgres://. Abortado, nada mudou."; exit 1; }
   rest="${DB_URL#*://}"; cred="${rest%@*}"; hostpart="${rest##*@}"   # a senha pode ter ':' (rpartition no '@')
@@ -43,11 +48,13 @@ if (( ! DRY )); then
   unset rest cred hostpart user hostport host port
   # D357 (incidente de 27/11): a senha errada passou na validação e derrubou a produção. Agora a URL só é gravada se
   # conectar de verdade como web_reader. Nada é impresso: a saída do psql vai para /dev/null e o erro vira uma frase fixa.
+  if [[ "$SO_PREPARAR" != "1" ]]; then
   command -v psql >/dev/null || { echo "psql não encontrado (brew install libpq). Sem testar a conexão não gravo. Abortado, nada mudou."; exit 1; }
   quem=$(PGCONNECT_TIMEOUT=15 psql "$DB_URL" -Atqc "select current_user" 2>/dev/null) || quem=""
   [[ "$quem" == "web_reader" ]] || { echo "A URL não conectou como web_reader (senha, host ou rede). Abortado, nada mudou."; exit 1; }
   echo "Conexão testada: entrou como web_reader."
   unset quem
+  fi
 fi
 
 echo "1/3 DATABASE_URL (a que cobre Production) -> pooler em modo transação"
@@ -62,7 +69,11 @@ v env ls 2>/dev/null | grep -E "^ (DATABASE_URL|DATABASE_WRITE_URL|PG_POOL_MAX) 
 echo "3/3 Deploy de produção"
 if (( ! DRY )); then
   PROD=$(vs ls "$PROJECT" --prod 2>/dev/null | grep -oE 'https://replica-[a-z0-9]+-[a-z0-9]+\.vercel\.app' | head -1)
-  if [[ -n "$PROD" ]]; then vs redeploy "$PROD" >/dev/null && echo "produção refeita a partir de $PROD"
-  else echo "Não achei o deploy de produção: refaça pelo painel da Vercel (Deployments > Redeploy)."; fi
+  if [[ -z "$PROD" ]]; then echo "Não achei o deploy de produção: refaça pelo painel da Vercel (Deployments > Redeploy) e promova."; exit 1; fi
+  # o redeploy espera o build; depois de um rollback a Vercel não publica sozinha, então o script promove o deploy novo
+  NOVO=$(vs redeploy "$PROD" 2>&1 | grep -oE 'https://replica-[a-z0-9]+-[a-z0-9]+\.vercel\.app' | tail -1)
+  if [[ -z "$NOVO" || "$NOVO" == "$PROD" ]]; then echo "O redeploy não devolveu o deploy novo: promova pelo painel da Vercel (Deployments > Promote)."; exit 1; fi
+  if [[ "$SO_PREPARAR" == "1" ]]; then echo "deploy novo: $NOVO"; exit 0; fi
+  vs promote "$NOVO" --yes >/dev/null && echo "produção promovida para $NOVO (refeito a partir de $PROD)"
 fi
 echo "Pronto. Para voltar ao modo sessão: troque a DATABASE_URL pelo painel da Vercel pela URL da porta 5432 e refaça o deploy."
