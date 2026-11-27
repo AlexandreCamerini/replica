@@ -47,12 +47,12 @@
 .sv .sv-g .sv-g__b{width:32%;padding-right:0}
 .sv .sv-g__b i{display:block;height:4px;min-width:2px;background-color:var(--tinta)}
 .sv .sv-g tfoot th,.sv .sv-g tfoot td{border-top:3px solid var(--tinta);font-weight:800}
-.sv .sv-gm{border-collapse:collapse;width:100%;font-size:16px;line-height:1.3}
-.sv .sv-gm th,.sv .sv-gm td{padding:4px 0;text-align:left;vertical-align:middle;border-top:1.5px solid var(--tinta)}
-.sv .sv-gm tbody tr:first-child th,.sv .sv-gm tbody tr:first-child td{border-top:0}
-.sv .sv-gm th{font-weight:500;padding-right:10px;overflow-wrap:anywhere}
-.sv .sv-gm td{font-weight:700;white-space:nowrap;padding-right:10px;text-align:right}
-.sv .sv-gm tfoot th,.sv .sv-gm tfoot td{border-top:3px solid var(--tinta);font-weight:800}
+.sv .sv-gser{border-collapse:collapse;width:100%;font-size:16px;line-height:1.3}
+.sv .sv-gser th,.sv .sv-gser td{padding:4px 0;text-align:left;vertical-align:middle;border-top:1.5px solid var(--tinta)}
+.sv .sv-gser tbody tr:first-child th,.sv .sv-gser tbody tr:first-child td{border-top:0}
+.sv .sv-gser th{font-weight:500;padding-right:10px;overflow-wrap:anywhere}
+.sv .sv-gser td{font-weight:700;white-space:nowrap;padding-right:10px;text-align:right}
+.sv .sv-gser tfoot th,.sv .sv-gser tfoot td{border-top:3px solid var(--tinta);font-weight:800}
 .sv .sv-g--s td{padding-right:0}
 
 /* patrimônio: declarações em ordem cronológica, com a diferença entre elas */
