@@ -21,6 +21,9 @@ DRY=0; [[ "${1:-}" == "--dry-run" ]] && DRY=1
 # SO_PREPARAR=1 (usado por vercel-pooler-transacao-nova-senha.sh): grava a URL e refaz o deploy, sem testar a conexão (a senha
 # ainda não vale) e sem promover; imprime "deploy novo: <url>" para quem chamou promover depois do teste.
 SO_PREPARAR="${SO_PREPARAR:-0}"
+# PORTA_ALVO=5432 volta ao modo sessão (D357: postgres.js travou no modo transação, conexões presas em ClientRead).
+PORTA_ALVO="${PORTA_ALVO:-6543}"
+[[ "$PORTA_ALVO" == "6543" || "$PORTA_ALVO" == "5432" ]] || { echo "PORTA_ALVO só aceita 6543 ou 5432."; exit 1; }
 
 vs() { npx --yes vercel "$@" --scope "$SCOPE"; }
 v()  { npx --yes vercel "$@" --scope "$SCOPE" --project "$PROJECT"; }
@@ -43,7 +46,7 @@ if (( ! DRY )); then
   user="${cred%%:*}"; hostport="${hostpart%%/*}"; host="${hostport%:*}"; port="${hostport##*:}"
   [[ "$user" == web_reader* ]] || { echo "Usuário não é web_reader. Abortado, nada mudou."; exit 1; }
   [[ "$host" == *pooler.supabase.com ]] || { echo "Host não é o pooler do Supabase (*.pooler.supabase.com). Abortado, nada mudou."; exit 1; }
-  [[ "$port" == "6543" ]] || { echo "Porta $port: o modo transação é a 6543 (5432 é o modo sessão). Abortado, nada mudou."; exit 1; }
+  [[ "$port" == "$PORTA_ALVO" ]] || { echo "Porta $port, esperada $PORTA_ALVO (6543 = modo transação, 5432 = modo sessão). Abortado, nada mudou."; exit 1; }
   [[ "$DB_URL" == *sslmode=* ]] || { if [[ "$DB_URL" == *\?* ]]; then DB_URL="$DB_URL&sslmode=require"; else DB_URL="$DB_URL?sslmode=require"; fi; }
   unset rest cred hostpart user hostport host port
   # D357 (incidente de 27/11): a senha errada passou na validação e derrubou a produção. Agora a URL só é gravada se

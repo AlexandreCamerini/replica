@@ -12,6 +12,8 @@
 # usa a senha antiga. O ETL (civico_etl) e a central (admin_central) não usam o web_reader.
 # Uso: bash etl/deploy/vercel-pooler-transacao-nova-senha.sh
 set -euo pipefail
+# PORTA_ALVO=5432: grava a URL do modo sessão em vez do modo transação (D357).
+export PORTA_ALVO="${PORTA_ALVO:-6543}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 command -v psql >/dev/null || { echo "psql não encontrado (brew install libpq). Abortado, nada mudou."; exit 1; }
@@ -42,7 +44,7 @@ unset ADMIN_6543
 # senha nova: 32 caracteres alfanuméricos (nada a escapar na URL)
 NEWPW="$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 32)"
 [[ ${#NEWPW} -eq 32 ]] || { echo "Falhou ao gerar a senha. Abortado, nada mudou."; exit 1; }
-DB_URL="postgresql://web_reader.${REF}:${NEWPW}@${HOST}:6543${TAIL}?sslmode=require"
+DB_URL="postgresql://web_reader.${REF}:${NEWPW}@${HOST}:${PORTA_ALVO}${TAIL}?sslmode=require"
 
 # Ordem para a queda durar segundos: (a) grava a URL e refaz o deploy SEM promover (depois do rollback a Vercel não põe
 # no ar sozinha; o site segue no deploy antigo, que funciona); (b) troca a senha; (c) testa como web_reader na 6543;
@@ -59,8 +61,13 @@ psql "$ADMIN_URL" -X -q -v ON_ERROR_STOP=1 -v pw="$NEWPW" -f - <<<"alter role we
   || { echo "A troca de senha falhou: nada mudou no ar. Não promova $NOVO."; exit 1; }
 unset ADMIN_URL NEWPW CREDS REST
 
-echo "Testando a conexão de leitura na 6543..."
-quem=$(PGCONNECT_TIMEOUT=15 psql "$DB_URL" -X -q -At -c 'select current_user' 2>/dev/null) || quem=""
+echo "Testando a conexão de leitura na ${PORTA_ALVO}..."
+quem=""
+for tentativa in 1 2 3 4 5 6; do
+  quem=$(PGCONNECT_TIMEOUT=15 psql "$DB_URL" -X -q -At -c 'select current_user' 2>/dev/null) || quem=""
+  [[ "$quem" == "web_reader" ]] && break
+  sleep 10   # o pooler pode levar alguns segundos para trocar a senha em cache
+done
 unset DB_URL
 if [[ "$quem" != "web_reader" ]]; then
   echo "ATENÇÃO: a senha já foi trocada e a URL nova não conectou. O site está sem banco. Rode este script de novo."
@@ -68,6 +75,9 @@ if [[ "$quem" != "web_reader" ]]; then
 fi
 
 echo "Promovendo $NOVO..."
-npx --yes vercel promote "$NOVO" --scope "${VERCEL_SCOPE:-sementedev}" --yes >/dev/null \
-  || { echo "ATENÇÃO: a promoção falhou e o site está sem banco. Promova $NOVO pelo painel da Vercel (Deployments > Promote)."; exit 1; }
+PROMO=$(npx --yes vercel promote "$NOVO" --scope "${VERCEL_SCOPE:-sementedev}" --yes 2>&1) || {
+  # sem rollback ativo, o redeploy já entra no ar sozinho e a promoção responde 409: é o estado desejado
+  if [[ "$PROMO" == *"already the current production deployment"* ]]; then echo "$NOVO já é o deploy de produção."
+  else echo "ATENÇÃO: a promoção falhou e o site está sem banco. Promova $NOVO pelo painel da Vercel (Deployments > Promote)."; exit 1; fi
+}
 echo "Pronto: produção em $NOVO, lendo pelo pooler em modo transação."
