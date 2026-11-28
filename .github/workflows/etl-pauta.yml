@@ -4,7 +4,7 @@
 # Horários em UTC (Brasília = UTC-3). O cron do GitHub atrasa minutos sob carga e pode pular um disparo;
 # a janela de 30 min absorve isso. Dois disparos não rodam juntos: concurrency + advisory lock do job.
 # Precisa do secret ETL_DATABASE_URL (role de escrita). Sem ele, o run termina com aviso e não falha.
-# REVALIDATE_URL/REVALIDATE_SECRET são opcionais: as páginas da pauta já se renovam a cada 10 min.
+# REVALIDATE_URL/REVALIDATE_SECRET: desde a D359 o cache do site dura 24 h; sem os dois a pauta nova só aparece quando ele vence (o job avisa com WARNING). REVALIDATE_URL tem de ser o host final (www), sem redirecionamento.
 name: etl · pauta
 
 on:

@@ -12,10 +12,9 @@ Regras (publicadas em replica/backend.md):
 from __future__ import annotations
 
 import logging
-import os
 from datetime import date
 
-import httpx
+from ..revalidate import revalidar_cache
 import psycopg
 
 log = logging.getLogger("etl.derive")
@@ -518,14 +517,4 @@ def run_derive(conn: psycopg.Connection) -> None:
     c = cur.rowcount
     conn.commit()
     log.info("derive.stats: %d linhas de stats, %d linhas novas de cobertura", n, c)
-    url, secret = os.environ.get("REVALIDATE_URL"), os.environ.get("REVALIDATE_SECRET")
-    if url and secret:
-        try:
-            # `data` é a tag de toda leitura da camada web (web/src/lib/data/index.ts); invalida tudo uma vez por run.
-            resp = httpx.post(url, json={"tags": ["data"]}, headers={"authorization": f"Bearer {secret}"}, timeout=30)
-            if resp.status_code == 200:
-                log.info("revalidate: %s", resp.text[:200])
-            else:
-                log.warning("revalidate respondeu %s (o dado novo aparece no próximo TTL): %s", resp.status_code, resp.text[:200])
-        except httpx.HTTPError as e:
-            log.warning("revalidate falhou (o dado novo aparece no próximo ISR): %s", e)
+    revalidar_cache("derive.stats")

@@ -1,9 +1,9 @@
 // F6 do roteiro do eleitor: aviso de pauta velha. Módulo puro. Uma pauta lida há mais de LIMITE_HORAS é "velha": a tela avisa no topo, com a data da leitura.
-// 24 h porque o ritmo real da coleta é de 30 em 30 minutos nos dias úteis (08h às 22h30 em Brasília), de 3 em 3 horas no fim de semana (.github/workflows/etl-pauta.yml)
+// 36 h desde a D359: a leitura da pauta passou a ser diária (cron 1x por dia), então 24 h acenderia o aviso quase o dia todo. 36 h absorve um disparo atrasado do agendador e é o mesmo limite do aviso de sistema da /pauta (isStale em lib/pauta.ts).
 // e as maiores pausas normais são a da madrugada de dia útil (cerca de 10 h) e a da noite de domingo para a manhã de segunda (cerca de 14 h, o cron não cobre a segunda 00h–01h UTC): passar de um dia inteiro sem leitura já não é pausa normal, e a margem para um disparo perdido do cron é de ~10 h. É o mesmo limite do aviso de sistema da /pauta (lib/pauta.ts).
 import type { Body } from "@/lib/data/types";
 
-export const LIMITE_HORAS = 24;
+export const LIMITE_HORAS = 36;
 export type PautaVelha = { casa: Body; readAt: string; horas: number };
 
 /** Casas com leitura, mas lida há mais de LIMITE_HORAS (Câmara antes do Senado). Casa sem leitura NÃO entra: é outro estado, "ainda não foi lida". Data ilegível não entra (não se afirma idade). */

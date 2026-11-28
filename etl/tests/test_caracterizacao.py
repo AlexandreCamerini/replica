@@ -802,7 +802,9 @@ def test_parlamento_extras(banco_isolado, conn, monkeypatch, tmp_path):
     def _sem_post(*a, **k):
         raise AssertionError(f"POST de revalidação não pode acontecer no teste: {a} {k}")
 
-    monkeypatch.setattr(ds.httpx, "post", _sem_post)
+    from civico_etl import revalidate as _revalidate
+
+    monkeypatch.setattr(_revalidate.httpx, "post", _sem_post)
 
     derives: list[dict] = []
     derive_real = ds.run_derive

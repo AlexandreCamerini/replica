@@ -3,7 +3,7 @@ import { BODY_NAME, fmtDateTime } from "./fmt";
 import { haQuantoTempo, pautasVelhas } from "./pauta-velha";
 import type { PautaOverview } from "@/lib/data";
 
-// F6: aviso destacado de pauta velha, no topo da pauta (Decisões) e antes da semana (início). Uma pauta lida há mais de 24 h pode já ter mudado.
+// F6: aviso destacado de pauta velha, no topo da pauta (Decisões) e antes da semana (início). Uma pauta lida há mais de 36 h pode já ter mudado.
 // Só aparece quando há leitura velha; Casa sem leitura tem o seu próprio aviso ("ainda não foi lida"). Diz a data da última leitura de cada Casa.
 export function AvisoPautaVelha({ reads, agora = Date.now() }: { reads: PautaOverview["reads"]; agora?: number }) {
   const velhas = pautasVelhas(reads, agora);
