@@ -323,7 +323,8 @@ export default async function Pessoa({ params, searchParams }: { params: Promise
             resposta: ultimoVoto ? `${fmtInt(totalVotos)} ${totalVotos === 1 ? "voto nominal" : "votos nominais"} em leis.` : null,
             apoio: ultimoVoto ? (
               <>
-                O mais recente, em {fmtDate(ultimoVoto.event.occurredAt)}: <VotoMarca voto={ultimoVoto.value} /> em “{clip(ultimoVoto.event.description, 80)}”
+                O mais recente, em {fmtDate(ultimoVoto.event.occurredAt)}: <VotoMarca voto={ultimoVoto.value} /> em “{clip(ultimoVoto.event.description, 80)}”.{" "}
+                Esta conta só as votações que mudam lei, de todo o período lido, e inclui as em que não votou. O painel do mandato, acima, conta outro recorte: só o período indicado, só os votos dados e também as votações de procedimento. Por isso os dois números não são iguais.
               </>
             ) : undefined,
             lacuna: lacVotos,
