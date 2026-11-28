@@ -15,8 +15,10 @@ export function sqlAdmin(): Sql {
   if (!url) throw new Error("ADMIN_DATABASE_URL ausente");
   if (g.__pgAdminCentral) return g.__pgAdminCentral;
   const sql = postgres(url, {
-    max: 3,
-    idle_timeout: 20,
+    // Quem usa a central é uma pessoa só, mas cada instância serverless abre o próprio pool no MESMO banco do site (Supabase, max_connections 60). Pool pequeno e ocioso curto
+    // devolvem a conexão logo: em 28/11/2026 uma rajada de instâncias esgotou o banco (SQLSTATE 53300) e a conferência de identidade virou 404 no login.
+    max: 2,
+    idle_timeout: 5,
     connect_timeout: 10,
     prepare: false,
     connection: { application_name: "admin_central", statement_timeout: 20000 },
