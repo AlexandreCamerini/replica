@@ -44,6 +44,7 @@ import sys
 from datetime import date
 
 from . import db
+from .revalidate import revalidar_cache
 
 logging.basicConfig(level=os.environ.get("ETL_LOG", "INFO"), format="%(asctime)s %(name)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 log = logging.getLogger("etl")
@@ -228,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
             from .jobs.pauta import run_pauta
 
             run_pauta(conn)
+            revalidar_cache("pauta")  # depois do derive do "all": a pauta é gravada por último
         if a.job == "rascunho":
             from .jobs.rascunho import run_rascunho
 
@@ -237,12 +239,18 @@ def main(argv: list[str] | None = None) -> int:
 
             if a.aprovar and a.reprovar:
                 p.error("use --aprovar ou --reprovar, não os dois")
-            return run_revisar(conn, a.key, approve=a.aprovar, reject=a.reprovar, reviewer=a.revisor, note=a.motivo, not_said=a.nao_diz, phrases=a.frase, checked=a.conferido)
+            rc = run_revisar(conn, a.key, approve=a.aprovar, reject=a.reprovar, reviewer=a.revisor, note=a.motivo, not_said=a.nao_diz, phrases=a.frase, checked=a.conferido)
+            revalidar_cache("revisar")  # aprovar/reprovar muda o que o eleitor lê
+            return rc
         if a.job == "verificar":
             from .jobs.verificar import run_verificar
 
             # sem --limit e sem chave só mostra a fila: verificar custa API
-            return run_verificar(conn, key=a.key, limit=a.limit if a.limit is not None else (1 if a.key else 0), force=a.force)
+            limite = a.limit if a.limit is not None else (1 if a.key else 0)
+            rc = run_verificar(conn, key=a.key, limit=limite, force=a.force)
+            if limite:  # sem limite só lista a fila: nada foi gravado
+                revalidar_cache("verificar")
+            return rc
         # W4: fora do "all" (fontes novas, independentes das legislativas)
         if a.job == "governos.indicadores":
             from .jobs.governos_indicadores import run_governos

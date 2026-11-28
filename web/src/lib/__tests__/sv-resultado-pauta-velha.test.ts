@@ -28,11 +28,11 @@ test("resultado: resultado e placar em desacordo (quórum de outro tipo) não af
 const AGORA = new Date("2026-11-26T12:00:00Z").getTime();
 const lida = (h: number | null) => ({ readAt: h === null ? null : new Date(AGORA - h * 3_600_000).toISOString() });
 
-test("pauta velha: só passa do limite de 24 h; 24 h exatas ainda não; Casa sem leitura é outro estado e não entra", () => {
-  assert.equal(LIMITE_HORAS, 24);
+test("pauta velha: só passa do limite de 36 h; 36 h exatas ainda não; Casa sem leitura é outro estado e não entra", () => {
+  assert.equal(LIMITE_HORAS, 36);
   assert.deepEqual(pautasVelhas({ camara: lida(1), senado: lida(23) }, AGORA), []);
-  assert.deepEqual(pautasVelhas({ camara: lida(24), senado: lida(2) }, AGORA), []);
-  const r = pautasVelhas({ camara: lida(24.5), senado: lida(80) }, AGORA);
+  assert.deepEqual(pautasVelhas({ camara: lida(36), senado: lida(2) }, AGORA), []);
+  const r = pautasVelhas({ camara: lida(36.5), senado: lida(80) }, AGORA);
   assert.deepEqual(r.map((x) => x.casa), ["camara", "senado"]);
   assert.deepEqual(pautasVelhas({ camara: lida(null), senado: lida(2) }, AGORA), []);
   assert.deepEqual(pautasVelhas({ camara: lida(null), senado: lida(null) }, AGORA), []);
