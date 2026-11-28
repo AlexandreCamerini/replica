@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import "@/styles/sv-votacao.css";
 import { lidoEm } from "@/components/sv/carimbo";
 import { ExemploIlustrativo } from "@/components/sv/etiqueta";
-import { BODY_NAME, clip, fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
+import { BODY_NAME, clip, fmtDate, fmtDateTimeOuDia, fmtInt } from "@/components/sv/fmt";
 import { FalhaDeLeitura } from "@/components/sv/falha-leitura";
 import { MapaVotos } from "@/components/sv/mapa-votos";
 import { placarDe } from "@/components/sv/placar";
@@ -100,7 +100,7 @@ export default async function Votacao({ params, searchParams }: { params: Promis
   const ufRaw = typeof sp.uf === "string" ? sp.uf.toUpperCase() : null; // `?uf=SP&uf=RJ` chega como array: ignorado
   const uf = ufRaw && ufs.includes(ufRaw) ? ufRaw : null;
   const title = ev.proposal?.summary ?? ev.description;
-  const fonte = `Fonte: ${BODY_NAME[ev.body]}, votação nominal de ${fmtDateTime(ev.occurredAt)}.`;
+  const fonte = `Fonte: ${BODY_NAME[ev.body]}, votação nominal de ${fmtDateTimeOuDia(ev.occurredAt)}.`;
   const motivoLacuna = ev.porUf.kind === "lacuna" ? ev.porUf.motivo : placar.kind === "lacuna" && placar.motivo ? placar.motivo : SEM_INDIVIDUAL;
 
   return (

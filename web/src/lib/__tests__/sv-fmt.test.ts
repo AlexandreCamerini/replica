@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { anoDe, fmtDate, fmtDayMonthAno } from "../../components/sv/fmt.ts";
+import { anoDe, fmtDate, fmtDateTime, fmtDateTimeOuDia, fmtDayMonthAno } from "../../components/sv/fmt.ts";
 
 test("anoDe: ano no fuso de Brasília (virada de ano em UTC ainda é o ano anterior)", () => {
   assert.equal(anoDe("2026-11-11"), 2026);
@@ -32,4 +32,12 @@ test("clip: curto fica inteiro; longo corta no limite de palavra, nunca no meio,
   assert.ok(e[c.length - 1] === " " || e[c.length - 1] === undefined || /\s/.test(e[c.length - 1]), `corta no espaço: ${c}`);
   assert.ok(!/[,;:]…$/.test(c), c);
   assert.equal(clip("a".repeat(50), 20), `${"a".repeat(19)}…`); // sem espaço nenhum: corte duro
+});
+
+test("fmtDateTimeOuDia: meia-noite de Brasília (só dia na fonte) mostra a data; com hora real mostra a hora", () => {
+  assert.equal(fmtDateTimeOuDia("2026-11-18T03:00:00Z"), "18/11/2026"); // 00:00 em Brasília: o Senado só entrega dataSessao
+  assert.equal(fmtDateTimeOuDia("2026-11-18T03:01:00Z"), fmtDateTime("2026-11-18T03:01:00Z")); // 00:01 já é hora real
+  assert.match(fmtDateTimeOuDia("2026-11-18T17:30:00Z"), /14:30/);
+  assert.equal(fmtDateTimeOuDia(null), "—");
+  assert.equal(fmtDateTimeOuDia("lixo"), "—");
 });

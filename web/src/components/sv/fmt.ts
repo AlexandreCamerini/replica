@@ -21,6 +21,15 @@ export function fmtDateTime(iso: string | null | undefined): string {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(d);
 }
 
+/** Data do evento: dd/mm/aaaa, hh:mm só quando a fonte deu hora. Meia-noite exata em Brasília é o carimbo que o ETL grava quando a fonte entrega só o dia (Senado: `dataSessao`); mostrar "00:00" inventaria uma hora. */
+export function fmtDateTimeOuDia(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const hm = new Intl.DateTimeFormat("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+  return hm === "00:00" ? fmtDate(iso) : fmtDateTime(iso);
+}
+
 /** "quarta, 11/11" */
 export function fmtWeekday(iso: string | null | undefined): string {
   if (!iso) return "—";
