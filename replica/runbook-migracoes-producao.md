@@ -1,15 +1,15 @@
 # Runbook: migrações de produção
 
-Este arquivo tem duas partes. A primeira, logo abaixo, cobre a **0142 a 0144 e a 0150 a 0158** (escrita em 18/11/2026; nada aplicado). A segunda, mais abaixo, é o runbook anterior, da 0130, 0131, 0140 e 0141 (10/11/2026), mantido como estava.
+Este arquivo tem duas partes. A primeira, logo abaixo, cobre a **0142 a 0144 e a 0150 a 0159** (escrita em 18/11/2026, 0159 acrescentada em 28/11/2026; nada aplicado). A segunda, mais abaixo, é o runbook anterior, da 0130, 0131, 0140 e 0141 (10/11/2026), mantido como estava.
 
-# Parte 1: 0142 a 0144 e 0150 a 0158
+# Parte 1: 0142 a 0144 e 0150 a 0159
 
 Estado: **não executado**. Nenhuma destas foi aplicada em produção. Elas vão em **dois momentos**, em bancos diferentes:
 
 | Momento | Banco | Migrações | Por quê |
 |---|---|---|---|
 | A. Antes do corte | Supabase (produção atual) | 0142, 0143 e 0144 | a 0143 e a 0144 criam o schema `login` que o provedor `pg` usa; precisam estar na origem para o dump levar `schema_migrations` coerente (`runbook-railway.md`, §1, item 4) e para o provedor `pg` encontrar `login.codes.nonce_hash` no corte |
-| B. Depois do corte | Railway (`civico`) | 0150 a 0158 | o admin de coleta e a central; só fazem sentido no banco que fica |
+| B. Depois do corte | Railway (`civico`) | 0150 a 0159 | o admin de coleta e a central; só fazem sentido no banco que fica |
 
 `etl/deploy/prod-migrate.sh` aplica **todas** as pendentes de uma vez. Para o momento A, use `MIGRATE_ATE=0144`: o script lista e aplica só até a 0144, e as seguintes continuam pendentes.
 
@@ -29,6 +29,7 @@ Estado: **não executado**. Nenhuma destas foi aplicada em produção. Elas vão
 | `0156_admin_admins` | `adm_admins` e `adm_admins_log`; colunas `por_*` nos pedidos; gatilho de identidade; **`revoke select on identity_match_queue from admin_central`** e grant por coluna sem `raw` | só grant em `identity_match_queue` | Baixo | ver cabeçalho do arquivo |
 | `0157_login_central` | `login.central_codigos` e `login.central_fatores`; gatilho `central_fator_protege`; grants só ao `admin_central` | não (schema `login` da 0143) | Baixo | `drop table login.central_fatores, login.central_codigos; drop function login.central_fator_protege();` |
 | `0158_login_endurece` | refaz `login.central_fator_protege` (a central pode adiantar `sessoes_desde` até agora: "sair"); gatilho `adm_admins_revoga` (desativar admin revoga as sessões) | `adm_admins` (da 0156) | Baixo | `drop trigger adm_admins_revoga on adm_admins;` e o corpo da 0157 em `login.central_fator_protege` |
+| `0159_login_central_origem` | `login.central_envios_origem` (hash do IP + instante); grant só `select, insert` ao `admin_central`. Acompanha o código do M12: 3 envios por origem e 6 por e-mail por hora | não | Baixo: aditiva. **Aplicar ANTES de publicar o código novo**: o código sem a tabela recusa todo envio de código da central. Limpeza das linhas velhas é do dono (`delete from login.central_envios_origem where enviado_em < now() - interval '7 days'`) | `drop table login.central_envios_origem;` (e reverter o código) |
 
 ## Momento A: 0142, 0143 e 0144 no Supabase (antes do corte)
 
@@ -79,7 +80,7 @@ bash etl/deploy/prod-migrate.sh
    Pendentes esperadas: `0150` a `0158`, nessa ordem.
 4. Aceite:
 ```sql
-select max(filename) from schema_migrations;    -- 0158_login_endurece.sql
+select max(filename) from schema_migrations;    -- 0159_login_central_origem.sql
 select count(*) from pg_tables where schemaname = 'public' and tablename like 'adm\_%';   -- 14
 select count(*) from pg_trigger where tgname = 'adm_override' and not tgisinternal;      -- 3
 select count(*) from adm_overrides;             -- 0 (sem override, o ETL grava como antes)

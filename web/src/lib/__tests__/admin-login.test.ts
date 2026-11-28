@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { criarLogin, JANELA_DO_FATOR_MS, TENTATIVAS_DO_CODIGO, TENTATIVAS_DO_FATOR, type LinhaFator, type LoginStore } from "../admin/login-core.ts";
-import { assinarSessao, chaveDaCentral, cifrarSegredo, decifrarSegredo, hashDoCodigo, hashDoNonce, lerSessao, VALIDADE_S } from "../admin/sessao-cookie.ts";
+import { criarLogin, ENVIOS_POR_HORA, ipDoPedido, JANELA_DO_FATOR_MS, ORIGEM_POR_HORA, TENTATIVAS_DO_CODIGO, TENTATIVAS_DO_FATOR, type LinhaFator, type LoginStore } from "../admin/login-core.ts";
+import { assinarSessao, chaveDaCentral, cifrarSegredo, decifrarSegredo, hashDaOrigem, hashDoCodigo, hashDoNonce, lerSessao, VALIDADE_S } from "../admin/sessao-cookie.ts";
 import { conferirTotp, deBase32, hotp, paraBase32, passoDe, uriOtpauth } from "../admin/totp.ts";
 
 // D335: login próprio da central (código por e-mail + TOTP + cookie assinado). Tudo puro: nenhum teste toca banco, rede ou Next.
@@ -118,11 +118,14 @@ test("segredo do fator: cifra com IV novo a cada vez, abre só com o mesmo e-mai
 function memoria() {
   const codigos = new Map<string, { hash: string; nonceHash: string; expiraMs: number; tentativas: number; envios: number[] }>();
   const fatores = new Map<string, LinhaFator & { tentativas: number; desde: number | null }>();
+  const origens: { origemHash: string; t: number }[] = [];
   const store: LoginStore = {
-    async emitirCodigo(email, hash, nonceHash, agora) {
+    async emitirCodigo(email, hash, nonceHash, agora, origemHash) {
       const c = codigos.get(email);
       const envios = (c?.envios ?? []).filter((t) => t > agora - 3600_000);
-      if (envios.length >= 3) return false;
+      if (envios.length >= ENVIOS_POR_HORA) return false;
+      if (origens.filter((o) => o.origemHash === origemHash && o.t > agora - 3600_000).length >= ORIGEM_POR_HORA) return false;
+      origens.push({ origemHash, t: agora });
       codigos.set(email, { hash, nonceHash, expiraMs: agora + 600_000, tentativas: 0, envios: [...envios, agora] });
       return true;
     },
@@ -163,7 +166,7 @@ function memoria() {
       return true;
     },
   };
-  return { store, codigos, fatores };
+  return { store, codigos, fatores, origens };
 }
 
 function montar() {
@@ -187,11 +190,12 @@ function montar() {
 const A = "admin@exemplo.org";
 const N = "a".repeat(32); // nonce do navegador que pediu o código
 const N2 = "b".repeat(32); // outro navegador
+const IP = "203.0.113.7"; // origem do pedido nos testes
 const codigoAgora = (t: number, d = 0): string => hotp(SEMENTE, passoDe(t) + d);
 
 test("código de e-mail: o banco guarda só o hash; certo entra uma vez; errado, vencido e reusado não entram", async () => {
   const s = montar();
-  assert.equal(await s.login.enviarCodigo(A, N), true);
+  assert.equal(await s.login.enviarCodigo(A, N, IP), true);
   const { codigo } = s.caixa[0];
   assert.match(codigo, /^\d{6}$/);
   assert.equal(s.codigos.get(A)!.hash, hashDoCodigo(ENV, A, N, codigo));
@@ -204,33 +208,34 @@ test("código de e-mail: o banco guarda só o hash; certo entra uma vez; errado,
   assert.equal(await s.login.verificarCodigo(A, N, codigo), "invalido", "reuso");
   assert.equal(await s.login.verificarCodigo(A, N, ""), "invalido", "código consumido tem hash vazio: vazio não casa");
 
-  assert.equal(await s.login.enviarCodigo(A, N), true);
+  assert.equal(await s.login.enviarCodigo(A, N, IP), true);
   s.relogio.t += 10 * 60_000;
   assert.equal(await s.login.verificarCodigo(A, N, s.caixa[1].codigo), "invalido", "vencido aos 10 min");
 });
 
 test("código de e-mail: 5 tentativas por código (a sexta não entra nem com o código certo) e 3 envios por hora", async () => {
   const s = montar();
-  await s.login.enviarCodigo(A, N);
+  await s.login.enviarCodigo(A, N, IP);
   const certo = s.caixa[0].codigo;
   const errado = certo === "111111" ? "222222" : "111111";
   for (let i = 0; i < TENTATIVAS_DO_CODIGO; i++) assert.equal(await s.login.verificarCodigo(A, N, errado), "invalido");
   assert.equal(await s.login.verificarCodigo(A, N, certo), "invalido", "tentativas gastas");
 
-  assert.equal(await s.login.enviarCodigo(A, N), true);
-  assert.equal(await s.login.enviarCodigo(A, N), true);
-  assert.equal(await s.login.enviarCodigo(A, N), false, "quarto envio na mesma hora");
-  assert.equal(s.caixa.length, 3);
+  // o envio acima já gastou 1 do orçamento da origem: restam 2; o terceiro além dele é recusado, MESMO com folga no e-mail
+  assert.equal(await s.login.enviarCodigo(A, N, IP), true);
+  assert.equal(await s.login.enviarCodigo(A, N, IP), true);
+  assert.equal(await s.login.enviarCodigo(A, N, IP), false, "quarto envio da mesma origem na hora");
+  assert.equal(s.caixa.length, ORIGEM_POR_HORA);
   s.relogio.t += 3600_000 + 1;
-  assert.equal(await s.login.enviarCodigo(A, N), true);
+  assert.equal(await s.login.enviarCodigo(A, N, IP), true);
 
   s.falharEmail(true);
-  assert.equal(await s.login.enviarCodigo("b@exemplo.org", N), false, "falha do e-mail = false");
+  assert.equal(await s.login.enviarCodigo("b@exemplo.org", N, IP), false, "falha do e-mail = false");
 });
 
 test("código de e-mail: sem o nonce de quem pediu, nem o código certo entra, e a tentativa de terceiro não gasta as do admin", async () => {
   const s = montar();
-  await s.login.enviarCodigo(A, N);
+  await s.login.enviarCodigo(A, N, IP);
   const certo = s.caixa[0].codigo;
   for (let i = 0; i < 50; i++) assert.equal(await s.login.verificarCodigo(A, N2, certo), "invalido", "outro navegador, com o código certo");
   assert.equal(s.codigos.get(A)!.tentativas, 0, "cinquenta tentativas de terceiro não contaram");
@@ -240,7 +245,7 @@ test("código de e-mail: sem o nonce de quem pediu, nem o código certo entra, e
 
 test("código de e-mail: se outro pedido consumiu ou trocou o código entre conferir e consumir, não entra (uso único sob concorrência)", async () => {
   const s = montar();
-  await s.login.enviarCodigo(A, N);
+  await s.login.enviarCodigo(A, N, IP);
   const certo = s.caixa[0].codigo;
   const original = s.store.consumirCodigo.bind(s.store);
   let primeira = true;
@@ -317,4 +322,36 @@ test("fator: segredo cifrado com outro SESSION_SECRET (ou de outro admin) não v
   assert.equal(await s.login.confirmarFator(A, codigoAgora(s.relogio.t)), "invalido");
   s.fatores.get(A)!.segredoCifrado = cifrarSegredo(ENV, "outro@exemplo.org", SEMENTE);
   assert.equal(await s.login.confirmarFator(A, codigoAgora(s.relogio.t)), "invalido");
+});
+
+test("M12: uma origem sozinha não esgota o orçamento do e-mail do admin; são precisas ao menos duas, e o limite por e-mail continua valendo", async () => {
+  assert.ok(ORIGEM_POR_HORA < ENVIOS_POR_HORA, "a origem precisa esgotar antes do e-mail");
+  const s = montar();
+  for (let i = 0; i < ORIGEM_POR_HORA; i++) assert.equal(await s.login.enviarCodigo(A, N, "198.51.100.1"), true, "atacante gasta o orçamento da origem dele");
+  assert.equal(await s.login.enviarCodigo(A, N, "198.51.100.1"), false, "a origem do atacante acabou");
+  assert.equal(await s.login.enviarCodigo(A, N2, "203.0.113.50"), true, "o admin, de outra origem, ainda consegue o código");
+  // o atacante com várias origens esgota o e-mail (limite declarado): 6 envios no total
+  assert.equal(await s.login.enviarCodigo(A, N, "198.51.100.2"), true);
+  assert.equal(await s.login.enviarCodigo(A, N, "198.51.100.2"), true);
+  assert.equal(await s.login.enviarCodigo(A, N, "198.51.100.3"), false, "sétimo envio: o e-mail esgotou");
+  assert.equal(s.caixa.length, ENVIOS_POR_HORA);
+});
+
+test("origem: só o hash chega ao banco (nunca o IP), e a chave é própria da origem", () => {
+  const h = hashDaOrigem(ENV, "203.0.113.7");
+  assert.match(h, /^[0-9a-f]{64}$/);
+  assert.ok(!h.includes("203.0.113.7"));
+  assert.equal(h, hashDaOrigem(ENV, "203.0.113.7"));
+  assert.notEqual(h, hashDaOrigem(ENV, "203.0.113.8"));
+  assert.equal(hashDaOrigem(ENV, ""), hashDaOrigem(ENV, "  "), "sem IP legível: um balde só");
+  assert.notEqual(h, hashDoNonce(ENV, "203.0.113.7"), "não coincide com o hash de outro uso");
+});
+
+test("ipDoPedido: cabeçalho da borda primeiro, primeiro item da lista, e lixo vira balde vazio", () => {
+  const h = (o: Record<string, string>) => ({ get: (n: string) => o[n] ?? null });
+  assert.equal(ipDoPedido(h({ "x-vercel-forwarded-for": "203.0.113.7", "x-forwarded-for": "10.0.0.1" })), "203.0.113.7");
+  assert.equal(ipDoPedido(h({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" })), "203.0.113.7");
+  assert.equal(ipDoPedido(h({ "x-real-ip": "2001:db8::1" })), "2001:db8::1");
+  assert.equal(ipDoPedido(h({})), "");
+  assert.equal(ipDoPedido(h({ "x-forwarded-for": "<script>" })), "");
 });

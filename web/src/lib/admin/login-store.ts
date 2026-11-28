@@ -1,21 +1,34 @@
 import type postgres from "postgres";
-import type { LoginStore } from "./login-core.ts";
+import { ENVIOS_POR_HORA, ORIGEM_POR_HORA, type LoginStore } from "./login-core.ts";
 
 // Persistência do login da central (schema login, migração 0157), pelo pool do `admin_central`. Sem server-only: testável com um Postgres local.
 // Cada método é uma instrução SQL: os limites (envios por hora, tentativas, passo já usado) são decididos pelo banco, não por ler e depois gravar.
 export function loginStore(sql: postgres.Sql): LoginStore {
   return {
-    async emitirCodigo(email, hash, nonceHash, agoraMs) {
+    async emitirCodigo(email, hash, nonceHash, agoraMs, origemHash) {
       const agora = new Date(agoraMs);
+      // Uma instrução: confere o orçamento da origem, grava/sobrescreve o código só se o e-mail tem folga E a origem tem folga, e registra o envio na origem.
       const linhas = await sql`
-        insert into login.central_codigos (email, code_hash, nonce_hash, expires_at, attempts, sent_at)
-        values (${email}, ${hash}, ${nonceHash}, ${agora}::timestamptz + interval '10 minutes', 0, array[${agora}::timestamptz])
-        on conflict (email) do update set
-          code_hash = excluded.code_hash, nonce_hash = excluded.nonce_hash, expires_at = excluded.expires_at, attempts = 0,
-          sent_at = array(select t from unnest(login.central_codigos.sent_at) t where t > ${agora}::timestamptz - interval '1 hour') || ${agora}::timestamptz
-        where (select count(*) from unnest(login.central_codigos.sent_at) t where t > ${agora}::timestamptz - interval '1 hour') < 3
-        returning 1`;
-      return linhas.length > 0;
+        with lim as (
+          select count(*) < ${ORIGEM_POR_HORA}::int as ok from login.central_envios_origem
+          where origem_hash = ${origemHash}::text and enviado_em > ${agora}::timestamptz - interval '1 hour'
+        ),
+        emitido as (
+          insert into login.central_codigos (email, code_hash, nonce_hash, expires_at, attempts, sent_at)
+          select ${email}::text, ${hash}::text, ${nonceHash}::text, ${agora}::timestamptz + interval '10 minutes', 0, array[${agora}::timestamptz]
+          where (select ok from lim)
+          on conflict (email) do update set
+            code_hash = excluded.code_hash, nonce_hash = excluded.nonce_hash, expires_at = excluded.expires_at, attempts = 0,
+            sent_at = array(select t from unnest(login.central_codigos.sent_at) t where t > ${agora}::timestamptz - interval '1 hour') || ${agora}::timestamptz
+          where (select ok from lim)
+            and (select count(*) from unnest(login.central_codigos.sent_at) t where t > ${agora}::timestamptz - interval '1 hour') < ${ENVIOS_POR_HORA}::int
+          returning 1
+        ),
+        registro as (
+          insert into login.central_envios_origem (origem_hash, enviado_em) select ${origemHash}::text, ${agora}::timestamptz from emitido
+        )
+        select count(*)::int as n from emitido`;
+      return Number(linhas[0]?.n ?? 0) > 0;
     },
     async tentarCodigo(email, nonceHash) {
       const [r] = await sql`

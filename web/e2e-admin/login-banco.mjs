@@ -2,7 +2,7 @@
 // Confere o que o teste unitário (persistência em memória) não alcança: os limites decididos pelo SQL de login-store.ts, o gatilho que protege o fator
 // verificado e os grants (a central não lê os códigos do site, o site não lê os da central, a central não apaga nada).
 //
-// Uso (banco DESCARTÁVEL com as migrações até a 0157; a prova escreve e limpa só as próprias linhas):
+// Uso (banco DESCARTÁVEL com as migrações até a 0159; a prova escreve e limpa só as próprias linhas):
 //   LOGIN_PROVA_URL='postgres://admin_central@localhost:54329/<banco>' node e2e-admin/login-banco.mjs
 // Aceita também host de socket: LOGIN_PROVA_HOST=/tmp/claude/pgs LOGIN_PROVA_PORT=54329 LOGIN_PROVA_DB=<banco>
 import assert from "node:assert/strict";
@@ -22,6 +22,9 @@ const A = `prova-${process.pid}@exemplo.org`;
 const B = `prova-b-${process.pid}@exemplo.org`;
 const N = "a".repeat(32);
 const N2 = "b".repeat(32);
+const IP1 = `198.51.100.${process.pid % 200}`; // origens da prova (documentação RFC 5737); o hash fica na tabela, nunca o IP
+const IP2 = `203.0.113.${process.pid % 200}`;
+const IP3 = `192.0.2.${process.pid % 200}`;
 // relógio da prova: começa 2 h atrás e só avança (~1 h 20 min no total), para nunca passar do relógio do banco (o gatilho recusa `ultimo_passo` no futuro)
 const relogio = { t: Date.now() - 2 * 3600_000 };
 const caixa = [];
@@ -40,22 +43,27 @@ try {
     assert.equal(r.u, "admin_central");
   });
 
-  await passo("código: 3 envios por hora (o quarto é recusado pelo SQL), 5 tentativas por código, consumo", async () => {
-    assert.equal(await login.enviarCodigo(A, N), true);
+  await passo("código: 3 envios por hora por origem e 6 por e-mail (recusados pelo SQL), 5 tentativas por código, consumo", async () => {
+    assert.equal(await login.enviarCodigo(A, N, IP1), true);
     const errado = caixa[0] === "000000" ? "000001" : "000000";
     for (let i = 0; i < 5; i++) assert.equal(await login.verificarCodigo(A, N, errado), "invalido");
     assert.equal(await login.verificarCodigo(A, N, caixa[0]), "invalido", "sexta tentativa, com o código certo");
-    assert.equal(await login.enviarCodigo(A, N), true);
+    assert.equal(await login.enviarCodigo(A, N, IP1), true);
     for (let i = 0; i < 20; i++) assert.equal(await login.verificarCodigo(A, N2, caixa[1]), "invalido", "outro navegador, com o código certo");
     const [t] = await sql`select attempts from login.central_codigos where email = ${A}`;
     assert.equal(t.attempts, 0, "tentativas sem o nonce de quem pediu não contam");
     const dupla = await Promise.all([login.verificarCodigo(A, N, caixa[1]), login.verificarCodigo(A, N, caixa[1])]);
     assert.deepEqual(dupla.sort(), ["invalido", "ok"], "duas verificações simultâneas com o código certo: só uma entra");
     assert.equal(await login.verificarCodigo(A, N, caixa[1]), "invalido", "reuso");
-    assert.equal(await login.enviarCodigo(A, N), true);
-    assert.equal(await login.enviarCodigo(A, N), false, "quarto envio na hora");
+    assert.equal(await login.enviarCodigo(A, N, IP1), true);
+    assert.equal(await login.enviarCodigo(A, N, IP1), false, "quarto envio da MESMA origem na hora (limite da origem, M12)");
+    for (let i = 0; i < 3; i++) assert.equal(await login.enviarCodigo(A, N, IP2), true, "outra origem ainda consegue enquanto o e-mail tem folga");
+    assert.equal(await login.enviarCodigo(A, N, IP3), false, "sétimo envio na hora: o e-mail esgotou (6 por hora)");
+    const ips = [IP1, IP2, IP3];
+    const linhasOrigem = await sql`select origem_hash from login.central_envios_origem where enviado_em > now() - interval '3 hours'`;
+    assert.ok(linhasOrigem.length >= 6 && linhasOrigem.every((r) => /^[0-9a-f]{64}$/.test(r.origem_hash) && !ips.includes(r.origem_hash)), "a tabela de origens guarda só hash, nunca o IP");
     relogio.t += 3600_000 + 1000;
-    assert.equal(await login.enviarCodigo(A, N), true, "a janela de uma hora reabre");
+    assert.equal(await login.enviarCodigo(A, N, IP1), true, "a janela de uma hora reabre");
     const [l] = await sql`select code_hash, cardinality(sent_at) as n from login.central_codigos where email = ${A}`;
     assert.ok(/^[0-9a-f]{64}$/.test(l.code_hash) && !caixa.includes(l.code_hash), "o banco guarda o hash");
     assert.equal(l.n, 1, "envios de mais de uma hora saem da linha");
@@ -123,6 +131,8 @@ try {
   await passo("grants: a central não apaga, não lê os códigos do site nem as sessões do site, não cria objeto no schema", async () => {
     await recusa(sql`delete from login.central_fatores where email = ${A}`, "42501");
     await recusa(sql`delete from login.central_codigos where email = ${A}`, "42501");
+    await recusa(sql`delete from login.central_envios_origem`, "42501");
+    await recusa(sql`update login.central_envios_origem set enviado_em = now()`, "42501");
     await recusa(sql`truncate login.central_fatores`, "42501");
     await recusa(sql`select 1 from login.codes limit 1`, "42501");
     await recusa(sql`select 1 from login.sessoes_validas_desde limit 1`, "42501");
@@ -174,6 +184,7 @@ try {
         assert.ok(await login.iniciarCadastro(A));
         await dono`delete from login.central_fatores where email = ${A}`;
         await dono`delete from login.central_codigos where email = ${A}`;
+        await dono`delete from login.central_envios_origem where enviado_em > now() - interval '3 hours'`; // só a prova escreve num banco descartável
       } finally {
         await dono.end({ timeout: 1 });
       }

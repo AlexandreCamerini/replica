@@ -19,7 +19,7 @@ type Ambiente = Record<string, string | undefined>;
 export const segredoDeSessaoOk = (env: Ambiente): boolean => typeof env.SESSION_SECRET === "string" && env.SESSION_SECRET.length >= 32;
 
 /** Chave por uso, derivada do SESSION_SECRET: assinatura do cookie, hash do código e cifra do segredo TOTP nunca compartilham chave. */
-export function chaveDaCentral(env: Ambiente, uso: "cookie" | "codigo" | "fator"): Buffer {
+export function chaveDaCentral(env: Ambiente, uso: "cookie" | "codigo" | "fator" | "origem"): Buffer {
   if (!segredoDeSessaoOk(env)) throw new Error("SESSION_SECRET (32+ caracteres) é obrigatório no modo produção da central");
   return createHmac("sha256", env.SESSION_SECRET as string).update(`central:${uso}`).digest();
 }
@@ -62,6 +62,8 @@ export const hashDoCodigo = (env: Ambiente, email: string, nonce: string, codigo
   createHmac("sha256", chaveDaCentral(env, "codigo")).update(`${email}:${nonce}:${codigo}`).digest("hex");
 /** O que o banco guarda do nonce (nunca o nonce): quem lê o banco não consegue montar o cookie da etapa. */
 export const hashDoNonce = (env: Ambiente, nonce: string): string => createHmac("sha256", chaveDaCentral(env, "codigo")).update(`nonce:${nonce}`).digest("hex");
+/** O que o banco guarda da origem do pedido (nunca o IP): orçamento de envios por origem (migração 0159). Sem IP legível, todos caem no mesmo balde "desconhecida". */
+export const hashDaOrigem = (env: Ambiente, ip: string): string => createHmac("sha256", chaveDaCentral(env, "origem")).update(`ip:${ip.trim() || "desconhecida"}`).digest("hex");
 export const novoNonce = (): string => randomBytes(16).toString("hex");
 export const NONCE = /^[0-9a-f]{32}$/;
 
