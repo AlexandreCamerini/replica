@@ -27,7 +27,8 @@ async function load(slug: string) {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const r = await load((await params).slug).catch(() => null);
-  return { title: r ? `O que o Congresso votou sobre ${r.t.name}?` : "Tema não encontrado" };
+  const slug = (await params).slug;
+  return { title: r ? `O que o Congresso votou sobre ${r.t.name}?` : "Tema não encontrado", ...(r ? { alternates: { canonical: `/tema/${encodeURIComponent(slug)}` } } : {}) };
 }
 
 const plural = (n: number, um: string, varios: string) => (n === 1 ? `1 ${um}` : `${fmtInt(n)} ${varios}`);

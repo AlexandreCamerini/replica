@@ -55,7 +55,8 @@ const load = cache((slug: string) => (SLUG.test(slug) ? data.getPerson(slug) : P
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const r = await load((await params).slug).catch(() => undefined);
-  return { title: r ? r.person.displayName : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada" };
+  const slug = (await params).slug;
+  return { title: r ? r.person.displayName : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada", ...(r ? { alternates: { canonical: `/pessoa/${encodeURIComponent(slug)}` } } : {}) };
 }
 
 // O que cada cargo decide, em uma frase. Texto próprio, escrito a partir da Constituição Federal.

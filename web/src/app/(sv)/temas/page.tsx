@@ -17,7 +17,7 @@ import { data, type OfficeSlug, type PautaEntry, type PautaOverview } from "@/li
 import { deciders, isUrgent, ofBody, reasonText, typeName, uniqueByKey } from "@/lib/pauta";
 import { compararNomes } from "@/lib/ordem-nomes";
 
-export const metadata: Metadata = { title: "O que está em jogo no Congresso?" };
+export const metadata: Metadata = { title: "O que está em jogo no Congresso?", alternates: { canonical: "/temas" } };
 
 const ptSort = (a: string, b: string) => a.localeCompare(b, "pt-BR");
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

@@ -23,7 +23,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await carregarPessoa((await params).slug).catch(() => undefined);
-  return { title: r ? `Gastos do gabinete · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada" };
+  const slug = (await params).slug;
+  return { title: r ? `Gastos do gabinete · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada", ...(r ? { alternates: { canonical: `/pessoa/${encodeURIComponent(slug)}/gastos` } } : {}) };
 }
 
 /** Só link http(s) da fonte vira link. */

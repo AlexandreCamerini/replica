@@ -15,7 +15,7 @@ import { TEMAS_COOKIE, parseTemas } from "@/components/sv/temas-escolhidos";
 import { MapaVotos } from "@/components/sv/mapa-votos";
 import { data, type Body, type VotingEventDetail } from "@/lib/data";
 
-export const metadata: Metadata = { title: "Como votaram no Congresso?" };
+export const metadata: Metadata = { title: "Como votaram no Congresso?", alternates: { canonical: "/votacoes" } };
 
 const PASSO = 30;
 const TETO = 100; // a fonte devolve no máximo 100 (pg.ts e fake.ts): o que fica de fora é dito, não escondido
