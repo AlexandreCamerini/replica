@@ -1,5 +1,5 @@
 import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
-import { cifrarSegredo, decifrarSegredo, hashDoCodigo, hashDoNonce } from "./sessao-cookie.ts";
+import { cifrarSegredo, decifrarSegredo, hashDaOrigem, hashDoCodigo, hashDoNonce } from "./sessao-cookie.ts";
 import { conferirTotp, paraBase32, uriOtpauth } from "./totp.ts";
 
 // Núcleo do login próprio da central (D335): código por e-mail e segundo fator TOTP, tudo em Postgres. Módulo PURO: persistência, relógio e envio entram por `DepsLogin`,
@@ -7,19 +7,29 @@ import { conferirTotp, paraBase32, uriOtpauth } from "./totp.ts";
 // Quem chama já conferiu que o e-mail é de admin ATIVO (entrada.ts): aqui não se decide quem é admin.
 
 export const CODIGO_VALE_MS = 10 * 60_000;
-export const ENVIOS_POR_HORA = 3;
+/** Envios de código por e-mail por hora. É MAIOR que ORIGEM_POR_HORA de propósito: uma origem sozinha nunca esgota o orçamento de um admin (M12). */
+export const ENVIOS_POR_HORA = 6;
+/** Envios de código por origem (hash do IP) por hora, somando todos os e-mails. */
+export const ORIGEM_POR_HORA = 3;
 export const TENTATIVAS_DO_CODIGO = 5;
 /** Tentativas de TOTP por janela: com 3 códigos válidos em 1.000.000 a cada instante, 5 palpites a cada 15 min dão ~0,14% de acerto por dia de ataque contínuo. */
 export const TENTATIVAS_DO_FATOR = 5;
 export const JANELA_DO_FATOR_MS = 15 * 60_000;
 export const EMISSOR = "Segue o Voto (central)";
 
+/** IP do pedido para o orçamento por origem. Na Vercel o `x-forwarded-for` é reescrito pela borda (não vem do cliente); o primeiro item é o cliente. Sem IP legível, "" (o balde "desconhecida"). */
+export function ipDoPedido(h: { get(nome: string): string | null }): string {
+  const bruto = h.get("x-vercel-forwarded-for") ?? h.get("x-real-ip") ?? h.get("x-forwarded-for") ?? "";
+  const ip = bruto.split(",")[0]?.trim() ?? "";
+  return /^[0-9a-fA-F:.]{2,64}$/.test(ip) ? ip : "";
+}
+
 export type LinhaFator = { segredoCifrado: string; verificado: boolean; ultimoPasso: number | null };
 
 /** Persistência. Cada método é UMA operação atômica no banco: nenhum limite depende de ler e depois gravar. */
 export interface LoginStore {
-  /** Grava o código novo (e o hash do nonce de quem pediu) se o e-mail tem menos de ENVIOS_POR_HORA envios na última hora; false = limite estourado. */
-  emitirCodigo(email: string, hash: string, nonceHash: string, agoraMs: number): Promise<boolean>;
+  /** Grava o código novo (e o hash do nonce de quem pediu) se o e-mail tem menos de ENVIOS_POR_HORA envios na última hora E a origem tem menos de ORIGEM_POR_HORA; registra o envio na origem. false = um dos limites estourou. */
+  emitirCodigo(email: string, hash: string, nonceHash: string, agoraMs: number, origemHash: string): Promise<boolean>;
   /** Conta uma tentativa e devolve o código, SÓ se o nonce é o de quem pediu. null = não há código para este nonce, ou as tentativas acabaram (quem não tem o nonce não gasta tentativa de ninguém). */
   tentarCodigo(email: string, nonceHash: string): Promise<{ hash: string; expiraMs: number } | null>;
   /** Invalida o código SE ainda for este (uso único também sob concorrência), guardando o histórico de envios. false = outro pedido já o consumiu ou trocou. */
@@ -49,10 +59,10 @@ const igual = (a: string, b: string): boolean => a.length === b.length && timing
 
 export function criarLogin(d: DepsLogin) {
   return {
-    /** Emite e envia o código, amarrado ao nonce do navegador que pediu. `false` = limite por hora ou falha de envio (quem chama responde igual nos dois casos e para quem não é admin). */
-    async enviarCodigo(email: string, nonce: string): Promise<boolean> {
+    /** Emite e envia o código, amarrado ao nonce do navegador que pediu. `ip` é o IP do pedido (só o hash chega ao banco). `false` = limite por hora (do e-mail ou da origem) ou falha de envio (quem chama responde igual nos dois casos e para quem não é admin). */
+    async enviarCodigo(email: string, nonce: string, ip: string): Promise<boolean> {
       const codigo = (d.codigoAleatorio ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0")))();
-      if (!(await d.store.emitirCodigo(email, hashDoCodigo(d.env, email, nonce, codigo), hashDoNonce(d.env, nonce), d.agora()))) return false;
+      if (!(await d.store.emitirCodigo(email, hashDoCodigo(d.env, email, nonce, codigo), hashDoNonce(d.env, nonce), d.agora(), hashDaOrigem(d.env, ip)))) return false;
       return d.enviarEmail(email, codigo);
     },
 

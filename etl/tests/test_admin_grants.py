@@ -261,10 +261,12 @@ def test_schemas_sequences_e_banco(su):
 
 
 def test_schema_login_so_as_tabelas_da_central(su):
-    """0157 (D335): no schema `login` o admin_central lê, insere e atualiza SÓ `central_codigos` e `central_fatores`; nunca apaga; nada nas tabelas do login do site."""
+    """0157 (D335): no schema `login` o admin_central lê, insere e atualiza SÓ `central_codigos` e `central_fatores`; nunca apaga; nada nas tabelas do login do site.
+    0159 (M12): `central_envios_origem` (orçamento de envios por origem) é só leitura e inserção: sem update, sem delete."""
     tabelas = {r["relname"] for r in su.execute("select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'login' and c.relkind in ('r', 'p', 'v', 'm')").fetchall()}
     assert {"central_codigos", "central_fatores", "codes", "sessoes_validas_desde"} <= tabelas
-    esperado = {"central_codigos": {"SELECT", "INSERT", "UPDATE"}, "central_fatores": {"SELECT", "INSERT", "UPDATE"}}
+    esperado = {"central_codigos": {"SELECT", "INSERT", "UPDATE"}, "central_fatores": {"SELECT", "INSERT", "UPDATE"}, "central_envios_origem": {"SELECT", "INSERT"}}
+    assert "central_envios_origem" in tabelas
     for t in sorted(tabelas):
         tem = {p for p in ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER") if su.execute("select has_table_privilege(%s, %s, %s) as p", (ROLE, f"login.{t}", p)).fetchone()["p"]}
         assert tem == esperado.get(t, set()), (t, tem)

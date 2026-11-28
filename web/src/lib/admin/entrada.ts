@@ -1,5 +1,6 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { ipDoPedido } from "./login-core.ts";
 import { gravarSessao, loginDaCentral, sessaoDoCookie } from "./login.ts";
 import { captchaOk } from "./provedores.ts";
 import { NONCE, novoNonce } from "./sessao-cookie.ts";
@@ -36,6 +37,7 @@ export async function enviarCodigo(corpo: Record<string, unknown>, relogio: Relo
   if (!email) return completarAte(PISO_ENTRADA_MS, async () => ({ status: 400, corpo: { erro: "Confira o e-mail: falta algo no endereço." } }), relogio);
   const token = textoDe(corpo.turnstile, 4096);
   const nonce = novoNonce();
+  const ip = ipDoPedido(await headers());
   (await cookies()).set(COOKIE_EMAIL, `${email}|${nonce}`, { httpOnly: true, sameSite: "strict", secure: true, path: "/admin", maxAge: 15 * 60 });
   const { pendente } = await responderNoPiso(
     PISO_ENTRADA_MS,
@@ -43,7 +45,7 @@ export async function enviarCodigo(corpo: Record<string, unknown>, relogio: Relo
       try {
         // captcha só para admin: o token é de uso único e a resposta é a mesma de qualquer jeito; quem não é admin não gasta chamada externa nem toca o banco de códigos
         if ((await adminAtivo(email)) && (await captchaOk(token))) {
-          if (!(await loginDaCentral().enviarCodigo(email, nonce))) console.error("[admin] entrada sendCode: limite de envios ou falha do e-mail");
+          if (!(await loginDaCentral().enviarCodigo(email, nonce, ip))) console.error("[admin] entrada sendCode: limite de envios ou falha do e-mail");
         }
       } catch (e) {
         logErro("sendCode", e);
