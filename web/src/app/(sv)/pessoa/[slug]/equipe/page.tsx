@@ -20,7 +20,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ simula
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await carregarPessoa((await params).slug).catch(() => undefined);
-  return { title: r ? `Equipe do gabinete · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada" };
+  const slug = (await params).slug;
+  return { title: r ? `Equipe do gabinete · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada", ...(r ? { alternates: { canonical: `/pessoa/${encodeURIComponent(slug)}/equipe` } } : {}) };
 }
 
 export default async function EquipePessoa({ params, searchParams }: Props) {

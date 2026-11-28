@@ -6,7 +6,7 @@ import { fmtDate, fmtDateTime, fmtInt } from "@/components/sv/fmt";
 import { JaValeLegenda, Lacuna, Nota, Proxima, Quadro, Resposta, VOTO_ORDEM, VotoMarca } from "@/components/sv/ui";
 import { data } from "@/lib/data";
 
-export const metadata: Metadata = { title: "Como funciona?" };
+export const metadata: Metadata = { title: "Como funciona?", alternates: { canonical: "/como-funciona" } };
 
 const VERIFY = [
   "O trecho citado existe, palavra por palavra, no texto oficial.",

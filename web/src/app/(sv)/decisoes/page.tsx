@@ -12,7 +12,7 @@ import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type PautaEntry, type PautaOverview } from "@/lib/data";
 
-export const metadata: Metadata = { title: "O que mexe comigo?" };
+export const metadata: Metadata = { title: "O que mexe comigo?", alternates: { canonical: "/decisoes" } };
 
 const LEIS = 30;
 const byDate = (a: PautaEntry, b: PautaEntry) => a.scheduledFor.localeCompare(b.scheduledFor) || a.key.localeCompare(b.key);

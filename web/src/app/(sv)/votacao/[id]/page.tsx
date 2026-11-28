@@ -18,7 +18,8 @@ const load = (id: string) => (ID.test(id) ? data.getVotingEvent(id) : Promise.re
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const ev = await load((await params).id).catch(() => null);
-  return { title: ev ? `Como foi esta votação? ${ev.proposal?.label ?? ""}`.trim() : "Votação não encontrada" };
+  const id = (await params).id;
+  return { title: ev ? `Como foi esta votação? ${ev.proposal?.label ?? ""}`.trim() : "Votação não encontrada", ...(ev ? { alternates: { canonical: `/votacao/${encodeURIComponent(id)}` } } : {}) };
 }
 
 // Ordem fixa das listas: nunca por tamanho.

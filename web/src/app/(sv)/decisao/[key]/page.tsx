@@ -40,7 +40,8 @@ const load = cache((key: string) => (KEY.test(key) ? data.getPautaProposal(key) 
 
 export async function generateMetadata({ params }: { params: Promise<{ key: string }> }): Promise<Metadata> {
   const p = await load((await params).key).catch(() => undefined);
-  return { title: p ? billLabel(p.entry) : p === undefined ? "Não conseguimos ler agora" : "Decisão não encontrada" };
+  const key = (await params).key;
+  return { title: p ? billLabel(p.entry) : p === undefined ? "Não conseguimos ler agora" : "Decisão não encontrada", ...(p ? { alternates: { canonical: `/decisao/${encodeURIComponent(key)}` } } : {}) };
 }
 
 /** Tipo por extenso + sigla: "projeto de lei (PL)". A sigla nunca aparece sozinha na primeira ocorrência. */

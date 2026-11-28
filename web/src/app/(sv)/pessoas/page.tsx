@@ -15,7 +15,7 @@ import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type OfficeSlug } from "@/lib/data";
 
-export const metadata: Metadata = { title: "Quem está no cargo?" };
+export const metadata: Metadata = { title: "Quem está no cargo?", alternates: { canonical: "/pessoas" } };
 
 const SLUGS: OfficeSlug[] = ["presidente", "vice_presidente", "senador", "deputado_federal", "governador", "vice_governador", "deputado_estadual", "deputado_distrital", "prefeito", "vice_prefeito", "vereador"];
 const isOffice = (s: string | undefined): s is OfficeSlug => !!s && (SLUGS as string[]).includes(s);

@@ -18,7 +18,7 @@ import { lerOuFalhar, simulacao } from "@/components/sv/simular";
 import { Lacuna, Nota, Proxima, Quadro, Resposta, Selo } from "@/components/sv/ui";
 import { data, type PautaOverview, type RepresentativeGroup } from "@/lib/data";
 
-export const metadata: Metadata = { title: { absolute: "Segue o Voto: o que está rolando" } };
+export const metadata: Metadata = { title: { absolute: "Segue o Voto: o que está rolando" }, alternates: { canonical: "/" } };
 
 function lerFollows(raw: string | undefined): string[] {
   try {

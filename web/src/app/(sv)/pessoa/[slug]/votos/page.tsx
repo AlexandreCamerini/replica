@@ -21,7 +21,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await carregarPessoa((await params).slug).catch(() => undefined);
-  return { title: r ? `Votos · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada" };
+  const slug = (await params).slug;
+  return { title: r ? `Votos · ${r.person.displayName}` : r === undefined ? "Não conseguimos ler agora" : "Pessoa não encontrada", ...(r ? { alternates: { canonical: `/pessoa/${encodeURIComponent(slug)}/votos` } } : {}) };
 }
 
 export default async function VotosPessoa({ params, searchParams }: Props) {
